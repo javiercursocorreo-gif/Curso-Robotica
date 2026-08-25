@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!--
+    {
+      "project": "1.3 ASCENSOR BLOQUES PROGRAMACION",
+      "version": "4.0.0-V8",
+      "last_update": "2026-07-05",
+      "improvements": [
+        "1.4.0: Etiquetas de planta optimizadas, persistencia del botón Ejecutar y seguimiento gris del bloque activo.",
+        "2.1.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Conservación intacta de la jugabilidad y estructura didáctica original. Añadida garantía técnica Anti-Pantalla Negra para Safari/macOS.",
+        "3.0.0-V8: Estandarización estética V2 con el look de P2 (modo oscuro ciber-industrial, iluminación de estudio PBR 360°, guías metálicas y OrbitControls) manteniendo el 100% de la lógica intacta.",
+        "4.0.0-V8: Añadida botonera superior de misiones estilo Bloque 1.4 para saltar entre misiones en cualquier momento. Añadido botón VER SOLUCIÓN 💡 que carga la secuencia ideal en la zona de trabajo con notificación dorada. Zona de programación inicial vacía para permitir arrastrar y construir el programa desde cero en todas las misiones. Añadido soporte de clic y arrastre en la paleta."
+      ]
+    }
+    -->
+    <title>P3. PROGRAMACIÓN POR BLOQUES - V2</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --primary-glow: rgba(0, 242, 255, 0.4);
+            --bg-dark: #0a1118;
+            --panel-bg: rgba(16, 26, 36, 0.95);
+            --header-bg: rgba(10, 17, 24, 0.95);
+            --block-up: linear-gradient(135deg, #1e90ff, #0066cc);
+            --block-down: linear-gradient(135deg, #ff8c00, #cc6600);
+            --block-open: linear-gradient(135deg, #00ff66, #00b347);
+            --block-close: linear-gradient(135deg, #ff3333, #cc0000);
+            --block-wait: linear-gradient(135deg, #ffd700, #cca600);
+            --block-active: linear-gradient(135deg, #556677, #334455);
+            --block-done: #111a24;
+            --neon-green: #00ff66;
+            --neon-red: #ff3333;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #111a24 0%, var(--bg-dark) 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: var(--header-bg);
+            border-bottom: 2px solid var(--primary);
+            box-shadow: 0 4px 20px rgba(0, 242, 255, 0.2);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 { 
+            margin: 0; 
+            font-size: 22px; 
+            color: var(--primary); 
+            letter-spacing: 4px; 
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+        header p { margin: 4px 0 0; font-size: 14px; color: #ccc; }
+
+        main { 
+            display: flex; 
+            height: calc(100vh - 75px); 
+            margin-top: 75px; 
+        }
+
+        #panel-izquierdo {
+            width: 42%;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid var(--primary);
+            background: radial-gradient(circle at top left, #162436 0%, #0d1620 100%);
+            padding: 20px;
+            gap: 15px;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        #canvas-container { 
+            width: 58%; 
+            position: relative; 
+            background: #05080c;
+            overflow: hidden;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            outline: none;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        /* SELECTOR DE MISIONES SUPERIOR (Estilo Bloque 1.4) */
+        #mission-selector {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 242, 255, 0.25);
+            flex-shrink: 0;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+        }
+
+        #mission-selector span {
+            font-size: 14px;
+            color: #ccc;
+            font-weight: bold;
+            margin-right: auto;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mission-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            border: 2px solid #334455;
+            background: #111a24;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .mission-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0, 242, 255, 0.3);
+        }
+
+        .mission-btn.active {
+            background: linear-gradient(135deg, #00f2ff, #0088ff);
+            color: #000;
+            border-color: white;
+            box-shadow: 0 0 15px var(--primary);
+            transform: scale(1.08);
+        }
+
+        #mision-info {
+            background: rgba(0, 242, 255, 0.08);
+            padding: 15px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-left: 4px solid var(--primary);
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        #mision-info strong { color: var(--primary); letter-spacing: 1px; }
+
+        #panel-estado {
+            background: rgba(10, 17, 24, 0.9);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--primary);
+            box-shadow: inset 0 0 15px rgba(0, 242, 255, 0.15);
+            display: flex;
+            justify-content: space-around;
+            font-size: 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+            letter-spacing: 1px;
+        }
+
+        .estado-item span {
+            color: var(--primary);
+            font-size: 18px;
+        }
+
+        .bloques-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 14px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+        }
+
+        .bloque {
+            height: 55px;
+            padding: 0 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.15);
+            letter-spacing: 1px;
+        }
+
+        .bloque:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+            filter: brightness(1.1);
+        }
+
+        .bloque:active { cursor: grabbing; }
+
+        .bloque-up { background: var(--block-up); }
+        .bloque-down { background: var(--block-down); }
+        .bloque-open { background: var(--block-open); }
+        .bloque-close { background: var(--block-close); }
+        .bloque-wait { background: var(--block-wait); border: 2px solid #FFD700; color: #000; }
+
+        #zona-secuencia {
+            flex: 1;
+            background: rgba(10, 16, 24, 0.85);
+            border: 2px dashed rgba(0, 242, 255, 0.4);
+            border-radius: 14px;
+            padding: 15px;
+            overflow-y: auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .bloque-instancia { 
+            position: relative; 
+            transition: all 0.3s;
+            width: 100%;
+            justify-content: flex-start !important;
+            padding-left: 20px !important;
+            cursor: grab;
+        }
+        
+        /* ESTADO ACTIVO/PARADO: GRIS */
+        .bloque-instancia.ejecutando {
+            background: var(--block-active) !important;
+            border: 2px solid var(--primary) !important;
+            box-shadow: 0 0 15px var(--primary) !important;
+            z-index: 5;
+            color: #fff !important;
+        }
+
+        .bloque-instancia.error {
+            background: #441111 !important;
+            border: 2px solid #ff3333 !important;
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.8) !important;
+            z-index: 5;
+            color: #fff !important;
+        }
+
+        .bloque-instancia.completado {
+            opacity: 0.45;
+            filter: grayscale(0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn-borrar {
+            position: absolute;
+            right: 12px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-borrar:hover {
+            background: var(--neon-red);
+            border-color: #fff;
+            transform: scale(1.1);
+        }
+
+        .controles-inferiores {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        button.accion {
+            height: 55px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        button.accion:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.5);
+            filter: brightness(1.1);
+        }
+
+        button.accion:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button.accion:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        #btn-ejecutar { 
+            background: linear-gradient(135deg, #00ff66, #00b347); 
+            color: #000; 
+            grid-column: span 2; 
+            height: 60px; 
+            font-size: 18px; 
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
+        }
+        #btn-reiniciar { background: linear-gradient(135deg, #ff9900, #cc7a00); color: white; }
+        #btn-limpiar { background: linear-gradient(135deg, #667788, #445566); color: white; }
+        #btn-solucion {
+            background: linear-gradient(135deg, #ffd700, #cca600);
+            color: #000;
+            grid-column: span 2;
+            height: 50px;
+            font-size: 16px;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+        #btn-siguiente { 
+            background: linear-gradient(135deg, #00f2ff, #0088ff); 
+            color: #000; 
+            display: none; 
+            grid-column: span 2; 
+            height: 65px;
+            font-size: 18px;
+            box-shadow: 0 0 20px var(--primary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        #feedback-overlay {
+            display: none;
+            background: rgba(0, 255, 102, 0.15);
+            border: 2px solid var(--neon-green);
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(0, 255, 102, 0.3);
+            animation: fadeIn 0.4s ease;
+            flex-shrink: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #feedback-overlay h2 { color: var(--neon-green); margin: 0 0 8px 0; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
+        #feedback-overlay p { font-size: 14px; color: #fff; margin: 0; line-height: 1.4; }
+
+        .dragging { opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 id="titulo-mision">PROGRAMA EL ASCENSOR</h1>
+    <p>Arrastra o haz clic en los bloques para construir tu programa y pulsa EJECUTAR.</p>
+</header>
+
+<main>
+    <section id="panel-izquierdo">
+        <!-- SELECTOR DE MISIONES SUPERIOR -->
+        <div id="mission-selector">
+            <span>SELECCIONAR MISIÓN:</span>
+            <button class="mission-btn active" onclick="loadMission(0)">1</button>
+            <button class="mission-btn" onclick="loadMission(1)">2</button>
+            <button class="mission-btn" onclick="loadMission(2)">3</button>
+            <button class="mission-btn" onclick="loadMission(3)">4</button>
+        </div>
+
+        <div id="mision-info">
+            <strong>OBJETIVO:</strong> <span id="mision-texto">...</span>
+            <p id="mision-pista" style="color: #ffd700; margin-top: 8px; font-size: 14px; margin-bottom: 0;"></p>
+        </div>
+
+        <!-- TELEMETRÍA Y ESTADO EN PANEL INTERFAZ (SIN TAPAR EL ASCENSOR 3D) -->
+        <div id="panel-estado">
+            <div class="estado-item">PLANTA: <span id="val-planta">1</span></div>
+            <div class="estado-item">PASAJEROS: <span id="val-pasajeros">0/0</span></div>
+        </div>
+
+        <!-- PANEL DE NOTIFICACIONES / FEEDBACK (INTEGRADO EN INTERFAZ PARA NO TAPAR EL ASCENSOR 3D) -->
+        <div id="feedback-overlay">
+            <h2>¡EXCELENTE!</h2>
+            <p>Misión completada. Puedes repetir la secuencia o avanzar.</p>
+        </div>
+
+        <div class="bloques-container">
+            <div class="bloque bloque-up" draggable="true" data-type="UP">SUBIR 🔼</div>
+            <div class="bloque bloque-down" draggable="true" data-type="DOWN">BAJAR 🔽</div>
+            <div class="bloque bloque-open" draggable="true" data-type="OPEN">ABRIR 🚪</div>
+            <div class="bloque bloque-close" draggable="true" data-type="CLOSE">CERRAR 🔒</div>
+            <div class="bloque bloque-wait" draggable="true" data-type="WAIT">ESPERAR ⏳</div>
+        </div>
+
+        <div id="zona-secuencia"></div>
+
+        <div class="controles-inferiores">
+            <button id="btn-ejecutar" class="accion">EJECUTAR PROGRAMA</button>
+            <button id="btn-reiniciar" class="accion">REINICIAR ESCENARIO</button>
+            <button id="btn-limpiar" class="accion">BORRAR TODO</button>
+            <button id="btn-solucion" class="accion">VER SOLUCIÓN 💡</button>
+            <button id="btn-siguiente" class="accion">¡CONSEGUIDO! SIGUIENTE MISIÓN</button>
+        </div>
+    </section>
+
+    <section id="canvas-container">
+        <!-- Lienzo 3D 100% libre de carteles y avisos -->
+    </section>
+</main>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let scene, camera, renderer, controls, elevator, doors = [], passengers = [], counterweight, cableCabin, cableCounter, pulley;
+    let currentMissionIdx = 0;
+    const FLOOR_HEIGHT = 4;
+    const TOTAL_FLOORS = 5;
+
+    let elevatorState = {
+        floor: 1,
+        doorsOpen: false,
+        pickedUp: [],
+        totalToPick: 0,
+        isRunning: false
+    };
+
+    const missions = [
+        {
+            title: "MISIÓN 1 — TRAYECTO BÁSICO",
+            desc: "El pasajero cian espera en la Planta 1 y quiere ir a la Planta 3. ¡Ábrele la puerta, recógelo y llévalo a su destino!",
+            pista: "Empiezas en Planta 1. Abre/Espera/Cierra para recogerlo, luego sube hasta la Planta 3 y Abre/Espera/Cierra para que baje.",
+            startFloor: 1,
+            passengersData: [
+                { id: 1, from: 1, to: 3, color: 0x00f2ff, name: "Pasajero Cian", waitZ: 0, cabinZ: 0, exitZ: 0 }
+            ],
+            initialBlocks: [],
+            solution: ["OPEN", "WAIT", "CLOSE", "UP", "UP", "OPEN", "WAIT", "CLOSE"]
+        },
+        {
+            title: "MISIÓN 2 — BAJAR AL SÓTANO",
+            desc: "El pasajero magenta está esperando en la Planta 4 y necesita bajar a la Planta 1. Empiezas en la Planta 2.",
+            pista: "Sube 2 plantas hasta la 4 -> Abre/Espera/Cierra (entra) -> Baja 3 plantas hasta la 1 -> Abre/Espera/Cierra (sale).",
+            startFloor: 2,
+            passengersData: [
+                { id: 2, from: 4, to: 1, color: 0xff007f, name: "Pasajero Magenta", waitZ: 0, cabinZ: 0, exitZ: 0 }
+            ],
+            initialBlocks: [],
+            solution: ["UP", "UP", "OPEN", "WAIT", "CLOSE", "DOWN", "DOWN", "DOWN", "OPEN", "WAIT", "CLOSE"]
+        },
+        {
+            title: "MISIÓN 3 — RECORRIDO DOBLE",
+            desc: "¡Dos viajes en uno! En Planta 1 sube el pasajero naranja hacia la Planta 3. En la Planta 3 baja el naranja y sube el pasajero verde hacia la Planta 5.",
+            pista: "En Planta 1 recoge al naranja -> Sube a Planta 3 (al abrir, el naranja baja y el verde sube a la vez) -> Sube a Planta 5 para dejar al verde.",
+            startFloor: 1,
+            passengersData: [
+                { id: 3, from: 1, to: 3, color: 0xffaa00, name: "Pasajero Naranja", waitZ: -0.6, cabinZ: -0.4, exitZ: -0.8 },
+                { id: 4, from: 3, to: 5, color: 0x00ff66, name: "Pasajero Verde", waitZ: 0.6, cabinZ: 0.4, exitZ: 0 }
+            ],
+            initialBlocks: [],
+            solution: ["OPEN", "WAIT", "CLOSE", "UP", "UP", "OPEN", "WAIT", "CLOSE", "UP", "UP", "OPEN", "WAIT", "CLOSE"]
+        },
+        {
+            title: "MISIÓN 4 — RETO LIBRE COMBINADO",
+            desc: "¡Reto Maestro! En Planta 4 sube el morado hacia la Planta 2. En Planta 2 baja el morado y suben DOS pasajeros (amarillo hacia la Planta 5 y rojo hacia la Planta 1). ¡Completa todos los trayectos!",
+            pista: "En Planta 4 recoge al morado -> Baja a la 2 (baja morado, suben amarillo y rojo) -> Sube a la 5 (baja amarillo) -> Baja a la 1 (baja rojo).",
+            startFloor: 4,
+            passengersData: [
+                { id: 5, from: 4, to: 2, color: 0xbf00ff, name: "Pasajero Morado", waitZ: 0, cabinZ: -0.5, exitZ: -0.8 },
+                { id: 6, from: 2, to: 5, color: 0xffff00, name: "Pasajero Amarillo", waitZ: -0.6, cabinZ: 0.5, exitZ: 0.6 },
+                { id: 7, from: 2, to: 1, color: 0xff3300, name: "Pasajero Rojo", waitZ: 0.6, cabinZ: 0.0, exitZ: 0.0 }
+            ],
+            initialBlocks: [],
+            solution: ["OPEN", "WAIT", "CLOSE", "DOWN", "DOWN", "OPEN", "WAIT", "CLOSE", "UP", "UP", "UP", "OPEN", "WAIT", "CLOSE", "DOWN", "DOWN", "DOWN", "DOWN", "OPEN", "WAIT", "CLOSE"]
+        }
+    ];
+
+    function init3D() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a1118);
+
+        const container = document.getElementById('canvas-container');
+        camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(16, 12, 22);
+        camera.lookAt(0, 8, 0);
+
+        renderer = new THREE.WebGLRenderer({ 
+            antialias: true, 
+            alpha: false, 
+            powerPreference: 'high-performance',
+            stencil: false
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 8, 0);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+        // Iluminación volumétrica de estudio de alta intensidad (Estilo P1/P2 V2)
+        scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 3.0));
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 4.0);
+        dirLight.position.set(20, 30, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0xddeeff, 3.0);
+        fillLight.position.set(-20, 20, -20);
+        scene.add(fillLight);
+
+        const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+        pointLight.position.set(-10, 15, 10);
+        scene.add(pointLight);
+
+        const backLight = new THREE.PointLight(0xffffff, 45, 40);
+        backLight.position.set(0, 15, -10);
+        scene.add(backLight);
+
+        // Guías metálicas decorativas en los costados del ascensor (Z = -1.8 y Z = 1.8)
+        const railMat = new THREE.MeshPhysicalMaterial({ color: 0xe0e8f0, metalness: 0.85, roughness: 0.15, clearcoat: 0.5 });
+        const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 24, 0.15), railMat); r1.position.set(0, 12, -1.8); r1.castShadow = true;
+        const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 24, 0.15), railMat); r2.position.set(0, 12, 1.8); r2.castShadow = true;
+        scene.add(r1, r2);
+        
+        for(let i=0; i<TOTAL_FLOORS; i++) {
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(9, 0.25, 9), 
+                new THREE.MeshPhysicalMaterial({color:0x334455, metalness: 0.6, roughness: 0.3, transparent:true, opacity:0.75})
+            );
+            floor.position.y = i * FLOOR_HEIGHT;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            createFloorLabel(i + 1);
+        }
+
+        elevator = new THREE.Group();
+        const cabin = new THREE.Mesh(
+            new THREE.BoxGeometry(3.2, 3.8, 3.2), 
+            new THREE.MeshPhysicalMaterial({color:0xd0e4f8, metalness:0.85, roughness:0.15, clearcoat: 0.5})
+        );
+        cabin.castShadow = true;
+        elevator.add(cabin);
+
+        const doorGeo = new THREE.BoxGeometry(0.1, 3.5, 1.5);
+        const doorMat = new THREE.MeshPhysicalMaterial({color:0xffb000, metalness:0.9, roughness:0.1, emissive:0x884400, emissiveIntensity:0.2});
+        const dL = new THREE.Mesh(doorGeo, doorMat); dL.position.set(1.6, 0, -0.75); dL.castShadow = true;
+        const dR = new THREE.Mesh(doorGeo, doorMat); dR.position.set(1.6, 0, 0.75); dR.castShadow = true;
+        doors = [dL, dR];
+        elevator.add(dL, dR);
+        scene.add(elevator);
+
+        // Contrapeso móvil en naranja seguridad resplandeciente (Estilo P1/P2 V2)
+        const matCounter = new THREE.MeshStandardMaterial({ color: 0xff8800, roughness: 0.2, emissive: 0xff4400, emissiveIntensity: 0.3 });
+        counterweight = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.6, 0.6), matCounter);
+        counterweight.position.set(0, 16, -2.8); counterweight.castShadow = true;
+        scene.add(counterweight);
+
+        // Cables de suspensión en acero trenzado cromado brillante (Estilo P1/P2 V2)
+        const cableMat = new THREE.MeshStandardMaterial({ color: 0xd0e4f8, metalness: 0.9, roughness: 0.1, emissive: 0x003366, emissiveIntensity: 0.3 });
+        cableCabin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1), cableMat);
+        cableCabin.position.set(0, 13, 0);
+        cableCounter = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1), cableMat);
+        cableCounter.position.set(0, 13, -2.8);
+        scene.add(cableCabin, cableCounter);
+
+        // Polea motriz superior
+        pulley = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.5), railMat);
+        pulley.position.set(0, 24.5, -1.4);
+        pulley.rotation.z = Math.PI/2; pulley.castShadow = true;
+        scene.add(pulley);
+
+        window.addEventListener('resize', onWindowResize);
+        setTimeout(onWindowResize, 150);
+        setTimeout(onWindowResize, 500);
+        animate();
+    }
+
+    function createFloorLabel(n) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 128; canvas.height = 128;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,128,128);
+        
+        ctx.fillStyle = 'black';
+        ctx.font = 'bold 90px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(n, 64, 64);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(1.2, 1.2, 1);
+        sprite.position.set(-6, (n-1)*FLOOR_HEIGHT + 1, 4.5);
+        scene.add(sprite);
+    }
+
+    function onWindowResize() {
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    let activeElevatorAnim = null;
+    let activeWalkAnims = [];
+    let activeDoorAnim = null;
+
+    function animate(time) {
+        requestAnimationFrame(animate);
+        if (controls) controls.update();
+        
+        // 1. Animación del ascensor sincronizada al vsync del render (time de rAF) para eliminar microcortes y jitter de performance.now
+        if (activeElevatorAnim) {
+            const anim = activeElevatorAnim;
+            if (anim.start === null) anim.start = time;
+            const t = Math.min((time - anim.start) / anim.duration, 1);
+            const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const curY = anim.startY + (anim.targetY - anim.startY) * easeT;
+            
+            updateElevatorGeometry(curY);
+            if (anim.onStep) anim.onStep(easeT, t);
+            
+            if (t >= 1) {
+                activeElevatorAnim = null;
+                if (anim.onComplete) anim.onComplete();
+                if (anim.resolve) anim.resolve(true);
+            }
+        }
+
+        // 2. Animación de puertas sincronizada al vsync del render (elimina microcortes al abrir/cerrar)
+        if (activeDoorAnim) {
+            const anim = activeDoorAnim;
+            if (anim.start === null) anim.start = time;
+            const t = Math.min((time - anim.start) / anim.duration, 1);
+            const easeT = -(Math.cos(Math.PI * t) - 1) / 2;
+            const curZ = anim.startZ + (anim.targetZ - anim.startZ) * easeT;
+            
+            doors[0].position.z = -curZ;
+            doors[1].position.z = curZ;
+            
+            if (t >= 1) {
+                activeDoorAnim = null;
+                if (anim.resolve) anim.resolve(true);
+            }
+        }
+
+        // 3. Animaciones de caminata de humanoides sincronizadas al vsync del render
+        for (let i = activeWalkAnims.length - 1; i >= 0; i--) {
+            const wAnim = activeWalkAnims[i];
+            if (wAnim.start === null) wAnim.start = time;
+            const t = Math.min((time - wAnim.start) / wAnim.duration, 1);
+            const easeT = -(Math.cos(Math.PI * t) - 1) / 2;
+            
+            wAnim.humanoid.position.x = wAnim.startX + (wAnim.targetX - wAnim.startX) * easeT;
+            wAnim.humanoid.position.z = wAnim.startZ + (wAnim.targetZ - wAnim.startZ) * easeT;
+            
+            if (t < 1) {
+                const swing = Math.sin(t * Math.PI * 6) * 0.8;
+                if (wAnim.limbs) {
+                    wAnim.limbs.armL.rotation.z = swing;
+                    wAnim.limbs.armR.rotation.z = -swing;
+                    wAnim.limbs.legL.rotation.z = -swing;
+                    wAnim.limbs.legR.rotation.z = swing;
+                }
+            } else {
+                if (wAnim.limbs) {
+                    wAnim.limbs.armL.rotation.z = 0;
+                    wAnim.limbs.armR.rotation.z = 0;
+                    wAnim.limbs.legL.rotation.z = 0;
+                    wAnim.limbs.legR.rotation.z = 0;
+                }
+                activeWalkAnims.splice(i, 1);
+                if (wAnim.resolve) wAnim.resolve();
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    // --- LÓGICA ---
+
+    const skinMat = new THREE.MeshPhysicalMaterial({ color: 0xf0c080, roughness: 0.8, metalness: 0.1 });
+    const pantsMat = new THREE.MeshPhysicalMaterial({ color: 0x333399, roughness: 0.9, metalness: 0.1 });
+
+    function createHumanoid(colorHex) {
+        const nGroup = new THREE.Group();
+        
+        const ropaMat = new THREE.MeshPhysicalMaterial({
+            color: colorHex,
+            metalness: 0.3,
+            roughness: 0.3,
+            clearcoat: 0.4,
+            emissive: colorHex,
+            emissiveIntensity: 0.25
+        });
+
+        const buildLimb = (name, w, h, d, px, py, pz, mat) => {
+            const pivot = new THREE.Group();
+            pivot.name = name + "Pivot";
+            pivot.position.set(px, py, pz);
+            nGroup.add(pivot);
+            
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.name = name;
+            mesh.position.y = -h / 2 + 0.05; // cuelga desde el pivot según patrón del skill
+            mesh.castShadow = true;
+            pivot.add(mesh);
+            return pivot;
+        };
+
+        // Torso (BoxGeometry 0.5x0.7x0.3 según skill)
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), ropaMat);
+        torso.position.y = 1.05;
+        torso.castShadow = true;
+        nGroup.add(torso);
+
+        // Cabeza (SphereGeometry diámetro 0.4 según skill)
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), skinMat);
+        head.position.y = 1.6;
+        head.castShadow = true;
+        nGroup.add(head);
+
+        // Visor/gafas para orientación clara en la escena del ascensor
+        const visorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.6 });
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.22), visorMat);
+        visor.position.set(-0.14, 1.62, 0); // frontal (-X)
+        nGroup.add(visor);
+
+        // Extremidades con medidas y pivotes exactos del skill (BoxGeometry low-poly)
+        const armL = buildLimb("armL", 0.15, 0.6, 0.15, -0.35, 1.35, 0, skinMat);
+        const armR = buildLimb("armR", 0.15, 0.6, 0.15,  0.35, 1.35, 0, skinMat);
+        const legL = buildLimb("legL", 0.2,  0.7, 0.2,  -0.15, 0.7,  0, pantsMat);
+        const legR = buildLimb("legR", 0.2,  0.7, 0.2,   0.15, 0.7,  0, pantsMat);
+
+        nGroup.limbs = { armL, armR, legL, legR };
+        nGroup.userData = { limbs: nGroup.limbs };
+        return nGroup;
+    }
+
+    function animateWalk(humanoid, targetX, targetZ, duration = 800) {
+        return new Promise(resolve => {
+            const startX = humanoid.position.x;
+            const startZ = humanoid.position.z;
+            const limbs = humanoid.limbs || (humanoid.userData && humanoid.userData.limbs);
+            humanoid.rotation.y = targetX < startX ? 0 : Math.PI;
+
+            activeWalkAnims.push({
+                humanoid, startX, startZ, targetX, targetZ, duration, start: null, limbs, resolve
+            });
+        });
+    }
+
+    function resetEscenario() {
+        const m = missions[currentMissionIdx];
+        elevatorState.floor = m.startFloor;
+        elevatorState.doorsOpen = false;
+        elevatorState.pickedUp = [];
+        elevatorState.totalToPick = m.passengersData.length;
+        
+        elevator.position.y = (m.startFloor - 1) * FLOOR_HEIGHT + 2;
+        doors[0].position.z = -0.75;
+        doors[1].position.z = 0.75;
+
+        if (counterweight) {
+            const counterY = (TOTAL_FLOORS * FLOOR_HEIGHT) - elevator.position.y;
+            counterweight.position.y = counterY;
+            if (cableCabin) {
+                cableCabin.position.y = (24.5 + elevator.position.y + 2.0) / 2;
+                cableCabin.scale.y = Math.max(0.1, 24.5 - (elevator.position.y + 2.0));
+            }
+            if (cableCounter) {
+                cableCounter.position.y = (24.5 + counterY + 2.0) / 2;
+                cableCounter.scale.y = Math.max(0.1, 24.5 - (counterY + 2.0));
+            }
+        }
+
+        passengers.forEach(p => scene.remove(p.mesh || p));
+        passengers = [];
+        m.passengersData.forEach(pData => {
+            const humanoid = createHumanoid(pData.color);
+            humanoid.position.set(3.6, (pData.from - 1) * FLOOR_HEIGHT + 0.15, pData.waitZ || 0);
+            humanoid.rotation.y = 0; // Mirando hacia el ascensor (-X)
+            scene.add(humanoid);
+            passengers.push({
+                id: pData.id,
+                from: pData.from,
+                to: pData.to,
+                color: pData.color,
+                status: 'WAITING',
+                mesh: humanoid,
+                waitZ: pData.waitZ || 0,
+                cabinZ: pData.cabinZ || 0,
+                exitZ: pData.exitZ || 0
+            });
+        });
+
+        document.querySelectorAll('.bloque-instancia').forEach(b => {
+            b.classList.remove('ejecutando', 'completado', 'error');
+        });
+
+        updateUI();
+    }
+
+    window.loadMission = function(idx) {
+        currentMissionIdx = idx;
+        const m = missions[idx];
+        document.getElementById('titulo-mision').innerText = m.title;
+        document.getElementById('mision-texto').innerText = m.desc;
+        document.getElementById('mision-pista').innerText = m.pista;
+        document.getElementById('btn-siguiente').style.display = 'none';
+        
+        document.querySelectorAll('.mission-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i === idx);
+        });
+
+        const zona = document.getElementById('zona-secuencia');
+        zona.innerHTML = '';
+        m.initialBlocks.forEach(type => addBlockToSequence(type));
+        
+        resetEscenario();
+    };
+
+    function updateUI() {
+        document.getElementById('val-planta').innerText = elevatorState.floor;
+        const delivered = passengers.filter(p => p.status === 'DROPPED_OFF').length;
+        const inCabin = passengers.filter(p => p.status === 'IN_ELEVATOR').length;
+        document.getElementById('val-pasajeros').innerText = `${delivered}/${passengers.length} (En cabina: ${inCabin})`;
+    }
+
+    async function ejecutarSecuencia() {
+        if(elevatorState.isRunning) return;
+        
+        const bloques = document.querySelectorAll('.bloque-instancia');
+        if(bloques.length === 0) return;
+
+        // Siempre reiniciamos el escenario antes de ejecutar para que el programa empiece limpiamente por el principio
+        resetEscenario();
+
+        elevatorState.isRunning = true;
+        toggleButtons(false);
+
+        const bloquesArray = Array.from(bloques);
+        for (let i = 0; i < bloquesArray.length; i++) {
+            const b = bloquesArray[i];
+            if (b.classList.contains('completado')) continue;
+
+            const type = b.dataset.type;
+
+            // Si es UP o DOWN, verificamos si hay varios seguidos para un movimiento fluido continuo
+            if (type === 'UP' || type === 'DOWN') {
+                let count = 0;
+                let j = i;
+                while (j < bloquesArray.length && bloquesArray[j].dataset.type === type && !bloquesArray[j].classList.contains('completado')) {
+                    if (type === 'UP' && (elevatorState.floor + count) >= TOTAL_FLOORS) break;
+                    if (type === 'DOWN' && (elevatorState.floor - count) <= 1) break;
+                    if (elevatorState.doorsOpen) break;
+                    count++;
+                    j++;
+                }
+
+                if (count > 0) {
+                    const success = await moveElevatorFluid(type, count, i, bloquesArray);
+                    if (success) {
+                        i += (count - 1); // Avanzamos el índice por los bloques ejecutados en el combo fluido
+                        continue;
+                    } else {
+                        elevatorState.isRunning = false;
+                        toggleButtons(true);
+                        return;
+                    }
+                }
+            }
+
+            b.classList.add('ejecutando');
+            const zonaScroll = document.getElementById('zona-secuencia');
+            if (zonaScroll && b) {
+                zonaScroll.scrollTop = Math.max(0, b.offsetTop - zonaScroll.offsetTop - 40);
+            }
+
+            const success = await processAction(type);
+            
+            if (success) {
+                b.classList.remove('ejecutando');
+                b.classList.add('completado');
+            } else {
+                b.classList.remove('ejecutando');
+                b.classList.add('error');
+                elevatorState.isRunning = false;
+                toggleButtons(true);
+                return; 
+            }
+        }
+
+        elevatorState.isRunning = false;
+        toggleButtons(true);
+        checkWin();
+    }
+
+    function toggleButtons(enabled) {
+        document.getElementById('btn-ejecutar').disabled = !enabled;
+        document.getElementById('btn-reiniciar').disabled = !enabled;
+        document.getElementById('btn-limpiar').disabled = !enabled;
+        document.getElementById('btn-solucion').disabled = !enabled;
+    }
+
+    async function processAction(type) {
+        return new Promise(async (resolve) => {
+            switch(type) {
+                case 'UP':
+                    if(elevatorState.floor < TOTAL_FLOORS && !elevatorState.doorsOpen) {
+                        elevatorState.floor++;
+                        await moveElevator((elevatorState.floor - 1) * FLOOR_HEIGHT + 2);
+                        updateUI(); resolve(true);
+                    } else resolve(false);
+                    break;
+                case 'DOWN':
+                    if(elevatorState.floor > 1 && !elevatorState.doorsOpen) {
+                        elevatorState.floor--;
+                        await moveElevator((elevatorState.floor - 1) * FLOOR_HEIGHT + 2);
+                        updateUI(); resolve(true);
+                    } else resolve(false);
+                    break;
+                case 'OPEN':
+                    await animateDoors(true);
+                    elevatorState.doorsOpen = true;
+                    
+                    // 1. Primero salen los pasajeros que iban a esta planta
+                    const exiting = passengers.filter(p => p.status === 'IN_ELEVATOR' && p.to === elevatorState.floor);
+                    for (let p of exiting) {
+                        p.status = 'DROPPED_OFF';
+                        await animateWalk(p.mesh, 3.6, p.exitZ, 800);
+                        p.mesh.rotation.y = -Math.PI / 2; // Mirando hacia la cámara o hacia fuera
+                    }
+
+                    // 2. Después suben los pasajeros que esperaban en esta planta
+                    const entering = passengers.filter(p => p.status === 'WAITING' && p.from === elevatorState.floor);
+                    const inCabinCount = passengers.filter(p => p.status === 'IN_ELEVATOR').length;
+                    for (let [idx, p] of entering.entries()) {
+                        p.status = 'IN_ELEVATOR';
+                        await animateWalk(p.mesh, -0.4 + ((inCabinCount + idx) * 0.5), p.cabinZ, 800);
+                        p.mesh.rotation.y = Math.PI; // Mirando hacia las puertas (+X)
+                    }
+
+                    updateUI();
+                    checkWin();
+                    resolve(true);
+                    break;
+                case 'CLOSE':
+                    await animateDoors(false);
+                    elevatorState.doorsOpen = false;
+                    resolve(true);
+                    break;
+                case 'WAIT':
+                    await new Promise(r => setTimeout(r, 1000));
+                    resolve(true);
+                    break;
+            }
+        });
+    }
+
+    function updateElevatorGeometry(curY) {
+        elevator.position.y = curY;
+        passengers.forEach(p => {
+            if (p.status === 'IN_ELEVATOR') {
+                p.mesh.position.y = curY - 1.85;
+            }
+        });
+        
+        if (counterweight) {
+            const counterY = (TOTAL_FLOORS * FLOOR_HEIGHT) - curY;
+            counterweight.position.y = counterY;
+            if (cableCabin) {
+                cableCabin.position.y = (24.5 + curY + 2.0) / 2;
+                cableCabin.scale.y = Math.max(0.1, 24.5 - (curY + 2.0));
+            }
+            if (cableCounter) {
+                cableCounter.position.y = (24.5 + counterY + 2.0) / 2;
+                cableCounter.scale.y = Math.max(0.1, 24.5 - (counterY + 2.0));
+            }
+            if (pulley) {
+                pulley.rotation.x = (curY - 2) * 0.8;
+            }
+        }
+    }
+
+    function moveElevator(targetY) {
+        return new Promise(resolve => {
+            const startY = elevator.position.y;
+            const dist = Math.abs(targetY - startY);
+            const duration = Math.max(1400, (dist / FLOOR_HEIGHT) * 1600);
+            
+            activeElevatorAnim = {
+                startY, targetY, duration, start: null, resolve
+            };
+        });
+    }
+
+    function moveElevatorFluid(type, count, startIndex, bloquesArray) {
+        return new Promise(resolve => {
+            const startFloor = elevatorState.floor;
+            const targetFloor = type === 'UP' ? startFloor + count : startFloor - count;
+            const startY = (startFloor - 1) * FLOOR_HEIGHT + 2;
+            const targetY = (targetFloor - 1) * FLOOR_HEIGHT + 2;
+            const dist = Math.abs(targetY - startY);
+            const duration = Math.max(1400, (dist / FLOOR_HEIGHT) * 1400);
+            
+            let currentBlockOffset = -1;
+
+            activeElevatorAnim = {
+                startY, targetY, duration, start: null, resolve,
+                onStep: (easeT) => {
+                    const progress = easeT * count;
+                    const activeOffset = Math.min(count - 1, Math.floor(progress));
+                    
+                    if (activeOffset !== currentBlockOffset) {
+                        const oldOffset = currentBlockOffset;
+                        currentBlockOffset = activeOffset;
+                        
+                        // Desacoplar ABSOLUTAMENTE TODA manipulación DOM en setTimeout(0) para no causar layout thrashing en el frame WebGL
+                        setTimeout(() => {
+                            if (oldOffset >= 0) {
+                                const prevBlock = bloquesArray[startIndex + oldOffset];
+                                if (prevBlock) {
+                                    prevBlock.classList.remove('ejecutando');
+                                    prevBlock.classList.add('completado');
+                                }
+                            }
+                            const curBlock = bloquesArray[startIndex + currentBlockOffset];
+                            if (curBlock) {
+                                curBlock.classList.add('ejecutando');
+                                const zona = document.getElementById('zona-secuencia');
+                                if (zona) {
+                                    zona.scrollTop = Math.max(0, curBlock.offsetTop - zona.offsetTop - 40);
+                                }
+                            }
+                            elevatorState.floor = type === 'UP' ? startFloor + currentBlockOffset : startFloor - currentBlockOffset;
+                            updateUI();
+                        }, 0);
+                    }
+                },
+                onComplete: () => {
+                    const lastBlock = bloquesArray[startIndex + count - 1];
+                    lastBlock.classList.remove('ejecutando');
+                    lastBlock.classList.add('completado');
+                    elevatorState.floor = targetFloor;
+                    updateUI();
+                }
+            };
+        });
+    }
+
+    function animateDoors(open) {
+        return new Promise(resolve => {
+            const duration = 650;
+            const startZ = open ? 0.75 : 1.75;
+            const targetZ = open ? 1.75 : 0.75;
+            activeDoorAnim = { startZ, targetZ, duration, start: null, resolve };
+        });
+    }
+
+    function checkWin() {
+        const delivered = passengers.filter(p => p.status === 'DROPPED_OFF').length;
+        if (delivered === passengers.length && passengers.length > 0) {
+            document.getElementById('feedback-overlay').style.display = 'block';
+            document.getElementById('btn-siguiente').style.display = 'block';
+            setTimeout(() => document.getElementById('feedback-overlay').style.display = 'none', 3000);
+        }
+    }
+
+    // --- DRAG & DROP Y CLIC PARA AÑADIR ---
+    function addBlockToSequence(type, afterElement = null) {
+        const div = document.createElement('div');
+        div.className = `bloque bloque-instancia bloque-${type.toLowerCase()}`;
+        div.dataset.type = type;
+        div.draggable = true;
+        
+        let label = "";
+        if(type==='UP') label="SUBIR 🔼";
+        if(type==='DOWN') label="BAJAR 🔽";
+        if(type==='OPEN') label="ABRIR 🚪";
+        if(type==='CLOSE') label="CERRAR 🔒";
+        if(type==='WAIT') label="ESPERAR ⏳";
+
+        div.innerHTML = `${label} <button class="btn-borrar">❌</button>`;
+        div.querySelector('.btn-borrar').onclick = (e) => {
+            e.stopPropagation();
+            if (!elevatorState.isRunning) div.remove();
+        };
+
+        div.addEventListener('dragstart', () => div.classList.add('dragging'));
+        div.addEventListener('dragend', () => div.classList.remove('dragging'));
+
+        const zona = document.getElementById('zona-secuencia');
+        if (afterElement) zona.insertBefore(div, afterElement);
+        else zona.appendChild(div);
+    }
+
+    const zona = document.getElementById('zona-secuencia');
+    zona.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = document.querySelector('.dragging');
+        const afterElement = getDragAfterElement(zona, e.clientY);
+        if (dragging && dragging.classList.contains('bloque-instancia')) {
+            zona.insertBefore(dragging, afterElement);
+        }
+    });
+
+    zona.addEventListener('drop', e => {
+        const type = e.dataTransfer.getData('type');
+        if (type) {
+            const afterElement = getDragAfterElement(zona, e.clientY);
+            addBlockToSequence(type, afterElement);
+        }
+    });
+
+    document.querySelectorAll('.bloques-container .bloque').forEach(b => {
+        b.addEventListener('dragstart', e => e.dataTransfer.setData('type', b.dataset.type));
+        b.addEventListener('click', () => {
+            if (!elevatorState.isRunning) {
+                addBlockToSequence(b.dataset.type);
+            }
+        });
+    });
+
+    function getDragAfterElement(container, y) {
+        const elements = [...container.querySelectorAll('.bloque-instancia:not(.dragging)')];
+        return elements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+            else return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // --- EVENTOS ---
+    document.getElementById('btn-ejecutar').onclick = ejecutarSecuencia;
+    document.getElementById('btn-reiniciar').onclick = resetEscenario;
+    document.getElementById('btn-limpiar').onclick = () => {
+        if (!elevatorState.isRunning) {
+            document.getElementById('zona-secuencia').innerHTML = '';
+            resetEscenario();
+        }
+    };
+    document.getElementById('btn-solucion').onclick = () => {
+        if (elevatorState.isRunning) return;
+        const m = missions[currentMissionIdx];
+        const zona = document.getElementById('zona-secuencia');
+        zona.innerHTML = '';
+        m.solution.forEach(type => addBlockToSequence(type));
+        resetEscenario();
+        
+        const feedback = document.getElementById('feedback-overlay');
+        feedback.querySelector('h2').innerText = '💡 SOLUCIÓN CARGADA';
+        feedback.querySelector('h2').style.color = '#ffd700';
+        feedback.style.borderColor = '#ffd700';
+        feedback.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.4)';
+        feedback.querySelector('p').innerText = 'Se han colocado los bloques correctos en orden. ¡Pulsa EJECUTAR PROGRAMA para ver la solución en acción!';
+        feedback.style.display = 'block';
+        setTimeout(() => {
+            feedback.style.display = 'none';
+            feedback.querySelector('h2').style.color = 'var(--neon-green)';
+            feedback.style.borderColor = 'var(--neon-green)';
+            feedback.style.boxShadow = '0 0 40px rgba(0, 255, 102, 0.4)';
+            feedback.querySelector('h2').innerText = '¡EXCELENTE!';
+            feedback.querySelector('p').innerText = 'Misión completada. Puedes repetir la secuencia o avanzar.';
+        }, 3500);
+    };
+
+    document.getElementById('btn-siguiente').onclick = () => {
+        if(currentMissionIdx < missions.length - 1) loadMission(currentMissionIdx + 1);
+        else alert("¡Felicidades! Has completado el entrenamiento de programación de ascensores.");
+    };
+
+    init3D();
+    loadMission(0);
+
+</script>
+</body>
+</html>

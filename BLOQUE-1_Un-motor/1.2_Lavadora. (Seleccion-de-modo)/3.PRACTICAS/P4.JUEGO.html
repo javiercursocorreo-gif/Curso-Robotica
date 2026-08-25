@@ -1,0 +1,1052 @@
+<!--
+{
+  "project": "1.2 LAVADORA JUEGO REPASO",
+  "version": "2.1.0",
+  "last_update": "2026-07-04",
+  "improvements": [
+    "2.0.0: Portada unificada premium, navegación superior libre, Drag & Drop nativo, Emparejar seguro de 5 elementos y Reto Final con simulador Canvas de tambor de lavadora 2D reactivo.",
+    "2.1.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Conservación intacta de la jugabilidad y estructura didáctica original."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — La Lavadora Inteligente</title>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #0d0d1a;
+  --bg2: #13132a;
+  --glass: rgba(0,20,40,0.85);
+  --text: #ffffff;
+  --sub: #aaaaaa;
+  --success: #00e676;
+  --danger: #ff4444;
+  --warning: #ffcc00;
+  --orange: #FF6B35;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 2px solid var(--primary);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+#header h1 { font-size: 22px; color: var(--primary); letter-spacing: 5px; text-transform: uppercase; }
+#header .subtitle { font-size: 14px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: bold; }
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 1px solid #333;
+  display: flex; z-index: 99; padding: 6px 12px; gap: 8px;
+}
+.prog-btn {
+  flex: 1; height: 44px; border: 2px solid #444; background: transparent;
+  color: var(--sub); font-size: 14px; cursor: pointer;
+  border-radius: 8px; transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+}
+.prog-btn.active { border-color: var(--warning); color: var(--warning); background: rgba(255,204,0,0.1); }
+.prog-btn.done { border-color: var(--primary); color: var(--primary); background: rgba(0,242,255,0.1); }
+#main {
+  margin-top: 130px;
+  min-height: calc(100vh - 130px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pantalla {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 800px; width: 100%;
+}
+.pantalla.activa { display: flex; }
+.portada-emojis { font-size: 80px; margin-bottom: 20px; }
+.portada-titulo { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 12px; }
+.portada-desc { font-size: 18px; color: var(--sub); margin-bottom: 30px; max-width: 520px; line-height: 1.6; }
+.badges-container { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 14px 22px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+.btn-empezar {
+  background: var(--primary); color: #000; border: none; padding: 18px 48px;
+  font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer;
+  min-height: 70px; transition: all 0.2s; letter-spacing: 2px;
+}
+.btn-empezar:hover { background: #00d4e0; transform: scale(1.03); }
+
+.game-card {
+  background: var(--glass);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 800px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,242,255,0.08);
+}
+.game-title { font-size: 13px; letter-spacing: 4px; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+.game-question { font-size: 22px; line-height: 1.4; margin-bottom: 28px; color: var(--text); font-weight: 600; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.opt-btn {
+  min-height: 75px; padding: 16px 20px;
+  border: 2px solid #444; background: rgba(255,255,255,0.04);
+  color: var(--text); font-size: 18px; cursor: pointer;
+  border-radius: 12px; transition: all 0.25s;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,68,68,0.1); color: var(--danger); }
+.opt-btn:disabled { cursor: default; }
+
+.feedback {
+  min-height: 60px; padding: 14px 20px;
+  border-radius: 10px; font-size: 18px; margin-bottom: 18px;
+  display: none; line-height: 1.4;
+}
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,230,118,0.15); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+.btn-siguiente {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-siguiente.show { display: block; }
+.btn-siguiente:hover { background: #00d4e0; transform: translateY(-2px); }
+
+.btn-solucion {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--warning); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-solucion.show { display: block; }
+.btn-solucion:hover { background: #e6b800; transform: translateY(-2px); }
+
+.btn-reiniciar {
+  min-height: 55px; padding: 0 24px;
+  background: transparent; border: 2px solid #555; color: var(--sub);
+  border-radius: 10px; font-size: 16px; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-top: 14px;
+}
+.btn-reiniciar:hover { border-color: var(--warning); color: var(--warning); }
+
+/* Sortable items */
+.sortable-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.sort-item {
+  min-height: 70px; padding: 14px 20px;
+  background: rgba(0,191,165,0.08); border: 2px solid var(--teal);
+  border-radius: 12px; font-size: 18px; cursor: grab;
+  display: flex; align-items: center; gap: 14px;
+  user-select: none; transition: all 0.2s;
+}
+.sort-item:active { cursor: grabbing; }
+.sort-item.dragging { opacity: 0.4; }
+.sort-item.over { border: 2px dashed var(--warning) !important; background: rgba(255,204,0,0.08) !important; }
+.sort-num {
+  width: 36px; height: 36px; background: var(--teal);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 16px; color: #000; flex-shrink: 0;
+}
+.btn-verificar {
+  min-height: 75px; width: 100%;
+  background: var(--orange); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-bottom: 12px;
+}
+.btn-verificar:hover { background: #e55c28; }
+
+/* Match grid */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-item {
+  min-height: 70px; padding: 14px 16px;
+  border: 2px solid #444; border-radius: 10px;
+  font-size: 17px; cursor: pointer; transition: all 0.25s;
+  display: flex; align-items: center; line-height: 1.3;
+}
+.match-item.left { background: rgba(255,107,53,0.1); border-color: var(--orange); }
+.match-item.right { background: rgba(0,191,165,0.1); border-color: var(--teal); }
+.match-item.selected { transform: scale(1.03); box-shadow: 0 0 20px rgba(0,242,255,0.4); border-color: var(--primary); }
+.match-item.matched { opacity: 0.5; cursor: default; border-style: dashed; }
+.match-item.match-ok { border-color: var(--success); background: rgba(0,230,118,0.12); color: var(--success); }
+.match-item.match-ko { border-color: var(--danger); background: rgba(255,68,68,0.1); animation: shake 0.4s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+/* 2D CANVAS DRUM HUD */
+.sim-washer-container {
+  width: 100%; background: #0c0c1e; border: 2px solid var(--primary);
+  border-radius: 12px; position: relative; margin-bottom: 20px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; padding: 20px 10px;
+}
+#washer-canvas {
+  background: #111126;
+  border-radius: 50%;
+  border: 6px solid #444;
+  box-shadow: 0 0 25px rgba(0,242,255,0.25);
+  margin-bottom: 12px;
+}
+.washer-stats {
+  display: flex; gap: 20px; justify-content: center; width: 100%; flex-wrap: wrap;
+}
+.stat-box {
+  background: rgba(0,242,255,0.06); border: 1px solid var(--primary);
+  border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 100px;
+}
+.stat-lbl { font-size: 11px; text-transform: uppercase; color: var(--sub); margin-bottom: 2px; }
+.stat-val { font-size: 16px; font-weight: bold; color: var(--primary); }
+
+#final-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px;
+}
+.trophy { font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite alternate; }
+.final-title { font-size: 32px; color: var(--primary); letter-spacing: 4px; margin-bottom: 12px; }
+.final-score { font-size: 22px; color: var(--warning); margin-bottom: 30px; }
+.btn-replay {
+  min-height: 75px; padding: 0 48px;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 16px;
+  font-size: 22px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; letter-spacing: 2px;
+}
+.btn-replay:hover { background: #00d4e0; }
+
+@media (max-width: 768px) {
+  #header { height: auto; padding: 10px; flex-direction: column; gap: 5px; align-items: flex-start; }
+  #score-display { text-align: left !important; font-size: 18px; }
+  #progress-bar { top: 105px; }
+  #main { margin-top: 165px; min-height: calc(100vh - 165px); }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>La Lavadora</h1>
+    <div class="subtitle">Repaso · Selección de modo</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Ordenar</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar</button>
+  <button class="prog-btn" onclick="goGame(3)">🎯 Reto Final</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">🧺🌀</div>
+    <div class="portada-titulo">¿Cómo decide una lavadora su ciclo de lavado?</div>
+    <div class="portada-desc">4 retos interactivos sobre selección de modos, motores, termostatos y control inteligente.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial</div>
+      <div class="badge-card">📦 Ordenar</div>
+      <div class="badge-card">🔗 Emparejar</div>
+      <div class="badge-card">🎯 Reto Final</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡EMPEZAR!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 800px;"></div>
+</div>
+
+<script>
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0;
+  currentGame = 0;
+  completedGames.fill(false);
+  updateScore(0);
+  updateProgressBar();
+  game1();
+}
+
+function goGame(n) {
+  currentGame = n;
+  updateProgressBar();
+  games[n]();
+}
+
+function nextGame() {
+  completedGames[currentGame] = true;
+  updateProgressBar();
+  if (currentGame < 3) {
+    currentGame++;
+    updateProgressBar();
+    games[currentGame]();
+  } else {
+    showFinal();
+  }
+}
+
+// ─── JUEGO 1: TRIVIAL (5 Preguntas) ──────────────────────────────────────────
+const trivia = [
+  {
+    q: "¿Qué hace el tambor durante el LAVADO principal?",
+    opts: [
+      "Gira despacio alternando dirección periódicamente",
+      "Gira rápido en una sola dirección",
+      "Está completamente parado",
+      "Gira siempre hacia la derecha a 1200 rpm"
+    ],
+    ok: 0,
+    exp: "✅ En el lavado el tambor gira de forma lenta y alterna el sentido para imitar el frotado a mano sin dañar la ropa."
+  },
+  {
+    q: "¿Por qué el tambor alterna la dirección de giro durante el ciclo de lavado?",
+    opts: [
+      "Para agitar mejor la ropa y desprender la suciedad en todas direcciones",
+      "Para gastar menos electricidad en el motor",
+      "Para que el motor no se sobrecaliente al girar siempre igual",
+      "Porque no tiene suficiente fuerza para girar en un solo sentido"
+    ],
+    ok: 0,
+    exp: "✅ Alternar el giro distribuye la ropa uniformemente y ayuda a desprender la suciedad de forma mucho más eficaz."
+  },
+  {
+    q: "¿Cuál es la diferencia clave de funcionamiento del motor entre el lavado y el centrifugado?",
+    opts: [
+      "Lavado: lento y alternado. Centrifugado: rápido y continuo.",
+      "Lavado: rápido y continuo. Centrifugado: lento y alternado.",
+      "No hay diferencia, gira a las mismas revoluciones por minuto.",
+      "Lavado: agua fría constante. Centrifugado: agua caliente constante."
+    ],
+    ok: 0,
+    exp: "✅ El lavado requiere suavidad para limpiar; el centrifugado necesita la máxima velocidad constante para exprimir el agua."
+  },
+  {
+    q: "¿Qué componente se encarga de calentar el agua a la temperatura indicada en el programa?",
+    opts: [
+      "La resistencia calefactora",
+      "El termostato",
+      "La bomba de desagüe",
+      "El motor de transmisión"
+    ],
+    ok: 0,
+    exp: "✅ La resistencia eléctrica se sumerge en la base de la cuba y calienta el agua por efecto Joule hasta el valor deseado."
+  },
+  {
+    q: "¿Cuál es la función del termostato en la lavadora?",
+    opts: [
+      "Medir y controlar la temperatura para que la centralita decida cuándo apagar la resistencia",
+      "Abrir el conducto de paso del agua fría",
+      "Medir las revoluciones por minuto del motor principal",
+      "Filtrar la pelusa y objetos extraños antes del vaciado"
+    ],
+    ok: 0,
+    exp: "✅ El termostato es un sensor de temperatura que informa a la centralita si el agua ya alcanzó los grados programados."
+  }
+];
+
+let triviaIdx = 0;
+let triviaAnswered = false;
+let triviaAttempts = 0;
+
+function game1() {
+  triviaIdx = 0;
+  renderTrivia();
+}
+
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx];
+  triviaAnswered = false;
+  triviaAttempts = 0;
+  
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(q.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial · Pregunta ${triviaIdx+1} de ${trivia.length}</div>
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE →</button>
+      <button class="btn-reiniciar" onclick="game1()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = q.exp;
+    if (triviaAttempts === 0) {
+      updateScore(20);
+    } else {
+      updateScore(10);
+    }
+    document.getElementById('btn-sol').classList.remove('show');
+    document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es correcto. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show');
+  document.getElementById('btn-sig').classList.add('show');
+}
+
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR (6 Pasos) ──────────────────────────────────────────────
+const sortItems = [
+  { id: '1', text: '💧 Se abre la electroválvula para dar paso a la entrada de agua y detergente' },
+  { id: '2', text: '🔴 La resistencia eléctrica calienta el agua a la temperatura elegida' },
+  { id: '3', text: '🌀 El tambor gira despacio en sentidos alternos para lavar la ropa' },
+  { id: '4', text: '🔽 La bomba de desagüe expulsa el agua sucia al exterior' },
+  { id: '5', text: '💧 Se introduce agua limpia para aclarar y retirar restos de jabón' },
+  { id: '6', text: '⚡ El motor gira a alta velocidad de forma continua (centrifugado) para escurrir' }
+];
+const sortCorrect = ['1', '2', '3', '4', '5', '6'];
+let sortCurrentOrder = [];
+let sortDone = false;
+let sortAttempts = 0;
+
+function game2() {
+  sortCurrentOrder = shuffleArray([...sortItems]);
+  sortDone = false;
+  sortAttempts = 0;
+  renderSort();
+}
+
+function renderSort() {
+  const html = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Ciclo de Lavado</div>
+      <div class="game-question">Ordena cronológicamente las fases de un ciclo estándar de lavado inteligente de principio a fin.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div>
+            <span>${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  initDragSort();
+}
+
+function initDragSort() {
+  const list = document.getElementById('sort-list');
+  let draggingItem = null;
+
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => {
+      draggingItem = item;
+      item.classList.add('dragging');
+    });
+
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      draggingItem = null;
+    });
+
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      item.classList.add('over');
+    });
+
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('over');
+    });
+
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      item.classList.remove('over');
+      if (draggingItem && draggingItem !== item) {
+        const children = Array.from(list.children);
+        const fromIdx = children.indexOf(draggingItem);
+        const toIdx = children.indexOf(item);
+        
+        // Swap items in memory array
+        const temp = sortCurrentOrder[fromIdx];
+        sortCurrentOrder[fromIdx] = sortCurrentOrder[toIdx];
+        sortCurrentOrder[toIdx] = temp;
+        
+        renderSort();
+      }
+    });
+  });
+}
+
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Excelente! La lavadora sigue estrictamente este orden físico y lógico.';
+    if (sortAttempts === 0) {
+      updateScore(30);
+    }
+    sortDone = true;
+    disableDrag();
+    document.getElementById('btn-sol2').classList.remove('show');
+    document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ El orden no es el adecuado. Piensa qué ocurre antes: ¿lavar, aclarar o calentar el agua?';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+
+function disableDrag() {
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.setAttribute('draggable', 'false');
+    el.style.cursor = 'default';
+  });
+}
+
+function showSortSolution() {
+  sortDone = true;
+  const list = document.getElementById('sort-list');
+  list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `<div class="sort-num">${i+1}</div><span>${item.text}</span>`;
+    list.appendChild(div);
+  });
+  const fb = document.getElementById('fb-sort');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Este es el recorrido temporal de la lavadora.';
+  disableDrag();
+  document.getElementById('btn-sol2').classList.remove('show');
+  document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR (5 Conceptos) ─────────────────────────────────────────
+const matchPairs = [
+  { left: '⚙️ Motor principal', right: 'Hace girar el tambor a diferentes velocidades' },
+  { left: '🔴 Resistencia eléctrica', right: 'Calienta el agua en el fondo de la cuba' },
+  { left: '🌡️ Termostato', right: 'Envía información de temperatura a la centralita' },
+  { left: '💧 Electroválvula', right: 'Controla el caudal de entrada de agua del grifo' },
+  { left: '🔽 Bomba de desagüe', right: 'Impulsa el agua usada hacia las tuberías exteriores' }
+];
+
+let matchSelected = null;
+let matchDone = 0;
+let matchAutoCount = 0;
+
+function game3() {
+  matchSelected = null;
+  matchDone = 0;
+  matchAutoCount = 0;
+  
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Componentes</div>
+      <div class="game-question">Asocia cada parte del sistema con su correspondiente tarea física.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">
+          ${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+        <div class="match-col" id="right-col">
+          ${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function selectMatch(el) {
+  if (el.classList.contains('matched') || el.classList.contains('match-ok')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) {
+    if (side !== 'left') return;
+    matchSelected = el;
+    el.classList.add('selected');
+  } else {
+    if (side !== 'right') {
+      matchSelected.classList.remove('selected');
+      el.classList.add('selected');
+      matchSelected = el;
+      return;
+    }
+    const idxA = parseInt(matchSelected.dataset.idx);
+    const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('matched', 'match-ok');
+      el.classList.add('matched', 'match-ok');
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        const ownMatches = matchPairs.length - matchAutoCount;
+        updateScore(ownMatches * 6);
+        const fb = document.getElementById('fb-match');
+        fb.className = 'feedback show ok';
+        fb.textContent = '✅ ¡Enhorabuena! Has emparejado todos los elementos correctamente.';
+        document.getElementById('btn-sol3').classList.remove('show');
+        document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('match-ko');
+      el.classList.add('match-ko');
+      const prev = matchSelected;
+      setTimeout(() => { prev.classList.remove('match-ko'); el.classList.remove('match-ko'); }, 600);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+
+function showMatchSolution() {
+  const lefts = document.querySelectorAll('#left-col .match-item');
+  const rights = document.querySelectorAll('#right-col .match-item');
+  
+  lefts.forEach(l => {
+    if (!l.classList.contains('matched')) l.classList.add('matched', 'match-ok');
+  });
+  rights.forEach(r => {
+    if (!r.classList.contains('matched')) r.classList.add('matched', 'match-ok');
+  });
+  
+  matchAutoCount = matchPairs.length - matchDone;
+  matchDone = matchPairs.length;
+  
+  const fb = document.getElementById('fb-match');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes todas las uniones correctas.';
+  document.getElementById('btn-sol3').classList.remove('show');
+  document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL (4 Escenarios con HUD Canvas) ────────────────────────
+const scenarios = [
+  {
+    desc: "Queremos lavar prendas de algodón muy sucias y el manual recomienda lavar a alta temperatura.",
+    q: "¿Qué parámetros y modo de ciclo debe aplicar el microcontrolador de la lavadora?",
+    ops: [
+      "Ciclo Algodón a 60°C y centrifugado potente a 1200 rpm",
+      "Ciclo Delicado en frío y centrifugado suave a 400 rpm",
+      "Ciclo rápido en frío y sin centrifugado",
+      "Solo vaciado de cuba sin girar el tambor"
+    ],
+    ok: 0,
+    exp: "Las prendas de algodón toleran altas temperaturas y requieren alta velocidad para escurrir eficientemente.",
+    rpm: 45,
+    temp: "60 °C",
+    mode: "ALGODÓN",
+    isCentrifugado: false
+  },
+  {
+    desc: "Queremos limpiar una manta de lana muy delicada y sensible al desgaste mecánico.",
+    q: "¿Qué combinación de motor, agua y velocidad protege mejor el tejido?",
+    ops: [
+      "Centrifugado prolongado a 1200 rpm con agua caliente",
+      "Ciclo Lana/Delicado, agua fría/templada (30°C) y centrifugado suave (400 rpm) o nulo",
+      "Ciclo de algodón a 90°C con agitación rápida alternante",
+      "Mantener el tambor parado a 60°C durante dos horas continuas"
+    ],
+    ok: 1,
+    exp: "La lana necesita giros muy espaciados, agua fría/templada y muy bajas revoluciones para no apelmazarse.",
+    rpm: 25,
+    temp: "30 °C",
+    mode: "LANA",
+    isCentrifugado: false
+  },
+  {
+    desc: "El ciclo de aclarado ha finalizado. La cuba ya se ha vaciado pero la ropa está empapada en agua limpia.",
+    q: "¿Qué acción de control físico debe activar la centralita a continuación?",
+    ops: [
+      "Activar el modo Centrifugado continuo del motor a alta velocidad (1000+ rpm)",
+      "Volver a meter agua y detergente en el tambor",
+      "Calentar el agua a 90°C con la resistencia",
+      "Apagar el sistema sin evacuar la humedad de las prendas"
+    ],
+    ok: 0,
+    exp: "El centrifugado continuo exprime el agua sobrante de los tejidos aplicando fuerza centrífuga a alta velocidad.",
+    rpm: 300,
+    temp: "---",
+    mode: "CENTRIFUGADO",
+    isCentrifugado: true
+  },
+  {
+    desc: "Acabamos de meter la ropa en la lavadora, seleccionamos el modo 'Rápido 30 min' y pulsamos el botón de inicio.",
+    q: "¿Cuál es el primer paso del algoritmo que inicia físicamente la centralita?",
+    ops: [
+      "Abrir la electroválvula de entrada de agua para llenar la cuba y mezclar el jabón",
+      "Girar el motor principal a 1200 rpm sin meter agua",
+      "Calentar la resistencia eléctrica al máximo sin agua en el depósito",
+      "Hacer sonar la campana de fin del ciclo de lavado"
+    ],
+    ok: 0,
+    exp: "Antes de mover la ropa o calentar la cuba, el sistema debe llenarse de agua limpia para disolver el jabón.",
+    rpm: 0,
+    temp: "Fría",
+    mode: "LLENADO",
+    isCentrifugado: false
+  }
+];
+
+let scIdx = 0;
+let scAnswered = false;
+let scAttempts = 0;
+let angle = 0;
+let animationId = null;
+let alternatingTimer = 0;
+let dirSign = 1;
+
+function game4() {
+  scIdx = 0;
+  angle = 0;
+  alternatingTimer = 0;
+  dirSign = 1;
+  renderScenario();
+}
+
+function renderScenario() {
+  if (scIdx >= scenarios.length) { nextGame(); return; }
+  const s = scenarios[scIdx];
+  scAnswered = false;
+  scAttempts = 0;
+
+  const shuffledOps = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffledOps.indexOf(s.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Reto Final · Escenario ${scIdx+1} de ${scenarios.length}</div>
+      <div class="game-question" style="margin-bottom:12px;">${s.desc}</div>
+      
+      <!-- HUD DE LA LAVADORA -->
+      <div class="sim-washer-container">
+        <canvas id="washer-canvas" width="180" height="180"></canvas>
+        <div class="washer-stats">
+          <div class="stat-box">
+            <div class="stat-lbl">Modo</div>
+            <div class="stat-val" id="hud-mode">${s.mode}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-lbl">Motor (RPM)</div>
+            <div class="stat-val" id="hud-rpm">${s.rpm > 0 ? (s.isCentrifugado ? '1200' : '45') : '0'} RPM</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-lbl">Temperatura</div>
+            <div class="stat-val" id="hud-temp">${s.temp}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="game-question" style="font-size:19px; color:var(--warning); margin-bottom:18px;">${s.q}</div>
+      
+      <div class="options-grid">
+        ${shuffledOps.map((idx, pos) => `
+          <button class="opt-btn" onclick="answerScenario(this, ${pos}, ${correctShuffled})">${s.ops[idx]}</button>
+        `).join('')}
+      </div>
+
+      <div class="feedback" id="fb-sc"></div>
+      <button class="btn-solucion" id="btn-sol4" onclick="showScenarioSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig4" onclick="scenarioNext()">SIGUIENTE →</button>
+      <button class="btn-reiniciar" onclick="game4()">REINICIAR JUEGO</button>
+    </div>`;
+
+  document.getElementById('game-area').innerHTML = html;
+  
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+  }
+  startWasherAnimation(s);
+}
+
+function startWasherAnimation(s) {
+  const canvas = document.getElementById('washer-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  function frame() {
+    if (!canvas) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = 70;
+    
+    // Draw outer drum background
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e1e36';
+    ctx.fill();
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    
+    // Animate drum rotation angle
+    if (s.rpm > 0) {
+      if (s.isCentrifugado) {
+        angle += 0.2; // Continuous fast
+      } else {
+        // Alternating slow
+        angle += 0.03 * dirSign;
+        alternatingTimer++;
+        if (alternatingTimer > 120) {
+          dirSign *= -1;
+          alternatingTimer = 0;
+        }
+      }
+    }
+    
+    // Draw ribs inside the drum
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.strokeStyle = '#00f2ff';
+    ctx.lineWidth = 5;
+    
+    // Draw 3 paddles inside the drum
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * (radius - 5), Math.sin(a) * (radius - 5));
+      ctx.stroke();
+    }
+    
+    // Draw circles/dots representing holes in the drum
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI * 2) / 8;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * 40, Math.sin(a) * 40, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    
+    // Draw clothes emoji spinning inside or bouncing
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (s.rpm > 0) {
+      ctx.rotate(angle * 0.8);
+      // If centrifuging, clothes stick to the walls (offset from center)
+      const offset = s.isCentrifugado ? 40 : 15;
+      ctx.fillText('👕', offset, 0);
+      ctx.fillText('🧦', -offset, -10);
+    } else {
+      // Sitting at the bottom
+      ctx.fillText('👕', -10, 40);
+      ctx.fillText('🧦', 15, 45);
+    }
+    ctx.restore();
+    
+    // Water simulation in the drum
+    if (s.mode !== 'CENTRIFUGADO' && s.mode !== 'LLENADO') {
+      ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 2, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.fill();
+      
+      // Draw simple water level bubbles
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      for (let i = 0; i < 5; i++) {
+        const bx = cx - 30 + i * 15 + Math.sin(Date.now() / 200 + i) * 3;
+        const by = cy + 40 + Math.cos(Date.now() / 150 + i) * 3;
+        ctx.beginPath();
+        ctx.arc(bx, by, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (s.mode === 'LLENADO') {
+      // Filling water animation (rising)
+      const fillHeight = 35 + Math.sin(Date.now() / 300) * 5;
+      ctx.fillStyle = 'rgba(0, 242, 255, 0.15)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius - 2, Math.PI * 0.35, Math.PI * 0.65);
+      ctx.fill();
+      
+      // Vertical dripping lines from top
+      ctx.strokeStyle = 'rgba(0, 242, 255, 0.3)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++) {
+        const x = cx - 20 + i * 20;
+        const yStart = cy - 50 + (Date.now() / 5 + i * 15) % 40;
+        ctx.beginPath();
+        ctx.moveTo(x, yStart);
+        ctx.lineTo(x, yStart + 8);
+        ctx.stroke();
+      }
+    }
+    
+    animationId = requestAnimationFrame(frame);
+  }
+  
+  frame();
+}
+
+function answerScenario(btn, pos, correctPos) {
+  if (scAnswered) return;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  const fb = document.getElementById('fb-sc');
+  
+  if (pos === correctPos) {
+    scAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Excelente! ' + s.exp;
+    if (scAttempts === 0) {
+      updateScore(25);
+    } else {
+      updateScore(10);
+    }
+    document.getElementById('btn-sol4').classList.remove('show');
+    document.getElementById('btn-sig4').classList.add('show');
+  } else {
+    scAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ Respuesta incorrecta. Vuelve a analizar el tipo de tejido o la fase del ciclo.';
+    document.getElementById('btn-sol4').classList.add('show');
+  }
+}
+
+function showScenarioSolution(correctPos) {
+  scAnswered = true;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb-sc');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + s.exp;
+  document.getElementById('btn-sol4').classList.remove('show');
+  document.getElementById('btn-sig4').classList.add('show');
+}
+
+function scenarioNext() {
+  scIdx++;
+  renderScenario();
+}
+
+// ─── FINAL SCREEN ───────────────────────────────────────────────────────────
+function showFinal() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+  }
+  document.getElementById('progress-bar').style.display = 'none';
+  document.getElementById('game-area').innerHTML = `
+    <div id="final-screen" style="display: flex;">
+      <div class="trophy">🏆</div>
+      <div class="final-title">¡Desafío Lavadora Completado!</div>
+      <div class="final-score">Puntuación Total: ${score} puntos</div>
+      <p style="font-size:18px; color:var(--sub); margin-bottom:30px; max-width:600px; line-height:1.6;">
+        ¡Enhorabuena! Has aprendido cómo decide una lavadora su ciclo de lavado mediante sensores, resistencias, termostatos y el control diferencial de velocidades del motor.
+      </p>
+      <button class="btn-replay" onclick="iniciar()">VOLVER A JUGAR 🔄</button>
+    </div>`;
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

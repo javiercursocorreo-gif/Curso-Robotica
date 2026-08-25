@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>ROBOT PROGRAMMER - CIRCUIT MASTER</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --bg-dark: #0a0a0a;
+            --panel-bg: #1a1a1a;
+            --text-main: #ffffff;
+            --green: #27ae60;
+            --blue: #2980b9;
+            --dark-blue: #1a5276;
+            --gold: #FFD700;
+            --crash: #e74c3c;
+            --purple: #8e44ad;
+            --executed: #333333; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        header {
+            position: fixed; top: 0; width: 100%; height: 60px;
+            background: rgba(0, 0, 0, 0.9); border-bottom: 2px solid var(--primary);
+            display: flex; justify-content: center; align-items: center; z-index: 100;
+        }
+        header h1 { color: var(--primary); font-size: 18px; text-transform: uppercase; letter-spacing: 2px; }
+
+        main { margin-top: 60px; display: flex; flex: 1; height: calc(100vh - 60px); }
+
+        #editor {
+            width: 35%; background: var(--panel-bg); border-right: 2px solid #333;
+            display: flex; flex-direction: column; padding: 15px; overflow: hidden;
+        }
+
+        .mission-selector {
+            display: flex; gap: 5px; margin-bottom: 10px; justify-content: center;
+            background: #252525; padding: 8px; border-radius: 8px; flex-wrap: wrap;
+        }
+        .sel-btn {
+            width: 35px; height: 35px; border: 1px solid #444; background: #333;
+            color: white; border-radius: 4px; cursor: pointer; font-weight: bold;
+        }
+        .sel-btn.active { background: var(--primary); color: black; border-color: white; }
+
+        .mission-info {
+            background: #252525; padding: 10px; border-radius: 8px; margin-bottom: 15px;
+            border-left: 5px solid var(--primary);
+        }
+        .mission-info h2 { font-size: 15px; color: var(--primary); margin-bottom: 3px; }
+        .mission-info p { font-size: 13px; color: #ccc; }
+
+        .toolbox { display: flex; gap: 8px; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 15px; }
+
+        .workspace {
+            flex: 1; background: #0a0a0a; border: 2px dashed #333; border-radius: 10px;
+            padding: 10px; display: flex; flex-direction: column; gap: 8px;
+            overflow-y: auto; padding-bottom: 150px; 
+        }
+
+        .block {
+            min-height: 48px; padding: 0 12px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 13px; font-weight: bold; cursor: grab; user-select: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4); transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        .block.avanzar { background-color: var(--green); }
+        .block.derecha { background-color: var(--blue); }
+        .block.izquierda { background-color: var(--dark-blue); }
+
+        .block.executed { background-color: var(--executed) !important; color: #888; opacity: 0.7; border-color: #444; }
+        .block.active-glow { border: 2px solid white !important; box-shadow: 0 0 15px var(--primary); transform: scale(1.05); z-index: 10; }
+        .block.error-highlight { background-color: var(--crash) !important; color: white; animation: shake 0.3s infinite; opacity: 1 !important; }
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(4px); } 75% { transform: translateX(-4px); } }
+
+        .btn-del { background: rgba(0,0,0,0.3); border: none; color: white; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; }
+
+        .actions { padding-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn-gui { height: 45px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        #btn-run { background: var(--green); color: white; grid-column: span 2; height: 60px; font-size: 16px; }
+        #btn-clear { background: #444; color: white; }
+        #btn-next { background: var(--purple); color: #fff; display: none; }
+        .btn-gui:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        #viewport { width: 65%; position: relative; background: #050505; }
+        .msg-overlay {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.95); padding: 15px 30px; border-radius: 10px;
+            border: 2px solid var(--primary); font-size: 16px; font-weight: bold;
+            display: none; z-index: 50; text-align: center;
+        }
+        .dragging { opacity: 0.4; }
+    </style>
+</head>
+<body>
+
+    <header><h1>ROBOT PROGRAMMER — MISIONES TÉCNICAS</h1></header>
+
+    <main>
+        <section id="editor">
+            <div class="mission-selector" id="mission-selector"></div>
+            <div class="mission-info">
+                <h2 id="m-name">Misión</h2>
+                <p id="m-desc">Selecciona una misión.</p>
+            </div>
+            <div class="toolbox">
+                <div class="block avanzar" draggable="true" data-type="move"><span>⬆️ AVANZAR</span></div>
+                <div class="block derecha" draggable="true" data-type="right"><span>↪️ DER.</span></div>
+                <div class="block izquierda" draggable="true" data-type="left"><span>↩️ IZQ.</span></div>
+            </div>
+            <div id="drop-zone" class="workspace"></div>
+            <div class="actions">
+                <button id="btn-clear" class="btn-gui">REINICIAR</button>
+                <button id="btn-next" class="btn-gui">SIGUIENTE</button>
+                <button id="btn-run" class="btn-gui">EJECUTAR</button>
+            </div>
+        </section>
+        <section id="viewport">
+            <div id="msg" class="msg-overlay"></div>
+        </section>
+    </main>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const DATA = [
+            { id: 1, name: "1: Recta", desc: "Avanza 3 cuadros.", map: [[1,1,1],[1,2,1],[1,0,1],[1,0,1],[1,3,1],[1,1,1]], dir: 0, startBlocks: ['move','move','move'] },
+            { id: 2, name: "2: Esquina", desc: "Gira para llegar a la meta.", map: [[1,1,1,1,1],[1,2,1,1,1],[1,0,1,1,1],[1,0,0,3,1],[1,1,1,1,1]], dir: 0, startBlocks: [] },
+            { id: 3, name: "3: Zig-Zag", desc: "Gira a ambos lados.", map: [[1,1,1,1,1],[1,2,0,1,1],[1,1,0,0,1],[1,1,1,0,3],[1,1,1,1,1]], dir: 3, startBlocks: [] },
+            { id: 4, name: "4: Pasillo Corto", desc: "Máximo 3 cuadros.", map: [[1,1,1,1,1,1,1],[1,2,0,0,0,1,1],[1,1,1,1,0,1,1],[1,1,3,0,0,1,1],[1,1,1,1,1,1,1]], dir: 3, startBlocks: [] },
+            { id: 5, name: "5: Obstáculos", desc: "No toques las paredes.", map: [[1,1,1,1,1,1],[1,2,0,1,3,1],[1,1,0,1,0,1],[1,1,0,0,0,1],[1,1,1,1,1,1]], dir: 3, startBlocks: [] },
+            { 
+              id: 6, 
+              name: "6: LA BIFURCACIÓN FINAL", 
+              desc: "REGLA: Pasillos de máx 3 cuadros. Al llegar al cruce, un camino es trampa (callejón) y el otro lleva a la meta.", 
+              map: [
+                [1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 2, 0, 0, 1, 0, 0, 1, 1], // Pasillo 1 (3 c.) | Pasillo Trampa arriba
+                [1, 1, 1, 0, 1, 0, 1, 1, 1],
+                [1, 0, 0, 0, 0, 0, 1, 1, 1], // BIFURCACIÓN en (3,3)
+                [1, 0, 1, 1, 1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1, 1, 1, 1, 1], // Pasillo de 3
+                [1, 1, 1, 0, 1, 1, 1, 1, 1],
+                [1, 1, 1, 0, 0, 3, 1, 1, 1], // Pasillo final de 3 -> Meta
+                [1, 1, 1, 1, 1, 1, 1, 1, 1]
+              ], 
+              dir: 3, // Inicia mirando a la derecha
+              startBlocks: [] 
+            }
+        ];
+
+        let curIdx = 0, isRunning = false, scene, camera, renderer, robot, mazeGroup, state = {};
+
+        const sel = document.getElementById('mission-selector');
+        DATA.forEach((m, i) => {
+            const b = document.createElement('button');
+            b.className = 'sel-btn'; b.innerText = m.id;
+            b.onclick = () => { if(!isRunning) loadLevel(i); };
+            sel.appendChild(b);
+        });
+
+        function createGridTex(cBase, cLine) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = cBase; ctx.fillRect(0,0,128,128);
+            ctx.strokeStyle = cLine; ctx.lineWidth = 10; ctx.strokeRect(0,0,128,128);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+        const wallTex = createGridTex('#333', '#555');
+        const floorTex = createGridTex('#151515', '#252525');
+
+        function initScene() {
+            const container = document.getElementById('viewport');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.5));
+            renderLoop();
+        }
+
+        function renderLoop() { requestAnimationFrame(renderLoop); renderer.render(scene, camera); }
+
+        function loadLevel(idx) {
+            curIdx = idx; const level = DATA[idx]; isRunning = false;
+            document.querySelectorAll('.sel-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+            document.getElementById('m-name').innerText = level.name;
+            document.getElementById('m-desc').innerText = level.desc;
+            document.getElementById('msg').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'none';
+            document.getElementById('btn-run').disabled = false;
+
+            if (mazeGroup) scene.remove(mazeGroup);
+            if (robot) scene.remove(robot);
+            mazeGroup = new THREE.Group();
+
+            const rows = level.map.length, cols = level.map[0].length;
+            const offX = -cols/2, offZ = -rows/2;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const type = level.map[r][c];
+                    const x = c + offX + 0.5, z = r + offZ + 0.5;
+                    const fMat = new THREE.MeshPhongMaterial({ 
+                        map: floorTex, color: type === 3 ? 0x27ae60 : 0xffffff,
+                        emissive: type === 3 ? 0x104422 : 0x000000 
+                    });
+                    const floor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fMat);
+                    floor.rotation.x = -Math.PI/2; floor.position.set(x, -0.5, z);
+                    mazeGroup.add(floor);
+
+                    if (type === 1) {
+                        const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshPhongMaterial({ map: wallTex }));
+                        wall.position.set(x, 0, z); mazeGroup.add(wall);
+                    }
+                    if (type === 2) {
+                        state = { x: c, z: r, dir: level.dir, startX: c, startZ: r };
+                        createRobot(x, z, level.dir);
+                    }
+                }
+            }
+            scene.add(mazeGroup);
+            camera.position.set(0, Math.max(rows, cols) * 1.4, 0);
+            camera.lookAt(0,0,0);
+
+            const dz = document.getElementById('drop-zone');
+            dz.innerHTML = "";
+            level.startBlocks.forEach(t => addBlock(t));
+        }
+
+        function createRobot(x, z, dir) {
+            robot = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.5, 16), new THREE.MeshPhongMaterial({ color: 0x00f2ff }));
+            robot.add(body);
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.3), new THREE.MeshPhongMaterial({ color: 0xff3333 }));
+            nose.position.set(0, 0.3, 0.2); robot.add(nose);
+            robot.position.set(x, 0, z); robot.rotation.y = (dir * Math.PI) / -2;
+            scene.add(robot);
+        }
+
+        function addBlock(type, after = null) {
+            const div = document.createElement('div');
+            div.className = `block ${type === 'move' ? 'avanzar' : type === 'right' ? 'derecha' : 'izquierda'}`;
+            div.draggable = true; div.dataset.type = type;
+            const labels = { move: '⬆️ AVANZAR', right: '↪️ DER.', left: '↩️ IZQ.' };
+            div.innerHTML = `<span>${labels[type]}</span>`;
+            const btn = document.createElement('button');
+            btn.className = 'btn-del'; btn.innerHTML = '×';
+            btn.onclick = () => { if(!isRunning) div.remove(); };
+            div.appendChild(btn);
+            div.addEventListener('dragstart', () => div.classList.add('dragging'));
+            div.addEventListener('dragend', () => div.classList.remove('dragging'));
+            const dz = document.getElementById('drop-zone');
+            if (after) dz.insertBefore(div, after); else dz.appendChild(div);
+        }
+
+        const dz = document.getElementById('drop-zone');
+        dz.addEventListener('dragover', e => {
+            e.preventDefault();
+            const dragging = document.querySelector('.dragging');
+            const after = getDragAfterElement(dz, e.clientY);
+            if (dragging && dragging.parentElement === dz) dz.insertBefore(dragging, after);
+        });
+        dz.addEventListener('drop', e => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData('type');
+            if (type) addBlock(type, getDragAfterElement(dz, e.clientY));
+        });
+        document.querySelectorAll('.toolbox .block').forEach(b => {
+            b.addEventListener('dragstart', e => e.dataTransfer.setData('type', b.dataset.type));
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggables = [...container.querySelectorAll('.block:not(.dragging)')];
+            return draggables.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+                else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        async function runProgram() {
+            if (isRunning) return;
+            const blocks = [...dz.querySelectorAll('.block')];
+            if (blocks.length === 0) return;
+            
+            blocks.forEach(b => b.classList.remove('executed', 'active-glow', 'error-highlight'));
+            isRunning = true;
+            document.getElementById('btn-run').disabled = true;
+            resetRobotPos();
+
+            for (let block of blocks) {
+                block.classList.add('executed', 'active-glow');
+                block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                const ok = await executeAction(block.dataset.type);
+                block.classList.remove('active-glow');
+
+                if (!ok) {
+                    block.classList.add('error-highlight');
+                    showMsg("¡BOOM! HAS CHOCADO <br> Corrige el bloque rojo.", "var(--crash)");
+                    isRunning = false; document.getElementById('btn-run').disabled = false; return;
+                }
+
+                if (DATA[curIdx].map[state.z][state.x] === 3) {
+                    showMsg("¡GENIAL! MISIÓN CUMPLIDA", "var(--green)");
+                    document.getElementById('btn-next').style.display = 'block';
+                    isRunning = false; document.getElementById('btn-run').disabled = false; return;
+                }
+            }
+            showMsg("NO LLEGASTE A LA META", "#aaa");
+            isRunning = false; document.getElementById('btn-run').disabled = false;
+        }
+
+        async function executeAction(type) {
+            const map = DATA[curIdx].map;
+            if (type === 'move') {
+                let nx = state.x, nz = state.z;
+                if (state.dir === 0) nz++; else if (state.dir === 1) nx--;
+                else if (state.dir === 2) nz--; else if (state.dir === 3) nx++;
+                
+                if (!map[nz] || map[nz][nx] === 1 || map[nz][nx] === undefined) return false;
+                
+                state.x = nx; state.z = nz;
+                const target = new THREE.Vector3(nx - map[0].length/2 + 0.5, 0, nz - map.length/2 + 0.5);
+                await lerp(robot.position, target, 300);
+            } else {
+                const rot = type === 'right' ? -Math.PI/2 : Math.PI/2;
+                state.dir = type === 'right' ? (state.dir + 1) % 4 : (state.dir + 3) % 4;
+                await lerpRotation(robot, robot.rotation.y + rot, 300);
+            }
+            return true;
+        }
+
+        function lerp(obj, target, ms) {
+            return new Promise(resolve => {
+                const start = obj.clone(), startTime = performance.now();
+                function anim() {
+                    const t = Math.min((performance.now() - startTime) / ms, 1);
+                    obj.lerpVectors(start, target, t);
+                    if (t < 1) requestAnimationFrame(anim); else resolve();
+                }
+                anim();
+            });
+        }
+
+        function lerpRotation(obj, targetY, ms) {
+            return new Promise(resolve => {
+                const startY = obj.rotation.y, startTime = performance.now();
+                function anim() {
+                    const t = Math.min((performance.now() - startTime) / ms, 1);
+                    obj.rotation.y = startY + (targetY - startY) * t;
+                    if (t < 1) requestAnimationFrame(anim); else resolve();
+                }
+                anim();
+            });
+        }
+
+        function resetRobotPos() {
+            const lvl = DATA[curIdx];
+            state.x = state.startX; state.z = state.startZ; state.dir = lvl.dir;
+            robot.position.set(state.x - lvl.map[0].length/2 + 0.5, 0, state.z - lvl.map.length/2 + 0.5);
+            robot.rotation.y = (lvl.dir * Math.PI) / -2;
+        }
+
+        function showMsg(txt, color) {
+            const m = document.getElementById('msg');
+            m.innerHTML = txt; m.style.display = 'block'; m.style.borderColor = color;
+        }
+
+        document.getElementById('btn-run').onclick = runProgram;
+        document.getElementById('btn-clear').onclick = () => { if(!isRunning) loadLevel(curIdx); };
+        document.getElementById('btn-next').onclick = () => loadLevel((curIdx + 1) % DATA.length);
+
+        initScene();
+        loadLevel(0);
+    </script>
+</body>
+</html>

@@ -1,0 +1,682 @@
+<!--
+{
+  "project": "1.2 LAVADORA SIMULACION-CONSTRUCCION V2",
+  "version": "3.0.0",
+  "last_update": "2026-07-04",
+  "improvements": [
+    "3.0.0: Versión V2 de Montaje Mejorado con Piezas Realistas y Diseño Premium.",
+    "3.0.0: Modelado 3D procedural avanzado para cada una de las 14 piezas: motor eléctrico con bobinado de cobre y eje, tambor de acero inoxidable con batidores y polea, electroválvula doble con solenoide, resistencia tubular, bomba centrífuga, panel de vidrio LCD con LEDs y dial de aluminio pulido.",
+    "3.0.0: Rediseño estético Glassmorphism en las tarjetas laterales con especificaciones técnicas detalladas para cada componente.",
+    "3.0.0: Garantía Anti-Pantalla Negra (Anti-Black Screen) con redimensionamiento retardado en Safari/macOS y sin dependencias de assets externos."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONSTRUCCIÓN LAVADORA V2 — PIEZAS REALISTAS</title>
+    <style>
+        :root {
+            --neon: #00f2ff;
+            --neon-glow: rgba(0, 242, 255, 0.4);
+            --bg: #0d0d1a;
+            --panel: rgba(15, 15, 30, 0.95);
+            --success: #00e676;
+            --gold: #ffcc00;
+            --accent: #ff6b35;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 75px;
+            background: linear-gradient(180deg, rgba(10,10,25,0.95) 0%, rgba(10,10,25,0.85) 100%);
+            border-bottom: 2px solid var(--neon);
+            box-shadow: 0 0 25px var(--neon-glow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: var(--neon);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-glow);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header .badge-v2 {
+            background: var(--accent);
+            color: #000;
+            font-size: 13px;
+            font-weight: 900;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px rgba(255,107,53,0.6);
+        }
+
+        header p {
+            margin: 4px 0 0 0;
+            font-size: 15px;
+            color: #cccccc;
+        }
+
+        main {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            padding-top: 75px;
+            box-sizing: border-box;
+        }
+
+        /* COLUMNAS LATERALES */
+        #col-left, #col-right {
+            width: 350px;
+            min-width: 350px;
+            background: var(--panel);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-sizing: border-box;
+            padding: 22px;
+            backdrop-filter: blur(20px);
+        }
+
+        #col-left { border-right: 1px solid rgba(0, 242, 255, 0.2); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+        #col-right { border-left: 1px solid rgba(0, 242, 255, 0.2); overflow-y: auto; gap: 14px; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
+
+        /* SCROLLBAR */
+        #col-right::-webkit-scrollbar, #inventory::-webkit-scrollbar { width: 6px; }
+        #col-right::-webkit-scrollbar-track, #inventory::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        #col-right::-webkit-scrollbar-thumb, #inventory::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+
+        /* PIEZAS DRAGGABLE (DERECHA) - DISEÑO PREMIUM */
+        .pieza-drag {
+            width: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-radius: 14px;
+            padding: 14px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: grab;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .pieza-drag::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 4px;
+            background: var(--neon);
+            transition: 0.3s;
+        }
+
+        .pieza-drag:hover {
+            background: linear-gradient(135deg, rgba(0,242,255,0.15) 0%, rgba(0,242,255,0.05) 100%);
+            border-color: var(--neon);
+            transform: translateX(-5px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 242, 255, 0.25);
+        }
+
+        .pieza-drag:active { cursor: grabbing; transform: scale(0.98); }
+
+        .pieza-icon {
+            font-size: 34px;
+            width: 50px; height: 50px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .pieza-info { display: flex; flex-direction: column; text-align: left; flex: 1; }
+        .pieza-title { font-size: 15px; font-weight: 800; color: #ffffff; letter-spacing: 1px; }
+        .pieza-desc { font-size: 12px; color: #00f2ff; margin-top: 3px; font-weight: 500; opacity: 0.9; }
+        
+        .pieza-tag {
+            font-size: 10px; font-weight: bold; background: rgba(0,242,255,0.2); color: var(--neon);
+            padding: 4px 8px; border-radius: 6px; letter-spacing: 1px;
+        }
+
+        .pieza-drag.installed {
+            opacity: 0.25; cursor: not-allowed; border-color: #444; background: rgba(0,0,0,0.2); pointer-events: none;
+        }
+        .pieza-drag.installed::before { background: #555; }
+        .pieza-drag.installed .pieza-tag { background: rgba(255,255,255,0.1); color: #888; content: 'OK'; }
+
+        /* ÁREA CENTRAL */
+        #canvas-container { flex: 1; position: relative; background: radial-gradient(circle at center, #1a1a3a 0%, #080811 100%); overflow: hidden; }
+
+        /* PANEL IZQUIERDO */
+        .panel-header { font-size: 14px; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+        #counter-text { color: var(--neon); font-size: 24px; font-weight: 900; text-shadow: 0 0 10px var(--neon-glow); margin-bottom: 5px; }
+        
+        #progress-bar { width: 100%; height: 16px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin: 12px 0 20px 0; padding: 2px; }
+        #progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #0077ff, var(--neon)); border-radius: 8px; transition: 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 0 15px var(--neon); }
+        
+        #inventory { flex: 1; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .inventory-item {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px; color: #888; transition: all 0.3s;
+        }
+        .inventory-item.done { background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.3); color: white; font-weight: bold; }
+        .check-box {
+            width: 20px; height: 20px; border-radius: 5px; background: rgba(0,0,0,0.5); border: 1px solid #555;
+            display: flex; align-items: center; justify-content: center; font-size: 12px; color: transparent; transition: 0.3s;
+        }
+        .inventory-item.done .check-box { background: var(--success); border-color: var(--success); color: #000; font-weight: 900; box-shadow: 0 0 10px rgba(0, 230, 118, 0.5); }
+
+        #test-box {
+            min-height: 80px; background: linear-gradient(135deg, rgba(0,242,255,0.15) 0%, rgba(0,242,255,0.05) 100%);
+            border: 2px dashed var(--neon); margin: 15px 0; display: none; align-items: center; justify-content: center;
+            text-align: center; font-size: 16px; font-weight: bold; border-radius: 14px; color: var(--neon);
+            padding: 15px; box-shadow: 0 0 20px rgba(0,242,255,0.2); animation: pulseBorder 1.5s infinite;
+        }
+
+        @keyframes pulseBorder { 0%, 100% { border-color: var(--neon); } 50% { border-color: rgba(0,242,255,0.3); } }
+
+        /* CARTEL FINAL CELEBRATORIO */
+        #finish-banner {
+            position: fixed; bottom: 35px; left: 50%; transform: translateX(-50%) scale(0.9);
+            background: linear-gradient(135deg, #00e676, #00b248); color: #000; padding: 22px 55px; border-radius: 50px;
+            font-size: 24px; font-weight: 900; text-align: center; display: none; z-index: 200;
+            box-shadow: 0 10px 40px rgba(0, 230, 118, 0.6); border: 3px solid white;
+            animation: popIn 0.5s cubic-bezier(0.17, 0.89, 0.32, 1.49) forwards;
+        }
+
+        @keyframes popIn { to { transform: translateX(-50%) scale(1); } }
+
+        .dots:after { content: '.'; animation: dots 1.5s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>CONSTRUYE TU LAVADORA <span class="badge-v2">V2 REALISTA</span></h1>
+    <p>Arrastra cada componente técnico al centro para ensamblar la lavadora paso a paso</p>
+</header>
+
+<main>
+    <div id="col-left">
+        <div class="panel-header">Progreso de Ensamblaje</div>
+        <div id="counter-text">0 de 14 piezas instaladas</div>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="test-box"></div>
+        <div class="panel-header" style="margin-top: 10px;">Lista de Verificación Técnica</div>
+        <div id="inventory"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="col-right">
+        <div class="panel-header" style="margin-bottom: 5px;">Catálogo de Componentes</div>
+        <!-- Generado por JS -->
+    </div>
+</main>
+
+<div id="finish-banner">🎉 ¡LAVADORA V2 COMPLETADA CON ÉXITO! ✅<br><span style="font-size: 16px; font-weight: 700; color: #111;">Todos los componentes mecánicos y electrónicos están integrados</span></div>
+
+<script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    const PARTS = [
+        { id: "shell", name: "CARCASA ESTRUCTURAL", desc: "Chasis reforzado con amortiguación", icon: "🏠" },
+        { id: "drum", name: "TAMBOR INOXIDABLE", desc: "Acero perforado con 3 batidores", icon: "🥁" },
+        { id: "motor", name: "MOTOR INVERTER", desc: "Bobinado de cobre de alta eficiencia", icon: "⚙️" },
+        { id: "belt", name: "CORREA DE TRANSMISIÓN", desc: "Goma estriada de alta tensión", icon: "🔗" },
+        { id: "door", name: "PUERTA DE CRISTAL", desc: "Bojo cóncavo con bisagra y tirador", icon: "🔵" },
+        { id: "gasket", name: "JUNTA DE ESTANQUEIDAD", desc: "Goma EPDM fuelle antivibración", icon: "⚫" },
+        { id: "drawer", name: "CAJÓN DISPENSADOR", desc: "3 compartimentos de detergente", icon: "🧴" },
+        { id: "valve", name: "ELECTROVÁLVULA DOBLE", desc: "Solenoide de entrada de agua", icon: "💧" },
+        { id: "heater", name: "RESISTENCIA TÉRMICA", desc: "Elemento Incoloy 2000W", icon: "🔴" },
+        { id: "thermostat", name: "SONDA NTC", desc: "Sensor de control de temperatura", icon: "🌡️" },
+        { id: "pump", name: "BOMBA DE DESAGÜE", desc: "Turbina centrífuga con filtro", icon: "🔽" },
+        { id: "filter", name: "FILTRO DE PELUSAS", desc: "Tapon roscado de acceso frontal", icon: "🔲" },
+        { id: "panel", name: "DASHBOARD DIGITAL", desc: "Display LCD con indicadores LED", icon: "🎛️" },
+        { id: "dial", name: "DIAL ROTATIVO", desc: "Perilla de aluminio pulido", icon: "🔘" }
+    ];
+
+    let installedCount = 0;
+    let isTesting = false;
+    const meshes = {};
+
+    // --- THREE.JS SETUP ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(13, 11, 13);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Iluminación realista multi-punto
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x111122, 3.5));
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    dirLight.position.set(15, 20, 15);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    const blueLight = new THREE.PointLight(0x00f2ff, 50, 25);
+    blueLight.position.set(-8, 6, 8);
+    scene.add(blueLight);
+
+    const robotGroup = new THREE.Group();
+    scene.add(robotGroup);
+
+    // --- GENERADORES DE PIEZAS 3D REALISTAS (MODELADO PROCEDURAL AVANZADO) ---
+    const generators = {
+        shell: () => {
+            const group = new THREE.Group();
+            
+            // Marcos y pilares de acero
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8, roughness: 0.2 });
+            const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7, 0.4), frameMat); p1.position.set(2.8, 0, 2.8); group.add(p1);
+            const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7, 0.4), frameMat); p2.position.set(-2.8, 0, 2.8); group.add(p2);
+            const p3 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7, 0.4), frameMat); p3.position.set(2.8, 0, -2.8); group.add(p3);
+            const p4 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 7, 0.4), frameMat); p4.position.set(-2.8, 0, -2.8); group.add(p4);
+
+            // Tapa superior y base chasis
+            const top = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.4, 6.2), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.5, roughness: 0.3 }));
+            top.position.y = 3.5; group.add(top);
+            const bottom = new THREE.Mesh(new THREE.BoxGeometry(6.0, 0.4, 6.0), frameMat);
+            bottom.position.y = -3.5; group.add(bottom);
+
+            // Paneles acrílicos transparentes
+            const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, transmission: 0.8, roughness: 0.1 });
+            const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 6.6, 5.6), glassMat); sideL.position.set(-3.0, 0, 0); group.add(sideL);
+            const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 6.6, 5.6), glassMat); sideR.position.set(3.0, 0, 0); group.add(sideR);
+            const sideB = new THREE.Mesh(new THREE.BoxGeometry(5.6, 6.6, 0.05), glassMat); sideB.position.set(0, 0, -3.0); group.add(sideB);
+
+            // 4 Patas de goma antivibración
+            const footMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+            const f1 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 16), footMat); f1.position.set(2.5, -3.8, 2.5); group.add(f1);
+            const f2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 16), footMat); f2.position.set(-2.5, -3.8, 2.5); group.add(f2);
+            const f3 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 16), footMat); f3.position.set(2.5, -3.8, -2.5); group.add(f3);
+            const f4 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 16), footMat); f4.position.set(-2.5, -3.8, -2.5); group.add(f4);
+
+            return group;
+        },
+        drum: () => {
+            const group = new THREE.Group();
+            const drumMat = new THREE.MeshPhysicalMaterial({ color: 0xd0d0d0, metalness: 0.95, roughness: 0.15, side: THREE.DoubleSide });
+            
+            // Tambor cilíndrico
+            const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 4.2, 48, 1, true), drumMat);
+            cyl.rotation.x = Math.PI/2;
+            group.add(cyl);
+
+            // Tapa trasera con patrón radial
+            const back = new THREE.Mesh(new THREE.CircleGeometry(2.2, 48), drumMat);
+            back.position.z = -2.1;
+            group.add(back);
+
+            // 3 Batidores internos aerodinámicos
+            const lifterMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4 });
+            for(let i=0; i<3; i++) {
+                const lifter = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 4.0), lifterMat);
+                const ang = i * (Math.PI * 2 / 3);
+                lifter.position.set(Math.cos(ang) * 2.0, Math.sin(ang) * 2.0, 0);
+                lifter.rotation.z = ang;
+                group.add(lifter);
+            }
+
+            // Polea trasera de transmisión (Rueda grande)
+            const pulley = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.2, 32), new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5 }));
+            pulley.rotation.x = Math.PI/2;
+            pulley.position.z = -2.3;
+            group.add(pulley);
+
+            return group;
+        },
+        motor: () => {
+            const group = new THREE.Group();
+            
+            // Cuerpo del motor (estátor con aletas de refrigeración)
+            const stator = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 1.6, 24), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.8, roughness: 0.3 }));
+            stator.rotation.z = Math.PI/2;
+            group.add(stator);
+
+            // Bobinado de cobre visible
+            const copper = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 1.8, 24), new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.6, roughness: 0.4 }));
+            copper.rotation.z = Math.PI/2;
+            group.add(copper);
+
+            // Eje del motor y polea pequeña
+            const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4, 16), new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.9 }));
+            shaft.rotation.z = Math.PI/2;
+            group.add(shaft);
+
+            const pulleySmall = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 }));
+            pulleySmall.rotation.z = Math.PI/2;
+            pulleySmall.position.x = 1.0;
+            group.add(pulleySmall);
+
+            // Cables eléctricos de alimentación
+            const wireR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+            wireR.position.set(-0.5, 0.8, 0.2); group.add(wireR);
+            const wireB = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8), new THREE.MeshStandardMaterial({ color: 0x0055ff }));
+            wireB.position.set(-0.5, 0.8, -0.2); group.add(wireB);
+
+            group.position.set(0, -2.6, -1.8);
+            return group;
+        },
+        belt: () => {
+            const group = new THREE.Group();
+            // Correa negra de goma estriada conectando motor y tambor
+            const beltMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const beltLoop = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.08, 16, 64), beltMat);
+            beltLoop.position.set(0, -1.2, -2.3);
+            group.add(beltLoop);
+            return group;
+        },
+        door: () => {
+            const group = new THREE.Group();
+            // Marco cromado exterior
+            const chrome = new THREE.Mesh(new THREE.TorusGeometry(1.85, 0.18, 24, 64), new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.95, roughness: 0.1 }));
+            group.add(chrome);
+
+            // Cristal cóncavo interior
+            const glass = new THREE.Mesh(new THREE.SphereGeometry(1.75, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.35), new THREE.MeshPhysicalMaterial({ color: 0x88ccff, transparent: true, opacity: 0.4, transmission: 0.9, roughness: 0.05 }));
+            glass.position.z = 0.2;
+            glass.rotation.x = -Math.PI / 2;
+            group.add(glass);
+
+            // Bisagra metálica izquierda
+            const hinge = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.4), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 }));
+            hinge.position.set(-1.95, 0, 0);
+            group.add(hinge);
+
+            // Tirador / Asa derecha
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.3), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9 }));
+            handle.position.set(1.7, 0, 0.2);
+            group.add(handle);
+
+            group.position.z = 3.1;
+            return group;
+        },
+        gasket: () => {
+            const group = new THREE.Group();
+            // Junta EPDM fuelle gris oscuro con profundidad
+            const gasketMat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.8 });
+            const outer = new THREE.Mesh(new THREE.TorusGeometry(1.85, 0.12, 20, 64), gasketMat);
+            group.add(outer);
+            const inner = new THREE.Mesh(new THREE.TorusGeometry(1.70, 0.08, 20, 64), gasketMat);
+            inner.position.z = -0.15;
+            group.add(inner);
+            group.position.z = 2.95;
+            return group;
+        },
+        drawer: () => {
+            const group = new THREE.Group();
+            // Cajón dispensador de 3 compartimentos
+            const casing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.85, 1.8), new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.2 }));
+            group.add(casing);
+            
+            // Tirador frontal ergonómico
+            const handle = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 0.15), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.5 }));
+            handle.position.set(0, 0, 0.95);
+            group.add(handle);
+
+            // Insertos de color para suavizante y prelavado
+            const insBlue = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.6), new THREE.MeshStandardMaterial({ color: 0x00aaff }));
+            insBlue.position.set(0.4, 0.4, 0.2); group.add(insBlue);
+            const insPink = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.6), new THREE.MeshStandardMaterial({ color: 0xff66cc }));
+            insPink.position.set(-0.4, 0.4, 0.2); group.add(insPink);
+
+            group.position.set(1.6, 2.7, 2.6);
+            return group;
+        },
+        valve: () => {
+            const group = new THREE.Group();
+            // Electroválvula doble con bobinas solenoide azules
+            const solenoidMat = new THREE.MeshStandardMaterial({ color: 0x0044ff, roughness: 0.3 });
+            const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.8, roughness: 0.3 });
+            
+            const s1 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.6, 16), solenoidMat); s1.position.set(0.3, 0, 0); group.add(s1);
+            const s2 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.6, 16), solenoidMat); s2.position.set(-0.3, 0, 0); group.add(s2);
+            
+            const pipe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 16), brassMat); pipe1.position.set(0.3, 0.5, 0); group.add(pipe1);
+            const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 16), brassMat); pipe2.position.set(-0.3, 0.5, 0); group.add(pipe2);
+
+            group.position.set(-1.8, 3.1, -2.0);
+            return group;
+        },
+        heater: () => {
+            const group = new THREE.Group();
+            // Resistencia tubular Incoloy en forma de M
+            const heaterMat = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, metalness: 0.9, roughness: 0.2 });
+            const tube1 = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.06, 16, 32, Math.PI), heaterMat); tube1.position.set(0, 0, 0); group.add(tube1);
+            const tube2 = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 16, 32, Math.PI), heaterMat); tube2.position.set(0, 0, 0); group.add(tube2);
+            
+            // Brida metálica de fijación
+            const flange = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 0.2), new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 }));
+            flange.position.set(0, 0, 0.1); group.add(flange);
+
+            group.position.set(0, -2.8, 0);
+            group.rotation.x = Math.PI/2;
+            return group;
+        },
+        thermostat: () => {
+            const group = new THREE.Group();
+            // Sonda NTC de temperatura con cable amarillo
+            const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.5, 16), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9 }));
+            group.add(probe);
+            const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 16), new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
+            wire.position.y = 0.5; group.add(wire);
+            
+            group.position.set(1.0, -2.8, 1.0);
+            return group;
+        },
+        pump: () => {
+            const group = new THREE.Group();
+            // Bomba centrífuga de desagüe
+            const chamber = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 24), new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3 }));
+            chamber.rotation.x = Math.PI/2; group.add(chamber);
+            
+            const motorPump = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.7 }));
+            motorPump.rotation.x = Math.PI/2; motorPump.position.z = -0.6; group.add(motorPump);
+
+            // Toberas de manguera
+            const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            nozzle.position.set(0, 0.5, 0); group.add(nozzle);
+
+            group.position.set(-1.6, -3.1, 1.8);
+            return group;
+        },
+        filter: () => {
+            const group = new THREE.Group();
+            // Tapón frontal roscado con nervios de agarre
+            const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.2, 24), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }));
+            cap.rotation.x = Math.PI/2; group.add(cap);
+
+            const grip1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.25), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+            grip1.rotation.x = Math.PI/2; grip1.position.z = 0.1; group.add(grip1);
+
+            // Malla cilíndrica del filtro
+            const meshFilter = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.8, 16), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.5, wireframe: true }));
+            meshFilter.rotation.x = Math.PI/2; meshFilter.position.z = -0.5; group.add(meshFilter);
+
+            group.position.set(-1.6, -3.1, 2.9);
+            return group;
+        },
+        panel: () => {
+            const group = new THREE.Group();
+            // Dashboard digital de cristal oscuro
+            const dash = new THREE.Mesh(new THREE.BoxGeometry(5.8, 1.2, 0.4), new THREE.MeshStandardMaterial({ color: 0x111118, metalness: 0.6, roughness: 0.1 }));
+            group.add(dash);
+
+            // Pantalla LCD digital con brillo neón
+            const lcd = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 0.05), new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x004466 }));
+            lcd.position.set(0.8, 0, 0.2); group.add(lcd);
+            
+            // Dígitos LED simulados en LCD
+            const ledText = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 0.06), new THREE.MeshStandardMaterial({ color: 0x00f2ff, emissive: 0x00f2ff }));
+            ledText.position.set(0.8, 0, 0.22); group.add(ledText);
+
+            // Indicadores LED de estado (verde y rojo)
+            const ledGreen = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshStandardMaterial({ color: 0x00e676, emissive: 0x00e676 }));
+            ledGreen.position.set(-0.8, 0.3, 0.22); group.add(ledGreen);
+            const ledRed = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshStandardMaterial({ color: 0xff1744, emissive: 0xff1744 }));
+            ledRed.position.set(-0.5, 0.3, 0.22); group.add(ledRed);
+
+            group.position.set(0, 2.8, 2.85);
+            return group;
+        },
+        dial: () => {
+            const group = new THREE.Group();
+            // Perilla rotativa de aluminio pulido
+            const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.48, 0.35, 32), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.2 }));
+            knob.rotation.x = Math.PI/2; group.add(knob);
+
+            // Muesca LED indicadora neón
+            const notch = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.38), new THREE.MeshStandardMaterial({ color: 0x00f2ff, emissive: 0x00f2ff }));
+            notch.position.set(0, 0.15, 0.02); group.add(notch);
+
+            group.position.set(-1.8, 2.8, 3.1);
+            return group;
+        }
+    };
+
+    // --- UI INIT ---
+    const inv = document.getElementById('inventory');
+    const almacem = document.getElementById('col-right');
+
+    PARTS.forEach(p => {
+        inv.innerHTML += `
+            <div class="inventory-item" id="chk-${p.id}">
+                <div class="check-box">✓</div>
+                <span>${p.name}</span>
+            </div>
+        `;
+        almacem.innerHTML += `
+            <div class="pieza-drag" draggable="true" id="drag-${p.id}" data-id="${p.id}">
+                <div class="pieza-icon">${p.icon}</div>
+                <div class="pieza-info">
+                    <span class="pieza-title">${p.name}</span>
+                    <span class="pieza-desc">${p.desc}</span>
+                </div>
+                <div class="pieza-tag">ARRASTRAR</div>
+            </div>
+        `;
+    });
+
+    // --- DRAG & DROP ---
+    document.querySelectorAll('.pieza-drag').forEach(btn => {
+        btn.ondragstart = (e) => e.dataTransfer.setData("partId", btn.dataset.id);
+    });
+
+    container.ondragover = (e) => e.preventDefault();
+    container.ondrop = (e) => {
+        const id = e.dataTransfer.getData("partId");
+        if (!id || meshes[id] || isTesting) return;
+
+        isTesting = true;
+        const testBox = document.getElementById('test-box');
+        testBox.style.display = "flex";
+        testBox.innerHTML = `<div class="dots" style="color:var(--neon); font-size:16px;">Ensamblando ${id.toUpperCase()}</div>`;
+
+        setTimeout(() => {
+            const mesh = generators[id]();
+            robotGroup.add(mesh);
+            meshes[id] = mesh;
+            mesh.scale.set(0.01, 0.01, 0.01);
+            
+            testBox.innerHTML = `<span style="color:var(--success)">⚡ COMPONENTE INTEGRADO CON ÉXITO</span>`;
+            
+            document.getElementById(`chk-${id}`).classList.add('done');
+            document.getElementById(`drag-${id}`).classList.add('installed');
+            
+            installedCount = Object.keys(meshes).length;
+            const percent = (installedCount / 14) * 100;
+            document.getElementById('progress-fill').style.width = percent + "%";
+            document.getElementById('counter-text').innerText = `${installedCount} de 14 piezas instaladas`;
+
+            setTimeout(() => {
+                testBox.style.display = "none";
+                isTesting = false;
+                if (installedCount === 14) {
+                    const banner = document.getElementById('finish-banner');
+                    banner.style.display = "block";
+                }
+            }, 900);
+        }, 1200);
+    };
+
+    // --- LOOP ---
+    function animate() {
+        requestAnimationFrame(animate);
+
+        Object.keys(meshes).forEach(id => {
+            const m = meshes[id];
+            if (m.scale.x < 1.0) {
+                m.scale.x += (1.0 - m.scale.x) * 0.12;
+                m.scale.y += (1.0 - m.scale.y) * 0.12;
+                m.scale.z += (1.0 - m.scale.z) * 0.12;
+                if (m.scale.x > 0.99) m.scale.set(1, 1, 1);
+            }
+        });
+
+        robotGroup.rotation.y += 0.0035;
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        if (!container || !renderer || !camera) return;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+    
+    // Garantía Anti-Pantalla Negra en Safari/macOS tras carga de layout CSS
+    setTimeout(() => { onWindowResize(); }, 150);
+    setTimeout(() => { onWindowResize(); }, 500);
+
+    animate();
+</script>
+</body>
+</html>

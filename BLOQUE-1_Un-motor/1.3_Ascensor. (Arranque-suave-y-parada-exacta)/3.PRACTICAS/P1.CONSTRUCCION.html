@@ -1,0 +1,501 @@
+<!--
+{
+  "project": "1.3 ASCENSOR MONTAJE PROCEDURAL",
+  "version": "3.0.0",
+  "last_update": "2026-07-05",
+  "improvements": [
+    "1.0.0: Versión inicial de montaje con salto a fase operativa 2.",
+    "2.0.0: Mejoras en modelos 3D y UI de arrastre.",
+    "3.0.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Separación pedagógica estricta: P1 dedicada exclusivamente a construcción física 3D sin tests operativos (los tests pasan a P2). Añadida garantía técnica Anti-Pantalla Negra para Safari/macOS."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MONTAJE 3D — ASCENSOR INTELIGENTE</title>
+    <style>
+        :root {
+            --neon: #00f2ff;
+            --bg: #0a1118;
+            --panel: rgba(10, 17, 24, 0.95);
+            --accent: #ff6600;
+            --success: #00ff66;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 70px;
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid var(--neon);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--neon);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+        }
+
+        header p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: #ccc;
+            letter-spacing: 1px;
+        }
+
+        main {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            padding-top: 70px;
+            box-sizing: border-box;
+        }
+
+        #col-left, #col-right {
+            width: 310px;
+            min-width: 310px;
+            background: var(--panel);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        #col-left { border-right: 2px solid #1a2a3a; padding: 20px; }
+        #col-right { border-left: 2px solid #1a2a3a; padding: 15px; overflow-y: auto; align-items: center; gap: 12px; }
+
+        .pieza-drag {
+            width: 140px;
+            height: 130px;
+            background: linear-gradient(135deg, #112233, #0a1118);
+            color: white;
+            border: 2px solid var(--neon);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .pieza-drag:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+            background: linear-gradient(135deg, #1a334c, #112233);
+        }
+
+        .pieza-drag span { font-size: 38px; margin-bottom: 8px; }
+        .pieza-drag.installed { 
+            opacity: 0.25; 
+            cursor: not-allowed; 
+            border-color: #555;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #canvas-container { flex: 1; position: relative; background: #05080c; overflow: hidden; }
+
+        /* BARRA DE PROGRESO */
+        #progress-container { margin: 15px 0; }
+        #progress-bar { width: 100%; height: 18px; background: #112233; border-radius: 9px; overflow: hidden; border: 1px solid #224466; }
+        #progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #0088ff, var(--neon)); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px var(--neon); }
+        
+        #test-box { 
+            min-height: 70px; 
+            background: rgba(0, 242, 255, 0.08); 
+            border: 1px dashed var(--neon); 
+            margin: 15px 0; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            padding: 10px; 
+        }
+
+        #inventory { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .inventory-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 15px; color: #aaa; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 8px; border: 1px solid transparent; }
+        .inventory-item.installed-item { color: white; background: rgba(0, 255, 102, 0.08); border-color: rgba(0, 255, 102, 0.3); font-weight: bold; }
+        .check { color: var(--success); font-weight: bold; font-size: 18px; visibility: hidden; }
+        .check.visible { visibility: visible; }
+
+        #completion-panel {
+            display: none;
+            background: rgba(0, 255, 102, 0.12);
+            border: 2px solid var(--success);
+            padding: 15px;
+            border-radius: 12px;
+            margin: 10px 0;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        #completion-panel h3 { color: var(--success); font-size: 17px; margin: 0 0 6px 0; letter-spacing: 1px; }
+        #completion-panel p { font-size: 13px; color: #ddd; margin: 0; line-height: 1.4; }
+
+        .dots:after { content: '.'; animation: dots 1.5s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+<header>
+    <h1>P1. MONTAJE ESTRUCTURAL DEL ASCENSOR</h1>
+    <p>FASE DE CONSTRUCCIÓN — Arrastra e instala los 12 componentes en el hueco del ascensor</p>
+</header>
+
+<main>
+    <div id="col-left">
+        <div id="counter-text" style="color:var(--neon); font-size: 18px; font-weight: bold;">0 de 12 piezas instaladas</div>
+        <div id="progress-container">
+            <div id="progress-bar"><div id="progress-fill"></div></div>
+        </div>
+        <div id="test-box"></div>
+        <div id="completion-panel">
+            <h3>¡MONTAJE 100% COMPLETADO!</h3>
+            <p>Has instalado con éxito la estructura motriz, cabina, contrapeso y sensores del ascensor.</p>
+        </div>
+        <div style="font-size: 14px; color: #88aadd; margin: 10px 0; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Inventario del Sistema</div>
+        <div id="inventory"></div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="col-right">
+        <div class="pieza-drag" draggable="true" id="guias"><span>I I</span>GUÍAS DE ACERO</div>
+        <div class="pieza-drag" draggable="true" id="cabina"><span>📦</span>CABINA</div>
+        <div class="pieza-drag" draggable="true" id="puerta"><span>🚪</span>PUERTA AUTOMÁTICA</div>
+        <div class="pieza-drag" draggable="true" id="cable"><span>⛓️</span>CABLES TRACCIÓN</div>
+        <div class="pieza-drag" draggable="true" id="contrapeso"><span>⚖️</span>CONTRAPESO</div>
+        <div class="pieza-drag" draggable="true" id="motor"><span>⚙️</span>MOTOR TRACTOR</div>
+        <div class="pieza-drag" draggable="true" id="sensor1"><span>📡</span>SENSOR PLANTA 1</div>
+        <div class="pieza-drag" draggable="true" id="sensor2"><span>📡</span>SENSOR PLANTA 2</div>
+        <div class="pieza-drag" draggable="true" id="sensor3"><span>📡</span>SENSOR PLANTA 3</div>
+        <div class="pieza-drag" draggable="true" id="botones"><span>🔢</span>BOTONERA</div>
+        <div class="pieza-drag" draggable="true" id="cerebro"><span>🧠</span>CENTRALITA</div>
+        <div class="pieza-drag" draggable="true" id="cuadro"><span>🔌</span>CUADRO POTENCIA</div>
+    </div>
+</main>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let installedCount = 0;
+    let isInstalling = false;
+    const meshes = {};
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a1118);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(16, 12, 26);
+    camera.lookAt(0, 8.5, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 8.5, 0);
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+    // Iluminación volumétrica de estudio de alta intensidad
+    scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 3.0));
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    dirLight.position.set(20, 30, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    const fillLight = new THREE.DirectionalLight(0xddeeff, 3.0);
+    fillLight.position.set(-20, 20, -20);
+    scene.add(fillLight);
+
+    const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+    pointLight.position.set(-10, 15, 10);
+    scene.add(pointLight);
+
+    const backLight = new THREE.PointLight(0xffffff, 50, 40);
+    backLight.position.set(0, 15, -10);
+    scene.add(backLight);
+
+    // Suelo arquitectónico
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x18202c, roughness: 0.7, metalness: 0.3 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), groundMat);
+    ground.rotation.x = -Math.PI/2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(80, 40, 0x00f2ff, 0x223344);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    const ascensorGroup = new THREE.Group();
+    scene.add(ascensorGroup);
+
+    // Materiales PBR de alta visibilidad y contraste
+    const matMetal = new THREE.MeshPhysicalMaterial({ color: 0xe0e8f0, metalness: 0.85, roughness: 0.15, clearcoat: 0.6 });
+    const matDarkMetal = new THREE.MeshPhysicalMaterial({ color: 0x556677, metalness: 0.8, roughness: 0.25 });
+    const matGlass = new THREE.MeshPhysicalMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.3, transmission: 0.85, roughness: 0.1 });
+    const matAccent = new THREE.MeshStandardMaterial({ color: 0xff8800, roughness: 0.2, emissive: 0xff4400, emissiveIntensity: 0.3 });
+    const matSensor = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.7 });
+    const matCable = new THREE.MeshStandardMaterial({ color: 0xd0e4f8, metalness: 0.9, roughness: 0.1, emissive: 0x003366, emissiveIntensity: 0.3 });
+
+    // Generadores procedurables 3D detallados
+    const generators = {
+        guias: () => {
+            const g = new THREE.Group();
+            const railGeo = new THREE.BoxGeometry(0.18, 16, 0.28);
+            const r1 = new THREE.Mesh(railGeo, matMetal); r1.position.set(-1.6, 8, 0); r1.castShadow = true;
+            const r2 = new THREE.Mesh(railGeo, matMetal); r2.position.set(1.6, 8, 0); r2.castShadow = true;
+            
+            // Guías traseras de contrapeso en gris titanio brillante
+            const r3 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 16, 0.18), matDarkMetal); r3.position.set(-0.7, 8, -1.8);
+            const r4 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 16, 0.18), matDarkMetal); r4.position.set(0.7, 8, -1.8);
+            
+            // Traviesas de unión
+            for(let y=0; y<=16; y+=4) {
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.12, 0.12), matDarkMetal);
+                beam.position.set(0, y, -1.9);
+                g.add(beam);
+            }
+            g.add(r1, r2, r3, r4); return g;
+        },
+        cabina: () => {
+            const g = new THREE.Group();
+            const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.25, 2.4), matDarkMetal);
+            frameBottom.position.y = 0.1; frameBottom.castShadow = true;
+            const frameTop = frameBottom.clone(); frameTop.position.y = 2.9;
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, 2.2), matGlass);
+            body.position.y = 1.5;
+            
+            g.add(frameBottom, frameTop, body);
+            g.position.y = 1;
+            return g;
+        },
+        puerta: () => {
+            const g = new THREE.Group();
+            const pGeo = new THREE.BoxGeometry(1.2, 2.5, 0.08);
+            const pL = new THREE.Mesh(pGeo, matMetal); pL.position.set(-0.62, 1.45, 1.15); pL.castShadow = true;
+            const pR = new THREE.Mesh(pGeo, matMetal); pR.position.set(0.62, 1.45, 1.15); pR.castShadow = true;
+            g.add(pL, pR); return g;
+        },
+        cable: () => {
+            const g = new THREE.Group();
+            for(let offset of [-0.15, 0, 0.15]) {
+                const c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 11), matCable);
+                c1.position.set(offset, 9.5, 0);
+                const c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 7), matCable);
+                c2.position.set(offset, 11.5, -1.8);
+                g.add(c1, c2);
+            }
+            return g;
+        },
+        contrapeso: () => {
+            const g = new THREE.Group();
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.4, 0.45), matMetal);
+            frame.castShadow = true;
+            for(let i=0; i<5; i++) {
+                const block = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.38, 0.38), matAccent);
+                block.position.y = -0.9 + (i * 0.45);
+                g.add(block);
+            }
+            g.add(frame);
+            g.position.set(0, 8, -1.8); return g;
+        },
+        motor: () => {
+            const g = new THREE.Group();
+            const base = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.4, 2.5), matDarkMetal);
+            base.position.set(0, 15.2, -0.9);
+            
+            const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.8), matMetal);
+            motorBody.position.set(0, 16.0, -0.9); motorBody.rotation.z = Math.PI/2; motorBody.castShadow = true;
+            
+            const pulley = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.4), matAccent);
+            pulley.position.set(0, 16.0, 0); pulley.rotation.z = Math.PI/2;
+            
+            g.add(base, motorBody, pulley); return g;
+        },
+        sensor1: () => createSensorMesh(1.5, "PLANTA 1"),
+        sensor2: () => createSensorMesh(6.5, "PLANTA 2"),
+        sensor3: () => createSensorMesh(11.5, "PLANTA 3"),
+        botones: () => {
+            const g = new THREE.Group();
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.05), matDarkMetal);
+            panel.position.set(1.1, 2.0, 1.05);
+            for(let i=0; i<3; i++) {
+                const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02), matSensor);
+                btn.rotation.x = Math.PI/2;
+                btn.position.set(1.1, 1.8 + (i*0.2), 1.08);
+                g.add(btn);
+            }
+            g.add(panel); return g;
+        },
+        cerebro: () => {
+            const matCerebro = new THREE.MeshStandardMaterial({color: 0x00aaff, metalness:0.6, roughness:0.2, emissive: 0x004488, emissiveIntensity: 0.4});
+            const m = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.3), matCerebro);
+            m.position.set(-2.2, 14.5, 0); m.castShadow = true; return m;
+        },
+        cuadro: () => {
+            const matCuadro = new THREE.MeshStandardMaterial({color: 0xffb000, metalness:0.5, roughness:0.3, emissive: 0x884400, emissiveIntensity: 0.3});
+            const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.6, 0.5), matCuadro);
+            m.position.set(2.2, 14.5, 0); m.castShadow = true; return m;
+        }
+    };
+
+    function createSensorMesh(y, label) {
+        const g = new THREE.Group();
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), matSensor);
+        box.position.set(-1.6, y, 0.3);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 3.2), new THREE.MeshBasicMaterial({color: 0x00ff66, transparent:true, opacity:0.6}));
+        beam.rotation.z = Math.PI/2; beam.position.set(0, y, 0.3);
+        g.add(box, beam); return g;
+    }
+
+    const inv = document.getElementById('inventory');
+    const partNames = {
+        guias: "Guías de Acero", cabina: "Cabina Pasajeros", puerta: "Puerta Automática",
+        cable: "Cables Tracción", contrapeso: "Contrapeso", motor: "Motor Tractor",
+        sensor1: "Sensor Planta 1", sensor2: "Sensor Planta 2", sensor3: "Sensor Planta 3",
+        botones: "Botonera Interior", cerebro: "Centralita Inverter", cuadro: "Cuadro Eléctrico"
+    };
+
+    Object.keys(generators).forEach(k => {
+        inv.innerHTML += `<div class="inventory-item" id="item-${k}"><span class="check" id="chk-${k}">✓</span> ${partNames[k]}</div>`;
+    });
+
+    document.querySelectorAll('.pieza-drag').forEach(p => {
+        p.ondragstart = (e) => {
+            if(isInstalling || p.classList.contains('installed')) return e.preventDefault();
+            e.dataTransfer.setData('part', p.id);
+        };
+    });
+
+    container.ondragover = e => e.preventDefault();
+    container.ondrop = e => {
+        const id = e.dataTransfer.getData('part');
+        if(!id || meshes[id] || isInstalling) return;
+        
+        isInstalling = true;
+        const tb = document.getElementById('test-box');
+        tb.style.display = 'flex';
+        tb.innerHTML = `<div class="dots" style="color:var(--neon)">INSTALANDO ${partNames[id].toUpperCase()}</div>`;
+
+        setTimeout(() => {
+            installPartSync(id);
+            tb.innerHTML = `<span style="color:var(--success); font-weight:bold;">✓ ${partNames[id].toUpperCase()} INSTALADO</span>`;
+            setTimeout(() => { 
+                tb.style.display = 'none'; 
+                isInstalling = false; 
+                checkCompletion();
+            }, 800);
+        }, 1200);
+    };
+
+    function installPartSync(id) {
+        if (meshes[id]) return;
+        const mesh = generators[id]();
+        
+        if(['puerta', 'botones'].includes(id) && meshes.cabina) {
+            meshes.cabina.add(mesh);
+        } else {
+            ascensorGroup.add(mesh);
+        }
+        
+        meshes[id] = mesh;
+        document.getElementById(id).classList.add('installed');
+        document.getElementById(`chk-${id}`).classList.add('visible');
+        document.getElementById(`item-${id}`).classList.add('installed-item');
+        
+        installedCount = Object.keys(meshes).length;
+        document.getElementById('progress-fill').style.width = (installedCount / 12 * 100) + '%';
+        document.getElementById('counter-text').innerText = `${installedCount} de 12 piezas instaladas`;
+    }
+
+    function checkCompletion() {
+        if (installedCount >= 12) {
+            setTimeout(() => {
+                const panel = document.getElementById('completion-panel');
+                if(panel) panel.style.display = 'block';
+            }, 500);
+        }
+    }
+
+    function onWindowResize() {
+        if(!container) return;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if(w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+    
+    // Garantía técnica Anti-Pantalla Negra para Safari y macOS
+    setTimeout(onWindowResize, 150);
+    setTimeout(onWindowResize, 500);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if (controls) controls.update();
+        ascensorGroup.rotation.y += 0.006;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+</script>
+</body>
+</html>

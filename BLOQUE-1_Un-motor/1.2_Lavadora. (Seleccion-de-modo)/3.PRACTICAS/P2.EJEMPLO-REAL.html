@@ -1,0 +1,717 @@
+<!--
+{
+  "project": "1.2 LAVADORA SIMULACION-EJEMPLO-REAL V2",
+  "version": "3.0.0",
+  "last_update": "2026-07-04",
+  "improvements": [
+    "3.0.0: Versión V2 de Simulación Realista con Modelado 3D Avanzado y Dashboard Premium.",
+    "3.0.0: Modelado 3D procedural realista integrado: Carcasa estructural transparente, tambor de acero inoxidable con batidores, motor inverter con bobinado de cobre, correa de transmisión que gira sincrónicamente con el tambor, puerta cóncava de cristal y 15 prendas de ropa dinámicas.",
+    "3.0.0: Simulación volumétrica mejorada de agua y espuma: cambios de color en tiempo real según temperatura seleccionada (0°C Fría Azul, 30°C Cyan, 40°C Amarillo, 60°C Naranja, 95°C Rojo Vapor) e inyección de espuma durante la fase de detergente.",
+    "3.0.0: Rediseño estético Glassmorphism del Dashboard Digital LCD, dial rotativo de aluminio pulido y telemetría RPM en vivo.",
+    "3.0.0: Garantía Anti-Pantalla Negra (Anti-Black Screen) con redimensionamiento retardado en Safari/macOS y sin dependencias de assets externos."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMULACIÓN LAVADORA V2 — OPERACIÓN REALISTA</title>
+    <style>
+        :root {
+            --neon: #00f2ff;
+            --neon-glow: rgba(0, 242, 255, 0.4);
+            --bg: #0a0a16;
+            --panel: rgba(16, 16, 32, 0.95);
+            --success: #00e676;
+            --gold: #ffcc00;
+            --accent: #ff6b35;
+            --danger: #ff1744;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: 75px;
+            background: linear-gradient(180deg, rgba(10,10,25,0.95) 0%, rgba(10,10,25,0.85) 100%);
+            border-bottom: 2px solid var(--neon);
+            box-shadow: 0 0 25px var(--neon-glow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: var(--neon);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--neon-glow);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header .badge-v2 {
+            background: var(--accent);
+            color: #000;
+            font-size: 13px;
+            font-weight: 900;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 10px rgba(255,107,53,0.6);
+        }
+
+        header p {
+            margin: 4px 0 0 0;
+            font-size: 15px;
+            color: #cccccc;
+        }
+
+        main {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            padding-top: 75px;
+            box-sizing: border-box;
+        }
+
+        /* --- PANEL DE CONTROL IZQUIERDO --- */
+        #control-panel {
+            width: 420px;
+            min-width: 420px;
+            background: var(--panel);
+            border-right: 1px solid rgba(0, 242, 255, 0.2);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            padding: 22px;
+            box-sizing: border-box;
+            gap: 18px;
+            overflow-y: auto;
+            z-index: 10;
+            backdrop-filter: blur(20px);
+        }
+
+        #control-panel::-webkit-scrollbar { width: 6px; }
+        #control-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        #control-panel::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+
+        /* PANTALLA LCD DIGITAL */
+        .lcd-display {
+            background: linear-gradient(135deg, #050510 0%, #0c0c20 100%);
+            border: 2px solid var(--neon);
+            border-radius: 14px;
+            padding: 18px;
+            color: var(--neon);
+            box-shadow: inset 0 0 25px rgba(0, 242, 255, 0.3), 0 0 15px rgba(0, 242, 255, 0.2);
+            font-family: 'Consolas', 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+
+        .lcd-top-row { display: flex; justify-content: space-between; align-items: center; }
+        #lcd-title { font-size: 26px; font-weight: 900; letter-spacing: 2px; color: #ffffff; text-shadow: 0 0 10px var(--neon); }
+        .lcd-temp-badge { font-size: 14px; font-weight: bold; background: rgba(0,242,255,0.2); color: var(--neon); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--neon); }
+
+        #lcd-data { font-size: 16px; color: #aaaaaa; letter-spacing: 1px; }
+        
+        #lcd-status {
+            margin-top: 6px;
+            color: var(--gold);
+            font-size: 18px;
+            font-weight: bold;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* DIAL DE SELECCIÓN ROTATIVO */
+        .dial-area {
+            position: relative;
+            width: 100%;
+            height: 320px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, rgba(0,242,255,0.05) 0%, transparent 70%);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .dial-outer {
+            width: 150px; height: 150px; border-radius: 50%;
+            background: linear-gradient(135deg, #2a2a3e 0%, #11111a 100%);
+            border: 8px solid #3d3d5c;
+            position: relative; z-index: 10; cursor: pointer;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .dial-center-cap {
+            width: 90px; height: 90px; border-radius: 50%;
+            background: linear-gradient(135deg, #181828 0%, #0a0a14 100%);
+            border: 2px solid rgba(0,242,255,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; color: var(--neon); box-shadow: inset 0 0 15px rgba(0,242,255,0.2);
+        }
+
+        .dial-marker {
+            position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+            width: 8px; height: 28px; background: var(--neon); border-radius: 4px;
+            box-shadow: 0 0 12px var(--neon);
+        }
+
+        .program-label {
+            position: absolute; font-size: 14px; font-weight: 700; color: #777;
+            text-align: center; width: 140px; pointer-events: none; transition: all 0.3s;
+            transform: translate(-50%, -50%); z-index: 5; letter-spacing: 1px;
+        }
+
+        .program-label.active {
+            color: var(--neon); font-size: 17px; font-weight: 900;
+            text-shadow: 0 0 12px var(--neon); transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* BOTONES DE PARÁMETROS */
+        .btn-row { display: flex; gap: 12px; }
+        .btn-ui {
+            flex: 1; height: 68px; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(0,242,255,0.3); border-radius: 12px; color: white;
+            font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .btn-ui:hover { background: rgba(0,242,255,0.15); border-color: var(--neon); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,242,255,0.25); }
+        .btn-ui:active { transform: translateY(0); }
+        .btn-ui span { font-size: 18px; color: var(--neon); font-weight: 900; }
+
+        #btn-start {
+            width: 100%; height: 75px;
+            background: linear-gradient(135deg, #00e676 0%, #00b248 100%);
+            border: none; border-radius: 14px; color: #000;
+            font-size: 22px; font-weight: 900; letter-spacing: 3px;
+            cursor: pointer; transition: all 0.3s; box-shadow: 0 8px 30px rgba(0,230,118,0.4);
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+        }
+        #btn-start:hover { transform: scale(1.02); box-shadow: 0 10px 35px rgba(0,230,118,0.6); }
+        #btn-start.running {
+            background: linear-gradient(135deg, #ff1744 0%, #b71c1c 100%);
+            color: #fff; box-shadow: 0 8px 30px rgba(255,23,68,0.5);
+        }
+
+        /* --- PANEL VISUAL DERECHO --- */
+        #visual-panel {
+            flex: 1; background: radial-gradient(circle at center, #141428 0%, #06060c 100%);
+            padding: 22px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;
+        }
+
+        #canvas-container {
+            flex: 1; background: #000; border-radius: 20px;
+            border: 2px solid rgba(0,242,255,0.3); position: relative; overflow: hidden;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.7), inset 0 0 30px rgba(0,242,255,0.1);
+        }
+
+        /* HUD TELEMETRÍA RPM */
+        .rpm-hud {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(10,10,25,0.85); border: 2px solid var(--neon);
+            padding: 12px 24px; border-radius: 14px; color: var(--neon);
+            font-size: 24px; font-weight: 900; font-family: 'Consolas', monospace;
+            z-index: 20; box-shadow: 0 0 20px rgba(0,242,255,0.3);
+            display: flex; align-items: center; gap: 10px; backdrop-filter: blur(10px);
+        }
+        .rpm-indicator { width: 12px; height: 12px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+        .rpm-hud.spinning .rpm-indicator { animation: blinkFast 0.2s infinite; background: var(--accent); box-shadow: 0 0 15px var(--accent); }
+
+        @keyframes blinkFast { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+        /* LISTA DE PROCESOS DEL CICLO */
+        #process-list {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            padding: 14px; border-radius: 14px; height: 170px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        #process-list::-webkit-scrollbar { width: 6px; }
+        #process-list::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+
+        .phase-step {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            background: rgba(0,0,0,0.3); border-radius: 8px; color: #777;
+            font-size: 16px; font-weight: 600; transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        .phase-step.active {
+            background: linear-gradient(90deg, rgba(0,242,255,0.15) 0%, rgba(0,0,0,0) 100%);
+            color: #ffffff; font-weight: 800; border-left-color: var(--neon);
+            box-shadow: 0 0 15px rgba(0,242,255,0.15);
+        }
+        .phase-step.active .phase-icon { color: var(--neon); transform: scale(1.2); }
+        .phase-step.done {
+            background: rgba(0, 230, 118, 0.08); color: #00e676; border-left-color: #00e676;
+            text-decoration: line-through; opacity: 0.8;
+        }
+
+        .phase-icon { font-size: 18px; width: 24px; text-align: center; }
+
+        /* BARRA DE PROGRESO GENERAL */
+        .progress-container {
+            height: 16px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; overflow: hidden; padding: 2px;
+        }
+        #progress-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #0077ff, var(--neon), var(--success));
+            border-radius: 6px; transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 0 15px var(--neon);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SIMULACIÓN DE LAVADORA <span class="badge-v2">V2 REALISTA</span></h1>
+    <p>Ajusta el programa, temperatura y revoluciones; observa la cinemática del motor, correa y agua en tiempo real</p>
+</header>
+
+<main>
+    <section id="control-panel">
+        <div class="lcd-display">
+            <div class="lcd-top-row">
+                <div id="lcd-title">ALGODÓN</div>
+                <div class="lcd-temp-badge" id="lcd-temp-badge">60°C CALIENTE</div>
+            </div>
+            <div id="lcd-data">60°C | 1200 RPM | 90 MIN</div>
+            <div id="lcd-status"><span>●</span> ESTADO: LISTO PARA INICIAR</div>
+        </div>
+
+        <div class="dial-area" id="dial-labels-container">
+            <div class="dial-outer" id="main-dial" onclick="nextProgram()" title="Haz clic para cambiar de programa">
+                <div class="dial-marker"></div>
+                <div class="dial-center-cap">🔘</div>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn-ui" onclick="changeTemp()" title="Cambiar temperatura del agua">
+                TEMPERATURA<span id="ui-temp">60°C</span>
+            </button>
+            <button class="btn-ui" onclick="changeSpin()" title="Cambiar revoluciones de centrifugado">
+                CENTRIFUGADO<span id="ui-spin">1200 RPM</span>
+            </button>
+        </div>
+
+        <button id="btn-start" onclick="handleStart()">
+            <span>🚀 INICIAR CICLO</span>
+        </button>
+    </section>
+
+    <section id="visual-panel">
+        <div id="canvas-container">
+            <div class="rpm-hud" id="rpm-hud">
+                <div class="rpm-indicator"></div>
+                <span><span id="live-rpm">0</span> RPM</span>
+            </div>
+        </div>
+        <div id="process-list"></div>
+        <div class="progress-container"><div id="progress-fill"></div></div>
+    </section>
+</main>
+
+<script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    const PROGRAMS = [
+        { name: "ALGODÓN", angle: 0, temp: 60, rpm: 1200, time: 90, phases: ['fill', 'soap', 'wash', 'drain', 'fill', 'rinse', 'drain', 'spin'] },
+        { name: "RÁPIDO 30", angle: 72, temp: 30, rpm: 800, time: 30, phases: ['fill', 'soap', 'wash', 'drain', 'fill', 'rinse', 'drain', 'spin'] },
+        { name: "DELICADO", angle: 144, temp: 0, rpm: 400, time: 45, phases: ['fill', 'wash', 'drain', 'fill', 'rinse', 'drain', 'spin'] },
+        { name: "SINTÉTICOS", angle: 216, temp: 40, rpm: 800, time: 60, phases: ['fill', 'soap', 'wash', 'drain', 'fill', 'rinse', 'drain', 'spin'] },
+        { name: "SOLO CENTRI.", angle: 288, temp: 0, rpm: 1200, time: 12, phases: ['spin'] }
+    ];
+
+    const PHASE_INFO = {
+        fill: { label: "Entrada de Agua Limpia", dur: 3500, water: 0.55, foam: 0, mode: 'idle', icon: "💧" },
+        soap: { label: "Inyección de Detergente", dur: 3000, water: 0.55, foam: 0.75, mode: 'idle', icon: "🧴" },
+        wash: { label: "Lavado Bidireccional Activo", dur: 11000, water: 0.55, foam: 0.75, mode: 'wash', icon: "🔄" },
+        rinse: { label: "Aclarado y Enjuague Final", dur: 8000, water: 0.65, foam: 0.15, mode: 'wash', icon: "🌊" },
+        drain: { label: "Vaciado con Bomba Desagüe", dur: 3500, water: 0, foam: 0, mode: 'idle', icon: "🔽" },
+        spin: { label: "Centrifugado Alta Velocidad", dur: 14000, water: 0, foam: 0, mode: 'spin', icon: "🌪️" }
+    };
+
+    let currentIdx = 0;
+    let isRunning = false;
+    let selectedSpinRpm = 1200;
+
+    // --- THREE.JS VARIABLES ---
+    let scene, camera, renderer;
+    let drumGroup, motorPulley, beltMesh, waterMesh, foamMesh;
+    let clothes = [];
+    let targetSpeed = 0, currentSpeed = 0, washTimer = 0, currentMode = 'idle';
+
+    function initThree() {
+        const container = document.getElementById('canvas-container');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x06060c);
+
+        camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 14);
+        camera.lookAt(0, -0.5, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        // Iluminación realista
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x111122, 3.5));
+        
+        const pLight = new THREE.PointLight(0x00f2ff, 80, 40);
+        pLight.position.set(-6, 6, 8);
+        scene.add(pLight);
+
+        const drumLight = new THREE.PointLight(0xffffff, 40, 15);
+        drumLight.position.set(0, 0, 3);
+        scene.add(drumLight);
+
+        // --- CONSTRUCCIÓN DE LA LAVADORA REALISTA ---
+        const machineGroup = new THREE.Group();
+        scene.add(machineGroup);
+
+        // 1. CARCASA ESTRUCTURAL (Semi-transparente)
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
+        const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 7.5, 0.3), frameMat); p1.position.set(3.2, -0.5, 3.2); machineGroup.add(p1);
+        const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 7.5, 0.3), frameMat); p2.position.set(-3.2, -0.5, 3.2); machineGroup.add(p2);
+        const p3 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 7.5, 0.3), frameMat); p3.position.set(3.2, -0.5, -3.2); machineGroup.add(p3);
+        const p4 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 7.5, 0.3), frameMat); p4.position.set(-3.2, -0.5, -3.2); machineGroup.add(p4);
+
+        const topPlate = new THREE.Mesh(new THREE.BoxGeometry(6.7, 0.4, 6.7), new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.5, roughness: 0.3 }));
+        topPlate.position.set(0, 3.3, 0); machineGroup.add(topPlate);
+        
+        const bottomBase = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 6.5), frameMat);
+        bottomBase.position.set(0, -4.3, 0); machineGroup.add(bottomBase);
+
+        const glassPanelMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, transmission: 0.85, roughness: 0.1 });
+        const sideL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 7.2, 6.2), glassPanelMat); sideL.position.set(-3.35, -0.5, 0); machineGroup.add(sideL);
+        const sideR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 7.2, 6.2), glassPanelMat); sideR.position.set(3.35, -0.5, 0); machineGroup.add(sideR);
+
+        // 2. TAMBOR INOXIDABLE Y EJE
+        drumGroup = new THREE.Group();
+        const drumMat = new THREE.MeshPhysicalMaterial({ color: 0xd0d0d0, metalness: 0.95, roughness: 0.15, side: THREE.DoubleSide });
+        
+        const drumCyl = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 4.6, 60, 1, true), drumMat);
+        drumCyl.rotation.x = Math.PI/2;
+        drumGroup.add(drumCyl);
+
+        const drumBack = new THREE.Mesh(new THREE.CircleGeometry(2.6, 60), drumMat);
+        drumBack.position.z = -2.3;
+        drumGroup.add(drumBack);
+
+        // Batidores internos aerodinámicos
+        const lifterMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4 });
+        for(let i=0; i<3; i++) {
+            const lifter = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 4.4), lifterMat);
+            const ang = i * (Math.PI * 2 / 3);
+            lifter.position.set(Math.cos(ang) * 2.35, Math.sin(ang) * 2.35, 0);
+            lifter.rotation.z = ang;
+            drumGroup.add(lifter);
+        }
+
+        // Polea grande trasera del tambor
+        const drumPulley = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.25, 40), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.5 }));
+        drumPulley.rotation.x = Math.PI/2;
+        drumPulley.position.z = -2.55;
+        drumGroup.add(drumPulley);
+
+        machineGroup.add(drumGroup);
+
+        // 3. MOTOR INVERTER CON BOBINADO
+        const motorGroup = new THREE.Group();
+        const stator = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.8, 24), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.8 }));
+        stator.rotation.z = Math.PI/2; motorGroup.add(stator);
+        
+        const copper = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 2.0, 24), new THREE.MeshStandardMaterial({ color: 0xb87333, metalness: 0.6, roughness: 0.3 }));
+        copper.rotation.z = Math.PI/2; motorGroup.add(copper);
+
+        motorPulley = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.35, 24), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9 }));
+        motorPulley.rotation.z = Math.PI/2;
+        motorPulley.position.x = 1.1;
+        motorGroup.add(motorPulley);
+
+        motorGroup.position.set(0, -3.2, -2.55);
+        machineGroup.add(motorGroup);
+
+        // 4. CORREA DE TRANSMISIÒN ESTRIADA
+        const beltMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
+        beltMesh = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.08, 16, 64), beltMat);
+        beltMesh.position.set(0, -1.6, -2.55);
+        machineGroup.add(beltMesh);
+
+        // 5. PUERTA DE CRISTAL CÓNCAVA
+        const doorGroup = new THREE.Group();
+        const chromeRing = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.2, 24, 64), new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.95, roughness: 0.1 }));
+        doorGroup.add(chromeRing);
+
+        const glassBowl = new THREE.Mesh(new THREE.SphereGeometry(2.1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.35), new THREE.MeshPhysicalMaterial({ color: 0x88ccff, transparent: true, opacity: 0.35, transmission: 0.9, roughness: 0.05 }));
+        glassBowl.position.z = 0.3;
+        glassBowl.rotation.x = -Math.PI / 2;
+        doorGroup.add(glassBowl);
+
+        doorGroup.position.set(0, 0, 2.4);
+        machineGroup.add(doorGroup);
+
+        // 6. PRENDAS DE ROPA DINÁMICAS (15 Piezas de tela en colores vibrantes)
+        const clothColors = [0xff3366, 0x00e676, 0x00f2ff, 0xffcc00, 0xffffff, 0x9c27b0, 0xff9800];
+        for(let i=0; i<15; i++) {
+            // Alternar entre esferas suaves y cápsulas/cajas redondeadas para simular camisas y toallas
+            let geom = (i % 2 === 0) ? new THREE.SphereGeometry(0.45, 16, 16) : new THREE.BoxGeometry(0.7, 0.5, 0.5);
+            const cloth = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: clothColors[i % clothColors.length], roughness: 0.8 }));
+            const ang = (i / 15) * Math.PI * 2;
+            const rad = 1.2 + Math.random() * 0.8;
+            cloth.position.set(Math.cos(ang) * rad, Math.sin(ang) * rad, (Math.random() - 0.5) * 3.5);
+            drumGroup.add(cloth);
+            clothes.push(cloth);
+        }
+
+        // 7. AGUA VOLUMÉTRICA Y ESPUMA (Caja horizontal que simula nivel de agua en piscina interior)
+        waterMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(4.6, 4.0, 4.2),
+            new THREE.MeshPhysicalMaterial({ color: 0x0088ff, transparent: true, opacity: 0, transmission: 0.9, roughness: 0.05 })
+        );
+        waterMesh.position.set(0, -4.5, 0); // Oculta debajo del tambor al inicio
+        machineGroup.add(waterMesh);
+
+        foamMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(4.6, 0.4, 4.0),
+            new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0, roughness: 0.9 })
+        );
+        foamMesh.position.set(0, -4.5, 0);
+        machineGroup.add(foamMesh);
+
+        createLabels();
+        updateUI();
+        animate();
+    }
+
+    // Color del agua siempre azul cristalino muy transparente según temperatura
+    function getTempColor(temp) {
+        if (temp <= 0) return { color: new THREE.Color(0x0088ff), text: "FRÍA AZUL", badge: "#0077ff" };
+        if (temp <= 30) return { color: new THREE.Color(0x0099ff), text: "30°C TEMPLADA", badge: "#00f2ff" };
+        if (temp <= 40) return { color: new THREE.Color(0x00aaff), text: "40°C TIBIA", badge: "#ffcc00" };
+        if (temp <= 60) return { color: new THREE.Color(0x00bbff), text: "60°C CALIENTE", badge: "#ff6b35" };
+        return { color: new THREE.Color(0x22ccff), text: "95°C VAPOR ROJO", badge: "#ff1744" };
+    }
+
+    function createLabels() {
+        const container = document.getElementById('dial-labels-container');
+        PROGRAMS.forEach((p, i) => {
+            const label = document.createElement('div');
+            label.className = 'program-label';
+            label.id = `lbl-${i}`;
+            label.innerText = p.name;
+            const r = 135;
+            const rad = (p.angle - 90) * (Math.PI / 180);
+            label.style.left = `calc(50% + ${Math.cos(rad) * r}px)`;
+            label.style.top = `calc(50% + ${Math.sin(rad) * r}px)`;
+            container.appendChild(label);
+        });
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const factor = (currentMode === 'wash') ? 0.06 : 0.02;
+        currentSpeed += (targetSpeed - currentSpeed) * factor;
+
+        if (currentMode === 'wash') {
+            washTimer += 0.025;
+            const osc = Math.sin(washTimer) * 0.12;
+            drumGroup.rotation.z += osc;
+            motorPulley.rotation.x += osc * 5.0; // Polea del motor gira 5 veces más rápido
+            document.getElementById('live-rpm').innerText = Math.abs(Math.round(osc * 600));
+            document.getElementById('rpm-hud').classList.remove('spinning');
+        } else if (currentMode === 'spin') {
+            drumGroup.rotation.z += currentSpeed;
+            motorPulley.rotation.x += currentSpeed * 5.0;
+            const rpmVal = Math.max(0, Math.round(currentSpeed * 3500));
+            document.getElementById('live-rpm').innerText = rpmVal;
+            document.getElementById('rpm-hud').classList.toggle('spinning', rpmVal > 300);
+        } else {
+            drumGroup.rotation.z += currentSpeed;
+            motorPulley.rotation.x += currentSpeed * 5.0;
+            document.getElementById('live-rpm').innerText = Math.max(0, Math.round(currentSpeed * 3500));
+            document.getElementById('rpm-hud').classList.remove('spinning');
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    window.nextProgram = () => {
+        if (!isRunning) {
+            currentIdx = (currentIdx + 1) % PROGRAMS.length;
+            selectedSpinRpm = PROGRAMS[currentIdx].rpm;
+            updateUI();
+        }
+    };
+
+    function updateUI() {
+        const p = PROGRAMS[currentIdx];
+        document.getElementById('main-dial').style.transform = `rotate(${p.angle}deg)`;
+        document.getElementById('lcd-title').innerText = p.name;
+        
+        const tempMeta = getTempColor(p.temp);
+        const tempBadge = document.getElementById('lcd-temp-badge');
+        tempBadge.innerText = tempMeta.text;
+        tempBadge.style.color = tempMeta.badge;
+        tempBadge.style.borderColor = tempMeta.badge;
+
+        document.getElementById('lcd-data').innerText = `${p.temp > 0 ? p.temp + '°C' : 'FRÍA'} | ${selectedSpinRpm} RPM | ${p.time} MIN`;
+        document.getElementById('ui-temp').innerText = p.temp > 0 ? p.temp + "°C" : "FRÍA";
+        document.getElementById('ui-spin').innerText = selectedSpinRpm + " RPM";
+        
+        document.querySelectorAll('.program-label').forEach((l, i) => l.classList.toggle('active', i === currentIdx));
+        
+        const list = document.getElementById('process-list');
+        list.innerHTML = p.phases.map((ph, i) => `
+            <div class="phase-step" id="ph-${i}">
+                <span class="phase-icon">${PHASE_INFO[ph].icon}</span>
+                <span>${PHASE_INFO[ph].label}</span>
+                <span style="margin-left:auto; font-size:12px; opacity:0.6;">${ph==='fill' ? (p.temp===0?'(FRÍA)':`(${p.temp}°C)`) : ''}</span>
+            </div>
+        `).join('');
+    }
+
+    window.changeSpin = () => {
+        if (!isRunning) {
+            const opts = [400, 800, 1200];
+            selectedSpinRpm = opts[(opts.indexOf(selectedSpinRpm) + 1) % opts.length];
+            updateUI();
+        }
+    };
+
+    window.changeTemp = () => {
+        if (!isRunning) {
+            const opts = [0, 30, 40, 60, 95];
+            const p = PROGRAMS[currentIdx];
+            p.temp = opts[(opts.indexOf(p.temp) + 1) % opts.length];
+            updateUI();
+        }
+    };
+
+    window.handleStart = async () => {
+        if (isRunning) { location.reload(); return; }
+        isRunning = true;
+        
+        const btnStart = document.getElementById('btn-start');
+        btnStart.innerHTML = "<span>⏹️ DETENER / REINICIAR</span>";
+        btnStart.classList.add('running');
+
+        const p = PROGRAMS[currentIdx];
+        const washColorMeta = getTempColor(p.temp);
+        const rinseColorMeta = getTempColor(0); // Aclarado siempre con agua fría
+
+        let currentWaterVal = 0;
+        let currentFoamVal = 0;
+
+        for(let i=0; i<p.phases.length; i++) {
+            const phKey = p.phases[i];
+            const meta = PHASE_INFO[phKey];
+            
+            document.querySelectorAll('.phase-step').forEach(s => s.classList.remove('active'));
+            const currentStep = document.getElementById(`ph-${i}`);
+            if (currentStep) {
+                currentStep.classList.add('active');
+                currentStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            document.getElementById('lcd-status').innerHTML = `<span style="color:var(--neon)">⚡</span> ESTADO: ${meta.label.toUpperCase()}`;
+
+            currentMode = meta.mode;
+            targetSpeed = (currentMode === 'spin') ? (selectedSpinRpm / 3500) : 0;
+
+            const targetColor = (phKey === 'rinse') ? rinseColorMeta.color : washColorMeta.color;
+
+            const startTime = Date.now();
+            while(Date.now() - startTime < meta.dur) {
+                // Animación progresiva lineal/suave (subida y bajada progresiva constante)
+                const stepW = 0.012; // Velocidad progresiva de agua
+                if (currentWaterVal < meta.water) {
+                    currentWaterVal = Math.min(meta.water, currentWaterVal + stepW);
+                } else if (currentWaterVal > meta.water) {
+                    currentWaterVal = Math.max(meta.water, currentWaterVal - stepW);
+                }
+
+                const stepF = 0.015; // Velocidad progresiva de espuma
+                if (currentFoamVal < meta.foam) {
+                    currentFoamVal = Math.min(meta.foam, currentFoamVal + stepF);
+                } else if (currentFoamVal > meta.foam) {
+                    currentFoamVal = Math.max(meta.foam, currentFoamVal - stepF);
+                }
+
+                waterMesh.position.y = -4.5 + (currentWaterVal * 4.0);
+                waterMesh.material.opacity = currentWaterVal > 0.01 ? Math.min(0.28, currentWaterVal * 0.5) : 0;
+                waterMesh.material.color.lerp(targetColor, 0.08); // Transición suave azul cristalino
+                
+                foamMesh.material.opacity = currentFoamVal > 0.01 ? Math.min(0.85, currentFoamVal * 1.2) : 0;
+                foamMesh.position.y = waterMesh.position.y + 2.0 + 0.15;
+                
+                await new Promise(r => setTimeout(r, 40));
+            }
+            
+            if (currentStep) {
+                currentStep.classList.remove('active');
+                currentStep.classList.add('done');
+            }
+            document.getElementById('progress-fill').style.width = `${((i+1)/p.phases.length)*100}%`;
+        }
+
+        currentMode = 'idle';
+        targetSpeed = 0;
+        document.getElementById('lcd-status').innerHTML = `<span style="color:#00e676">✔</span> ESTADO: CICLO COMPLETADO CON ÉXITO`;
+        document.getElementById('lcd-status').style.color = "#00e676";
+    };
+
+    // --- GARANTÍA ANTI-PANTALLA NEGRA Y RESIZE ---
+    function onWindowResize() {
+        if (!container || !renderer || !camera) return;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w === 0 || h === 0) return;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+    
+    // Garantía Anti-Pantalla Negra en Safari/macOS tras carga de layout CSS
+    setTimeout(() => { onWindowResize(); }, 150);
+    setTimeout(() => { onWindowResize(); }, 500);
+
+    initThree();
+</script>
+</body>
+</html>

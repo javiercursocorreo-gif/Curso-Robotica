@@ -1,0 +1,520 @@
+<!--
+{
+  "project": "1.3 ASCENSOR EJEMPLO REAL Y CONTROL FINO",
+  "version": "4.0.0-V8",
+  "last_update": "2026-07-05",
+  "improvements": [
+    "1.0.0: Comparativa básica de cubos en movimiento.",
+    "2.0.0: Añadida física básica de aceleración.",
+    "3.0.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Modelado 3D realista de cabinas de cristal, poleas, cables de suspensión y contrapesos sincronizados.",
+    "3.1.0: Reestructuración arquitectónica de la interfaz en flexbox estricto (Cabecera -> Canvas 3D -> Telemetría -> Barra inferior de control). Se elimina el posicionamiento absoluto superpuesto para garantizar que la caja de potencia y telemetría JAMÁS tape el ascensor en la planta inferior.",
+    "4.0.0-V8: Estandarización visual al estilo P1 V2. Iluminación de estudio 360° de alta intensidad, cables de acero cromado resplandeciente, contrapeso naranja seguridad con brillo propio, puertas doradas, guías plata pulida y OrbitControls habilitado en ambos paneles para zoom e inspección libre."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMULACIÓN REAL — AJUSTE FINO DE VELOCIDAD V2</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-green: #00ff66;
+            --neon-red: #ff2222;
+            --bg-color: #0a1118;
+            --panel-bg: rgba(10, 17, 24, 0.9);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #111a24 0%, var(--bg-color) 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 75px;
+            background: rgba(10, 17, 24, 0.95);
+            border-bottom: 2px solid var(--neon-blue);
+            box-shadow: 0 4px 20px rgba(0, 242, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 { margin: 0; font-size: 22px; color: var(--neon-blue); letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 242, 255, 0.4); }
+        header p { margin: 4px 0 0; font-size: 14px; color: #ccc; }
+
+        .container {
+            display: flex;
+            width: 100vw;
+            height: calc(100vh - 160px);
+            margin-top: 75px;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #panel-old { background: radial-gradient(circle at center, #1a1114 0%, #0a0c10 100%); border-right: 2px solid #ff3333; }
+        #panel-modern { background: radial-gradient(circle at center, #111a18 0%, #0a0c10 100%); border-left: 2px solid #00ff66; }
+
+        .label {
+            text-align: center;
+            font-weight: bold;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(0,0,0,0.85);
+            padding: 8px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+            flex-shrink: 0;
+            height: 65px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .canvas-box {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            width: 100%;
+        }
+
+        .telemetry {
+            background: rgba(0, 0, 0, 0.9);
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding: 10px 20px;
+            z-index: 10;
+            flex-shrink: 0;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .telemetry-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; font-weight: bold; }
+        .bar-container { width: 100%; height: 16px; background: #111; border-radius: 8px; overflow: hidden; border: 1px solid #333; margin-bottom: 6px; }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.1s linear; }
+        
+        #fill-old { background: linear-gradient(90deg, #ff6600, var(--neon-red)); box-shadow: 0 0 10px var(--neon-red); }
+        #fill-modern { background: linear-gradient(90deg, #0088ff, var(--neon-green)); box-shadow: 0 0 10px var(--neon-green); }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 30px;
+            padding: 0 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .badge-red { background: rgba(255, 34, 34, 0.2); color: #ff5555; border: 1px solid #ff2222; }
+        .badge-green { background: rgba(0, 255, 102, 0.2); color: #00ff66; border: 1px solid #00ff66; }
+
+        .ui-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 85px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 101;
+            background: rgba(10, 17, 24, 0.98);
+            border-top: 2px solid var(--neon-blue);
+            box-shadow: 0 -5px 20px rgba(0, 242, 255, 0.2);
+        }
+
+        .ui-controls span { font-weight: bold; color: var(--neon-blue); letter-spacing: 1px; font-size: 16px; margin-right: 10px; }
+
+        button.btn-floor {
+            width: 55px;
+            height: 55px;
+            background: #112233;
+            color: white;
+            border: 2px solid #335577;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        button.btn-floor:hover {
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 242, 255, 0.3);
+        }
+
+        button.btn-floor.active {
+            background: linear-gradient(135deg, #0088ff, var(--neon-blue));
+            color: #000;
+            border-color: white;
+            box-shadow: 0 0 20px var(--neon-blue);
+            transform: scale(1.08);
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>P2. EJEMPLO REAL DE CONTROL MOTOR (INVERTER) - V2</h1>
+    <p>Comparativa visual en tiempo real: Control rudimentario (Todo o Nada) vs Control Electrónico Fino (Aceleración y Deceleración)</p>
+</header>
+
+<div class="container">
+    <div id="panel-old" class="panel">
+        <div class="label" style="color: #ff5555;">
+            SISTEMA ANTIGUO (RUDIMENTARIO)<br>
+            <small style="font-size: 12px; color:#ddd; font-weight:normal;">Control 0% ➔ 100% de golpe (Arranque y Paro brusco)</small>
+        </div>
+        <div id="canvas-old" class="canvas-box"></div>
+        <div class="telemetry">
+            <div class="telemetry-row">
+                <span>POTENCIA MOTOR:</span>
+                <span id="power-val-old" style="color:#ff5555;">0%</span>
+            </div>
+            <div class="bar-container"><div id="fill-old" class="bar-fill"></div></div>
+            <div id="status-old" class="status-badge badge-red">SISTEMA EN REPOSO — PLANTA 1</div>
+        </div>
+    </div>
+
+    <div id="panel-modern" class="panel">
+        <div class="label" style="color: #00ff66;">
+            SISTEMA MODERNO (INVERTER)<br>
+            <small style="font-size: 12px; color:#ddd; font-weight:normal;">Ajuste Fino: Arranque suave y Deceleración progresiva</small>
+        </div>
+        <div id="canvas-modern" class="canvas-box"></div>
+        <div class="telemetry">
+            <div class="telemetry-row">
+                <span>POTENCIA MOTOR:</span>
+                <span id="power-val-modern" style="color:#00ff66;">0%</span>
+            </div>
+            <div class="bar-container"><div id="fill-modern" class="bar-fill"></div></div>
+            <div id="status-modern" class="status-badge badge-green">SISTEMA EN REPOSO — PLANTA 1</div>
+        </div>
+    </div>
+</div>
+
+<div class="ui-controls">
+    <span>LLAMAR A PLANTA:</span>
+    <button class="btn-floor active" id="btn-0" onclick="goToFloor(0)">1</button>
+    <button class="btn-floor" id="btn-1" onclick="goToFloor(1)">2</button>
+    <button class="btn-floor" id="btn-2" onclick="goToFloor(2)">3</button>
+    <button class="btn-floor" id="btn-3" onclick="goToFloor(3)">4</button>
+    <button class="btn-floor" id="btn-4" onclick="goToFloor(4)">5</button>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const floorHeight = 8;
+    let targetFloor = 0;
+
+    const state = {
+        old: { y: 0, velocity: 0, power: 0, isMoving: false, shake: 0, statusText: "EN REPOSO" },
+        modern: { 
+            y: 0, 
+            velocity: 0, 
+            power: 0,
+            maxSpeed: 0.18, 
+            accel: 0.002,
+            statusText: "EN REPOSO"
+        }
+    };
+
+    function createElevatorScene(elementId, accentColorHex) {
+        const container = document.getElementById(elementId);
+        const scene = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(28, 18, 55); 
+        camera.lookAt(0, 18, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 18, 0);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05;
+
+        // Iluminación de Estudio 360° de Alta Visibilidad (Estilo P1 V2)
+        scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 3.0));
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 4.0);
+        dirLight.position.set(20, 30, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0xddeeff, 3.0);
+        fillLight.position.set(-20, 20, -20);
+        scene.add(fillLight);
+
+        const pLight = new THREE.PointLight(accentColorHex, 50, 40);
+        pLight.position.set(-10, 20, 10);
+        scene.add(pLight);
+
+        const backLight = new THREE.PointLight(0xffffff, 45, 40);
+        backLight.position.set(0, 20, -10);
+        scene.add(backLight);
+
+        // Estructura arquitectónica de 5 plantas de alta claridad
+        const matFloor = new THREE.MeshPhysicalMaterial({ color: 0x334455, metalness: 0.6, roughness: 0.3, transparent: true, opacity: 0.75 });
+        const matWall = new THREE.MeshStandardMaterial({ color: 0x223344 });
+        
+        for (let i = 0; i < 5; i++) {
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(16, 0.4, 12), matFloor);
+            floor.position.set(0, i * floorHeight, 0);
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, floorHeight, 0.8), matWall);
+            pillar.position.set(-7.5, (i * floorHeight) + (floorHeight/2), -5);
+            scene.add(pillar);
+        }
+
+        // Guías verticales de acero pulido resplandeciente
+        const matSteel = new THREE.MeshPhysicalMaterial({ color: 0xe0e8f0, metalness: 0.85, roughness: 0.15, clearcoat: 0.5 });
+        const railL = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 40), matSteel);
+        railL.position.set(-2.6, 18, 0); railL.castShadow = true;
+        const railR = railL.clone(); railR.position.x = 2.6; railR.castShadow = true;
+        scene.add(railL, railR);
+
+        // Grupo móvil de la Cabina
+        const cabinGroup = new THREE.Group();
+        
+        const matGlass = new THREE.MeshPhysicalMaterial({ color: accentColorHex, transparent: true, opacity: 0.3, transmission: 0.85, roughness: 0.1 });
+        const matFrame = new THREE.MeshPhysicalMaterial({ color: 0xc0d0e0, metalness: 0.85, roughness: 0.15 });
+        
+        const cTop = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.35, 4.4), matFrame);
+        cTop.position.y = 5.2; cTop.castShadow = true;
+        const cBot = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.35, 4.4), matFrame);
+        cBot.position.y = 0.15; cBot.castShadow = true;
+        const cBody = new THREE.Mesh(new THREE.BoxGeometry(4.6, 4.8, 4.2), matGlass);
+        cBody.position.y = 2.7;
+        
+        // Puertas correderas interiores doradas resplandecientes
+        const matDoor = new THREE.MeshPhysicalMaterial({ color: 0xffb000, metalness: 0.9, roughness: 0.1, emissive: 0x884400, emissiveIntensity: 0.2 });
+        const doorL = new THREE.Mesh(new THREE.BoxGeometry(2.1, 4.6, 0.1), matDoor);
+        doorL.position.set(-1.1, 2.7, 2.1); doorL.castShadow = true;
+        const doorR = doorL.clone(); doorR.position.x = 1.1; doorR.castShadow = true;
+        
+        cabinGroup.add(cTop, cBot, cBody, doorL, doorR);
+        scene.add(cabinGroup);
+
+        // Contrapeso móvil en naranja seguridad brillante
+        const matCounter = new THREE.MeshStandardMaterial({ color: 0xff8800, roughness: 0.2, emissive: 0xff4400, emissiveIntensity: 0.3 });
+        const counterweight = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4.0, 0.6), matCounter);
+        counterweight.position.set(0, 16, -3.5); counterweight.castShadow = true;
+        scene.add(counterweight);
+
+        // Cables de suspensión en acero trenzado cromado brillante (estilo P1 V2)
+        const cableMat = new THREE.MeshStandardMaterial({ color: 0xd0e4f8, metalness: 0.9, roughness: 0.1, emissive: 0x003366, emissiveIntensity: 0.3 });
+        const cableCabin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1), cableMat);
+        cableCabin.position.set(0, 20, 0);
+        const cableCounter = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1), cableMat);
+        cableCounter.position.set(0, 20, -3.5);
+        scene.add(cableCabin, cableCounter);
+
+        // Polea motriz superior
+        const pulley = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.6), matSteel);
+        pulley.position.set(0, 38.5, -1.75);
+        pulley.rotation.z = Math.PI/2; pulley.castShadow = true;
+        scene.add(pulley);
+
+        return { scene, camera, renderer, controls, cabinGroup, counterweight, cableCabin, cableCounter, pulley };
+    }
+
+    const viewOld = createElevatorScene('canvas-old', 0xff3333);
+    const viewModern = createElevatorScene('canvas-modern', 0x00ff66);
+
+    window.goToFloor = (floor) => {
+        targetFloor = floor;
+        document.querySelectorAll('.btn-floor').forEach((btn, idx) => {
+            btn.classList.toggle('active', idx === floor);
+        });
+    };
+
+    function updatePhysics() {
+        const targetY = targetFloor * floorHeight;
+
+        // --- SISTEMA ANTIGUO (RUDIMENTARIO 0% -> 100% DE GOLPE) ---
+        const diffOld = targetY - state.old.y;
+        const oldMaxSpeed = 0.18;
+
+        if (Math.abs(diffOld) > 0.05) {
+            state.old.power = 100;
+            state.old.velocity = Math.sign(diffOld) * oldMaxSpeed;
+            state.old.y += state.old.velocity;
+            state.old.isMoving = true;
+            state.old.statusText = `⚠️ TIRÓN BRUSCO — 100% POTENCIA`;
+        } else if (state.old.isMoving) {
+            state.old.y = targetY;
+            state.old.velocity = 0;
+            state.old.power = 0;
+            state.old.isMoving = false;
+            state.old.shake = 0.9;
+            state.old.statusText = `🛑 FRENO SECO DE GOLPE (ALTA INERCIA)`;
+        } else {
+            state.old.power = 0;
+            if (state.old.shake <= 0.01) {
+                state.old.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
+            }
+        }
+
+        let shakeY = 0;
+        if (state.old.shake > 0.01) {
+            shakeY = Math.sin(Date.now() * 0.15) * state.old.shake;
+            state.old.shake *= 0.88;
+        }
+
+        viewOld.cabinGroup.position.y = state.old.y + shakeY;
+        const oldCounterY = (4 * floorHeight) - state.old.y;
+        viewOld.counterweight.position.y = oldCounterY;
+        viewOld.pulley.rotation.x += state.old.velocity * 0.5;
+
+        viewOld.cableCabin.position.y = (38.5 + state.old.y + 5.2) / 2;
+        viewOld.cableCabin.scale.y = Math.max(0.1, 38.5 - (state.old.y + 5.2));
+        viewOld.cableCounter.position.y = (38.5 + oldCounterY + 2.0) / 2;
+        viewOld.cableCounter.scale.y = Math.max(0.1, 38.5 - (oldCounterY + 2.0));
+
+
+        // --- SISTEMA MODERNO (INVERTER CON AJUSTE FINO) ---
+        const diffModern = targetY - state.modern.y;
+        const dist = Math.abs(diffModern);
+
+        if (dist > 0.005) {
+            const stopDist = (state.modern.velocity * state.modern.velocity) / (2 * state.modern.accel);
+
+            if (dist <= stopDist || (dist < 3.0 && state.modern.velocity > 0.03)) {
+                state.modern.velocity = Math.max(0.008, state.modern.velocity - state.modern.accel);
+                state.modern.statusText = `📉 DECELERACIÓN SUAVE AL MILÍMETRO`;
+            } else if (state.modern.velocity < state.modern.maxSpeed) {
+                state.modern.velocity = Math.min(state.modern.maxSpeed, state.modern.velocity + state.modern.accel);
+                state.modern.statusText = `📈 ARRANQUE SUAVE PROGRESIVO`;
+            } else {
+                state.modern.statusText = `⚡ VELOCIDAD DE CRUCERO ESTABLE`;
+            }
+
+            state.modern.y += Math.sign(diffModern) * state.modern.velocity;
+            state.modern.power = Math.round((state.modern.velocity / state.modern.maxSpeed) * 100);
+
+            if (dist < 0.02 && state.modern.velocity < 0.015) {
+                state.modern.y = targetY;
+                state.modern.velocity = 0;
+                state.modern.power = 0;
+                state.modern.statusText = `✓ PARADA EXACTA Y SUAVE (CONFORT TOTAL)`;
+            }
+        } else {
+            state.modern.y = targetY;
+            state.modern.velocity = 0;
+            state.modern.power = 0;
+            if (!state.modern.statusText.includes("PARADA EXACTA")) {
+                state.modern.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
+            }
+        }
+
+        viewModern.cabinGroup.position.y = state.modern.y;
+        const modCounterY = (4 * floorHeight) - state.modern.y;
+        viewModern.counterweight.position.y = modCounterY;
+        viewModern.pulley.rotation.x += Math.sign(diffModern) * state.modern.velocity * 0.5;
+
+        viewModern.cableCabin.position.y = (38.5 + state.modern.y + 5.2) / 2;
+        viewModern.cableCabin.scale.y = Math.max(0.1, 38.5 - (state.modern.y + 5.2));
+        viewModern.cableCounter.position.y = (38.5 + modCounterY + 2.0) / 2;
+        viewModern.cableCounter.scale.y = Math.max(0.1, 38.5 - (modCounterY + 2.0));
+    }
+
+    function updateUI() {
+        document.getElementById('power-val-old').innerText = `${Math.round(state.old.power)}%`;
+        document.getElementById('fill-old').style.width = `${state.old.power}%`;
+        document.getElementById('status-old').innerText = state.old.statusText;
+
+        document.getElementById('power-val-modern').innerText = `${Math.round(state.modern.power)}%`;
+        document.getElementById('fill-modern').style.width = `${state.modern.power}%`;
+        document.getElementById('status-modern').innerText = state.modern.statusText;
+    }
+
+    function onWindowResize() {
+        [viewOld, viewModern].forEach(v => {
+            if(!v.renderer) return;
+            const container = v.renderer.domElement.parentElement;
+            if(!container || container.clientWidth === 0 || container.clientHeight === 0) return;
+            v.camera.aspect = container.clientWidth / container.clientHeight;
+            v.camera.updateProjectionMatrix();
+            v.renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    }
+
+    window.addEventListener('resize', onWindowResize);
+    setTimeout(onWindowResize, 150);
+    setTimeout(onWindowResize, 500);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if (viewOld.controls) viewOld.controls.update();
+        if (viewModern.controls) viewModern.controls.update();
+        updatePhysics();
+        updateUI();
+        viewOld.renderer.render(viewOld.scene, viewOld.camera);
+        viewModern.renderer.render(viewModern.scene, viewModern.camera);
+    }
+
+    animate();
+</script>
+
+</body>
+</html>

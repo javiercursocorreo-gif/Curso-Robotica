@@ -1,0 +1,483 @@
+<!--
+{
+  "project": "1.2 LAVADORA BLOQUES",
+  "version": "2.1.0",
+  "last_update": "2026-07-04",
+  "improvements": [
+    "2.0.0: Persistencia visual post-juego, UI de fin de partida y botón de solución completa.",
+    "2.1.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Mantenimiento intacto de la jugabilidad 2D por bloques como primera experiencia pedagógica."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLOQUES</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --cyan: #00f2ff;
+            --cotton: #1565C0;
+            --rapid: #F57F17;
+            --delicate: #2E7D32;
+            --rinse: #6A1B9A;
+            --text-main: #ffffff;
+            --text-dim: #aaaaaa;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER OBLIGATORIO */
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid var(--cyan);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+
+        header h1 { font-size: 26px; color: var(--cyan); letter-spacing: 5px; text-transform: uppercase; }
+        header p { font-size: 16px; color: var(--text-dim); }
+
+        /* LAYOUT */
+        main {
+            display: flex;
+            flex: 1;
+            margin-top: 70px;
+            height: calc(100vh - 70px);
+        }
+
+        /* ZONA IZQUIERDA */
+        #game-area {
+            width: 75%;
+            position: relative;
+            background: radial-gradient(circle at center, #252545 0%, #1a1a2e 100%);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #top-controls {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .btn-ui {
+            height: 60px;
+            padding: 0 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            background: var(--cyan);
+            color: black;
+            transition: transform 0.2s;
+        }
+
+        .btn-restart {
+            background: #2E7D32;
+            color: white;
+            height: 60px;
+            padding: 0 40px;
+            font-size: 20px;
+            display: none;
+        }
+
+        #stats {
+            font-size: 22px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 25px;
+            border-radius: 12px;
+            border: 1px solid var(--cyan);
+        }
+
+        #drop-zone { flex: 1; position: relative; width: 100%; overflow: hidden; }
+
+        .falling-block {
+            position: absolute;
+            width: 180px;
+            height: 60px;
+            background: white;
+            color: black;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            left: calc(50% - 90px);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        #bases-container {
+            height: 480px;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            padding: 0 20px 40px 20px;
+        }
+
+        .base-wrapper { width: 18%; display: flex; flex-direction: column; align-items: center; }
+
+        .base-stack {
+            width: 100%;
+            min-height: 80px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 5px;
+            gap: 4px;
+        }
+
+        .stacked-block {
+            width: 100%;
+            height: 38px;
+            background: white;
+            color: black;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: pop 0.2s ease-out;
+            text-align: center;
+        }
+
+        .stacked-block.hinted { background: #fff176; }
+
+        @keyframes pop { 0% { transform: scale(0.6); } 100% { transform: scale(1); } }
+
+        .btn-base {
+            width: 100%;
+            height: 65px;
+            border: none;
+            border-radius: 0 0 12px 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.4);
+        }
+
+        /* ZONA DERECHA */
+        #sidebar {
+            width: 25%;
+            background: rgba(0,0,0,0.5);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 6px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .feature-item.resolved { text-decoration: line-through; color: #666; opacity: 0.5; }
+
+        .btn-hint {
+            padding: 6px 12px;
+            background: #ffcc00;
+            color: black;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #btn-solution {
+            margin-top: 20px;
+            height: 70px;
+            width: 100%;
+            background: #e91e63;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        #btn-solution:disabled { background: #444; opacity: 0.5; }
+
+        /* OVERLAY INICIAL */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 500;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .flash-green { background: rgba(0, 255, 0, 0.4) !important; }
+        .flash-red { background: rgba(255, 0, 0, 0.4) !important; }
+        .error-anim { animation: blink-red 0.1s 4; }
+        @keyframes blink-red { 0%, 100% { background: white; } 50% { background: #ff5555; } }
+
+        #end-msg {
+            color: #00f2ff;
+            font-weight: bold;
+            font-size: 20px;
+            margin-right: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>PROGRAMA TU LAVADORA</h1>
+        <p>Coloca cada característica en el programa correcto</p>
+    </header>
+
+    <div id="start-overlay" class="overlay">
+        <div style="background:#111; padding: 50px; border: 2px solid var(--cyan); border-radius: 20px; width: 500px;">
+            <h2 style="color:var(--cyan); font-size: 36px; margin-bottom: 20px;">BIENVENIDO</h2>
+            <p style="font-size: 20px; margin-bottom: 40px; color: #ccc;">Aprende los programas de tu lavadora colocando cada bloque en su lugar.</p>
+            <button class="btn-ui" style="height: 80px; width: 100%; font-size: 24px;" onclick="startGame()">COMENZAR JUEGO</button>
+        </div>
+    </div>
+
+    <main>
+        <div id="game-area">
+            <div id="top-controls">
+                <div id="active-btns">
+                    <button id="btn-pause" class="btn-ui" onclick="togglePause(true)">PAUSA</button>
+                    <button id="btn-resume" class="btn-ui" style="display:none;" onclick="togglePause(false)">CONTINUAR</button>
+                </div>
+                <div id="finished-btns" style="display: flex; align-items: center;">
+                    <span id="end-msg">¡MUY BIEN! EXAMINA TUS PROGRAMAS</span>
+                    <button class="btn-ui btn-restart" onclick="location.reload()">REINICIAR JUEGO</button>
+                </div>
+                <div id="stats">✅ <span id="score-hits">0</span> | ❌ <span id="score-miss">0</span></div>
+            </div>
+            
+            <div id="drop-zone"></div>
+            
+            <div id="bases-container">
+                <div class="base-wrapper">
+                    <div id="stack-0" class="base-stack" style="border: 2px solid var(--cotton)"></div>
+                    <button class="btn-base" style="background: var(--cotton)" onclick="pressBase(0)">ALGODÓN</button>
+                </div>
+                <div class="base-wrapper">
+                    <div id="stack-1" class="base-stack" style="border: 2px solid var(--rapid)"></div>
+                    <button class="btn-base" style="background: var(--rapid)" onclick="pressBase(1)">RÁPIDO 30</button>
+                </div>
+                <div class="base-wrapper">
+                    <div id="stack-2" class="base-stack" style="border: 2px solid var(--delicate)"></div>
+                    <button class="btn-base" style="background: var(--delicate)" onclick="pressBase(2)">DELICADO</button>
+                </div>
+                <div class="base-wrapper">
+                    <div id="stack-3" class="base-stack" style="border: 2px solid var(--rinse)"></div>
+                    <button class="btn-base" style="background: var(--rinse)" onclick="pressBase(3)">ACLARADO+CENT.</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <h2 style="color:var(--cyan); margin-bottom: 20px; text-align: center;">CARACTERÍSTICAS</h2>
+            <div id="feature-list"></div>
+            <button id="btn-solution" onclick="handleSolutionClick()" disabled>SOLUCIÓN COMPLETA</button>
+        </div>
+    </main>
+
+    <script>
+        const DATA = [
+            { id: 0, text: "🌡️ 95°C", bases: [0] },
+            { id: 1, text: "🌡️ 60°C", bases: [1] },
+            { id: 2, text: "🌡️ 30°C", bases: [2] },
+            { id: 3, text: "🌡️ FRÍA", bases: [3] },
+            { id: 4, text: "⚡ 1200 rpm", bases: [0, 3] },
+            { id: 5, text: "⚡ 800 rpm", bases: [1] },
+            { id: 6, text: "⚡ 400 rpm", bases: [2] },
+            { id: 7, text: "💧 2 aclarados", bases: [0] },
+            { id: 8, text: "💧 1 aclarado", bases: [1, 2, 3] },
+            { id: 9, text: "🧴 Jabón Normal", bases: [0, 1] },
+            { id: 10, text: "🧴 Jabón Delicado", bases: [2] },
+            { id: 11, text: "🚫 Sin jabón", bases: [3] },
+            { id: 12, text: "⏱️ Ciclo largo", bases: [0] },
+            { id: 13, text: "⏱️ Ciclo corto", bases: [1, 2, 3] }
+        ];
+
+        let state = {
+            hits: 0, miss: 0, paused: true, active: false,
+            currentY: 0, currentBlock: null, fallingEl: null,
+            pendingId: null, stacks: [[], [], [], []]
+        };
+
+        function startGame() {
+            document.getElementById('start-overlay').style.display = 'none';
+            state.active = true; state.paused = false;
+            initSidebar();
+            spawn();
+            requestAnimationFrame(loop);
+        }
+
+        function initSidebar() {
+            const list = document.getElementById('feature-list');
+            DATA.forEach(d => {
+                const item = document.createElement('div');
+                item.className = 'feature-item';
+                item.id = 'f-' + d.id;
+                item.innerHTML = `<span>${d.text}</span><button class="btn-hint" onclick="useHint(${d.id})" disabled>PISTA</button>`;
+                list.appendChild(item);
+            });
+        }
+
+        function isGameComplete() {
+            return DATA.every(block => block.bases.every(bIdx => state.stacks[bIdx].includes(block.id)));
+        }
+
+        function spawn() {
+            if (isGameComplete()) {
+                state.active = false;
+                showEndControls();
+                return;
+            }
+            if (!state.active) return;
+            
+            let data;
+            if (state.pendingId !== null) {
+                data = DATA.find(d => d.id === state.pendingId);
+                state.pendingId = null;
+            } else {
+                const missing = DATA.filter(b => b.bases.some(idx => !state.stacks[idx].includes(b.id)));
+                data = missing[Math.floor(Math.random() * missing.length)];
+            }
+
+            state.currentBlock = data;
+            state.currentY = -60;
+            const el = document.createElement('div');
+            el.className = 'falling-block';
+            el.innerText = data.text;
+            document.getElementById('drop-zone').appendChild(el);
+            state.fallingEl = el;
+        }
+
+        function loop() {
+            if (!state.active) return;
+            if (!state.paused && state.fallingEl) {
+                state.currentY += 1.3; // Velocidad muy lenta
+                state.fallingEl.style.top = state.currentY + 'px';
+                if (state.currentY > document.getElementById('drop-zone').offsetHeight * 0.9) processChoice(-1);
+            }
+            requestAnimationFrame(loop);
+        }
+
+        function pressBase(idx) {
+            if (state.paused || !state.fallingEl || !state.active) return;
+            if (state.stacks[idx].includes(state.currentBlock.id)) return;
+            processChoice(idx);
+        }
+
+        function processChoice(idx) {
+            const b = state.currentBlock; const el = state.fallingEl; state.fallingEl = null;
+            if (idx !== -1 && b.bases.includes(idx)) {
+                state.hits++; state.stacks[idx].push(b.id);
+                const rect = document.getElementById('stack-' + idx).getBoundingClientRect();
+                el.style.transition = 'all 0.3s ease-in';
+                el.style.top = (rect.top - 40) + 'px'; el.style.opacity = '0';
+                document.getElementById('stack-' + idx).classList.add('flash-green');
+                setTimeout(() => {
+                    document.getElementById('stack-' + idx).classList.remove('flash-green');
+                    addToUI(idx, b.text); el.remove(); updateFeatureUI(b.id); next();
+                }, 300);
+            } else {
+                state.miss++; state.pendingId = b.id;
+                if (idx !== -1) document.getElementById('stack-' + idx).classList.add('flash-red');
+                el.classList.add('error-anim');
+                setTimeout(() => {
+                    if (idx !== -1) document.getElementById('stack-' + idx).classList.remove('flash-red');
+                    el.style.opacity = '0'; setTimeout(() => { el.remove(); next(); }, 400);
+                }, 400);
+            }
+        }
+
+        function updateFeatureUI(id) {
+            const b = DATA.find(d => d.id === id);
+            if (b.bases.every(idx => state.stacks[idx].includes(id))) document.getElementById('f-' + id).classList.add('resolved');
+            document.getElementById('score-hits').innerText = state.hits;
+            document.getElementById('score-miss').innerText = state.miss;
+        }
+
+        function next() { if (state.active) setTimeout(spawn, 500); }
+
+        function addToUI(idx, text, isHint = false) {
+            const stack = document.getElementById('stack-' + idx);
+            const b = document.createElement('div');
+            b.className = 'stacked-block' + (isHint ? ' hinted' : '');
+            b.innerText = text;
+            stack.appendChild(b);
+        }
+
+        function togglePause(p) {
+            if (!state.active) return;
+            state.paused = p;
+            document.getElementById('btn-pause').style.display = p ? 'none' : 'inline-block';
+            document.getElementById('btn-resume').style.display = p ? 'inline-block' : 'none';
+            document.querySelectorAll('.btn-hint').forEach(b => b.disabled = !p);
+            document.getElementById('btn-solution').disabled = !p;
+        }
+
+        function useHint(id) {
+            const d = DATA.find(x => x.id === id);
+            d.bases.forEach(idx => {
+                if (!state.stacks[idx].includes(id)) { state.stacks[idx].push(id); addToUI(idx, d.text, true); }
+            });
+            updateFeatureUI(id);
+        }
+
+        function handleSolutionClick() {
+            DATA.forEach(d => useHint(d.id));
+            if (state.fallingEl) state.fallingEl.remove();
+            state.active = false;
+            state.paused = true;
+            showEndControls();
+        }
+
+        function showEndControls() {
+            document.getElementById('active-btns').style.display = 'none';
+            document.getElementById('btn-solution').disabled = true;
+            document.getElementById('end-msg').style.display = 'block';
+            document.querySelector('.btn-restart').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1079 @@
+<!--
+MEJORAS:
+- [Corrección Validación Misión 5]: Se ha modificado el algoritmo de validación de la Misión 5 (y otras) para que el bloque "SI DETECTA AMBULANCIA" pueda colocarse en cualquier parte del programa. Al ser un evento asíncrono (listener), ahora el sistema es inteligente y valida la secuencia lógica de colores y tiempos independientemente de dónde se coloque la pieza de la ambulancia.
+- [Restauración de Estado Visual]: Se ha añadido una memoria del estado de la luz (`activeSequenceColor`). Ahora, si pulsas la ambulancia durante una espera (ej. después de encender el verde), al terminar el parpadeo rojo de emergencia, el semáforo restaura automáticamente la luz verde original mientras termina de contar los segundos, en lugar de quedarse apagado.
+- [Mejora Visual de Retorno]: Tras volver de la rutina de la ambulancia, el motor no solo devuelve el control, sino que auto-enfoca (scroll) y vuelve a iluminar el bloque exacto que estaba en pausa, dejando clarísimo que el ciclo principal continúa donde lo dejó.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --panel-bg: #2a2a40;
+            --header-bg: rgba(0, 0, 0, 0.85);
+            --accent: #00f2ff;
+            --text: #ffffff;
+            --text-dim: #aaaaaa;
+            --success: #00aa44;
+            --danger: #cc0000;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* HEADER */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: var(--header-bg);
+            border-bottom: 2px solid var(--accent);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: var(--accent);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 2px 0 0 0;
+            font-size: 16px;
+            color: var(--text-dim);
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-container {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 70px);
+            margin-top: 70px;
+        }
+
+        /* ZONA IZQUIERDA (PANEL RÍGIDO) */
+        #left-panel {
+            width: 40%;
+            background: var(--panel-bg);
+            border-right: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 10;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+            overflow: hidden;
+            gap: 10px;
+        }
+
+        /* SELECTOR DE MISIONES */
+        #mission-selector {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 5px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        
+        #mission-selector span {
+            font-size: 16px;
+            color: var(--text-dim);
+            font-weight: bold;
+            margin-right: auto;
+            text-transform: uppercase;
+        }
+
+        .mission-btn {
+            min-height: 40px;
+            height: 40px;
+            width: 40px;
+            padding: 0;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #555;
+            border-radius: 6px;
+            background: #333;
+            color: white;
+            cursor: pointer;
+            flex: none;
+            transition: all 0.2s;
+        }
+
+        .mission-btn:hover { background: #555; }
+        
+        .mission-btn.active {
+            background: var(--accent);
+            color: black;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        /* MISIONES */
+        #mission-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 10px 15px;
+            flex-shrink: 0;
+        }
+
+        #mission-title {
+            font-size: 20px;
+            color: #ffcc00;
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+
+        #mission-desc {
+            font-size: 16px;
+            line-height: 1.3;
+            margin: 0 0 5px 0;
+        }
+
+        #mission-hint {
+            font-size: 15px;
+            color: #ffaa00;
+            font-style: italic;
+            display: none;
+            margin-top: 5px;
+        }
+
+        /* BOTONES DE CONTROL PRINCIPALES */
+        .controls-row {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .control-btn {
+            padding: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            min-height: 50px;
+            flex: 1;
+            transition: transform 0.1s, opacity 0.2s;
+            color: white;
+            text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .control-btn:active { transform: scale(0.95); }
+        .control-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        #btn-execute { background: var(--success); flex: 1.5; font-size: 16px; height: 55px; }
+        #btn-restart { background: #ff8800; flex: 1; }
+        #btn-clear { background: #555555; flex: 1; }
+        
+        #btn-ambulance { 
+            background: var(--danger); 
+            display: none; 
+            border: 2px solid yellow; 
+            width: 100%;
+            flex-shrink: 0;
+            min-height: 45px;
+        }
+        
+        #btn-next { 
+            background: var(--accent); 
+            color: black; 
+            display: none; 
+            width: 100%; 
+            margin-top: 5px; 
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 16px;
+            color: var(--text-dim);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* PALETA DE BLOQUES EN HORIZONTAL */
+        #palette-zone {
+            display: flex;
+            flex-direction: row;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            gap: 8px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #222;
+        }
+
+        #palette-zone::-webkit-scrollbar { height: 8px; }
+        #palette-zone::-webkit-scrollbar-track { background: #222; border-radius: 4px; }
+        #palette-zone::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
+        /* SECUENCIA DE PROGRAMACIÓN VERTICAL CON SCROLL PROPIO */
+        #sequence-zone {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(0,0,0,0.4);
+            border: 2px dashed #666;
+            padding: 10px;
+            border-radius: 8px;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+
+        /* BLOQUES COMPACTOS */
+        .block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+            height: auto;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            cursor: grab;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        #palette-zone .block { height: 40px; white-space: nowrap; }
+
+        .block:active { cursor: grabbing; }
+
+        .block.active-exec {
+            border: 2px solid white;
+            box-shadow: 0 0 10px white;
+            transform: scale(1.02);
+            z-index: 5;
+            background-color: #555555 !important;
+        }
+
+        .block-emoji { font-size: 18px; margin-right: 6px; }
+        .block-text { flex-grow: 1; text-align: left; line-height: 1.1; }
+
+        .block-delete {
+            background: rgba(0,0,0,0.4);
+            border: none;
+            color: white;
+            font-size: 12px;
+            width: 28px;
+            height: 28px;
+            min-height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 10px;
+            padding: 0;
+        }
+
+        .block-delete:hover { background: rgba(255,0,0,0.8); }
+
+        /* ESTILO ESPECIAL AMBULANCIA */
+        .block[data-type="AMBULANCIA"] { border: 2px solid yellow; }
+        #sequence-zone .block[data-type="AMBULANCIA"] { flex-direction: column; align-items: flex-start; }
+        .block[data-type="AMBULANCIA"] .block-header { display: flex; align-items: center; width: 100%; }
+
+        .block-tag-new {
+            background: red;
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            border: 1px solid white;
+            z-index: 2;
+        }
+
+        .block-inner-content {
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            padding: 6px;
+            margin-top: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .inner-sub-block { font-size: 13px; padding: 4px 8px; border-radius: 4px; color: white; }
+
+        /* DRAG PLACEHOLDER */
+        .drop-placeholder {
+            height: 40px;
+            min-height: 40px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed #888;
+            border-radius: 6px;
+            margin: 2px 0;
+        }
+
+        /* FEEDBACK */
+        #feedback-msg {
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            flex-shrink: 0;
+        }
+
+        .feedback-error { background: rgba(204, 0, 0, 0.2); border: 2px solid var(--danger); color: #ffcccc; }
+        .feedback-success { background: rgba(0, 170, 68, 0.2); border: 2px solid var(--success); color: #ccffcc; }
+        .feedback-info { background: rgba(51, 153, 255, 0.2); border: 2px solid #3399ff; color: #cce5ff; }
+
+        /* ZONA DERECHA (CANVAS) */
+        #right-panel { width: 60%; position: relative; }
+        #three-canvas { width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>PROGRAMA EL SEMÁFORO</h1>
+        <p>Arrastra los bloques para programar el comportamiento del semáforo</p>
+    </header>
+
+    <div id="main-container">
+        
+        <!-- PANEL IZQUIERDO: UI -->
+        <div id="left-panel">
+
+            <div id="mission-selector">
+                <span>Ir a misión:</span>
+                <button class="mission-btn" data-id="1">1</button>
+                <button class="mission-btn" data-id="2">2</button>
+                <button class="mission-btn" data-id="3">3</button>
+                <button class="mission-btn" data-id="4">4</button>
+                <button class="mission-btn" data-id="5">5</button>
+            </div>
+            
+            <div id="mission-card">
+                <div id="mission-title">MISIÓN 1</div>
+                <div id="mission-desc">Cargando...</div>
+                <div id="mission-hint"></div>
+                <button id="btn-next" class="control-btn">Siguiente Misión ➡️</button>
+            </div>
+
+            <div class="controls-row">
+                <button id="btn-execute" class="control-btn">▶ Ejecutar</button>
+                <button id="btn-restart" class="control-btn">🔄 Reiniciar</button>
+                <button id="btn-clear" class="control-btn">🗑️ Limpiar</button>
+                <button id="btn-solution" class="control-btn" style="background:#8e44ad;">💡 Solución</button>
+            </div>
+            
+            <button id="btn-ambulance" class="control-btn">🚨 Simular Ambulancia</button>
+            
+            <div id="feedback-msg"></div>
+
+            <div class="section-title">Bloques Disponibles</div>
+            <div id="palette-zone"></div>
+
+            <div class="section-title">Tu Programa</div>
+            <div id="sequence-zone"></div>
+
+        </div>
+
+        <!-- PANEL DERECHO: THREE.JS -->
+        <div id="right-panel">
+            <canvas id="three-canvas"></canvas>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // ==========================================
+        // CONFIGURACIÓN DE BLOQUES 
+        // ==========================================
+        const BLOCK_DEF = {
+            'VERDE': { text: 'ENCENDER VERDE', color: '#00aa44', emoji: '🟢' },
+            'AMARILLO': { text: 'ENCENDER AMARILLO', color: '#ffaa00', emoji: '🟡' },
+            'ROJO': { text: 'ENCENDER ROJO', color: '#cc0000', emoji: '🔴' },
+            'OFF': { text: 'APAGAR TODO', color: '#555555', emoji: '⚫' },
+            'WAIT_2': { text: 'ESPERAR 2s', color: '#3399ff', emoji: '⏱️' },
+            'WAIT_3': { text: 'ESPERAR 3s', color: '#3399ff', emoji: '⏱️' },
+            'WAIT_5': { text: 'ESPERAR 5s', color: '#3399ff', emoji: '⏱️' },
+            'LOOP': { text: 'REPETIR SIEMPRE', color: '#9933cc', emoji: '🔁' },
+            'AMBULANCIA': { text: 'AMBULANCIA', color: '#ff6600', emoji: '🚨', isNew: true }
+        };
+
+        // ==========================================
+        // ESTADO DE LA APLICACIÓN
+        // ==========================================
+        let currentMission = 1;
+        let isExecuting = false;
+        let ambulanceInterrupt = false;
+        let uniqueIdCounter = 0;
+        let activeSequenceColor = 'OFF'; // Rastrea el color intencionado del semáforo
+
+        // Referencias DOM
+        const paletteZone = document.getElementById('palette-zone');
+        const sequenceZone = document.getElementById('sequence-zone');
+        const btnExecute = document.getElementById('btn-execute');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnClear = document.getElementById('btn-clear');
+        const btnSolution = document.getElementById('btn-solution');
+        const btnAmbulance = document.getElementById('btn-ambulance');
+        const btnNext = document.getElementById('btn-next');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const missionTitle = document.getElementById('mission-title');
+        const missionDesc = document.getElementById('mission-desc');
+        const missionHint = document.getElementById('mission-hint');
+        const missionBtns = document.querySelectorAll('.mission-btn');
+
+        // ==========================================
+        // THREE.JS SETUP
+        // ==========================================
+        const canvas = document.getElementById('three-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        scene.fog = new THREE.Fog(0x1a1a2e, 15, 90);
+
+        const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        camera.position.set(0, 6, 20); 
+        camera.lookAt(0, 5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.6;
+
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3.5));
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        const pLight = new THREE.PointLight(0x00f2ff, 60, 50);
+        pLight.position.set(-10, 10, 5);
+        scene.add(pLight);
+
+        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundMat = new THREE.MeshPhysicalMaterial({
+            color: 0x444444,
+            metalness: 0.7,
+            roughness: 0.1,
+            clearcoat: 1.0,
+            emissive: new THREE.Color(0, 0, 0)
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+        grid.position.y = 0.01;
+        scene.add(grid);
+
+        const tlGroup = new THREE.Group();
+        scene.add(tlGroup);
+
+        const postGeo = new THREE.CylinderGeometry(0.3, 0.3, 8);
+        const postMat = new THREE.MeshPhysicalMaterial({ color: 0x555555, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0, 0, 0) });
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.y = 4;
+        post.castShadow = true;
+        tlGroup.add(post);
+
+        const boxGeo = new THREE.BoxGeometry(2.5, 7, 2);
+        const boxMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0, 0, 0) });
+        const box = new THREE.Mesh(boxGeo, boxMat);
+        box.position.set(0, 6.5, 0.5);
+        box.castShadow = true;
+        tlGroup.add(box);
+
+        const redMat = new THREE.MeshPhysicalMaterial({ color: 0x330000, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0, 0, 0) });
+        const yellowMat = new THREE.MeshPhysicalMaterial({ color: 0x332200, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0, 0, 0) });
+        const greenMat = new THREE.MeshPhysicalMaterial({ color: 0x003311, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0, 0, 0) });
+
+        const lightGeo = new THREE.SphereGeometry(0.8, 32, 32);
+        
+        const redLight = new THREE.Mesh(lightGeo, redMat);
+        redLight.position.set(0, 8.5, 1.2);
+        tlGroup.add(redLight);
+
+        const yellowLight = new THREE.Mesh(lightGeo, yellowMat);
+        yellowLight.position.set(0, 6.5, 1.2);
+        tlGroup.add(yellowLight);
+
+        const greenLight = new THREE.Mesh(lightGeo, greenMat);
+        greenLight.position.set(0, 4.5, 1.2);
+        tlGroup.add(greenLight);
+
+        function setTrafficLight(colorStr) {
+            redMat.emissive.setHex(0x000000);
+            yellowMat.emissive.setHex(0x000000);
+            greenMat.emissive.setHex(0x000000);
+
+            if (colorStr === 'ROJO') redMat.emissive.setHex(0xff0000);
+            if (colorStr === 'AMARILLO') yellowMat.emissive.setHex(0xffaa00);
+            if (colorStr === 'VERDE') greenMat.emissive.setHex(0x00ff00);
+        }
+
+        // ==========================================
+        // UI & DRAG AND DROP
+        // ==========================================
+        
+        function createBlockElement(type, inSequence = false) {
+            const def = BLOCK_DEF[type];
+            const el = document.createElement('div');
+            el.className = 'block';
+            el.style.backgroundColor = def.color;
+            el.dataset.type = type;
+            el.draggable = true;
+            
+            let id = type;
+            if (inSequence) {
+                id = type + '_' + (uniqueIdCounter++);
+                el.dataset.id = id;
+            }
+
+            if (def.isNew) {
+                const innerDisplay = inSequence ? 'flex' : 'none';
+                el.innerHTML = `
+                    <div class="block-tag-new">NUEVO</div>
+                    <div class="block-header" style="flex-grow:1;">
+                        <span class="block-emoji">${def.emoji}</span>
+                        <span class="block-text">${def.text}</span>
+                    </div>
+                    ${inSequence ? '<button class="block-delete">❌</button>' : ''}
+                    <div class="block-inner-content" style="display: ${innerDisplay};">
+                        <div class="inner-sub-block" style="background:#cc0000;">🔴 ENCENDER ROJO</div>
+                        <div class="inner-sub-block" style="background:#3399ff;">⏱️ ESPERAR 3s</div>
+                    </div>
+                `;
+            } else {
+                el.innerHTML = `
+                    <span class="block-emoji">${def.emoji}</span>
+                    <span class="block-text">${def.text}</span>
+                    ${inSequence ? '<button class="block-delete">❌</button>' : ''}
+                `;
+            }
+
+            if (inSequence) {
+                const delBtn = el.querySelector('.block-delete');
+                if (delBtn) {
+                    delBtn.addEventListener('click', () => {
+                        if(!isExecuting) {
+                            el.remove();
+                            checkAmbulanceButton();
+                        }
+                    });
+                }
+            }
+
+            el.addEventListener('dragstart', (e) => {
+                if(isExecuting) { e.preventDefault(); return; }
+                e.dataTransfer.setData('text/plain', type);
+                e.dataTransfer.setData('source', inSequence ? 'sequence' : 'palette');
+                if(inSequence) e.dataTransfer.setData('blockId', el.dataset.id);
+                
+                setTimeout(() => el.style.opacity = '0.5', 0);
+            });
+
+            el.addEventListener('dragend', () => {
+                el.style.opacity = '1';
+                document.querySelectorAll('.drop-placeholder').forEach(p => p.remove());
+            });
+
+            return el;
+        }
+
+        function initPalette() {
+            paletteZone.innerHTML = '';
+            for (const key in BLOCK_DEF) {
+                paletteZone.appendChild(createBlockElement(key, false));
+            }
+        }
+
+        sequenceZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if(isExecuting) return;
+
+            const rect = sequenceZone.getBoundingClientRect();
+            const scrollZone = 40; 
+            if (e.clientY - rect.top < scrollZone) {
+                sequenceZone.scrollTop -= 15;
+            } else if (rect.bottom - e.clientY < scrollZone) {
+                sequenceZone.scrollTop += 15;
+            }
+
+            const afterElement = getDragAfterElement(sequenceZone, e.clientY);
+            let placeholder = document.querySelector('.drop-placeholder');
+            if(!placeholder) {
+                placeholder = document.createElement('div');
+                placeholder.className = 'drop-placeholder';
+            }
+
+            if (afterElement == null) {
+                sequenceZone.appendChild(placeholder);
+            } else {
+                sequenceZone.insertBefore(placeholder, afterElement);
+            }
+        });
+
+        sequenceZone.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget && !sequenceZone.contains(e.relatedTarget)) {
+                document.querySelectorAll('.drop-placeholder').forEach(p => p.remove());
+            }
+        });
+
+        sequenceZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if(isExecuting) return;
+            
+            const type = e.dataTransfer.getData('text/plain');
+            const source = e.dataTransfer.getData('source');
+            const blockId = e.dataTransfer.getData('blockId');
+            
+            const placeholder = document.querySelector('.drop-placeholder');
+            if (!placeholder) return;
+
+            if (source === 'palette') {
+                const newBlock = createBlockElement(type, true);
+                sequenceZone.insertBefore(newBlock, placeholder);
+            } else if (source === 'sequence') {
+                const existingBlock = document.querySelector(`[data-id="${blockId}"]`);
+                if (existingBlock) sequenceZone.insertBefore(existingBlock, placeholder);
+            }
+            
+            placeholder.remove();
+            checkAmbulanceButton();
+        });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements =[...container.querySelectorAll('.block:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function getSequenceArray() {
+            const blocks =[...sequenceZone.querySelectorAll('.block')];
+            return blocks.map(b => b.dataset.type);
+        }
+
+        function loadSequence(typesArray) {
+            sequenceZone.innerHTML = '';
+            typesArray.forEach(t => {
+                sequenceZone.appendChild(createBlockElement(t, true));
+            });
+            checkAmbulanceButton();
+        }
+
+        function checkAmbulanceButton() {
+            const seq = getSequenceArray();
+            if (seq.includes('AMBULANCIA')) {
+                btnAmbulance.style.display = 'block';
+                btnAmbulance.disabled = !isExecuting;
+            } else {
+                btnAmbulance.style.display = 'none';
+            }
+        }
+
+        // ==========================================
+        // MISIONES Y VALIDACIÓN
+        // ==========================================
+        const MISIONES = {
+            1: {
+                title: "MISIÓN 1 — El ciclo básico",
+                desc: "El semáforo ya está programado. Pulsa EJECUTAR y observa el ciclo normal.",
+                hint: "",
+                preset: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                validate: (seq) => {
+                    const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
+                    return JSON.stringify(seq) === JSON.stringify(target);
+                }
+            },
+            2: {
+                title: "MISIÓN 2 — Algo está mal",
+                desc: "Reordena los bloques equivocados para que quede: verde → amarillo → rojo.",
+                hint: "",
+                preset: ['ROJO', 'WAIT_5', 'VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'LOOP'],
+                solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                validate: (seq) => {
+                    const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
+                    return JSON.stringify(seq) === JSON.stringify(target);
+                }
+            },
+            3: {
+                title: "MISIÓN 3 — El semáforo siempre en rojo",
+                desc: "Añade los bloques que faltan para completar el ciclo completo.",
+                hint: "",
+                preset: ['ROJO'],
+                solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                validate: (seq) => {
+                    const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
+                    return JSON.stringify(seq) === JSON.stringify(target);
+                }
+            },
+            4: {
+                title: "MISIÓN 4 — La ambulancia",
+                desc: "Añade el bloque AMBULANCIA en cualquier parte de la secuencia normal. Pulsa Ejecutar y luego usa el botón 'Simular Ambulancia'.",
+                hint: "",
+                preset: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'AMBULANCIA', 'LOOP'],
+                validate: (seq) => {
+                    const noAmb = seq.filter(x => x !== 'AMBULANCIA');
+                    const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
+                    return JSON.stringify(noAmb) === JSON.stringify(target) && seq.includes('AMBULANCIA');
+                }
+            },
+            5: {
+                title: "MISIÓN 5 — El semáforo de obras",
+                desc: "Verde 5s → Amarillo 3s → Rojo 5s → Apagado 2s (seguridad) → y vuelve a empezar.<br>La ambulancia puede ir en cualquier parte del programa.",
+                hint: "Verde, amarillo, rojo, apagado 2s... y bucle. No olvides colocar la ambulancia en el programa.",
+                preset: [],
+                solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'OFF', 'WAIT_2', 'AMBULANCIA', 'LOOP'],
+                validate: (seq) => {
+                    // Validamos la lógica central filtrando la ambulancia, permitiendo al usuario ponerla donde quiera.
+                    const noAmb = seq.filter(x => x !== 'AMBULANCIA');
+                    const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'OFF', 'WAIT_2', 'LOOP'];
+                    return JSON.stringify(noAmb) === JSON.stringify(target) && seq.includes('AMBULANCIA');
+                }
+            }
+        };
+
+        function showFeedback(msg, type) {
+            feedbackMsg.innerHTML = msg;
+            feedbackMsg.className = `feedback-${type}`;
+            feedbackMsg.style.display = 'block';
+        }
+
+        function hideFeedback() {
+            feedbackMsg.style.display = 'none';
+        }
+
+        function loadMission(id) {
+            currentMission = id;
+            const m = MISIONES[id];
+            
+            missionBtns.forEach(btn => {
+                if(parseInt(btn.dataset.id) === id) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            missionTitle.innerText = m.title;
+            missionDesc.innerHTML = m.desc;
+            
+            if(m.hint) {
+                missionHint.innerText = "💡 " + m.hint;
+                missionHint.style.display = 'block';
+            } else {
+                missionHint.style.display = 'none';
+            }
+
+            loadSequence(m.preset);
+            btnNext.style.display = 'none';
+            hideFeedback();
+            activeSequenceColor = 'OFF';
+            setTrafficLight('OFF');
+            sequenceZone.scrollTop = 0;
+        }
+
+        // ==========================================
+        // MOTOR DE EJECUCIÓN ASÍNCRONO
+        // ==========================================
+        
+        async function interruptibleSleep(ms, blockEl) {
+            const steps = ms / 100;
+            for(let i=0; i<steps; i++) {
+                if(!isExecuting) return; 
+                
+                if(ambulanceInterrupt) {
+                    await handleAmbulanceRoutine();
+                    // Restaurar visualmente el bloque que fue interrumpido
+                    if(isExecuting && blockEl) {
+                        document.querySelectorAll('.block').forEach(b => b.classList.remove('active-exec'));
+                        blockEl.classList.add('active-exec');
+                        
+                        const blockTop = blockEl.offsetTop - sequenceZone.offsetTop;
+                        if (blockTop > sequenceZone.scrollTop + sequenceZone.clientHeight - 80 || blockTop < sequenceZone.scrollTop) {
+                            sequenceZone.scrollTo({ top: blockTop - 40, behavior: 'smooth' });
+                        }
+                    }
+                }
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+
+        async function handleAmbulanceRoutine() {
+            btnAmbulance.disabled = true;
+            
+            // Auto-focus visual sobre el bloque AMBULANCIA
+            const blocks =[...sequenceZone.querySelectorAll('.block')];
+            const ambBlock = blocks.find(b => b.dataset.type === 'AMBULANCIA');
+            
+            if(ambBlock) {
+                blocks.forEach(b => b.classList.remove('active-exec'));
+                ambBlock.classList.add('active-exec');
+                
+                const blockTop = ambBlock.offsetTop - sequenceZone.offsetTop;
+                if (blockTop > sequenceZone.scrollTop + sequenceZone.clientHeight - 80 || blockTop < sequenceZone.scrollTop) {
+                    sequenceZone.scrollTo({ top: blockTop - 40, behavior: 'smooth' });
+                }
+            }
+            
+            // Parpadeo rojo durante 3s
+            const endTime = Date.now() + 3000;
+            let on = false;
+            while(Date.now() < endTime) {
+                if(!isExecuting) break;
+                setTrafficLight(on ? 'ROJO' : 'OFF');
+                on = !on;
+                await new Promise(r => setTimeout(r, 150));
+            }
+            
+            // CRÍTICO: Restaurar el color que la secuencia pretendía tener antes de la emergencia
+            if(isExecuting) {
+                setTrafficLight(activeSequenceColor);
+            }
+            
+            ambulanceInterrupt = false;
+            checkAmbulanceButton();
+
+            if (currentMission >= 4 && isExecuting) {
+                missionCompleted();
+            }
+        }
+
+        async function runSequence() {
+            const blocks = [...sequenceZone.querySelectorAll('.block')];
+            if(blocks.length === 0) return;
+
+            let loopsDetected = 0;
+            let i = 0;
+
+            while (isExecuting) {
+                if (i >= blocks.length) {
+                    stopExecution();
+                    break;
+                }
+
+                const blockEl = blocks[i];
+                const type = blockEl.dataset.type;
+
+                blocks.forEach(b => b.classList.remove('active-exec'));
+                blockEl.classList.add('active-exec');
+                
+                const blockTop = blockEl.offsetTop - sequenceZone.offsetTop;
+                if (blockTop > sequenceZone.scrollTop + sequenceZone.clientHeight - 80 || blockTop < sequenceZone.scrollTop) {
+                    sequenceZone.scrollTo({ top: blockTop - 40, behavior: 'smooth' });
+                }
+
+                if (type === 'VERDE' || type === 'AMARILLO' || type === 'ROJO' || type === 'OFF') {
+                    activeSequenceColor = type; // Memoriza la intención del programa
+                    setTrafficLight(type);
+                    await interruptibleSleep(500, blockEl); 
+                } 
+                else if (type === 'WAIT_2') {
+                    await interruptibleSleep(2000, blockEl);
+                } 
+                else if (type === 'WAIT_3') {
+                    await interruptibleSleep(3000, blockEl);
+                } 
+                else if (type === 'WAIT_5') {
+                    await interruptibleSleep(5000, blockEl);
+                }
+                else if (type === 'LOOP') {
+                    loopsDetected++;
+                    if (currentMission === 1 || currentMission === 2 || currentMission === 3 || currentMission === 5) {
+                        if (loopsDetected >= 1) {
+                            missionCompleted();
+                        }
+                    }
+                    i = -1;
+                    await interruptibleSleep(200, blockEl);
+                }
+                else if (type === 'AMBULANCIA') {
+                    // Solo es un marcador listener en el flujo principal
+                    await interruptibleSleep(100, blockEl);
+                }
+
+                if(!isExecuting) break;
+                i++;
+            }
+        }
+
+        function missionCompleted() {
+            showFeedback("¡Excelente! Has completado la misión.", "success");
+            document.getElementById('btn-next').style.display = 'block';
+        }
+
+        function stopExecution() {
+            isExecuting = false;
+            activeSequenceColor = 'OFF';
+            btnExecute.innerText = '▶ Ejecutar';
+            btnExecute.style.background = 'var(--success)';
+            document.querySelectorAll('.block').forEach(b => b.classList.remove('active-exec'));
+            setTrafficLight('OFF');
+            ambulanceInterrupt = false;
+            checkAmbulanceButton();
+        }
+
+        // ==========================================
+        // EVENTOS DE BOTONES
+        // ==========================================
+        
+        missionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id);
+                stopExecution();
+                loadMission(id);
+            });
+        });
+
+        btnExecute.addEventListener('click', () => {
+            if (isExecuting) {
+                stopExecution();
+                return;
+            }
+
+            const seq = getSequenceArray();
+            const isValid = MISIONES[currentMission].validate(seq);
+
+            if (!isValid) {
+                showFeedback("Falta algún bloque o el orden es incorrecto.", "error");
+                // Impedir continuar en Misión 5 si no está perfecta
+                if (currentMission === 5) return; 
+            } else {
+                hideFeedback();
+            }
+
+            isExecuting = true;
+            btnExecute.innerText = '⏹ Detener';
+            btnExecute.style.background = 'var(--danger)';
+            checkAmbulanceButton();
+            runSequence();
+        });
+
+        btnAmbulance.addEventListener('click', () => {
+            if(isExecuting && !ambulanceInterrupt) {
+                ambulanceInterrupt = true;
+            }
+        });
+
+        btnClear.addEventListener('click', () => {
+            if(!isExecuting) {
+                sequenceZone.innerHTML = '';
+                checkAmbulanceButton();
+            }
+        });
+
+        btnSolution.addEventListener('click', () => {
+            if(!isExecuting) {
+                const m = MISIONES[currentMission];
+                if(m && m.solution) {
+                    loadSequence(m.solution);
+                    showFeedback("💡 Se ha cargado la solución de esta misión. ¡Pulsa Ejecutar para comprobarla!", "info");
+                }
+            }
+        });
+
+        btnRestart.addEventListener('click', () => {
+            stopExecution();
+            loadMission(currentMission);
+        });
+
+        btnNext.addEventListener('click', () => {
+            stopExecution();
+            if (MISIONES[currentMission + 1]) {
+                loadMission(currentMission + 1);
+            } else {
+                showFeedback("¡Felicidades! Has completado el semáforo inteligente.", "info");
+                btnNext.style.display = 'none';
+            }
+        });
+
+        // ==========================================
+        // RENDER LOOP & RESIZE
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            if(width === 0 || height === 0) return;
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        });
+
+        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
+
+        initPalette();
+        loadMission(1);
+        animate();
+
+    </script>
+</body>
+</html>

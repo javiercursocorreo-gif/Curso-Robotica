@@ -1,0 +1,1036 @@
+<!--
+{
+  "project": "1.4 SEMAFOROS COORDINADOS - EJEMPLO REAL V2 (COCHES ELEGOO)",
+  "version": "4.0.0",
+  "last_update": "2026-07-05",
+  "improvements": [
+    "1.0.0: Versión inicial con múltiples modos de hora (Normal, Valle, Punta, Ola Verde, Ambulancia).",
+    "2.0.0: Corrección de carriles para secundarias, cesión de paso inteligente, fases sin solapamiento (clearance time), prevención de bloqueo de cruce.",
+    "3.0.0: Estandarización Gold Standard V8 con cabecera canónica JSON. Añadido botón de descarga integrado para simulación. Añadida garantía técnica Anti-Pantalla Negra para Safari/macOS (doble temporizador de redimensión).",
+    "4.0.0: V2 especial con modelos 3D detallados del coche autónomo ELEGOO (carrocería translúcida, chasis interno, baterías, LED azul, cámara frontal, faros y rodadura realista en las 4 ruedas)."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL_V2</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        /* HEADER OBLIGATORIO */
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #00f2ff;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #00f2ff;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+        }
+        #header p {
+            margin: 5px 0 0 0;
+            font-size: 16px;
+            color: #aaaaaa;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        /* PANEL GLASS-UI */
+        #ui-panel {
+            position: absolute;
+            top: 90px;
+            right: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            color: white;
+            box-sizing: border-box;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .ui-label {
+            font-size: 16px;
+            color: #aaaaaa;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .ui-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffffff;
+        }
+
+        .ui-value.ola {
+            color: #00f2ff;
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6);
+        }
+
+        .indicator-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .light-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #333;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin: 20px 0;
+        }
+
+        button {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="header">
+        <h1>SEMÁFOROS COORDINADOS</h1>
+        <p id="header-desc">Observa cómo los semáforos se coordinan según el momento del día</p>
+    </div>
+
+    <div id="ui-panel">
+        <div class="ui-label">MODO ACTUAL</div>
+        <div id="lbl-mode" class="ui-value">🕙 HORA NORMAL</div>
+
+        <div class="ui-label">VELOCIDAD CALLE PRINCIPAL</div>
+        <div id="lbl-speed" class="ui-value">50 km/h</div>
+
+        <hr>
+
+        <div class="indicator-row">
+            <span>CRUCE 1</span>
+            <div id="dot-1" class="light-dot"></div>
+        </div>
+        <div class="indicator-row">
+            <span>CRUCE 2</span>
+            <div id="dot-2" class="light-dot"></div>
+        </div>
+        <div class="indicator-row">
+            <span>CRUCE 3</span>
+            <div id="dot-3" class="light-dot"></div>
+        </div>
+
+        <hr>
+
+        <button id="btn-normal"     onclick="setMode('NORMAL')"
+                style="background:#3a3a5c;min-height:55px;font-size:16px;margin-bottom:8px;border:2px solid white;opacity:1;width:100%;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            🕙 HORA NORMAL
+        </button>
+        <button id="btn-valle"      onclick="setMode('VALLE')"
+                style="background:#1a3a5c;min-height:55px;font-size:16px;margin-bottom:8px;border:2px solid transparent;opacity:0.7;width:100%;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            🌙 HORA VALLE
+        </button>
+        <button id="btn-punta"      onclick="setMode('PUNTA')"
+                style="background:#7a2a2a;min-height:55px;font-size:16px;margin-bottom:8px;border:2px solid transparent;opacity:0.7;width:100%;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            🚦 HORA PUNTA
+        </button>
+        <button id="btn-ola"        onclick="setMode('OLA')"
+                style="background:#00aa44;min-height:55px;font-size:16px;margin-bottom:8px;border:2px solid transparent;opacity:0.7;width:100%;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            🌊 OLA VERDE
+        </button>
+        <button id="btn-ambulancia" onclick="setMode('AMBULANCIA')"
+                style="background:#cc3300;min-height:55px;font-size:16px;margin-bottom:8px;border:2px solid transparent;opacity:0.7;width:100%;border-radius:8px;color:white;font-weight:bold;cursor:pointer">
+            🚨 AMBULANCIA
+        </button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        let scene, camera, renderer;
+
+        const CLEARANCE_TIME = 1.0; 
+
+        const MODES = {
+            NORMAL: {
+                label: '🕙 HORA NORMAL',
+                mainGreen: 8, mainYellow: 2,
+                secGreen: 8,  secYellow: 2,
+                spawnMain: 0.015, spawnSec:  0.008, speedMain: 12, coordinated: false,
+                desc: 'Tráfico habitual. Fase de seguridad (todos en rojo) para despejar el cruce.'
+            },
+            VALLE: {
+                label: '🌙 HORA VALLE',
+                mainGreen: 12, mainYellow: 2,
+                secGreen: 8,   secYellow: 2,
+                spawnMain: 0.0015, spawnSec:  0.001, speedMain: 12, coordinated: false,
+                desc: 'Madrugada o mediodía. Poco tráfico en todas las calles.'
+            },
+            PUNTA: {
+                label: '🚦 HORA PUNTA',
+                mainGreen: 8, mainYellow: 2,
+                secGreen: 4,  secYellow: 2,
+                spawnMain: 0.040, spawnSec:  0.006, speedMain: 8, coordinated: false,
+                desc: 'Los coches no entrarán al cruce si la salida está bloqueada.'
+            },
+            OLA: {
+                label: '🌊 OLA VERDE',
+                mainGreen: 14, mainYellow: 2,
+                secGreen: 3,   secYellow: 2,
+                spawnMain: 0.015, spawnSec:  0.006, speedMain: 6, coordinated: true,
+                desc: 'Los semáforos se coordinan. ¡Los coches de la principal no paran!'
+            },
+            AMBULANCIA: {
+                label: '🚨 AMBULANCIA',
+                spawnMain: 0.008, spawnSec:  0.004, speedMain: 12, coordinated: false,
+                desc: '¡Emergencia! La ambulancia frena inteligentemente si hay tráfico atascado delante.'
+            }
+        };
+
+        let currentMode = 'NORMAL';
+        let ambulance = null;
+        let ambulanceDone = false;
+
+        let globalTime = 0;
+        let lastTime = performance.now();
+        
+        const SPEED_SEC = 10;
+        const ACCELERATION = 8;
+        
+        const INTERSECTION_X = [-25, 0, 25];
+        let intersections = [];
+        let cars = [];
+        let waveLine;
+
+        const ELEGOO_COLORS = [
+            0xff7700, // Naranja Elegoo
+            0x00ee44, // Verde Esmeralda / Lima
+            0x9900ff, // Morado / Púrpura
+            0x0088ff, // Azul Eléctrico / Cian
+            0xff1122, // Rojo Carmesí
+            0xffbb00, // Amarillo Oro
+            0xff0088, // Rosa Magenta
+            0x00ddaa, // Verde Turquesa
+            0x7744ff  // Violeta
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 500);
+            camera.position.set(0, 45, 0);
+            camera.lookAt(0, 0, -1);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.6;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3.5));
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+            pointLight.position.set(-10, 10, 5);
+            scene.add(pointLight);
+
+            const floorMat = new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.9 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 100), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            buildCity();
+
+            waveLine = new THREE.Mesh(
+                new THREE.PlaneGeometry(2, 14),
+                new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.3, side: THREE.DoubleSide })
+            );
+            waveLine.rotation.x = -Math.PI / 2;
+            waveLine.position.y = 0.05;
+            waveLine.visible = false;
+            scene.add(waveLine);
+
+            function onWindowResize() {
+                if (!camera || !renderer) return;
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            window.addEventListener('resize', onWindowResize);
+            setTimeout(onWindowResize, 150);
+            setTimeout(onWindowResize, 500);
+
+            setMode('NORMAL');
+            requestAnimationFrame(animate);
+        }
+
+        function buildCity() {
+            createRoadLines(0, 0, 100, 14, true);
+            INTERSECTION_X.forEach((x, index) => {
+                createRoadLines(x, 0, 6, 60, false);
+                const zebraGeo = new THREE.PlaneGeometry(6, 14);
+                const zebraMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.3 });
+                const zebra = new THREE.Mesh(zebraGeo, zebraMat);
+                zebra.rotation.x = -Math.PI / 2;
+                zebra.position.set(x, 0.02, 0);
+                scene.add(zebra);
+
+                const normalOffset = Math.random() * 20; 
+                intersections.push(new Intersection(x, index, normalOffset));
+            });
+        }
+
+        function createRoadLines(x, z, w, h, isMain) {
+            const mat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+            road.rotation.x = -Math.PI / 2;
+            road.position.set(x, 0.015, z);
+            scene.add(road);
+
+            if (isMain) {
+                const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.2), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+                centerLine.rotation.x = -Math.PI/2;
+                centerLine.position.set(x, 0.02, 0);
+                scene.add(centerLine);
+            } else {
+                const centerLine = new THREE.Mesh(new THREE.PlaneGeometry(0.15, h), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                centerLine.rotation.x = -Math.PI/2;
+                centerLine.position.set(x, 0.02, z);
+                scene.add(centerLine);
+            }
+        }
+
+        class Intersection {
+            constructor(x, id, normalOffset) {
+                this.x = x;
+                this.id = id;
+                this.timerNormal = normalOffset;
+                this.mainState = 'G';
+                this.secState = 'R';
+                this.lights = [];
+
+                this.lights.push(this.createTrafficLightMesh(x - 4.5,  8.5, 'main')); 
+                this.lights.push(this.createTrafficLightMesh(x + 4.5, -8.5, 'main')); 
+                this.lights.push(this.createTrafficLightMesh(x + 4.5,  8.5, 'sec'));  
+                this.lights.push(this.createTrafficLightMesh(x - 4.5, -8.5, 'sec')); 
+            }
+
+            createTrafficLightMesh(px, pz, type) {
+                const group = new THREE.Group();
+                group.position.set(px, 0.08, pz);
+                const isMain = (type === 'main');
+                const boxGeo = new THREE.BoxGeometry(isMain ? 2.0 : 0.4, 0.12, isMain ? 0.4 : 2.0);
+                const box = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0x111111 }));
+                group.add(box);
+
+                const cGeo = new THREE.CircleGeometry(0.28, 16);
+                const matR = new THREE.MeshBasicMaterial({ color: 0x330000 });
+                const matY = new THREE.MeshBasicMaterial({ color: 0x333300 });
+                const matG = new THREE.MeshBasicMaterial({ color: 0x003300 });
+
+                const r = new THREE.Mesh(cGeo, matR); const y = new THREE.Mesh(cGeo, matY); const g = new THREE.Mesh(cGeo, matG);
+                [r, y, g].forEach(m => { m.rotation.x = -Math.PI / 2; m.position.y = 0.07; });
+
+                if (isMain) { r.position.x = -0.65; g.position.x = 0.65; } 
+                else        { r.position.z = -0.65; g.position.z = 0.65; }
+
+                group.add(r, y, g);
+                scene.add(group);
+                return { r, y, g, matR, matY, matG };
+            }
+
+            update(dt, globalT) {
+                if (currentMode === 'AMBULANCIA') {
+                    this.mainState = 'G'; this.secState  = 'R';
+                    this.updateVisuals(); return;
+                }
+
+                const cfg = MODES[currentMode];
+                const CYCLE = cfg.mainGreen + cfg.mainYellow + CLEARANCE_TIME + cfg.secGreen + cfg.secYellow + CLEARANCE_TIME;
+
+                let t;
+                if (!cfg.coordinated) {
+                    this.timerNormal += dt;
+                    t = this.timerNormal % CYCLE;
+                } else {
+                    const olaOffset = this.id * (25 / MODES.OLA.speedMain);
+                    t = (globalT - olaOffset) % CYCLE;
+                    if (t < 0) t = (t % CYCLE + CYCLE) % CYCLE;
+                }
+
+                if (t < cfg.mainGreen) {
+                    this.mainState = 'G'; this.secState = 'R';
+                } else if (t < cfg.mainGreen + cfg.mainYellow) {
+                    this.mainState = 'Y'; this.secState = 'R';
+                } else if (t < cfg.mainGreen + cfg.mainYellow + CLEARANCE_TIME) {
+                    this.mainState = 'R'; this.secState = 'R';
+                } else if (t < cfg.mainGreen + cfg.mainYellow + CLEARANCE_TIME + cfg.secGreen) {
+                    this.mainState = 'R'; this.secState = 'G';
+                } else if (t < cfg.mainGreen + cfg.mainYellow + CLEARANCE_TIME + cfg.secGreen + cfg.secYellow) {
+                    this.mainState = 'R'; this.secState = 'Y';
+                } else {
+                    this.mainState = 'R'; this.secState = 'R';
+                }
+
+                this.updateVisuals();
+            }
+
+            updateVisuals() {
+                for (let i = 0; i <= 1; i++) this.setColors(this.lights[i], this.mainState);
+                for (let i = 2; i <= 3; i++) this.setColors(this.lights[i], this.secState);
+            }
+
+            setColors(light, state) {
+                light.matR.color.setHex(0x330000); light.matY.color.setHex(0x333300); light.matG.color.setHex(0x003300);
+                if (state === 'R') light.matR.color.setHex(0xff2200);
+                else if (state === 'Y') light.matY.color.setHex(0xffaa00);
+                else if (state === 'G') light.matG.color.setHex(0x00ff44);
+            }
+        }
+
+        let POOL_INIT = false;
+        const GEOS = {};
+        const MATS = {};
+        const PAINT_MATS = {};
+
+        function initElegooPool() {
+            if (POOL_INIT) return;
+            POOL_INIT = true;
+
+            // Geometría única compartida en GPU para las 10 piezas del coche
+            GEOS.skirt = new THREE.BoxGeometry(2.3, 0.1, 3.6);
+            GEOS.baseInt = new THREE.BoxGeometry(1.2, 0.1, 3.4);
+            GEOS.baterias = new THREE.BoxGeometry(1.0, 0.2, 1.5);
+            GEOS.batLed = new THREE.BoxGeometry(0.05, 0.15, 1.4);
+            GEOS.ejeDel = new THREE.BoxGeometry(2.4, 0.12, 0.12);
+            GEOS.motorDel = new THREE.BoxGeometry(0.6, 0.3, 0.4);
+            GEOS.ejeTras = new THREE.BoxGeometry(2.4, 0.12, 0.12);
+            GEOS.motorTras = new THREE.BoxGeometry(0.7, 0.35, 0.45);
+
+            GEOS.capot = new THREE.BoxGeometry(2.1, 0.3, 1.2);
+            GEOS.bumper = new THREE.BoxGeometry(2.2, 0.2, 0.4);
+            GEOS.hombro = new THREE.BoxGeometry(0.2, 0.45, 0.8);
+
+            GEOS.cabin = new THREE.BoxGeometry(2.1, 0.4, 1.6);
+            GEOS.techo = new THREE.BoxGeometry(1.8, 0.1, 1.0);
+            GEOS.cola = new THREE.BoxGeometry(2.1, 0.35, 1.0);
+            GEOS.pilarF = new THREE.BoxGeometry(1.8, 0.05, 0.7);
+            GEOS.pilarR = new THREE.BoxGeometry(1.8, 0.05, 0.6);
+            GEOS.cadera = new THREE.BoxGeometry(0.2, 0.45, 0.8);
+
+            GEOS.winF = new THREE.BoxGeometry(1.7, 0.08, 0.6);
+            GEOS.winR = new THREE.BoxGeometry(1.7, 0.08, 0.5);
+            GEOS.winSide = new THREE.BoxGeometry(0.08, 0.35, 1.4);
+
+            GEOS.tire = new THREE.CylinderGeometry(0.325, 0.325, 0.25, 16);
+            GEOS.rim = new THREE.CylinderGeometry(0.225, 0.225, 0.27, 12);
+            GEOS.sp1 = new THREE.BoxGeometry(0.28, 0.43, 0.06);
+            GEOS.sp2 = new THREE.BoxGeometry(0.28, 0.06, 0.43);
+
+            GEOS.franjaRoja = new THREE.BoxGeometry(2.0, 0.12, 0.05);
+            GEOS.faro = new THREE.BoxGeometry(0.6, 0.12, 0.05);
+            GEOS.soporte = new THREE.BoxGeometry(0.4, 0.12, 0.12);
+            GEOS.carcasa = new THREE.BoxGeometry(0.28, 0.18, 0.14);
+            GEOS.lente = new THREE.SphereGeometry(0.08, 12, 12);
+
+            GEOS.ambH = new THREE.BoxGeometry(0.3, 0.15, 1.4);
+            GEOS.ambV = new THREE.BoxGeometry(1.4, 0.15, 0.3);
+            GEOS.siren = new THREE.SphereGeometry(0.28, 16, 16);
+
+            // Materiales compartidos
+            MATS.glass = new THREE.MeshPhysicalMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.1, transparent: true, opacity: 0.75 });
+            MATS.internalMetal = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.3 });
+            MATS.battery = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+            MATS.batteryLed = new THREE.MeshBasicMaterial({ color: 0x0066ff });
+            MATS.darkPlastic = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
+            MATS.tire = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 });
+            MATS.rim = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
+            MATS.headlight = new THREE.MeshBasicMaterial({ color: 0xfff3cc });
+            MATS.taillight = new THREE.MeshBasicMaterial({ color: 0xff1111 });
+            MATS.cam = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            MATS.lente = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+            MATS.cruz = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+            // Pool de pinturas para cero sobrecarga al instanciar
+            ELEGOO_COLORS.forEach(c => {
+                PAINT_MATS[c] = new THREE.MeshPhysicalMaterial({
+                    color: c, metalness: 0.3, roughness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.05
+                });
+            });
+            PAINT_MATS['AMB'] = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff, metalness: 0.2, roughness: 0.2, clearcoat: 0.9
+            });
+        }
+
+        function createElegooCar(colorHex, isAmbulance) {
+            initElegooPool();
+            const group = new THREE.Group();
+
+            const matPaint = isAmbulance ? PAINT_MATS['AMB'] : (PAINT_MATS[colorHex] || PAINT_MATS[0xff7700]);
+
+            // P1 — Chasis y mecánica interior
+            const skirt = new THREE.Mesh(GEOS.skirt, MATS.darkPlastic);
+            skirt.position.set(0, 0.1, 0); skirt.castShadow = true; skirt.receiveShadow = true;
+            group.add(skirt);
+
+            const baseInt = new THREE.Mesh(GEOS.baseInt, MATS.internalMetal);
+            baseInt.position.set(0, 0.15, 0);
+            group.add(baseInt);
+
+            const baterias = new THREE.Mesh(GEOS.baterias, MATS.battery);
+            baterias.position.set(0, 0.3, 0);
+            group.add(baterias);
+
+            const batLedI = new THREE.Mesh(GEOS.batLed, MATS.batteryLed);
+            batLedI.position.set(-0.5, 0.4, 0);
+            const batLedD = new THREE.Mesh(GEOS.batLed, MATS.batteryLed);
+            batLedD.position.set(0.5, 0.4, 0);
+            group.add(batLedI, batLedD);
+
+            const ejeDel = new THREE.Mesh(GEOS.ejeDel, MATS.internalMetal);
+            ejeDel.position.set(0, 0.25, 1.0);
+            const motorDel = new THREE.Mesh(GEOS.motorDel, MATS.internalMetal);
+            motorDel.position.set(0, 0.3, 0.9);
+            const ejeTras = new THREE.Mesh(GEOS.ejeTras, MATS.internalMetal);
+            ejeTras.position.set(0, 0.25, -1.0);
+            const motorTras = new THREE.Mesh(GEOS.motorTras, MATS.internalMetal);
+            motorTras.position.set(0, 0.3, -0.95);
+            group.add(ejeDel, motorDel, ejeTras, motorTras);
+
+            // P2 — Morro delantero
+            const capot = new THREE.Mesh(GEOS.capot, matPaint);
+            capot.position.set(0, 0.45, 1.3); capot.rotation.x = 0.05; capot.castShadow = true;
+            const bumper = new THREE.Mesh(GEOS.bumper, matPaint);
+            bumper.position.set(0, 0.25, 1.7);
+            const hombroI = new THREE.Mesh(GEOS.hombro, matPaint);
+            hombroI.position.set(-1.05, 0.45, 1.15);
+            const hombroD = new THREE.Mesh(GEOS.hombro, matPaint);
+            hombroD.position.set(1.05, 0.45, 1.15);
+            group.add(capot, bumper, hombroI, hombroD);
+
+            // P3 — Techo (cabina)
+            const cabin = new THREE.Mesh(GEOS.cabin, matPaint);
+            cabin.position.set(0, 0.7, 0); cabin.castShadow = true;
+            const techo = new THREE.Mesh(GEOS.techo, matPaint);
+            techo.position.set(0, 0.92, -0.1);
+            const cola = new THREE.Mesh(GEOS.cola, matPaint);
+            cola.position.set(0, 0.45, -1.3); cola.rotation.x = -0.05;
+            const pilarF = new THREE.Mesh(GEOS.pilarF, matPaint);
+            pilarF.position.set(0, 0.82, 0.4); pilarF.rotation.x = 0.5;
+            const pilarR = new THREE.Mesh(GEOS.pilarR, matPaint);
+            pilarR.position.set(0, 0.82, -0.8); pilarR.rotation.x = -0.5;
+            const caderaI = new THREE.Mesh(GEOS.cadera, matPaint);
+            caderaI.position.set(-1.05, 0.45, -1.15);
+            const caderaD = new THREE.Mesh(GEOS.cadera, matPaint);
+            caderaD.position.set(1.05, 0.45, -1.15);
+            group.add(cabin, techo, cola, pilarF, pilarR, caderaI, caderaD);
+
+            // P4 — Cristales
+            const winF = new THREE.Mesh(GEOS.winF, MATS.glass);
+            winF.position.set(0, 0.83, 0.4); winF.rotation.x = 0.5;
+            const winR = new THREE.Mesh(GEOS.winR, MATS.glass);
+            winR.position.set(0, 0.83, -0.8); winR.rotation.x = -0.5;
+            const winSide = new THREE.Mesh(GEOS.winSide, MATS.glass);
+            winSide.position.set(0, 0.72, -0.2);
+            group.add(winF, winR, winSide);
+
+            // P5-P8 — 4 Ruedas
+            const wheels = [];
+            function addWheel(x, y, z) {
+                const wGroup = new THREE.Group();
+                wGroup.position.set(x, y, z);
+                const tire = new THREE.Mesh(GEOS.tire, MATS.tire);
+                tire.rotation.z = Math.PI / 2;
+                const rim = new THREE.Mesh(GEOS.rim, MATS.rim);
+                rim.rotation.z = Math.PI / 2;
+                const sp1 = new THREE.Mesh(GEOS.sp1, MATS.darkPlastic);
+                const sp2 = new THREE.Mesh(GEOS.sp2, MATS.darkPlastic);
+                wGroup.add(tire, rim, sp1, sp2);
+                group.add(wGroup);
+                wheels.push(wGroup);
+            }
+            addWheel(-1.18, 0.3,  1.15); // Delantera Izq
+            addWheel( 1.18, 0.3,  1.15); // Delantera Der
+            addWheel(-1.18, 0.3, -1.15); // Trasera Izq
+            addWheel( 1.18, 0.3, -1.15); // Trasera Der
+            group.userData.wheels = wheels;
+
+            // P9 — Cámara frontal (o Sirena si es ambulancia)
+            if (isAmbulance) {
+                const cH = new THREE.Mesh(GEOS.ambH, MATS.cruz);
+                const cV = new THREE.Mesh(GEOS.ambV, MATS.cruz);
+                cH.position.set(0, 1.05, -0.2); cV.position.set(0, 1.05, -0.2);
+                group.add(cH, cV);
+
+                const sirenMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const siren = new THREE.Mesh(GEOS.siren, sirenMat);
+                siren.position.set(0, 1.25, 0.2);
+                group.add(siren);
+                group.userData.sirenMat = sirenMat;
+            } else {
+                const soporte = new THREE.Mesh(GEOS.soporte, MATS.cam);
+                soporte.position.set(0, 1.0, -0.15);
+                const carcasa = new THREE.Mesh(GEOS.carcasa, MATS.cam);
+                carcasa.position.set(0, 1.0, 0.0);
+                const lente = new THREE.Mesh(GEOS.lente, MATS.lente);
+                lente.position.set(0, 1.0, 0.08);
+                group.add(soporte, carcasa, lente);
+            }
+
+            // P10 — Faros y luces
+            const franjaRoja = new THREE.Mesh(GEOS.franjaRoja, MATS.taillight);
+            franjaRoja.position.set(0, 0.55, -1.81);
+            const faroI = new THREE.Mesh(GEOS.faro, MATS.headlight);
+            faroI.position.set(-0.7, 0.55, 1.71);
+            const faroD = new THREE.Mesh(GEOS.faro, MATS.headlight);
+            faroD.position.set(0.7, 0.55, 1.71);
+            group.add(franjaRoja, faroI, faroD);
+
+            return group;
+        }
+
+        let lastSpawnedColors = [];
+
+        function getDistinctElegooColor(startX, laneZ) {
+            // 1. Encontrar qué colores tienen los coches que están cerca (a menos de 35 metros en cualquier carril)
+            const nearbyColors = new Set();
+            cars.forEach(c => {
+                const dx = c.mesh.position.x - (c.isMain ? startX : laneZ);
+                const dz = c.mesh.position.z - (c.isMain ? laneZ : startX);
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < 35 && c.colorHex) {
+                    nearbyColors.add(c.colorHex);
+                }
+            });
+
+            // 2. Filtrar colores disponibles que NO estén cerca ni en los últimos 3 generados
+            let available = ELEGOO_COLORS.filter(col => !nearbyColors.has(col) && !lastSpawnedColors.includes(col));
+
+            // 3. Si por densidad de tráfico no quedan disponibles, relajamos el filtro (menos de 20m y último generado)
+            if (available.length === 0) {
+                const veryNearby = new Set();
+                cars.forEach(c => {
+                    const dx = c.mesh.position.x - (c.isMain ? startX : laneZ);
+                    const dz = c.mesh.position.z - (c.isMain ? laneZ : startX);
+                    if (Math.sqrt(dx * dx + dz * dz) < 20 && c.colorHex) veryNearby.add(c.colorHex);
+                });
+                const lastOne = lastSpawnedColors[lastSpawnedColors.length - 1];
+                available = ELEGOO_COLORS.filter(col => !veryNearby.has(col) && col !== lastOne);
+            }
+
+            // 4. Si aún no hay, simplemente elegimos cualquiera diferente al inmediatamente anterior
+            if (available.length === 0) {
+                const lastOne = lastSpawnedColors[lastSpawnedColors.length - 1];
+                available = ELEGOO_COLORS.filter(col => col !== lastOne);
+            }
+
+            // 5. Elegir aleatoriamente entre los disponibles y registrar el historial
+            const chosen = available[Math.floor(Math.random() * available.length)] || ELEGOO_COLORS[0];
+            lastSpawnedColors.push(chosen);
+            if (lastSpawnedColors.length > 4) lastSpawnedColors.shift();
+            
+            return chosen;
+        }
+
+        class Car {
+            constructor(isMain, laneZ, startX, dir, secIndex) {
+                this.isMain = isMain; this.dir = dir; this.lane = laneZ; this.secIndex = secIndex;
+                this.speed = 0;
+                // Personalidad del conductor para dispersar coches en paralelo al arrancar
+                this.speedFactor = 0.85 + Math.random() * 0.30; // 85% a 115%
+                this.accelFactor = 0.65 + Math.random() * 0.70; // 65% a 135%
+                this.maxSpeed = (isMain ? MODES[currentMode].speedMain : SPEED_SEC) * this.speedFactor;
+                this.pos = startX;
+
+                this.mesh = new THREE.Group();
+                const colorHex = getDistinctElegooColor(startX, laneZ);
+                this.colorHex = colorHex;
+                this.elegooModel = createElegooCar(colorHex, false);
+                this.elegooModel.scale.set(0.65, 0.65, 0.65); // Escala perfecta para los carriles
+                
+                // Orientación: +Z es el morro del coche Elegoo
+                if (isMain) {
+                    this.elegooModel.rotation.y = (dir === 1) ? -Math.PI / 2 : Math.PI / 2;
+                } else {
+                    this.elegooModel.rotation.y = (dir === 1) ? 0 : Math.PI;
+                }
+                
+                this.mesh.add(this.elegooModel);
+                this.mesh.position.y = 0.0;
+                
+                if (isMain) { this.mesh.position.z = laneZ; this.mesh.position.x = startX; } 
+                else        { this.mesh.position.x = laneZ; this.mesh.position.z = startX; }
+                
+                scene.add(this.mesh);
+            }
+
+            update(dt) {
+                this.maxSpeed = (this.isMain ? MODES[currentMode].speedMain : SPEED_SEC) * this.speedFactor;
+                if (currentMode === 'AMBULANCIA' && this.isMain) this.maxSpeed = 25 * this.speedFactor; 
+
+                let distToStop = Infinity;
+                let relevantLight = 'G';
+                let targetIntersectionIndex = -1;
+
+                if (this.isMain) {
+                    for (let i = 0; i < intersections.length; i++) {
+                        const d = (intersections[i].x - this.pos) * this.dir;
+                        if (d > 5.0 && d < 30) { 
+                            distToStop = d - 6.0;
+                            relevantLight = intersections[i].mainState;
+                            targetIntersectionIndex = i;
+                            break; 
+                        }
+                    }
+                } else {
+                    const d = (0 - this.pos) * this.dir;
+                    if (d > 8.0 && d < 30) {
+                        distToStop = d - 9.0;
+                        relevantLight = intersections[this.secIndex].secState;
+                        targetIntersectionIndex = this.secIndex;
+                    }
+                }
+
+                let obstacleInIntersection = false;
+                if (targetIntersectionIndex !== -1 && distToStop > 0 && distToStop < 20) {
+                    const intX = intersections[targetIntersectionIndex].x;
+                    for (let c of cars) {
+                        if (this.isMain && !c.isMain && c.secIndex === targetIntersectionIndex) {
+                            if (Math.abs(c.pos) < 7.0) obstacleInIntersection = true;
+                        } else if (!this.isMain && c.isMain) {
+                            if (Math.abs(c.pos - intX) < 4.0) obstacleInIntersection = true;
+                        }
+                    }
+                }
+
+                let carAheadDist = Infinity;
+                let carAhead = null;
+                for (let c of cars) {
+                    if (c !== this && c.isMain === this.isMain && c.lane === this.lane && c.dir === this.dir) {
+                        const d = (c.pos - this.pos) * this.dir;
+                        if (d > 0 && d < carAheadDist) { carAheadDist = d; carAhead = c; }
+                    }
+                }
+
+                let targetSpeed = this.maxSpeed;
+                const brakeDist = (this.speed * this.speed) / (2 * ACCELERATION);
+
+                let dontBlockBox = false;
+                if (carAhead && carAhead.speed < 4) {
+                    let boxClearance = this.isMain ? 10.0 : 16.0;
+                    if (distToStop > 0 && distToStop < 15 && carAheadDist < distToStop + boxClearance) {
+                        dontBlockBox = true;
+                    }
+                }
+
+                let shouldStopForLight = (relevantLight !== 'G' || dontBlockBox || obstacleInIntersection);
+
+                // Frenado proporcional suave para semáforo sin saltitos ni bloqueos bruscos
+                if (shouldStopForLight && distToStop > -0.5 && distToStop < 25) {
+                    if (distToStop < 0.5) {
+                        targetSpeed = 0;
+                    } else {
+                        targetSpeed = Math.min(targetSpeed, distToStop * 1.2);
+                    }
+                }
+
+                // Frenado proporcional suave para mantener distancia de seguridad con el coche delantero
+                if (carAheadDist < 20) {
+                    if (carAheadDist < 5.0) {
+                        targetSpeed = 0;
+                    } else {
+                        targetSpeed = Math.min(targetSpeed, (carAheadDist - 5.0) * 1.5);
+                    }
+                }
+
+                if (this.speed < targetSpeed) {
+                    this.speed += (ACCELERATION * this.accelFactor) * dt;
+                    if (this.speed > targetSpeed) this.speed = targetSpeed;
+                } else if (this.speed > targetSpeed) {
+                    this.speed -= (ACCELERATION * 1.5) * dt; // Frenado progresivo fluido
+                    if (this.speed < targetSpeed) this.speed = targetSpeed;
+                }
+
+                this.pos += this.speed * this.dir * dt;
+                
+                if (this.isMain) this.mesh.position.x = this.pos;
+                else             this.mesh.position.z = this.pos;
+
+                if (this.elegooModel && this.elegooModel.userData.wheels) {
+                    this.elegooModel.userData.wheels.forEach(w => w.rotation.x += this.speed * dt * 2.5);
+                }
+            }
+        }
+
+        const spawnLanesMain = [ 
+            { z: 1.5, dir: 1, x: -60 }, { z: 3.5, dir: 1, x: -60 }, { z: 5.5, dir: 1, x: -60 }, 
+            { z: -1.5, dir: -1, x: 60 }, { z: -3.5, dir: -1, x: 60 }, { z: -5.5, dir: -1, x: 60 } 
+        ];
+
+        function spawnCars() {
+            if (currentMode === 'AMBULANCIA') {
+                INTERSECTION_X.forEach((ix, index) => {
+                    if (Math.random() < 0.003 && isLaneClear(false, ix - 1.5, -40,  1)) cars.push(new Car(false, ix - 1.5, -40,  1, index));
+                    if (Math.random() < 0.003 && isLaneClear(false, ix + 1.5,  40, -1)) cars.push(new Car(false, ix + 1.5,  40, -1, index));
+                });
+                return;
+            }
+
+            const cfg = MODES[currentMode];
+            spawnLanesMain.forEach(lane => {
+                let shouldSpawn = false;
+                if (cfg.coordinated) {
+                    const t = globalTime % 26;
+                    if (lane.dir ===  1 && t > 0 && t < 6  && Math.random() < 0.05) shouldSpawn = true;
+                    if (lane.dir === -1 && t > 4 && t < 10 && Math.random() < 0.05) shouldSpawn = true;
+                } else {
+                    shouldSpawn = Math.random() < cfg.spawnMain;
+                }
+                if (shouldSpawn && isLaneClear(true, lane.z, lane.x, lane.dir)) cars.push(new Car(true, lane.z, lane.x, lane.dir, null));
+            });
+
+            INTERSECTION_X.forEach((ix, index) => {
+                if (Math.random() < cfg.spawnSec && isLaneClear(false, ix - 1.5, -40,  1)) cars.push(new Car(false, ix - 1.5, -40,  1, index));
+                if (Math.random() < cfg.spawnSec && isLaneClear(false, ix + 1.5,  40, -1)) cars.push(new Car(false, ix + 1.5,  40, -1, index));
+            });
+        }
+
+        function isLaneClear(isMain, lane, pos, dir) {
+            for (let c of cars) {
+                if (c.isMain === isMain && c.lane === lane && c.dir === dir) {
+                    if (Math.abs(c.pos - pos) < 10) return false;
+                }
+            }
+            return true;
+        }
+
+        function clearAllCars() {
+            for (let i = cars.length - 1; i >= 0; i--) {
+                scene.remove(cars[i].mesh);
+            }
+            cars = [];
+        }
+
+        function spawnAmbulance() {
+            if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
+            ambulanceDone = false;
+
+            if (cars.length < 8) {
+                for (let i = 0; i < 3; i++) {
+                    spawnLanesMain.forEach(lane => {
+                        const startX = lane.x + lane.dir * i * 18;
+                        if (isLaneClear(true, lane.z, startX, lane.dir)) cars.push(new Car(true, lane.z, startX, lane.dir, null));
+                    });
+                }
+            }
+
+            const ambGroup = new THREE.Group();
+            const elegooAmb = createElegooCar(0xffffff, true);
+            elegooAmb.scale.set(0.68, 0.68, 0.68);
+            elegooAmb.rotation.y = -Math.PI / 2; // Morro hacia +X
+            ambGroup.add(elegooAmb);
+            ambGroup.position.set(-70, 0.0, 3.5);
+            scene.add(ambGroup);
+
+            ambulance = { mesh: ambGroup, elegooModel: elegooAmb, pos: -70, speed: 10, sirenTimer: 0 };
+        }
+
+        function updateAmbulance(dt) {
+            if (!ambulance) return;
+
+            ambulance.sirenTimer += dt;
+            if (ambulance.sirenTimer > 0.2) {
+                ambulance.sirenTimer = 0;
+                if (ambulance.elegooModel && ambulance.elegooModel.userData.sirenMat) {
+                    const isRed = ambulance.elegooModel.userData.sirenMat.color.r > 0.5;
+                    ambulance.elegooModel.userData.sirenMat.color.setHex(isRed ? 0x0055ff : 0xff0000);
+                }
+            }
+            if (ambulance.elegooModel && ambulance.elegooModel.userData.wheels) {
+                ambulance.elegooModel.userData.wheels.forEach(w => w.rotation.x += ambulance.speed * dt * 2.5);
+            }
+
+            let carAheadDist = Infinity;
+            for (let c of cars) {
+                if (c.isMain && c.dir === 1 && c.lane === 3.5) { 
+                    const d = c.pos - ambulance.pos;
+                    if (d > 0 && d < carAheadDist) { carAheadDist = d; }
+                }
+            }
+
+            let targetSpeed = 25;
+            if (carAheadDist < 25) {
+                if (carAheadDist < 6.0) {
+                    targetSpeed = 0;
+                } else {
+                    targetSpeed = Math.min(targetSpeed, (carAheadDist - 6.0) * 1.8);
+                }
+            }
+
+            if (ambulance.speed < targetSpeed) {
+                ambulance.speed += ACCELERATION * dt;
+                if (ambulance.speed > targetSpeed) ambulance.speed = targetSpeed;
+            } else if (ambulance.speed > targetSpeed) {
+                ambulance.speed -= ACCELERATION * 1.5 * dt;
+                if (ambulance.speed < targetSpeed) ambulance.speed = targetSpeed;
+            }
+
+            ambulance.pos += ambulance.speed * dt;
+            ambulance.mesh.position.x = ambulance.pos;
+
+            if (ambulance.pos > 70 && !ambulanceDone) {
+                ambulanceDone = true;
+                scene.remove(ambulance.mesh);
+                ambulance = null;
+                intersections.forEach(int => { int.mainState = 'Y'; int.secState = 'Y'; int.updateVisuals(); });
+                setTimeout(() => window.setMode('NORMAL'), 3000);
+            }
+        }
+
+        function setMode(newMode) {
+            currentMode = newMode;
+            const cfg = MODES[newMode];
+
+            document.getElementById('lbl-mode').innerText = cfg.label;
+            document.getElementById('lbl-mode').className = 'ui-value' + (newMode === 'OLA' ? ' ola' : '');
+            document.getElementById('lbl-speed').innerText = newMode === 'OLA' ? '25 km/h' : newMode === 'PUNTA' ? '30 km/h' : '50 km/h';
+                
+            const headerDesc = document.getElementById('header-desc');
+            if (headerDesc) headerDesc.innerText = cfg.desc;
+            ['NORMAL','VALLE','PUNTA','OLA','AMBULANCIA'].forEach(m => {
+                const btn = document.getElementById('btn-' + m.toLowerCase());
+                if (!btn) return;
+                btn.style.border   = m === newMode ? '2px solid white' : '2px solid transparent';
+                btn.style.opacity  = m === newMode ? '1' : '0.7';
+            });
+
+            waveLine.visible = newMode === 'OLA';
+            
+            if (newMode !== 'AMBULANCIA') {
+                if (ambulance) { scene.remove(ambulance.mesh); ambulance = null; }
+                clearAllCars();
+            }
+
+            if (newMode === 'OLA') {
+                globalTime = 0;
+                intersections.forEach((int, i) => { int.timerNormal = i * (25 / MODES.OLA.speedMain); });
+            } else if (newMode === 'AMBULANCIA') {
+                spawnAmbulance();
+            }
+        }
+        
+        window.setMode = setMode;
+
+        function updateUI() {
+            const getColorStr = (state) => state === 'R' ? '#ff3333' : state === 'Y' ? '#ffaa00' : '#33ff33';
+            [0, 1, 2].forEach(i => {
+                const dot = document.getElementById(`dot-${i+1}`);
+                dot.style.backgroundColor = getColorStr(intersections[i].mainState);
+                dot.style.boxShadow = `0 0 10px ${getColorStr(intersections[i].mainState)}`;
+            });
+        }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+            const dt = Math.min((time - lastTime) / 1000, 0.1);
+            lastTime = time;
+            globalTime += dt;
+
+            intersections.forEach(int => int.update(dt, globalTime));
+            updateUI();
+            updateAmbulance(dt);
+
+            if (currentMode === 'OLA') waveLine.position.x = -78 + (globalTime * MODES.OLA.speedMain) % 156;
+
+            spawnCars();
+            
+            for (let i = cars.length - 1; i >= 0; i--) {
+                const c = cars[i];
+                c.update(dt);
+                
+                if (Math.abs(c.pos) > 65) {
+                    scene.remove(c.mesh);
+                    cars.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1033 @@
+<!--
+{
+  "project": "1.1 PUERTA-SUPERMERCADO SIMULACION-EJEMPLO-REAL",
+  "version": "2.2.0",
+  "last_update": "2026-07-04",
+  "improvements": [
+    "1.3.0: Control manual de marcha.",
+    "1.4.0: Flujo paso a paso: Caminar -> Parar ante puerta -> Abrir -> Entrar -> Parar al fondo -> Cerrar -> Reiniciar.",
+    "2.0.0: Migración total a Babylon.js 7 con motor PBR, iluminación volumétrica y sombras dinámicas.",
+    "2.0.0: Implementación canónica del Skill de Humanoide Articulado (SKILL-humanoid-babylon) con caminata procedural en oposición y recogida de paquete.",
+    "2.0.0: Rediseño estético Glassmorphism premium, paleta neón tecnológica (Sentir/Decidir/Actuar) y telemetría de alta precisión.",
+    "2.1.0: Solución definitiva al Render Negro (Black Screen) aplicando el estándar de proyecto (Bloque 4.1): eliminación total de PBRMaterial y CubeTexture. Uso exclusivo de BABYLON.StandardMaterial para garantizar compatibilidad 100% offline, local (file://) y en Safari/macOS sin depender de shaders web o extensiones PBR.",
+    "2.1.1: Corrección de lienzo 0x0 en Safari/macOS: encapsulación de inicialización en window.addEventListener('DOMContentLoaded', ...) y forzado de engine.resize() tras carga de layout CSS (idéntico a patrón arquitectónico en Bloque 4.1 y Bloque 6.12).",
+    "2.2.0: Cierre completo del ciclo de entrada y salida: tras coger la caja amarilla en el interior del supermercado, el peatón se gira y el usuario puede pulsar el botón de avanzar para que salga de la tienda completando el ciclo operativo."
+  ]
+}
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMULACIÓN REAL · PUERTA AUTOMÁTICA Y HUMANOIDE</title>
+    <!-- Babylon.js 7 CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --panel-bg: rgba(16, 20, 36, 0.82);
+            --panel-border: rgba(0, 242, 255, 0.25);
+            --accent-cyan: #00f2ff;
+            --accent-green: #00e676;
+            --accent-gold: #ffcc00;
+            --accent-red: #ff4444;
+            --text-main: #ffffff;
+            --text-dim: #a0aab8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: linear-gradient(180deg, rgba(10,14,23,0.95) 0%, rgba(10,14,23,0.6) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 10;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            pointer-events: none;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(0,242,255,0.4);
+        }
+
+        .badge-version {
+            background: rgba(0,242,255,0.15);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* --- PANELES GLASSMORPHISM --- */
+        .panel {
+            position: absolute;
+            top: 90px;
+            bottom: 30px;
+            width: 360px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+            overflow-y: auto;
+        }
+
+        #panel-izq { left: 30px; }
+        #panel-der { right: 30px; }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* --- BLOQUES DE ESTADO (TELEMETRÍA) --- */
+        .bloque {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 16px;
+            border-left: 6px solid #444;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bloque h2 {
+            font-size: 18px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-badge {
+            font-size: 13px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.1);
+            color: #ccc;
+            letter-spacing: 1px;
+        }
+
+        .active-sentir {
+            border-left-color: var(--accent-green);
+            background: linear-gradient(90deg, rgba(0,230,118,0.12) 0%, rgba(0,230,118,0.02) 100%);
+            border-color: rgba(0,230,118,0.3);
+            box-shadow: 0 0 20px rgba(0,230,118,0.15);
+        }
+        .active-sentir .status-badge { background: var(--accent-green); color: #000; box-shadow: 0 0 10px var(--accent-green); }
+
+        .active-decidir {
+            border-left-color: var(--accent-gold);
+            background: linear-gradient(90deg, rgba(255,204,0,0.12) 0%, rgba(255,204,0,0.02) 100%);
+            border-color: rgba(255,204,0,0.3);
+            box-shadow: 0 0 20px rgba(255,204,0,0.15);
+        }
+        .active-decidir .status-badge { background: var(--accent-gold); color: #000; box-shadow: 0 0 10px var(--accent-gold); }
+
+        .active-actuar {
+            border-left-color: var(--accent-cyan);
+            background: linear-gradient(90deg, rgba(0,242,255,0.12) 0%, rgba(0,242,255,0.02) 100%);
+            border-color: rgba(0,242,255,0.3);
+            box-shadow: 0 0 20px rgba(0,242,255,0.15);
+        }
+        .active-actuar .status-badge { background: var(--accent-cyan); color: #000; box-shadow: 0 0 10px var(--accent-cyan); }
+
+        .meter-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .meter-val {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            font-family: monospace;
+        }
+
+        .progress-container {
+            height: 8px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-cyan);
+            transition: width 0.1s linear;
+            border-radius: 4px;
+        }
+
+        /* --- BOTONES Y CONTROLES --- */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            width: 100%;
+            min-height: 54px;
+            border-radius: 14px;
+            border: none;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:active { transform: scale(0.96); }
+
+        .btn-mode {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .btn-mode.active {
+            background: var(--accent-cyan);
+            color: #000;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0,242,255,0.4);
+            font-weight: 800;
+        }
+
+        .btn-action {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .btn-action:hover:not(:disabled) { background: rgba(255,255,255,0.2); border-color: white; }
+
+        .btn-green { background: var(--accent-green); color: #000; font-weight: 800; }
+        .btn-green:hover:not(:disabled) { box-shadow: 0 0 20px rgba(0,230,118,0.4); }
+
+        .btn-red { background: var(--accent-red); color: #fff; font-weight: 800; }
+        .btn-red:hover:not(:disabled) { box-shadow: 0 0 20px rgba(255,68,68,0.4); }
+
+        .btn-diff {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(108,92,231,0.3);
+            margin-top: 6px;
+        }
+
+        .btn-reset {
+            background: rgba(255, 204, 0, 0.15);
+            color: var(--accent-gold);
+            border: 1px solid var(--accent-gold);
+            margin-top: auto;
+        }
+        .btn-reset:hover { background: var(--accent-gold); color: #000; box-shadow: 0 0 20px rgba(255,204,0,0.4); }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .instrucciones {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #d0d8e4;
+        }
+
+        .instrucciones b { color: var(--accent-cyan); }
+
+        /* --- MODAL COMPARATIVO --- */
+        #overlay-diff {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 16, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        #overlay-diff h1 {
+            color: var(--accent-cyan);
+            font-size: 36px;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        #overlay-diff .sub {
+            color: var(--text-dim);
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+
+        .diff-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .diff-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 24px;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .diff-card.auto {
+            border-color: var(--accent-cyan);
+            background: linear-gradient(180deg, rgba(0,242,255,0.08) 0%, rgba(0,0,0,0) 100%);
+            box-shadow: 0 0 30px rgba(0,242,255,0.15);
+        }
+
+        .diff-card h2 { font-size: 22px; display: flex; align-items: center; gap: 10px; }
+        .diff-card p { font-size: 16px; color: #ccc; line-height: 1.6; }
+        .diff-card ul { padding-left: 20px; color: var(--text-dim); line-height: 1.8; }
+        .diff-card li b { color: white; }
+
+        @media (max-width: 1100px) {
+            .panel { width: 300px; }
+            #panel-izq { left: 15px; }
+            #panel-der { right: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <h1>Puerta Automática del Supermercado</h1>
+            <span class="badge-version">GOLD STANDARD V8 · BABYLON.JS</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-dim); font-weight: 600;">
+            🛰️ SIMULACIÓN ARTICULADA 3D · SENTIR → DECIDIR → ACTUAR
+        </div>
+    </header>
+
+    <!-- PANEL IZQUIERDO: TELEMETRÍA Y ESTADOS -->
+    <div id="panel-izq" class="panel">
+        <div class="panel-title">📡 Telemetría en Tiempo Real</div>
+        
+        <!-- BLOQUE SENTIR -->
+        <div id="bloque-sentir" class="bloque">
+            <h2>
+                <span>👁️ 1. SENTIR</span>
+                <span id="txt-sentir" class="status-badge">INACTIVO</span>
+            </h2>
+            <div class="meter-row">
+                <span>Distancia Radar:</span>
+                <span id="val-dist" class="meter-val">--- cm</span>
+            </div>
+            <div class="progress-container">
+                <div id="bar-sentir" class="progress-bar" style="background: var(--accent-green);"></div>
+            </div>
+        </div>
+
+        <!-- BLOQUE DECIDIR -->
+        <div id="bloque-decidir" class="bloque">
+            <h2>
+                <span>🧠 2. DECIDIR</span>
+                <span id="txt-decidir" class="status-badge">ESPERANDO</span>
+            </h2>
+            <div class="meter-row">
+                <span>Procesamiento Lógico:</span>
+                <span id="val-brain" class="meter-val">0%</span>
+            </div>
+            <div class="progress-container">
+                <div id="bar-decidir" class="progress-bar" style="background: var(--accent-gold);"></div>
+            </div>
+        </div>
+
+        <!-- BLOQUE ACTUAR -->
+        <div id="bloque-actuar" class="bloque">
+            <h2>
+                <span>⚙️ 3. ACTUAR</span>
+                <span id="txt-actuar" class="status-badge">PARADO</span>
+            </h2>
+            <div class="meter-row">
+                <span>Apertura de Puertas:</span>
+                <span id="val-open" class="meter-val">0%</span>
+            </div>
+            <div class="progress-container">
+                <div id="bar-actuar" class="progress-bar" style="background: var(--accent-cyan);"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DERECHO: CENTRO DE CONTROL -->
+    <div id="panel-der" class="panel">
+        <div class="panel-title">🎮 Modo de Operación</div>
+        
+        <div class="btn-group">
+            <button id="btn-auto" class="btn-mode active">🤖 Automático</button>
+            <button id="btn-manual" class="btn-mode">🛠️ Manual</button>
+        </div>
+
+        <div id="controles-manual" style="display: none; flex-direction: column; gap: 10px; margin-top: 6px;">
+            <div class="panel-title" style="margin-top: 10px;">⚡ Control Paso a Paso</div>
+            <button id="btn-caminar" class="btn-action">🚶 1. Avanzar Peatón</button>
+            <button id="btn-abrir" class="btn-green">🟢 2. Abrir Puerta</button>
+            <button id="btn-cerrar" class="btn-red">🔴 3. Cerrar Puerta</button>
+        </div>
+        <button id="btn-salir" class="btn-action" style="display: none; background: var(--accent-gold); color: #000; font-weight: 800; box-shadow: 0 0 20px rgba(255,204,0,0.4); margin-top: 10px;">🚶 SALIR CON LA COMPRA</button>
+
+        <div class="instrucciones" id="txt-guia">
+            En <b>MODO AUTOMÁTICO</b> el robot funciona con plena autonomía: el sensor de radar detecta al humanoide, el microprocesador toma la decisión y el motor abre las puertas.
+        </div>
+
+        <button id="btn-diff" class="btn-diff">⚖️ ¿Cuál es la diferencia?</button>
+        <button id="btn-reset" class="btn-reset">🔄 Reiniciar Simulación</button>
+    </div>
+
+    <!-- MODAL COMPARATIVO -->
+    <div id="overlay-diff">
+        <h1>Autonomía vs. Control Manual</h1>
+        <div class="sub">El salto evolutivo entre una máquina convencional y un robot inteligente</div>
+        <div class="diff-grid">
+            <div class="diff-card">
+                <h2 style="color: #aaa;">🛠️ Puerta Manual / Teleoperada</h2>
+                <p>En el modo manual, el sistema <b>no tiene inteligencia ni autonomía</b>. La máquina es completamente ciega y sorda ante lo que ocurre a su alrededor.</p>
+                <ul>
+                    <li><b>Sin Sentir:</b> El sensor de radar está desconectado.</li>
+                    <li><b>Sin Decidir:</b> No existe algoritmo lógico. El humano actúa como cerebro.</li>
+                    <li><b>Acción dependiente:</b> El motor solo gira si el usuario pulsa físicamente el interruptor.</li>
+                </ul>
+            </div>
+            <div class="diff-card auto">
+                <h2 style="color: var(--accent-cyan);">🤖 Puerta Robótica Automática</h2>
+                <p>En el modo automático, el sistema aplica el ciclo canónico de la robótica: <b>Sentir → Decidir → Actuar</b> sin ninguna intervención humana.</p>
+                <ul>
+                    <li><b>1. Sentir:</b> El radar escanea continuamente emitando ondas invisibles en busca de presencia.</li>
+                    <li><b>2. Decidir:</b> Al detectar un objeto a menos de 150 cm, el procesador evalúa la seguridad y ordena abrir.</li>
+                    <li><b>3. Actuar:</b> El motor lineal se activa con precisión, abriendo las hojas de vidrio y manteniéndolas abiertas mientras haya presencia.</li>
+                </ul>
+            </div>
+        </div>
+        <button onclick="document.getElementById('overlay-diff').style.display='none'" class="btn-action" style="margin-top: 40px; width: 220px; height: 54px; font-weight: 800; background: var(--accent-cyan); color: #000;">VOLVER A SIMULACIÓN</button>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        // =====================================================================
+        // MOTOR BABYLON.JS 7 & SKILL CANÓNICO DE HUMANOIDE ARTICULADO
+        // ENCAPSULADO EN DOMCONTENTLOADED PARA EVITAR LIENZO 0x0 EN MAC/SAFARI
+        // =====================================================================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById("renderCanvas");
+            const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialiasing: true });
+
+            // --- VARIABLES GENERALES DE SIMULACIÓN ---
+            let scene, camera, shadowGen;
+            let doorL, doorR, sensorLight, radarCone;
+            let vecino; // Humanoide canónico
+            let mode = 'auto'; // 'auto' | 'manual'
+            let personWalking = true;
+            let doorOpenFactor = 0; // 0 cerrado, 1 abierto
+            let doorState = 'idle'; // 'idle', 'opening', 'closing'
+            let brainState = 'idle'; // 'idle', 'thinking', 'decided', 'closing_flow'
+            let brainTimer = 0;
+
+            // Materiales globales compartidos
+            let skinMat, pantsMat, shirtMat, glassMat, frameMat, radarMat;
+
+            const createScene = function () {
+                const scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.06, 0.08, 0.14, 1.0);
+                scene.ambientColor = new BABYLON.Color3(0.4, 0.4, 0.5);
+
+                // CÁMARA ORBITAL PROFESIONAL
+                camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2, Math.PI / 3, 11, new BABYLON.Vector3(0, 1.6, 0), scene);
+                camera.lowerRadiusLimit = 4;
+                camera.upperRadiusLimit = 22;
+                camera.lowerBetaLimit = 0.1;
+                camera.upperBetaLimit = Math.PI / 2 - 0.05; // No bajar bajo el suelo
+                camera.wheelPrecision = 40;
+                camera.attachControl(canvas, true);
+
+                // ILUMINACIÓN BRILLANTE Y COMPATIBLE
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 0.85;
+                hemiLight.diffuse = new BABYLON.Color3(0.95, 0.95, 1.0);
+                hemiLight.groundColor = new BABYLON.Color3(0.25, 0.3, 0.4);
+
+                const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+                dirLight.position = new BABYLON.Vector3(10, 20, 10);
+                dirLight.intensity = 1.8;
+
+                // Sombras Poisson sampling: compatibles en macOS/Safari sin requerir extensiones float de WebGL
+                shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.usePoissonSampling = true;
+                shadowGen.darkness = 0.35;
+
+                // Luz de radar (se activa en fase Sentir)
+                sensorLight = new BABYLON.PointLight("sLight", new BABYLON.Vector3(0, 3.5, 0.5), scene);
+                sensorLight.diffuse = new BABYLON.Color3(0, 1, 0.4);
+                sensorLight.intensity = 0;
+                sensorLight.range = 8;
+
+                // --- MATERIALES ESTÁNDAR (100% ROBUSTOS, SIN SHADER CRASH EN OFFLINE/MAC) ---
+                skinMat = new BABYLON.StandardMaterial("skinMat", scene);
+                skinMat.diffuseColor = BABYLON.Color3.FromHexString("#f0c080");
+                skinMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+                pantsMat = new BABYLON.StandardMaterial("pantsMat", scene);
+                pantsMat.diffuseColor = BABYLON.Color3.FromHexString("#1b263b");
+                pantsMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+                shirtMat = new BABYLON.StandardMaterial("shirtMat", scene);
+                shirtMat.diffuseColor = BABYLON.Color3.FromHexString("#e63946");
+                shirtMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+                glassMat = new BABYLON.StandardMaterial("glassMat", scene);
+                glassMat.diffuseColor = BABYLON.Color3.FromHexString("#88ccff");
+                glassMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                glassMat.alpha = 0.45;
+
+                frameMat = new BABYLON.StandardMaterial("frameMat", scene);
+                frameMat.diffuseColor = BABYLON.Color3.FromHexString("#222831");
+                frameMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+
+                radarMat = new BABYLON.StandardMaterial("radarMat", scene);
+                radarMat.diffuseColor = BABYLON.Color3.Black();
+                radarMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff");
+                radarMat.alpha = 0.25;
+
+                // --- CONSTRUCCIÓN DEL ENTORNO (SUPERMERCADO) ---
+                buildEnvironment();
+
+                // --- CONSTRUCCIÓN DEL HUMANOIDE CANÓNICO ---
+                vecino = crearVecino(0, shirtMat, new BABYLON.Vector3(0, 0, 7));
+                vecino.rotation.y = Math.PI; // Mirando hacia la puerta (Z=0)
+
+                return scene;
+            };
+
+            // =====================================================================
+            // SKILL CANÓNICO: HUMANOIDE ARTICULADO BABYLON.JS (SKILL-humanoid-babylon)
+            // =====================================================================
+            /**
+             * Crea un vecino/peatón articulado canónico con CreateBox para extremidades.
+             * @param {number} idx - índice
+             * @param {BABYLON.Material} ropaMat - material del torso
+             * @param {BABYLON.Vector3} posInicial
+             * @returns {BABYLON.TransformNode} nGroup con nGroup.limbs = {armL, armR, legL, legR}
+             */
+            function crearVecino(idx, ropaMat, posInicial) {
+                const nGroup = new BABYLON.TransformNode("neighbor" + idx, scene);
+
+                // Helper: pivot + mesh hijo
+                const buildLimb = (name, w, h, d, px, py, pz, mat) => {
+                    const pivot = new BABYLON.TransformNode(name + "Pivot", scene);
+                    pivot.parent = nGroup;
+                    pivot.position.set(px, py, pz);
+                    const mesh = BABYLON.MeshBuilder.CreateBox(name, {width: w, height: h, depth: d}, scene);
+                    mesh.parent = pivot;
+                    mesh.position.y = -h / 2 + 0.05;  // cuelga desde el pivot
+                    mesh.material = mat;
+                    shadowGen.addShadowCaster(mesh);
+                    return pivot;
+                };
+
+                // Torso
+                const torso = BABYLON.MeshBuilder.CreateBox("torso" + idx, {width: 0.5, height: 0.7, depth: 0.3}, scene);
+                torso.parent = nGroup;
+                torso.position.y = 1.05;
+                torso.material = ropaMat;
+                shadowGen.addShadowCaster(torso);
+
+                // Cabeza
+                const head = BABYLON.MeshBuilder.CreateSphere("head" + idx, {diameter: 0.4}, scene);
+                head.parent = nGroup;
+                head.position.y = 1.6;
+                head.material = skinMat;
+                shadowGen.addShadowCaster(head);
+
+                // Extremidades — dimensiones exactas depuradas
+                const armL = buildLimb("armL" + idx, 0.15, 0.6, 0.15, -0.35, 1.35, 0, skinMat);
+                const armR = buildLimb("armR" + idx, 0.15, 0.6, 0.15,  0.35, 1.35, 0, skinMat);
+                const legL = buildLimb("legL" + idx, 0.2,  0.7, 0.2,  -0.15, 0.7,  0, pantsMat);
+                const legR = buildLimb("legR" + idx, 0.2,  0.7, 0.2,   0.15, 0.7,  0, pantsMat);
+
+                nGroup.limbs = { armL, armR, legL, legR };
+                nGroup.hasPackage = false;  // true = brazos elevados sujetando objeto
+                nGroup.isExiting = false;
+                nGroup.position = posInicial.clone();
+
+                // Paquete en manos — oculto al inicio, se activa al entrar
+                const heldPack = BABYLON.MeshBuilder.CreateBox("heldPack" + idx, {width: 0.45, height: 0.35, depth: 0.4}, scene);
+                heldPack.parent = nGroup;
+                heldPack.position.set(0, 1.15, 0.35);  // delante del torso
+                const packMat = new BABYLON.StandardMaterial("packMat", scene);
+                packMat.diffuseColor = BABYLON.Color3.FromHexString("#ffb703");
+                packMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                heldPack.material = packMat;
+                heldPack.isVisible = false;
+                shadowGen.addShadowCaster(heldPack);
+                nGroup.heldPackage = heldPack;
+
+                return nGroup;
+            }
+
+            // Caminata procedural con oposición brazos-piernas independiente del deltaTime
+            function animarVecinoMovimiento(nGroup) {
+                const t = performance.now() * 0.012;
+
+                if (nGroup.hasPackage) {
+                    // Brazos elevados sujetando el paquete — fijos en -1.2
+                    nGroup.limbs.armL.rotation.x = -1.2;
+                    nGroup.limbs.armR.rotation.x = -1.2;
+                } else {
+                    // Oposición natural: armL avanza cuando armR retrocede
+                    nGroup.limbs.armL.rotation.x = Math.sin(t) * 0.8;
+                    nGroup.limbs.armR.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                }
+                // Piernas siempre en oposición al brazo del mismo lado
+                nGroup.limbs.legL.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                nGroup.limbs.legR.rotation.x = Math.sin(t) * 0.8;
+            }
+
+            // Parada limpia instantánea
+            function pararVecino(nGroup) {
+                if (nGroup.hasPackage) {
+                    nGroup.limbs.armL.rotation.x = -1.2;
+                    nGroup.limbs.armR.rotation.x = -1.2;
+                } else {
+                    nGroup.limbs.armL.rotation.x = 0;
+                    nGroup.limbs.armR.rotation.x = 0;
+                }
+                nGroup.limbs.legL.rotation.x = 0;
+                nGroup.limbs.legR.rotation.x = 0;
+            }
+
+            // Orientación suave hacia el destino
+            function orientarVecino(nGroup, targetPos, deltaTime) {
+                const dx = targetPos.x - nGroup.position.x;
+                const dz = targetPos.z - nGroup.position.z;
+                const targetAngle = Math.atan2(dx, dz);
+                let diff = targetAngle - nGroup.rotation.y;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff >  Math.PI) diff -= Math.PI * 2;
+                nGroup.rotation.y += diff * 12 * deltaTime;
+            }
+
+            // =====================================================================
+            // CONSTRUCCIÓN DEL ENTORNO ARQUITECTÓNICO
+            // =====================================================================
+            function buildEnvironment() {
+                // Suelo de terrazo moderno
+                const floor = BABYLON.MeshBuilder.CreateGround("floor", {width: 24, height: 24}, scene);
+                const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+                floorMat.diffuseColor = BABYLON.Color3.FromHexString("#151820");
+                floorMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.2);
+                floor.material = floorMat;
+                floor.receiveShadows = true;
+
+                // Cuadrícula arquitectónica sutil sobre el suelo
+                for (let i = -10; i <= 10; i += 2) {
+                    const lineX = BABYLON.MeshBuilder.CreateLines("lX"+i, {points: [new BABYLON.Vector3(i, 0.01, -10), new BABYLON.Vector3(i, 0.01, 10)]}, scene);
+                    lineX.color = BABYLON.Color3.FromHexString("#00f2ff"); lineX.alpha = 0.15;
+                    const lineZ = BABYLON.MeshBuilder.CreateLines("lZ"+i, {points: [new BABYLON.Vector3(-10, 0.01, i), new BABYLON.Vector3(10, 0.01, i)]}, scene);
+                    lineZ.color = BABYLON.Color3.FromHexString("#00f2ff"); lineZ.alpha = 0.15;
+                }
+
+                // Marcos y Fachada Supermercado
+                const wallL = BABYLON.MeshBuilder.CreateBox("wallL", {width: 4.5, height: 4.5, depth: 0.3}, scene);
+                wallL.position.set(-3.65, 2.25, 0); wallL.material = frameMat; wallL.receiveShadows = true; shadowGen.addShadowCaster(wallL);
+
+                const wallR = BABYLON.MeshBuilder.CreateBox("wallR", {width: 4.5, height: 4.5, depth: 0.3}, scene);
+                wallR.position.set(3.65, 2.25, 0); wallR.material = frameMat; wallR.receiveShadows = true; shadowGen.addShadowCaster(wallR);
+
+                const wallTop = BABYLON.MeshBuilder.CreateBox("wallTop", {width: 3.4, height: 1.0, depth: 0.4}, scene);
+                wallTop.position.set(0, 4.0, 0); wallTop.material = frameMat; shadowGen.addShadowCaster(wallTop);
+
+                // Puertas Correderas de Cristal Templado
+                doorL = BABYLON.MeshBuilder.CreateBox("doorL", {width: 0.78, height: 3.48, depth: 0.06}, scene);
+                doorL.position.set(-0.4, 1.74, 0); doorL.material = glassMat; shadowGen.addShadowCaster(doorL);
+
+                doorR = BABYLON.MeshBuilder.CreateBox("doorR", {width: 0.78, height: 3.48, depth: 0.06}, scene);
+                doorR.position.set(0.4, 1.74, 0); doorR.material = glassMat; shadowGen.addShadowCaster(doorR);
+
+                // Sensor Radar Superior
+                const sensorBox = BABYLON.MeshBuilder.CreateBox("sBox", {width: 0.35, height: 0.12, depth: 0.15}, scene);
+                sensorBox.position.set(0, 3.45, 0.18);
+                const sMat = new BABYLON.StandardMaterial("sMat", scene);
+                sMat.diffuseColor = BABYLON.Color3.Black(); sMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                sensorBox.material = sMat;
+
+                // Haz de Radar Volumétrico (Cono de detección)
+                radarCone = BABYLON.MeshBuilder.CreateCylinder("radarCone", {height: 3.4, diameterTop: 0.1, diameterBottom: 3.0, tessellation: 24}, scene);
+                radarCone.position.set(0, 1.7, 1.2);
+                radarCone.material = radarMat;
+                radarCone.isVisible = false; // Se activa en fase Sentir
+
+                // Cartel Luminoso "MERCADONA ROBÓTICA" (StandardMaterial 100% robusto)
+                const signPlane = BABYLON.MeshBuilder.CreatePlane("sign", {width: 3.0, height: 0.7}, scene);
+                signPlane.position.set(0, 4.0, 0.21);
+                const signTex = new BABYLON.DynamicTexture("signTex", {width: 1024, height: 256}, scene);
+                signTex.drawText("MERCADONA ROBÓTICA", null, 160, "bold 75px 'Segoe UI', sans-serif", "#00f2ff", "#101424", true);
+                const signMat = new BABYLON.StandardMaterial("signMat", scene);
+                signMat.diffuseTexture = signTex;
+                signMat.emissiveTexture = signTex;
+                signMat.emissiveColor = BABYLON.Color3.White();
+                signPlane.material = signMat;
+            }
+
+            // =====================================================================
+            // EVENTOS DE UI Y CONTROL
+            // =====================================================================
+            function setupUI() {
+                document.getElementById('btn-auto').onclick = () => { mode = 'auto'; resetSim(); };
+                document.getElementById('btn-manual').onclick = () => { mode = 'manual'; resetSim(); };
+                document.getElementById('btn-reset').onclick = () => resetSim();
+                
+                const avanzarAction = () => {
+                    personWalking = true;
+                    if (vecino.hasPackage) {
+                        vecino.isExiting = true;
+                        document.getElementById('btn-salir').style.display = 'none';
+                    }
+                };
+                document.getElementById('btn-caminar').onclick = avanzarAction;
+                document.getElementById('btn-salir').onclick = avanzarAction;
+                document.getElementById('btn-abrir').onclick = () => { if (mode === 'manual') doorState = 'opening'; };
+                document.getElementById('btn-cerrar').onclick = () => { if (mode === 'manual') doorState = 'closing'; };
+                
+                document.getElementById('btn-diff').onclick = () => {
+                    document.getElementById('overlay-diff').style.display = 'flex';
+                };
+            }
+
+            function resetSim() {
+                vecino.position.set(0, 0, 7);
+                vecino.rotation.y = Math.PI;
+                vecino.hasPackage = false;
+                vecino.isExiting = false;
+                vecino.heldPackage.isVisible = false;
+                pararVecino(vecino);
+
+                personWalking = (mode === 'auto');
+                doorOpenFactor = 0;
+                doorState = 'idle';
+                brainState = 'idle';
+                brainTimer = 0;
+
+                document.getElementById('btn-auto').classList.toggle('active', mode === 'auto');
+                document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+                document.getElementById('controles-manual').style.display = (mode === 'manual' ? 'flex' : 'none');
+                document.getElementById('btn-salir').style.display = 'none';
+                
+                const btnCam = document.getElementById('btn-caminar');
+                btnCam.innerHTML = "🚶 1. Avanzar Peatón";
+                btnCam.style.background = "";
+                btnCam.style.color = "";
+                btnCam.style.boxShadow = "";
+                btnCam.disabled = false;
+                
+                document.getElementById('txt-guia').innerHTML = mode === 'auto' ? 
+                    "En <b>MODO AUTOMÁTICO</b> el robot funciona con plena autonomía: el sensor de radar detecta al humanoide, el microprocesador toma la decisión y el motor abre las puertas." : 
+                    "En <b>MODO MANUAL</b> el sistema está desconectado. El operador humano debe guiar al peatón y activar la apertura y cierre paso a paso.";
+
+                updateUI();
+            }
+
+            function updateUI() {
+                const dist = vecino.position.z;
+                const distCm = Math.max(0, Math.floor((dist - 0.5) * 100));
+                document.getElementById('val-dist').innerText = distCm + " cm";
+                document.getElementById('bar-sentir').style.width = Math.min(100, Math.max(0, 100 - distCm / 6)) + "%";
+
+                // Estado de apertura
+                const openPct = Math.floor(doorOpenFactor * 100);
+                document.getElementById('val-open').innerText = openPct + "%";
+                document.getElementById('bar-actuar').style.width = openPct + "%";
+
+                // Textos de Actuar
+                const txtAct = document.getElementById('txt-actuar');
+                const blkAct = document.getElementById('bloque-actuar');
+                if (doorState === 'opening') { txtAct.innerText = "ABRIENDO..."; blkAct.classList.add('active-actuar'); }
+                else if (doorState === 'closing') { txtAct.innerText = "CERRANDO..."; blkAct.classList.add('active-actuar'); }
+                else if (doorOpenFactor > 0.5) { txtAct.innerText = "ABIERTA"; blkAct.classList.add('active-actuar'); }
+                else { txtAct.innerText = "PARADO"; blkAct.classList.remove('active-actuar'); }
+            }
+
+            // =====================================================================
+            // INICIALIZACIÓN, RESIZE FORZADO Y BUCLE PRINCIPAL
+            // =====================================================================
+            scene = createScene();
+            setupUI();
+            resetSim();
+
+            // Forzar actualización de viewport de WebGL tras 150ms y 500ms para garantizar que CSS layout ha terminado
+            setTimeout(() => { engine.resize(); }, 150);
+            setTimeout(() => { engine.resize(); }, 500);
+
+            engine.runRenderLoop(function () {
+                if (!scene || !scene.activeCamera) return;
+                const dt = engine.getDeltaTime() / 1000;
+
+                // 1. MOVIMIENTO DEL HUMANOIDE
+                if (personWalking) {
+                    if (!vecino.isExiting) {
+                        // ENTRANDO AL SUPERMERCADO (hacia Z negativo)
+                        if (vecino.position.z > 1.2 || doorOpenFactor > 0.8) {
+                            vecino.position.z -= 0.035 * (dt * 60);
+                            animarVecinoMovimiento(vecino);
+                            orientarVecino(vecino, new BABYLON.Vector3(0, 0, -5), dt);
+                        } else {
+                            personWalking = false;
+                            pararVecino(vecino);
+                        }
+
+                        // Al llegar al interior del supermercado (coge paquete de compra y se detiene)
+                        if (vecino.position.z < -2.5) {
+                            personWalking = false;
+                            pararVecino(vecino);
+                            if (!vecino.hasPackage) {
+                                vecino.hasPackage = true;
+                                vecino.heldPackage.isVisible = true;
+                                vecino.rotation.y = 0; // Mirar hacia afuera (+Z)
+                                
+                                const btnCam = document.getElementById('btn-caminar');
+                                btnCam.innerHTML = "🚶 4. Salir con Compra";
+                                btnCam.style.background = "var(--accent-gold)";
+                                btnCam.style.color = "#000";
+                                btnCam.style.boxShadow = "0 0 20px rgba(255,204,0,0.6)";
+                                
+                                if (mode === 'auto') {
+                                    document.getElementById('btn-salir').style.display = 'block';
+                                }
+                            }
+                        }
+                    } else {
+                        // SALIENDO DEL SUPERMERCADO (hacia Z positivo)
+                        // Detenerse ante la puerta desde adentro (z entre -1.5 y 0.5) si no está abierta
+                        if ((vecino.position.z < -1.2 || doorOpenFactor > 0.8) || vecino.position.z > 0.5) {
+                            vecino.position.z += 0.035 * (dt * 60);
+                            animarVecinoMovimiento(vecino);
+                            orientarVecino(vecino, new BABYLON.Vector3(0, 0, 10), dt);
+                            
+                            // Si en modo automático se acerca a la puerta desde adentro, activar radar para abrir
+                            if (mode === 'auto' && vecino.position.z > -1.8 && vecino.position.z < 0.5 && doorState === 'idle' && doorOpenFactor < 0.5) {
+                                brainState = 'thinking';
+                                brainTimer = 0;
+                            }
+                        } else {
+                            personWalking = false;
+                            pararVecino(vecino);
+                        }
+
+                        // Al llegar afuera completamente (z > 6.5) -> Fin de ciclo
+                        if (vecino.position.z > 6.5) {
+                            personWalking = false;
+                            pararVecino(vecino);
+                            vecino.rotation.y = Math.PI; // Mirar hacia la tienda de nuevo triunfante
+                            const btnCam = document.getElementById('btn-caminar');
+                            btnCam.innerHTML = "🏁 CICLO COMPLETADO";
+                            btnCam.style.background = "var(--accent-green)";
+                            btnCam.disabled = true;
+                        }
+                    }
+                } else {
+                    pararVecino(vecino);
+                }
+
+                // 2. FASE 1: SENTIR (RADAR)
+                const distCm = Math.max(0, Math.floor((Math.abs(vecino.position.z) - 0.5) * 100));
+                const blkSentir = document.getElementById('bloque-sentir');
+                const txtSentir = document.getElementById('txt-sentir');
+
+                const detectadoEntrando = (!vecino.isExiting && distCm < 160 && vecino.position.z > 0);
+                const detectadoSaliendo = (vecino.isExiting && Math.abs(vecino.position.z) < 1.8 && vecino.position.z < 0.5 && vecino.position.z > -1.8);
+
+                if (mode === 'auto' && (detectadoEntrando || detectadoSaliendo)) {
+                    txtSentir.innerText = "DETECTADO";
+                    blkSentir.classList.add('active-sentir');
+                    sensorLight.intensity = 15;
+                    radarCone.isVisible = true;
+                    radarMat.alpha = 0.25 + Math.sin(performance.now() * 0.01) * 0.1; // Pulsación neón
+
+                    if (brainState === 'idle') {
+                        brainState = 'thinking';
+                        brainTimer = 0;
+                    }
+                } else if (mode === 'manual') {
+                    txtSentir.innerText = "MANUAL";
+                    blkSentir.classList.remove('active-sentir');
+                    sensorLight.intensity = 0;
+                    radarCone.isVisible = false;
+                } else {
+                    txtSentir.innerText = "INACTIVO";
+                    blkSentir.classList.remove('active-sentir');
+                    sensorLight.intensity = 0;
+                    radarCone.isVisible = false;
+                }
+
+                // 3. FASE 2: DECIDIR (MICROPROCESADOR)
+                const blkDecidir = document.getElementById('bloque-decidir');
+                const txtDecidir = document.getElementById('txt-decidir');
+                const barDecidir = document.getElementById('bar-decidir');
+
+                if (mode === 'auto') {
+                    if (brainState === 'thinking') {
+                        brainTimer += dt * 1.5;
+                        txtDecidir.innerText = "ANALIZANDO...";
+                        blkDecidir.classList.add('active-decidir');
+                        barDecidir.style.width = Math.min(100, Math.floor(brainTimer * 100)) + "%";
+                        document.getElementById('val-brain').innerText = Math.min(100, Math.floor(brainTimer * 100)) + "%";
+
+                        if (brainTimer >= 1) {
+                            brainState = 'decided';
+                            doorState = 'opening';
+                        }
+                    } else if (brainState === 'decided') {
+                        txtDecidir.innerText = "ORDEN: ABRIR";
+                        barDecidir.style.width = "100%";
+                        document.getElementById('val-brain').innerText = "100%";
+
+                        // Cierre automático tras pasar (entrando o saliendo)
+                        const dentroEntrando = (!vecino.isExiting && vecino.position.z < -0.8);
+                        const fueraSaliendo = (vecino.isExiting && vecino.position.z > 0.8);
+
+                        if ((dentroEntrando || fueraSaliendo) && doorState === 'idle') {
+                            setTimeout(() => {
+                                if (mode === 'auto' && doorState === 'idle') {
+                                    doorState = 'closing';
+                                    brainState = 'closing_flow';
+                                }
+                            }, 1200);
+                            brainState = 'waiting_close';
+                        }
+                    } else if (brainState === 'closing_flow') {
+                        txtDecidir.innerText = "ORDEN: CERRAR";
+                        if (doorOpenFactor === 0) {
+                            brainState = 'idle';
+                            barDecidir.style.width = "0%";
+                            document.getElementById('val-brain').innerText = "0%";
+                        }
+                    }
+                } else {
+                    txtDecidir.innerText = "ESPERANDO";
+                    blkDecidir.classList.remove('active-decidir');
+                    barDecidir.style.width = "0%";
+                    document.getElementById('val-brain').innerText = "0%";
+                }
+
+                // 4. FASE 3: ACTUAR (MOTOR LINEAL)
+                if (doorState === 'opening') {
+                    doorOpenFactor = Math.min(1, doorOpenFactor + dt * 1.6);
+                    if (doorOpenFactor >= 1) {
+                        doorState = 'idle';
+                        if (mode === 'auto') personWalking = true;
+                    }
+                } else if (doorState === 'closing') {
+                    doorOpenFactor = Math.max(0, doorOpenFactor - dt * 1.6);
+                    if (doorOpenFactor <= 0) {
+                        doorState = 'idle';
+                    }
+                }
+
+                // Aplicar cinemática a las hojas de cristal
+                doorL.position.x = -0.4 - (doorOpenFactor * 1.15);
+                doorR.position.x = 0.4 + (doorOpenFactor * 1.15);
+
+                updateUI();
+                scene.render();
+            });
+
+            // Resize responsive
+            window.addEventListener("resize", function () {
+                engine.resize();
+            });
+        });
+    </script>
+</body>
+</html>

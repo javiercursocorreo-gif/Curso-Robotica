@@ -1,0 +1,53 @@
+# 1. Ignorar TODO inicialmente
+*
+
+# 2. Permitir que Git lea las carpetas
+!*/
+
+# 3. Permitir solo las extensiones deseadas (HTML, PDF, MP4, y el propio .gitignore)
+!*.html
+!*.pdf
+!*.mp4
+!.gitignore
+
+# 4. Bloquear explícitamente extensiones prohibidas (PPT, PPTX, DOCX, etc)
+*.ppt
+*.pptx
+*.docx
+*.zip
+*.jpg
+*.png
+*.obj
+*.mtl
+*.gltf
+*.glb
+*.fbx
+*.blend
+
+# 5. Bloquear carpetas internas no deseadas
+1.FICHEROS*
+.DS_Store
+~$*
+
+# 6. Ignorar todo lo que NO sean BLOQUES (Carpetas de la raíz)
+MODELOS/
+GEMINI/
+GITHUB/
+PRACTICAS_UNITY/
+PRACTICAS_HTML_BABYLON/
+
+# 6.1 Ignorar archivos sueltos en la raíz (para que solo suban desde los BLOQUE-X)
+/*.html
+/*.pdf
+/*.mp4
+
+# 7. BLOQUEO TEMPORAL PARA PRUEBA DE SUBIDA (Solo permitir BLOQUE-1)
+BLOQUE-0*
+BLOQUE-2*
+BLOQUE-3*
+BLOQUE-4*
+BLOQUE-5*
+BLOQUE-6*
+BLOQUE-7*
+BLOQUE-8*
+BLOQUE-IA*
