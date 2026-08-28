@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P3-V2. Programación Autómata - Optimus Gen 3</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; font-family: 'Segoe UI', sans-serif; background: #222; color: #fff; overflow: hidden; height: 100vh; }
+        #ui-panel { width: 350px; background: #2d2d30; padding: 15px 25px; overflow-y: auto; z-index: 2; box-shadow: 2px 0 15px rgba(0,0,0,0.6); display: flex; flex-direction: column; }
+        h2 { font-size: 20px; text-align: center; color: #00f2ff; margin-bottom: 5px; margin-top: 0; }
+        p.sub { font-size: 13px; text-align: center; color: #ccc; margin-top: 0; margin-bottom: 20px; }
+        .btn-box { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        button { background: #3e3e42; color: #00f2ff; border: 1px solid #00f2ff; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1 1 45%; transition: 0.2s; }
+        button:hover { background: #00f2ff; color: #000; }
+        .btn-reset { background: #f44; color: #fff; border: none; width: 100%; margin-top: 15px; }
+        .btn-reset:hover { background: #d33; color: #fff; }
+        #canvas-container { flex: 1; position: relative; background: #111; }
+        #canvas { width: 100%; height: 100%; outline: none; }
+    </style>
+</head>
+<body>
+
+<div id="ui-panel">
+    <h2>Consola de Programación</h2>
+    <p class="sub">Rutinas Biomecánicas Autónomas</p>
+    <div class="btn-box">
+        <button onclick="setRoutine('SALUDO')">1. Saludo Cortés</button>
+        <button onclick="setRoutine('ZMP')">2. Equilibrio ZMP</button>
+        <button onclick="setRoutine('SENTADILLA')">3. Sentadilla / SQ</button>
+        <button onclick="setRoutine('CAMINAR')">4. Caminar (Cinta)</button>
+        <button onclick="setRoutine('CORRER')">5. Correr (Cinta)</button>
+        <button onclick="setRoutine('MOONWALK')">6. Moonwalk</button>
+        <button onclick="setRoutine('SALTO_VERTICAL')">7. Salto Vertical</button>
+        <button onclick="setRoutine('SALTO_LONGITUD')">8. Salto Longitud</button>
+        <button onclick="setRoutine('ROBOT')">9. Baile Robot</button>
+        <button onclick="setRoutine('PAQUETE')">10. Recoger Paquete</button>
+        <button onclick="setRoutine('GRULLA')">11. La Grulla</button>
+        <button onclick="setRoutine('CAMINAR_ATRAS')">12. Caminar Atrás</button>
+        <button onclick="setRoutine('ESCALERAS')">13. Atravesar Escaleras</button>
+        <button onclick="setRoutine('REPOSO')" class="btn-reset">Reset / Reposo</button>
+    </div>
+    
+    <div style="margin: 20px 0 10px 0; background: #222; padding: 10px; border-radius: 6px; border: 1px solid #444;">
+        <label for="speed-slider" style="font-size: 13px; color: #00f2ff; display: block; margin-bottom: 5px;">Velocidad: <span id="speed-val">1.0</span>x</label>
+        <input type="range" id="speed-slider" min="0.1" max="3.0" step="0.1" value="1.0" style="width: 100%; cursor: pointer;">
+    </div>
+</div>
+
+<div id="canvas-container">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.35, 0.35, 0.38, 1);
+
+    const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 4, Math.PI/2.5, 45, new BABYLON.Vector3(0, 6.0, 0), scene);
+    camera.attachControl(canvas, true);
+    camera.wheelPrecision = 20;
+
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 1.3;
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+    dirLight.intensity = 0.5;
+
+    let ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 40, height: 40, subdivisions: 25}, scene);
+    let floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+    floorMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    floorMat.wireframe = true; floorMat.alpha = 0.4;
+    ground.material = floorMat; ground.position.y = 2.2;
+
+
+    const v3 = (x, y, z) => new BABYLON.Vector3(x, y, z);
+    const B = BABYLON;
+    let mW = new BABYLON.StandardMaterial("mW", scene); mW.diffuseColor = BABYLON.Color3.FromHexString("#F4F6F9");
+
+    const mD = new B.StandardMaterial("mD", scene); mD.diffuseColor = B.Color3.FromHexString("#1A1A20"); mD.specularPower = 16;
+    const mC = new B.StandardMaterial("mC", scene); mC.diffuseColor = B.Color3.FromHexString("#D0D0D5"); mC.specularPower = 128;
+    const mV = new B.StandardMaterial("mV", scene); mV.diffuseColor = B.Color3.FromHexString("#050508"); mV.specularPower = 256; mV.specularColor = new B.Color3(0.5, 0.5, 0.5);
+    const mL = new B.StandardMaterial("mL", scene); mL.emissiveColor = new B.Color3(0, 0.95, 1);
+
+    const createRotary = (n, p, pos, rot, d, l) => {
+        let cyl = B.MeshBuilder.CreateCylinder(n, {diameter: d, height: l}, scene);
+        cyl.parent = p; cyl.position = pos; cyl.rotation = rot; cyl.material = mD;
+        let fl = B.MeshBuilder.CreateCylinder(n+"_f", {diameter: d*1.15, height: l*0.25}, scene);
+        fl.parent = cyl; fl.material = mC; return cyl;
+    };
+    const createLinear = (n, p, pos, d, l) => {
+        let base = B.MeshBuilder.CreateCylinder(n, {diameter: d, height: l*0.6}, scene);
+        base.parent = p; base.position = pos; base.material = mD;
+        let rod = B.MeshBuilder.CreateCylinder(n+"_r", {diameter: d*0.4, height: l*0.8}, scene);
+        rod.parent = base; rod.position.y = l * 0.4; rod.material = mC; return base;
+    };
+    const createHand = (n, p, pos, rotY) => {
+        let palm = B.MeshBuilder.CreateBox(n, {width: 0.8, height: 0.9, depth: 0.3}, scene);
+        palm.parent = p; palm.position = pos; palm.material = mD;
+        if (rotY) palm.rotation.y = rotY;
+        palm.phalanges = [];
+        for(let i=0; i<5; i++) {
+            let dx = -0.3 + i*0.15; let prev = palm;
+            for(let j=0; j<3; j++) {
+                let ph = B.MeshBuilder.CreateCylinder(n+i+j, {diameter: 0.12, height: 0.35}, scene);
+                ph.parent = prev; ph.position = (j===0) ? v3(dx, -0.45, 0) : v3(0, -0.35, -0.05);
+                ph.rotation.x = -0.15; ph.material = mC;
+                palm.phalanges.push(ph); prev = ph;
+            }
+        } return palm;
+    };
+
+    // Jerarquía con Nodo Raíz
+    const robotRoot = new B.TransformNode("robotRoot", scene);
+
+    const pLHip = new B.TransformNode("pLHip", scene); pLHip.parent = robotRoot; pLHip.position = v3(-1.2, 10.0, 0);
+    const pLKnee = new B.TransformNode("pLKnee", scene); pLKnee.parent = pLHip; pLKnee.position = v3(0, -3.6, 0);
+    const pLAnkle = new B.TransformNode("pLAnkle", scene); pLAnkle.parent = pLKnee; pLAnkle.position = v3(0, -3.9, 0);
+
+    const pRHip = new B.TransformNode("pRHip", scene); pRHip.parent = robotRoot; pRHip.position = v3(1.2, 10.0, 0);
+    const pRKnee = new B.TransformNode("pRKnee", scene); pRKnee.parent = pRHip; pRKnee.position = v3(0, -3.6, 0);
+    const pRAnkle = new B.TransformNode("pRAnkle", scene); pRAnkle.parent = pRKnee; pRAnkle.position = v3(0, -3.9, 0);
+
+    const pSpine = new B.TransformNode("pSpine", scene); pSpine.parent = robotRoot; pSpine.position = v3(0, 10.7, 0);
+    
+    // Nodos lógicos de las caderas (independientes de la columna)
+    let lHip = new B.TransformNode("lHip", scene);
+    lHip.parent = robotRoot;
+    lHip.position = v3(-0.8, 10, 0); 
+    let rHip = new B.TransformNode("rHip", scene);
+    rHip.parent = robotRoot;
+    rHip.position = v3(0.8, 10, 0); 
+    
+    const pLShoulder = new B.TransformNode("pLShoulder", scene); pLShoulder.parent = pSpine; pLShoulder.position = v3(-1.85, 4.6, 0); pLShoulder.rotation.z = -0.15;
+    const pLElbow = new B.TransformNode("pLElbow", scene); pLElbow.parent = pLShoulder; pLElbow.position = v3(0, -2.8, 0);
+    
+    const pRShoulder = new B.TransformNode("pRShoulder", scene); pRShoulder.parent = pSpine; pRShoulder.position = v3(1.85, 4.6, 0); pRShoulder.rotation.z = 0.15;
+    const pRElbow = new B.TransformNode("pRElbow", scene); pRElbow.parent = pRShoulder; pRElbow.position = v3(0, -2.8, 0);
+
+    let pelvis = B.MeshBuilder.CreateBox("pelvis", {width: 2.3, height: 1.3, depth: 1.5}, scene); pelvis.parent = robotRoot; pelvis.position.y = 10.0; pelvis.material = mD;
+    createRotary("hipL", pelvis, v3(-1.2, 0, 0), v3(0,0,1.57), 1.1, 0.8);
+    createRotary("hipR", pelvis, v3(1.2, 0, 0), v3(0,0,1.57), 1.1, 0.8);
+
+    // Piernas con pies de caja ortopédica (Talón redondo, planta plana, punta redonda)
+    let tL = B.MeshBuilder.CreateCylinder("tL", {diameterTop: 1.6, diameterBottom: 1.0, height: 3.5}, scene); tL.parent = pLHip; tL.position = v3(0, -1.75, 0); tL.material = mW;
+    createRotary("knL", pLKnee, v3(0, 0, 0), v3(0,0,1.57), 0.9, 0.9);
+    let shL = B.MeshBuilder.CreateCylinder("shL", {diameter: 0.8, height: 3.5}, scene); shL.parent = pLKnee; shL.position = v3(0, -1.9, 0); shL.material = mW;
+    createLinear("cfL", pLKnee, v3(0, -1.8, 0.45), 0.3, 1.5);
+    
+    let ftL = B.MeshBuilder.CreateBox("ftL", {width: 0.9, height: 0.6, depth: 1.6}, scene); ftL.parent = pLAnkle; ftL.position = v3(0, -0.3, -0.5); ftL.material = mD;
+    let heelL = B.MeshBuilder.CreateCylinder("heelL", {diameter: 0.6, height: 0.9}, scene); heelL.rotation.z = 1.57; heelL.parent = pLAnkle; heelL.position = v3(0, -0.3, 0.3); heelL.material = mD;
+    const pLToe = new B.TransformNode("pLToe", scene); pLToe.parent = pLAnkle; pLToe.position = v3(0, -0.3, -1.3);
+    let toeLBox = B.MeshBuilder.CreateBox("toeLBox", {width: 0.9, height: 0.6, depth: 0.6}, scene); toeLBox.parent = pLToe; toeLBox.position = v3(0, 0, -0.3); toeLBox.material = mD;
+    let toeLR = B.MeshBuilder.CreateCylinder("toeLR", {diameter: 0.6, height: 0.9}, scene); toeLR.rotation.z = 1.57; toeLR.parent = pLToe; toeLR.position = v3(0, 0, -0.6); toeLR.material = mD;
+
+    let tR = B.MeshBuilder.CreateCylinder("tR", {diameterTop: 1.6, diameterBottom: 1.0, height: 3.5}, scene); tR.parent = pRHip; tR.position = v3(0, -1.75, 0); tR.material = mW;
+    createRotary("knR", pRKnee, v3(0, 0, 0), v3(0,0,1.57), 0.9, 0.9);
+    let shR = B.MeshBuilder.CreateCylinder("shR", {diameter: 0.8, height: 3.5}, scene); shR.parent = pRKnee; shR.position = v3(0, -1.9, 0); shR.material = mW;
+    createLinear("cfR", pRKnee, v3(0, -1.8, 0.45), 0.3, 1.5);
+    let ftR = B.MeshBuilder.CreateBox("ftR", {width: 0.9, height: 0.6, depth: 1.6}, scene); ftR.parent = pRAnkle; ftR.position = v3(0, -0.3, -0.5); ftR.material = mD;
+    let heelR = B.MeshBuilder.CreateCylinder("heelR", {diameter: 0.6, height: 0.9}, scene); heelR.rotation.z = 1.57; heelR.parent = pRAnkle; heelR.position = v3(0, -0.3, 0.3); heelR.material = mD;
+    const pRToe = new B.TransformNode("pRToe", scene); pRToe.parent = pRAnkle; pRToe.position = v3(0, -0.3, -1.3);
+    let toeRBox = B.MeshBuilder.CreateBox("toeRBox", {width: 0.9, height: 0.6, depth: 0.6}, scene); toeRBox.parent = pRToe; toeRBox.position = v3(0, 0, -0.3); toeRBox.material = mD;
+    let toeRR = B.MeshBuilder.CreateCylinder("toeRR", {diameter: 0.6, height: 0.9}, scene); toeRR.rotation.z = 1.57; toeRR.parent = pRToe; toeRR.position = v3(0, 0, -0.6); toeRR.material = mD;
+
+    // === ENTORNO HÍBRIDO ===
+    let treadmillNode = new B.TransformNode("treadmillNode", scene);
+    let treadmill = B.MeshBuilder.CreateBox("treadmill", {width: 6, height: 0.2, depth: 14}, scene);
+    treadmill.position = v3(0, 2.1, 0); treadmill.material = mW; treadmill.parent = treadmillNode;
+    let stripes = [];
+    for(let i=0; i<5; i++) {
+        let s = B.MeshBuilder.CreatePlane("s"+i, {width: 4, height: 1.2}, scene);
+        s.rotation.x = 1.57; s.position = v3(0, 2.21, -6 + i*3);
+        s.material = mD; s.parent = treadmillNode; stripes.push(s);
+    }
+    
+    let mOrange = new B.StandardMaterial("mO", scene); mOrange.diffuseColor = new B.Color3(1, 0.5, 0);
+    window.packageMesh = B.MeshBuilder.CreateBox("package", {size: 1.5}, scene);
+    window.packageMesh.material = mOrange;
+    window.packageMesh.position = v3(20, 3.0, 0);
+
+    let stairsNode = new B.TransformNode("stairsNode", scene);
+    stairsNode.setEnabled(false);
+    let stepDepth = 2.5; let stepHeight = 1.5;
+    let startZ = -0.95; 
+    for(let i=0; i<10; i++) {
+        let step = B.MeshBuilder.CreateBox("sUp"+i, {width: 12, height: (i+1)*stepHeight, depth: stepDepth}, scene);
+        step.position = v3(0, 2.2 + ((i+1)*stepHeight)/2, startZ - stepDepth/2 - i*stepDepth);
+        step.material = mD; step.parent = stairsNode;
+    }
+    let plat = B.MeshBuilder.CreateBox("plat", {width: 12, height: 10*stepHeight, depth: 3*stepDepth}, scene);
+    plat.position = v3(0, 2.2 + (10*stepHeight)/2, startZ - 10*stepDepth - (3*stepDepth)/2);
+    plat.material = mD; plat.parent = stairsNode;
+    for(let i=0; i<10; i++) {
+        let h = (10-i-1)*stepHeight;
+        if (h > 0) {
+            let step = B.MeshBuilder.CreateBox("sDown"+i, {width: 12, height: h, depth: stepDepth}, scene);
+            step.position = v3(0, 2.2 + h/2, startZ - 13*stepDepth - stepDepth/2 - i*stepDepth);
+            step.material = mD; step.parent = stairsNode;
+        }
+    }
+
+    let spine = B.MeshBuilder.CreateCylinder("spine", {diameter: 0.65, height: 1.6}, scene); spine.parent = pSpine; spine.position = v3(0, 0.8, 0); spine.material = mD;
+    let cR = B.MeshBuilder.CreateTube("cR", {path: [v3(-0.4,0,0.4), v3(-0.5,0.8,0.4), v3(-0.3,1.6,0.3)], radius: 0.08}, scene); cR.parent = pSpine; cR.material = mD;
+    let cO = B.MeshBuilder.CreateTube("cO", {path: [v3(0.4,0,0.4), v3(0.5,0.8,0.4), v3(0.3,1.6,0.3)], radius: 0.08}, scene); cO.parent = pSpine; cO.material = mD;
+    let abd = B.MeshBuilder.CreateCylinder("abd", {diameter: 1.9, height: 1.8}, scene); abd.parent = pSpine; abd.position = v3(0, 2.4, 0); abd.material = mD;
+    let chest = B.MeshBuilder.CreateCapsule("chest", {radius: 1.7, height: 4.8}, scene); chest.parent = pSpine; chest.position = v3(0, 4.2, 0); chest.scaling = v3(0.88, 0.8, 0.65); chest.material = mW;
+    let tTex = new B.DynamicTexture("tTex", {width:256, height:64}, scene); tTex.drawText("T E S L A", null, 40, "bold 45px sans-serif", "#1A1A20", "transparent", true);
+    let tMat = new B.StandardMaterial("tMat", scene); tMat.diffuseTexture = tTex; tMat.diffuseTexture.hasAlpha = true; tMat.zOffset = -1;
+    let tPlane = B.MeshBuilder.CreatePlane("tP", {width: 1.4, height: 0.35}, scene); tPlane.parent = chest; tPlane.position = v3(0, 1.4, -1.72); tPlane.rotation.x = -0.15; tPlane.material = tMat;
+
+    createRotary("shL_v", pLShoulder, v3(0,0,0), v3(0,0,1.57), 1, 1);
+    let armL = B.MeshBuilder.CreateCylinder("armL", {diameter: 0.8, height: 2.6}, scene); armL.parent = pLShoulder; armL.position = v3(0, -1.3, 0); armL.material = mW;
+    createRotary("elL_v", pLElbow, v3(0, 0, 0), v3(0,0,1.57), 0.8, 0.9);
+    let faL = B.MeshBuilder.CreateCylinder("faL", {diameter: 0.7, height: 2.6}, scene); faL.parent = pLElbow; faL.position = v3(0, -1.5, 0); faL.material = mW;
+    let handL = createHand("hL", pLElbow, v3(0, -3.2, 0), Math.PI / 2);
+
+    createRotary("shR_v", pRShoulder, v3(0,0,0), v3(0,0,1.57), 1, 1);
+    let armR = B.MeshBuilder.CreateCylinder("armR", {diameter: 0.8, height: 2.6}, scene); armR.parent = pRShoulder; armR.position = v3(0, -1.3, 0); armR.material = mW;
+    createRotary("elR_v", pRElbow, v3(0,0,0), v3(0,0,1.57), 0.8, 0.9);
+    let faR = B.MeshBuilder.CreateCylinder("faR", {diameter: 0.7, height: 2.6}, scene); faR.parent = pRElbow; faR.position = v3(0, -1.5, 0); faR.material = mW;
+    let handR = createHand("hR", pRElbow, v3(0, -3.2, 0), -Math.PI / 2);
+
+    let neck = B.MeshBuilder.CreateCylinder("neck", {diameter: 0.65, height: 0.9}, scene); neck.parent = pSpine; neck.position = v3(0, 6.0, 0); neck.material = mD;
+    const pNeck = new B.TransformNode("pNeck", scene); pNeck.parent = pSpine; pNeck.position = v3(0, 6.45, 0); 
+    let head = B.MeshBuilder.CreateCapsule("head", {radius: 0.9, height: 2.3}, scene); head.parent = pNeck; head.position = v3(0, 0.65, -0.1); head.material = mV; 
+    let crR = B.Curve3.CreateCatmullRomSpline([v3(0, 1.13, 0.22), v3(0.68, 0.85, 0.48), v3(0.93, 0.2, 0.12), v3(0.77, -0.5, -0.47), v3(0, -0.96, -0.77)], 20).getPoints();
+    let crL = B.Curve3.CreateCatmullRomSpline([v3(0, 1.13, 0.22), v3(-0.68, 0.85, 0.48), v3(-0.93, 0.2, 0.12), v3(-0.77, -0.5, -0.47), v3(0, -0.96, -0.77)], 20).getPoints();
+    let lineR = B.MeshBuilder.CreateTube("lR", {path: crR, radius: 0.035}, scene); lineR.parent = head; lineR.material = mL;
+    let lineL = B.MeshBuilder.CreateTube("lL", {path: crL, radius: 0.035}, scene); lineL.parent = head; lineL.material = mL;
+
+    let currentAction = 'REPOSO';
+    let t = 0;
+    
+    let camTarget = new B.TransformNode("camTarget", scene);
+    camera.target = camTarget;
+    
+    window.setRoutine = function(r) {
+        currentAction = r; t = 0;
+        robotRoot.position = v3(0,0,0);
+        robotRoot.rotation = v3(0,0,0);
+        
+        if (r === 'ESCALERAS') {
+            treadmillNode.setEnabled(false);
+            stairsNode.setEnabled(true);
+        } else {
+            treadmillNode.setEnabled(true);
+            stairsNode.setEnabled(false);
+        }
+    };
+
+    let T = {};
+    function resetT() {
+        T.lHipX=0; T.rHipX=0; T.lKneeX=0; T.rKneeX=0; T.lAnkX=0; T.rAnkX=0; T.lToeX=0; T.rToeX=0;
+        T.lShZ=-0.15; T.rShZ=0.15; T.lShX=0; T.rShX=0; T.lElX=0; T.rElX=0;
+        T.spY=0; T.spX=0; T.neY=0; T.neX=0; T.ha=0; T.rootY=0;
+    }
+    resetT();
+
+    let speedMult = 1.0;
+    document.getElementById("speed-slider").addEventListener("input", (e) => {
+        speedMult = parseFloat(e.target.value);
+        document.getElementById("speed-val").innerText = speedMult.toFixed(1);
+    });
+
+    function getGroundY(z) {
+        let startZ = -0.95;
+        if (z > startZ) return 2.2;
+        let stepDepth = 2.5;
+        let stepHeight = 1.5;
+        let zInside = -z + startZ; 
+        if (zInside < 0) return 2.2;
+        
+        // Subida: 10 escalones
+        if (zInside < 10 * stepDepth) {
+            let stepIndex = Math.floor(zInside / stepDepth);
+            return 2.2 + (stepIndex + 1) * stepHeight;
+        }
+        // Meseta (3 escalones de ancho)
+        if (zInside < 13 * stepDepth) {
+            return 2.2 + 10 * stepHeight;
+        }
+        // Bajada: 10 escalones
+        if (zInside < 23 * stepDepth) {
+            let stepIndex = Math.floor((zInside - 13 * stepDepth) / stepDepth);
+            return 2.2 + (10 - stepIndex - 1) * stepHeight;
+        }
+        // Suelo final
+        return 2.2;
+    }
+
+    function getLowestY(hX, kX, aX, tX) {
+        let kY = 10.0 - 3.6 * Math.cos(hX);
+        let aY = kY - 3.9 * Math.cos(hX + kX);
+        let gA = hX + kX + aX; // Ángulo global del tobillo
+        let gT = gA + tX;      // Ángulo global de los dedos
+        
+        // Fórmula de rotación 2D para obtener la altura Y: Y_global = Y_base + Y_local * cos(A) - Z_local * sin(A)
+        let getPtY = (z, y, angle, baseY) => baseY + y * Math.cos(angle) - z * Math.sin(angle);
+
+        // 1. Cilindro del talón. Centro: Z = 0.3, Y = -0.3. Radio: 0.3.
+        let heelCenterY = getPtY(0.3, -0.3, gA, aY);
+        let heelY = heelCenterY - 0.3; // Borde inferior real
+
+        // 2. Planta del pie (plana).
+        let midFootFrontY = getPtY(-1.3, -0.6, gA, aY);
+        let midFootBackY = getPtY(0.3, -0.6, gA, aY);
+
+        // 3. Pivote de los dedos.
+        let toePivotY = getPtY(-1.3, -0.3, gA, aY);
+        
+        // 4. Planta de los dedos.
+        let toeFrontY = getPtY(-0.6, -0.3, gT, toePivotY);
+        let toeBackY = getPtY(0.0, -0.3, gT, toePivotY);
+
+        // 5. Cilindro de la punta. Centro: Z = -0.6, Y = 0 (relativo al pivote). Radio: 0.3.
+        let toeTipCenterY = getPtY(-0.6, 0.0, gT, toePivotY);
+        let toeTipY = toeTipCenterY - 0.3;
+
+        return Math.min(heelY, midFootFrontY, midFootBackY, toeFrontY, toeBackY, toeTipY);
+    }
+
+    scene.onBeforeRenderObservable.add(() => {
+        let dt = engine.getDeltaTime() * speedMult;
+        if (currentAction !== 'REPOSO') t += dt;
+
+        if (currentAction === 'REPOSO') resetT();
+        else if (currentAction === 'CAMINAR' || currentAction === 'CAMINAR_ATRAS') {
+            let cycle = t * 0.005;
+            if (currentAction === 'CAMINAR_ATRAS') cycle = -cycle;
+            let sC = Math.sin(cycle);
+            let cC = Math.cos(cycle);
+            let sCr = Math.sin(cycle + Math.PI);
+            let cCr = Math.cos(cycle + Math.PI);
+            
+            T.lHipX = sC * 0.6;
+            T.rHipX = sCr * 0.6;
+            T.lKneeX = -Math.max(0, cC) * 1.2;
+            T.rKneeX = -Math.max(0, cCr) * 1.2;
+            T.lShX = -sC * 0.5;
+            T.rShX = -sCr * 0.5;
+            T.lElX = 0.2; T.rElX = 0.2;
+            
+            let lAnkOffset = 1.0 * sC - 0.5 * cC - 0.5;
+            let rAnkOffset = 1.0 * sCr - 0.5 * cCr - 0.5;
+
+            T.lAnkX = -(T.lHipX + T.lKneeX) + lAnkOffset; 
+            T.rAnkX = -(T.rHipX + T.rKneeX) + rAnkOffset;
+            
+            let lWindlass = -Math.min(0, sC);
+            let rWindlass = -Math.min(0, sCr);
+            T.lToeX = Math.max(0, -lAnkOffset) * lWindlass; 
+            T.rToeX = Math.max(0, -rAnkOffset) * rWindlass;
+        }
+        else if (currentAction === 'CORRER') {
+            let cycle = t * 0.012;
+            let sC = Math.sin(cycle);
+            let cC = Math.cos(cycle);
+            let sCr = Math.sin(cycle + Math.PI);
+            let cCr = Math.cos(cycle + Math.PI);
+
+            T.lHipX = sC * 1.0;
+            T.rHipX = sCr * 1.0;
+            T.lKneeX = -Math.max(0, cC) * 2.0;
+            T.rKneeX = -Math.max(0, cCr) * 2.0;
+            
+            // Brazos balanceándose más hacia atrás (-0.5 de offset)
+            T.lShX = -sC * 1.0 - 0.5;
+            T.rShX = -sCr * 1.0 - 0.5;
+            
+            T.lElX = 1.5; T.rElX = 1.5; 
+            
+            // Curva aún más agresiva para la carrera
+            let lAnkOffset = 1.1 * sC - 0.5 * cC - 0.5; 
+            let rAnkOffset = 1.1 * sCr - 0.5 * cCr - 0.5;
+
+            T.lAnkX = -(T.lHipX + T.lKneeX) + lAnkOffset; 
+            T.rAnkX = -(T.rHipX + T.rKneeX) + rAnkOffset;
+            
+            let lWindlass = -Math.min(0, sC);
+            let rWindlass = -Math.min(0, sCr);
+            T.lToeX = Math.max(0, -lAnkOffset) * lWindlass; 
+            T.rToeX = Math.max(0, -rAnkOffset) * rWindlass;
+        }
+        else if (currentAction === 'MOONWALK') {
+            let duration = 6500; // Tiempo total del moonwalk
+            if (t > duration) {
+                currentAction = 'REPOSO';
+            } else {
+                let cycle = t * 0.005; // Ciclo de caminar normal
+                let sC = Math.sin(cycle);
+                let cC = Math.cos(cycle);
+                let sCr = Math.sin(cycle + Math.PI);
+                let cCr = Math.cos(cycle + Math.PI);
+
+                T.lHipX = sC * 0.6;
+                T.rHipX = sCr * 0.6;
+                
+                // Ilusión Moonwalk
+                T.lKneeX = Math.min(0, cC) * 0.5; // Rodilla ligeramente relajada al arrastrar
+                T.rKneeX = Math.min(0, cCr) * 0.5;
+
+                T.lShX = -sC * 0.5;
+                T.rShX = -sCr * 0.5;
+                T.lElX = 0.2; T.rElX = 0.2;
+
+                // Tobillo: Flexión plantar (talón arriba) en la pierna que va hacia adelante
+                let lAnkOffset = -Math.max(0, cC) * 0.9;
+                let rAnkOffset = -Math.max(0, cCr) * 0.9;
+
+                T.lAnkX = -(T.lHipX + T.lKneeX) + lAnkOffset; 
+                T.rAnkX = -(T.rHipX + T.rKneeX) + rAnkOffset;
+
+                T.lToeX = -lAnkOffset; 
+                T.rToeX = -rAnkOffset;
+                
+                // Traslación física: Empieza delante de la cinta (-5.0) y se desliza hacia atrás (+5.0)
+                robotRoot.position.z = -5.0 + (t / duration) * 10.0;
+            }
+        }
+        else if (currentAction === 'SALUDO') {
+            if (t < 500) { 
+                T.neY = 0; T.neX = 0; T.spX = 0; // Torso recto
+                T.rShX = 2.5; T.rElX = 0.5; T.ha = 0.2; // Brazo levantado
+            }
+            else if (t < 2000) {
+                T.rShZ = 0.5 + Math.sin(t * 0.015) * 0.4; // Agitar la mano
+            }
+            else if (t > 2500) currentAction = 'REPOSO';
+        }
+        else if (currentAction === 'ZMP') {
+            T.lShZ = -1.57; T.rShZ = 1.57; 
+            T.lHipX = 0.78; T.lKneeX = -1.5; 
+            T.spX = -0.1; 
+        }
+        else if (currentAction === 'SENTADILLA') {
+            T.lHipX = 1.2; T.rHipX = 1.2; T.lKneeX = -2.0; T.rKneeX = -2.0; T.lAnkX = 0.8; T.rAnkX = 0.8; 
+            T.spX = 0; T.neX = 0; T.lShX = 1.57; T.rShX = 1.57; T.rootY = -3.5;
+        }
+        else if (currentAction === 'SALTO_VERTICAL') {
+            if (t < 600) { 
+                // 1. Sentadilla preparatoria (brazos ligeramente adelante, torso a 45 grados hacia adelante = -0.78 rad)
+                T.lHipX=1.2; T.rHipX=1.2; T.lKneeX=-2.0; T.rKneeX=-2.0; T.lAnkX=0.8; T.rAnkX=0.8; 
+                T.spX=-0.78; T.rootY=-3.5; T.lShX=0.5; T.rShX=0.5; T.lElX=0.2; T.rElX=0.2;
+            } 
+            else if (t < 1200) { 
+                // 2. Echa los brazos hacia atrás para coger impulso
+                T.lShX=-1.5; T.rShX=-1.5; T.lElX=0; T.rElX=0;
+            } 
+            else if (t < 1700) { 
+                // 3. Extiende brazos verticalmente y salta hacia arriba
+                T.lHipX=0; T.rHipX=0; T.lKneeX=0; T.rKneeX=0; T.lAnkX=0.5; T.rAnkX=0.5; 
+                T.spX=0; T.rootY=7.0; T.lShX=3.14; T.rShX=3.14; 
+            } 
+            else if (t < 2400) { 
+                // 4. Aterriza en posición de sentadilla con brazos hacia atrás, torso a 45 grados hacia adelante
+                T.lHipX=1.2; T.rHipX=1.2; T.lKneeX=-2.0; T.rKneeX=-2.0; T.lAnkX=0.8; T.rAnkX=0.8; 
+                T.spX=-0.78; T.rootY=-3.5; T.lShX=-1.5; T.rShX=-1.5; 
+            } 
+            else if (t > 3200) {
+                // 5. Vuelve a reposo
+                currentAction = 'REPOSO';
+            }
+        }
+        else if (currentAction === 'SALTO_LONGITUD') {
+            if (t < 600) { 
+                // 1. Sentadilla preparatoria (brazos ligeramente adelante, torso a 45 grados hacia adelante)
+                T.lHipX=1.2; T.rHipX=1.2; T.lKneeX=-2.0; T.rKneeX=-2.0; T.lAnkX=0.8; T.rAnkX=0.8; 
+                T.spX=-0.78; T.rootY=-3.5; T.lShX=0.5; T.rShX=0.5; T.lElX=0.2; T.rElX=0.2;
+            } 
+            else if (t < 1200) { 
+                // 2. Echa los brazos hacia atrás para coger impulso
+                T.lShX=-1.5; T.rShX=-1.5; T.lElX=0; T.rElX=0;
+            } 
+            else if (t < 1600) { 
+                // 3. Despegue vertical: Extiende piernas hacia abajo
+                T.lHipX=0; T.rHipX=0; T.lKneeX=0; T.rKneeX=0; T.lAnkX=0.5; T.rAnkX=0.5; 
+                T.spX=-0.4; T.rootY=5.0; T.lShX=2.0; T.rShX=2.0; 
+                robotRoot.position.z -= dt * 0.015; // Traslación balística horizontal
+            } 
+            else if (t < 2000) {
+                // 4. Vuelo con piernas estiradas hacia adelante
+                T.lHipX=1.0; T.rHipX=1.0; T.lKneeX=0; T.rKneeX=0; T.lAnkX=0.5; T.rAnkX=0.5; 
+                T.spX=-0.78; T.rootY=4.0; T.lShX=-1.5; T.rShX=-1.5; // Brazos ya van hacia atrás
+                robotRoot.position.z -= dt * 0.015; // Sigue volando hacia adelante
+            }
+            else if (t < 2600) { 
+                // 5. Aterriza en posición de sentadilla con brazos hacia atrás
+                T.lHipX=1.2; T.rHipX=1.2; T.lKneeX=-2.0; T.rKneeX=-2.0; T.lAnkX=0.8; T.rAnkX=0.8; 
+                T.spX=-0.78; T.rootY=-3.5; T.lShX=-1.5; T.rShX=-1.5; 
+                if (t < 2200) {
+                    // Sigue avanzando ligeramente por inercia al caer
+                    robotRoot.position.z -= dt * 0.008; 
+                }
+            } 
+            else if (t > 3200) {
+                // 6. Vuelve a reposo
+                currentAction = 'REPOSO';
+            }
+        }
+        else if (currentAction === 'ESCALERAS') {
+            let stepDuration = 1000;
+            if (t >= 23000) {
+                currentAction = 'REPOSO';
+            } else {
+                let totalSteps = Math.floor(t / stepDuration);
+                let p = (t % stepDuration) / stepDuration;
+                
+                // Función de Cinemática Inversa (IK) exacta para la pierna
+                let solveLegIK = (tZ, tY) => {
+                    let L1 = 3.6, L2 = 3.9;
+                    let D = Math.sqrt(tZ*tZ + tY*tY);
+                    if (D > L1 + L2) {
+                        tZ *= (L1 + L2) / D;
+                        tY *= (L1 + L2) / D;
+                        D = L1 + L2;
+                    }
+                    let valK = (D*D - L1*L1 - L2*L2) / (2 * L1 * L2);
+                    valK = Math.max(-1, Math.min(1, valK));
+                    let K = -Math.acos(valK); 
+                    
+                    let alpha = Math.atan2(-tZ, tY); // -tZ porque el robot mira hacia -Z
+                    
+                    let valBeta = (D*D + L1*L1 - L2*L2) / (2 * D * L1);
+                    valBeta = Math.max(-1, Math.min(1, valBeta));
+                    let beta = Math.acos(valBeta);
+                    
+                    return { H: alpha + beta, K: K };
+                };
+
+                let plantZ = -1.25 + 2.5 * p; // De atrás hacia delante relativo al paso
+                let swingZ = 1.25 - 2.5 * p;  // De delante hacia atrás relativo al paso
+
+                let plantY, swingY, plantAnk, swingAnk;
+
+                if (totalSteps < 10) {
+                    // FASE 1: SUBIDA (0 a 9)
+                    plantY = 6.0 + 1.5 * p; // Pierna empuja de 6.0 a 7.5
+                    swingY = (totalSteps === 9) ? 7.5 - Math.sin(p * Math.PI) * 1.5 : 7.5 - p * 1.5 - Math.sin(p * Math.PI) * 1.5;
+                    plantAnk = 0; 
+                    swingAnk = -0.3 * Math.sin(p * Math.PI);
+                    T.rootY = totalSteps * 1.5 + p * 1.5; // Cuerpo sube
+                    T.spX = -0.1; 
+                } else if (totalSteps < 12) {
+                    // FASE 2: MESETA PLANA (10, 11)
+                    T.rootY = 15.0; // Altura fija
+                    plantY = 7.5;   // Pierna totalmente estirada (no flota)
+                    swingY = 7.5 - Math.sin(p * Math.PI) * 1.0; 
+                    plantAnk = 0; 
+                    swingAnk = 0;
+                    T.spX = 0; 
+                } else if (totalSteps === 12) {
+                    // FASE 3: PREPARACIÓN PARA BAJAR (12)
+                    // Baja el cuerpo para que la pierna pueda alcanzar el escalón inferior
+                    T.rootY = 15.0 - p * 1.5; 
+                    plantY = 7.5 - p * 1.5; // La pierna en la meseta se dobla
+                    swingY = 7.5 - Math.sin(p * Math.PI) * 1.0; 
+                    plantAnk = 0; 
+                    swingAnk = 0;
+                    T.spX = 0;
+                } else {
+                    // FASE 4: BAJADA (13 a 22)
+                    let N = totalSteps - 13; 
+                    T.rootY = 13.5 - N * 1.5 - p * 1.5;
+                    plantY = 7.5 - 1.5 * p; // La pierna trasera se flexiona
+                    swingY = 6.0 + 1.5 * p - Math.sin(p * Math.PI) * 1.5; 
+                    plantAnk = -0.3 * p; 
+                    swingAnk = 0;
+                    T.spX = 0.1; // Torso atrás
+                }
+                
+                let ikPlant = solveLegIK(plantZ, plantY);
+                let ikSwing = solveLegIK(swingZ, swingY);
+                
+                T.lElX = 0.8; T.rElX = 0.8; // Codos ligeramente doblados al caminar
+
+                if (totalSteps % 2 === 0) {
+                    // Izquierda balancea, Derecha plantada
+                    T.lHipX = ikSwing.H; T.lKneeX = ikSwing.K;
+                    T.rHipX = ikPlant.H; T.rKneeX = ikPlant.K;
+                    T.lAnkX = -(T.lHipX + T.lKneeX) - swingAnk; 
+                    T.rAnkX = -(T.rHipX + T.rKneeX) - plantAnk;
+                    T.lToeX = swingAnk; T.rToeX = plantAnk;
+                    // Balanceo de brazos opuesto a la posición Z del pie
+                    T.lShX = -swingZ * 0.5; 
+                    T.rShX = -plantZ * 0.5;
+                } else {
+                    // Derecha balancea, Izquierda plantada
+                    T.rHipX = ikSwing.H; T.rKneeX = ikSwing.K;
+                    T.lHipX = ikPlant.H; T.lKneeX = ikPlant.K;
+                    T.rAnkX = -(T.rHipX + T.rKneeX) - swingAnk; 
+                    T.lAnkX = -(T.lHipX + T.lKneeX) - plantAnk;
+                    T.rToeX = swingAnk; T.lToeX = plantAnk;
+                    // Balanceo de brazos opuesto a la posición Z del pie
+                    T.rShX = -swingZ * 0.5; 
+                    T.lShX = -plantZ * 0.5;
+                }
+            }
+        }
+        else if (currentAction === 'PAQUETE') {
+            // Helper function para generar el movimiento de marcha
+            let march = function(cycleSpeed) {
+                let cycle = t * cycleSpeed;
+                let sC = Math.sin(cycle); let cC = Math.cos(cycle);
+                T.rootY = Math.abs(sC) * 0.5;
+                T.lHipX = sC * 0.6; T.rHipX = -sC * 0.6;
+                T.lKneeX = -Math.max(0, cC) * 1.5; T.rKneeX = -Math.max(0, -cC) * 1.5;
+                T.lAnkX = -(T.lHipX + T.lKneeX); T.rAnkX = -(T.rHipX + T.rKneeX); 
+            };
+
+            // Fase 0: Girar a la izquierda (0-2s)
+            if (t < 2000) {
+                let p = t / 2000;
+                robotRoot.rotation.y = B.Scalar.Lerp(0, -Math.PI / 2, p);
+                march(0.015);
+                T.lShX = -Math.sin(t*0.015)*0.5; T.rShX = Math.sin(t*0.015)*0.5;
+            }
+            // Fase 1: Caminar al paquete (2-8s)
+            else if (t < 8000) {
+                robotRoot.rotation.y = -Math.PI / 2;
+                let p = (t - 2000) / 6000;
+                robotRoot.position.x = B.Scalar.Lerp(0, 16, p);
+                march(0.012);
+                T.lShX = -Math.sin(t*0.012)*0.5; T.rShX = Math.sin(t*0.012)*0.5;
+            }
+            // Fase 2: Sentadilla para recoger (8-10s)
+            else if (t < 10000) {
+                robotRoot.position.x = 16;
+                let p = (t - 8000) / 2000;
+                T.rootY = B.Scalar.Lerp(0, -4.0, p);
+                T.lHipX = B.Scalar.Lerp(0, 1.2, p); T.rHipX = B.Scalar.Lerp(0, 1.2, p);
+                T.lKneeX = B.Scalar.Lerp(0, -2.4, p); T.rKneeX = B.Scalar.Lerp(0, -2.4, p);
+                T.lAnkX = -(T.lHipX + T.lKneeX); T.rAnkX = -(T.rHipX + T.rKneeX); 
+                
+                T.spX = B.Scalar.Lerp(0, -0.6, p); // Inclina el torso HACIA ADELANTE (negativo)
+                T.lShX = B.Scalar.Lerp(0, 1.0, p); T.rShX = B.Scalar.Lerp(0, 1.0, p); 
+                T.lShZ = B.Scalar.Lerp(0, 0.4, p); T.rShZ = B.Scalar.Lerp(0, -0.4, p);
+            }
+            // Fase 3: Agarrar (10-11s)
+            else if (t < 11000) {
+                T.rootY = -4.0; T.lHipX = 1.2; T.rHipX = 1.2; T.lKneeX = -2.4; T.rKneeX = -2.4;
+                T.lAnkX = -(T.lHipX + T.lKneeX); T.rAnkX = -(T.rHipX + T.rKneeX); 
+                T.spX = -0.6; T.lShX = 1.0; T.rShX = 1.0; T.lShZ = 0.4; T.rShZ = -0.4;
+                
+                let p = (t - 10000) / 1000;
+                let targetPos = pSpine.getAbsolutePosition().add(new B.Vector3(2.0, 0, 0)); 
+                window.packageMesh.position = B.Vector3.Lerp(new B.Vector3(20, 1.5, 0), targetPos, p);
+            }
+            // Fase 4: Levantarse con el paquete (11-13s)
+            else if (t < 13000) {
+                let p = (t - 11000) / 2000;
+                T.rootY = B.Scalar.Lerp(-4.0, 0, p);
+                T.lHipX = B.Scalar.Lerp(1.2, 0, p); T.rHipX = B.Scalar.Lerp(1.2, 0, p);
+                T.lKneeX = B.Scalar.Lerp(-2.4, 0, p); T.rKneeX = B.Scalar.Lerp(-2.4, 0, p);
+                T.lAnkX = -(T.lHipX + T.lKneeX); T.rAnkX = -(T.rHipX + T.rKneeX); 
+                T.spX = B.Scalar.Lerp(-0.6, 0, p);
+                
+                // Cierra los brazos lateralmente para PRENSAR la caja
+                T.lShX = B.Scalar.Lerp(1.0, 1.0, p); T.rShX = B.Scalar.Lerp(1.0, 1.0, p);
+                T.lElX = B.Scalar.Lerp(0, 1.57, p); T.rElX = B.Scalar.Lerp(0, 1.57, p);
+                T.lShZ = B.Scalar.Lerp(0.4, 0.7, p); T.rShZ = B.Scalar.Lerp(-0.4, -0.7, p);
+                
+                let yaw = robotRoot.rotation.y;
+                window.packageMesh.position = pSpine.getAbsolutePosition().add(new B.Vector3(-Math.sin(yaw)*2.2, 0, -Math.cos(yaw)*2.2));
+            }
+            // Fase 5: Media vuelta marchando (13-15s)
+            else if (t < 15000) {
+                T.lShX = 1.0; T.rShX = 1.0; T.lElX = 1.57; T.rElX = 1.57; T.lShZ = 0.7; T.rShZ = -0.7;
+                let p = (t - 13000) / 2000;
+                robotRoot.rotation.y = B.Scalar.Lerp(-Math.PI / 2, Math.PI / 2, p);
+                march(0.015);
+                
+                let yaw = robotRoot.rotation.y;
+                window.packageMesh.position = pSpine.getAbsolutePosition().add(new B.Vector3(-Math.sin(yaw)*2.2, 0, -Math.cos(yaw)*2.2));
+            }
+            // Fase 6: Caminar al otro lado (15-25s)
+            else if (t < 25000) {
+                robotRoot.rotation.y = Math.PI / 2;
+                let p = (t - 15000) / 10000;
+                robotRoot.position.x = B.Scalar.Lerp(16, -20, p);
+                march(0.012);
+                
+                T.lShX = 1.0; T.rShX = 1.0; T.lElX = 1.57; T.rElX = 1.57; T.lShZ = 0.7; T.rShZ = -0.7;
+                
+                let yaw = robotRoot.rotation.y;
+                window.packageMesh.position = pSpine.getAbsolutePosition().add(new B.Vector3(-Math.sin(yaw)*2.2, 0, -Math.cos(yaw)*2.2));
+            }
+            // Fase 7: Inclinación recta de cadera sin doblar rodillas (25-27s)
+            else if (t < 27000) {
+                robotRoot.position.x = -20;
+                let p = (t - 25000) / 2000;
+                
+                T.rootY = 0; T.lHipX = 0; T.rHipX = 0; T.lKneeX = 0; T.rKneeX = 0; T.lAnkX = 0; T.rAnkX = 0;
+                T.spX = B.Scalar.Lerp(0, -1.57, p); // Dobla la cadera 90 grados hacia adelante
+                
+                T.lShX = B.Scalar.Lerp(1.0, 1.57, p); T.rShX = B.Scalar.Lerp(1.0, 1.57, p);
+                T.lElX = B.Scalar.Lerp(1.57, 0, p); T.rElX = B.Scalar.Lerp(1.57, 0, p);
+                T.lShZ = B.Scalar.Lerp(0.7, 0.4, p); T.rShZ = B.Scalar.Lerp(-0.7, -0.4, p);
+                
+                let startPos = pSpine.getAbsolutePosition().add(new B.Vector3(-2.2, 0, 0)); 
+                let endPos = new B.Vector3(-24, 1.5, 0); 
+                window.packageMesh.position = B.Vector3.Lerp(startPos, endPos, p);
+            }
+            // Fase 8: Soltar el paquete (27-28s)
+            else if (t < 28000) {
+                T.spX = -1.57; T.lShX = 1.57; T.rShX = 1.57; T.lElX = 0; T.rElX = 0; T.lShZ = 0.4; T.rShZ = -0.4;
+            }
+            // Fase 9: Levantarse recto (28-30s)
+            else if (t < 30000) {
+                let p = (t - 28000) / 2000;
+                T.spX = B.Scalar.Lerp(-1.57, 0, p);
+                T.lShX = B.Scalar.Lerp(1.57, 0, p); T.rShX = B.Scalar.Lerp(1.57, 0, p);
+                T.lShZ = B.Scalar.Lerp(0.4, 0, p); T.rShZ = B.Scalar.Lerp(-0.4, 0, p);
+            }
+            // Fase 10: Girar al centro (30-32s)
+            else if (t < 32000) {
+                let p = (t - 30000) / 2000;
+                robotRoot.rotation.y = B.Scalar.Lerp(Math.PI / 2, -Math.PI / 2, p);
+                march(0.015);
+                T.lShX = -Math.sin(t*0.015)*0.5; T.rShX = Math.sin(t*0.015)*0.5;
+            }
+            // Fase 11: Caminar al centro (32-38s)
+            else if (t < 38000) {
+                robotRoot.rotation.y = -Math.PI / 2;
+                let p = (t - 32000) / 6000;
+                robotRoot.position.x = B.Scalar.Lerp(-20, 0, p);
+                march(0.012);
+                T.lShX = -Math.sin(t*0.012)*0.5; T.rShX = Math.sin(t*0.012)*0.5;
+            }
+            // Fase 12: Girar hacia la cámara (38-40s)
+            else if (t < 40000) {
+                robotRoot.position.x = 0;
+                let p = (t - 38000) / 2000;
+                robotRoot.rotation.y = B.Scalar.Lerp(-Math.PI / 2, 0, p);
+                march(0.015);
+                T.lShX = -Math.sin(t*0.015)*0.5; T.rShX = Math.sin(t*0.015)*0.5;
+            }
+            else {
+                currentAction = 'REPOSO';
+            }
+        }
+        else if (currentAction === 'GRULLA') {
+            T.lShZ=-1.57; T.rShZ=1.57; 
+            if (t < 1000) { T.lHipX=1.57; T.lKneeX=-1.57; T.lAnkX=0.5; } 
+            else if (t < 1200) T.lKneeX=0; 
+            else if (t < 2000) T.lKneeX=-1.57; 
+            else if (t > 3000) currentAction = 'REPOSO';
+        }
+        else if (currentAction === 'ROBOT') {
+            let step = Math.floor(t / 400); // Ritmo mecánico de 400ms por pose
+            
+            // FASE 1: "Despertar Mecánico"
+            if (step === 0) { T.neY = 0.8; T.rShZ = 0.5; } // Mira derecha, levanta hombro
+            else if (step === 1) { T.rElX = 1.57; } // Codo a 90 grados
+            else if (step === 2) { T.neY = -0.8; T.lShZ = -0.5; } // Mira izquierda, levanta hombro izq
+            else if (step === 3) { T.lElX = 1.57; } // Codo izq a 90 grados
+            
+            // FASE 2: "Aislamiento de Torso"
+            else if (step === 4) { T.neY = 0; T.spY = 0.8; T.rShX = 1.5; } // Gira torso, sube brazo recto
+            else if (step === 5) { T.spY = -0.8; T.lShX = 1.5; } // Gira torso, sube otro brazo
+            else if (step === 6) { T.spY = 0; T.rShX = 0; T.lShX = 0; T.rElX = 0; T.lElX = 0; T.rShZ=0; T.lShZ=0; } // Reseteo
+            
+            // FASE 3: "Tutting Egipcio"
+            else if (step === 7) { T.rShZ = 1.57; T.lShZ = -1.57; } // Brazos en cruz
+            else if (step === 8) { T.rElX = 1.57; T.lElX = 1.57; } // Codos apuntando arriba (U shape)
+            else if (step === 9) { T.rShX = -1.57; T.lShX = -1.57; } // Codos giran adelante
+            else if (step === 10) { T.rElX = 0; T.lElX = 0; } // Brazos estirados al frente
+            
+            // FASE 4: "Caminar robótico en el sitio"
+            else if (step === 11) { T.rShX = 0; T.lShX = 0; T.rShZ = 0; T.lShZ = 0; } // Brazos abajo
+            else if (step === 12) { T.rHipX = -0.5; T.rKneeX = 0.5; T.rShX = -0.5; T.lShX = 0.5; } // Pierna derecha arriba mecánicamente
+            else if (step === 13) { T.rHipX = 0; T.rKneeX = 0; T.rAnkX = -0.5; } // Cae sobre punta
+            else if (step === 14) { T.rAnkX = 0; T.lHipX = -0.5; T.lKneeX = 0.5; T.rShX = 0.5; T.lShX = -0.5; } // Pierna izquierda arriba
+            else if (step === 15) { T.lHipX = 0; T.lKneeX = 0; T.lAnkX = -0.5; } // Cae sobre punta
+            
+            // FASE 5: "Cortocircuito (Glitch)"
+            else if (step === 16) { T.lAnkX = 0; T.neX = -0.5; T.neY = 0.5; T.lShZ = -0.5; } // Twitch 1
+            else if (step === 17) { T.neX = 0.5; T.neY = -0.5; T.lShZ = 0; T.rShZ = 0.5; } // Twitch 2
+            else if (step === 18) { T.neX = -0.5; T.neY = 0.5; T.rShZ = 0; } // Twitch 3
+            
+            // FASE 6: "Apagado del sistema"
+            else if (step === 19) { 
+                T.neX = 0; T.neY = 0; // Torso neutro
+                T.spX = 0.8; T.neX = 0.5; // Cabeza y torso caen
+                T.lShX = -0.5; T.rShX = -0.5; // Brazos cuelgan
+                T.lHipX = 0.5; T.rHipX = 0.5; T.lKneeX = -0.5; T.rKneeX = -0.5; // Rodillas ceden
+                T.rootY = -1.0;
+            }
+            else if (step > 22) currentAction = 'REPOSO';
+        }
+
+        // Animar cinta de correr (Motor estático)
+        if (currentAction === 'CAMINAR' || currentAction === 'CORRER' || currentAction === 'MOONWALK' || currentAction === 'CAMINAR_ATRAS') {
+            let s = 0;
+            if (currentAction === 'CORRER') s = 0.040 * dt;
+            else if (currentAction === 'CAMINAR') s = 0.0135 * dt;
+            else if (currentAction === 'CAMINAR_ATRAS') s = -0.0135 * dt; // La cinta se mueve hacia adelante
+            else if (currentAction === 'MOONWALK') s = 0; // Cinta parada para ilusión Moonwalk
+            
+            stripes.forEach(st => { 
+                st.position.z += s; 
+                if (st.position.z > 7.5) st.position.z -= 15; 
+                else if (st.position.z < -7.5) st.position.z += 15;
+            });
+        }
+        
+        // Translación física (Motor dinámico)
+        let isPhysical = false;
+        if (['ESCALERAS', 'MOONWALK', 'PAQUETE'].includes(currentAction)) {
+            isPhysical = true;
+            if (currentAction === 'ESCALERAS') {
+                let speedZ = 2.5 / 1000; 
+                robotRoot.position.z = -(t * speedZ);
+            }
+        }
+        
+        // Seguimiento incondicional de la cámara al robot
+        camTarget.position = B.Vector3.Lerp(camTarget.position, pSpine.getAbsolutePosition(), 0.05);
+
+        // 1. Aplicar interpolación (Lerp) a todas las rotaciones primero
+        let lerpSpd = (currentAction === 'ROBOT') ? 0.6 : 0.15; 
+        
+        pLHip.rotation.x = B.Scalar.Lerp(pLHip.rotation.x, T.lHipX, lerpSpd);
+        pRHip.rotation.x = B.Scalar.Lerp(pRHip.rotation.x, T.rHipX, lerpSpd);
+        pLKnee.rotation.x = B.Scalar.Lerp(pLKnee.rotation.x, T.lKneeX, lerpSpd);
+        pRKnee.rotation.x = B.Scalar.Lerp(pRKnee.rotation.x, T.rKneeX, lerpSpd);
+        pLAnkle.rotation.x = B.Scalar.Lerp(pLAnkle.rotation.x, T.lAnkX, lerpSpd);
+        pRAnkle.rotation.x = B.Scalar.Lerp(pRAnkle.rotation.x, T.rAnkX, lerpSpd);
+        pLToe.rotation.x = B.Scalar.Lerp(pLToe.rotation.x, T.lToeX, lerpSpd);
+        pRToe.rotation.x = B.Scalar.Lerp(pRToe.rotation.x, T.rToeX, lerpSpd);
+
+        pLShoulder.rotation.x = B.Scalar.Lerp(pLShoulder.rotation.x, T.lShX, lerpSpd);
+        pRShoulder.rotation.x = B.Scalar.Lerp(pRShoulder.rotation.x, T.rShX, lerpSpd);
+        pLShoulder.rotation.z = B.Scalar.Lerp(pLShoulder.rotation.z, T.lShZ, lerpSpd);
+        pRShoulder.rotation.z = B.Scalar.Lerp(pRShoulder.rotation.z, T.rShZ, lerpSpd);
+        pLElbow.rotation.x = B.Scalar.Lerp(pLElbow.rotation.x, T.lElX, lerpSpd);
+        pRElbow.rotation.x = B.Scalar.Lerp(pRElbow.rotation.x, T.rElX, lerpSpd);
+
+        pSpine.rotation.y = B.Scalar.Lerp(pSpine.rotation.y, T.spY, lerpSpd);
+        pSpine.rotation.x = B.Scalar.Lerp(pSpine.rotation.x, T.spX, lerpSpd);
+        pNeck.rotation.y = B.Scalar.Lerp(pNeck.rotation.y, T.neY, lerpSpd);
+        pNeck.rotation.x = B.Scalar.Lerp(pNeck.rotation.x, T.neX, lerpSpd);
+        
+        // 2. Colisión Dinámica (Dynamic IK). Exclusiva para las acciones de cinta plana.
+        if (['CAMINAR', 'CORRER', 'MOONWALK', 'CAMINAR_ATRAS'].includes(currentAction)) {
+            let minL = getLowestY(pLHip.rotation.x, pLKnee.rotation.x, pLAnkle.rotation.x, pLToe.rotation.x);
+            let minR = getLowestY(pRHip.rotation.x, pRKnee.rotation.x, pRAnkle.rotation.x, pRToe.rotation.x);
+            let lowestPoint = Math.min(minL, minR);
+            
+            let flightOffset = 0;
+            if (currentAction === 'CORRER') {
+                let cycle = t * 0.01;
+                flightOffset = Math.max(0, Math.cos(cycle * 2) * 0.15); 
+            }
+            
+            robotRoot.position.y = 2.2 - lowestPoint + flightOffset;
+        } else {
+            robotRoot.position.y = B.Scalar.Lerp(robotRoot.position.y, T.rootY || 0, lerpSpd); // Lerp normal
+        }
+
+        let hv = T.ha;
+        handL.phalanges.forEach(ph => ph.rotation.x = B.Scalar.Lerp(ph.rotation.x, -0.15 - hv, lerpSpd));
+        handR.phalanges.forEach(ph => ph.rotation.x = B.Scalar.Lerp(ph.rotation.x, -0.15 - hv, lerpSpd));
+    });
+
+    engine.runRenderLoop(() => { scene.render(); });
+    window.addEventListener("resize", () => { engine.resize(); });
+</script>
+</body>
+</html>

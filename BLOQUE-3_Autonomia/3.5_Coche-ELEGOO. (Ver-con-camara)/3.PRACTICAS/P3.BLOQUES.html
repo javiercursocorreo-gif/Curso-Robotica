@@ -1,0 +1,944 @@
+<!-- MEJORAS TRAS ANÁLISIS PROFUNDO:
+- [ESTÉTICA VIBRANTE] Se ha mejorado radicalmente la iluminación y el post-procesado usando Tonemapping ACES, contraste alto, luces cálidas/frías y materiales PBR con colores saturados (coche rojo deportivo, cielo crepúsculo, edificios con acentos de color).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES</title>
+    <style>
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            display: flex; flex-direction: column; height: 100vh;
+            background: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        /* HEADER OBLIGATORIO */
+        header {
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid #00f2ff;
+            height: 70px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px;
+            z-index: 100;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        header h1 { margin: 0; font-size: 24px; color: #00f2ff; letter-spacing: 5px; text-transform: uppercase; }
+        header h2 { margin: 0; font-size: 16px; color: #aaaaaa; font-weight: normal; }
+
+        /* LAYOUT FLEXBOX */
+        .main-container { display: flex; flex: 1; min-height: 0; min-width: 0; width: 100%; }
+
+        /* PANEL IZQUIERDO */
+        #left-panel {
+            width: 40%; flex-shrink: 0; display: flex; flex-direction: column;
+            height: calc(100vh - 70px); overflow: hidden; padding: 15px; box-sizing: border-box;
+            background: #161821; border-right: 1px solid #333;
+        }
+        #missions-bar { display:flex; gap:10px; margin-bottom:12px; flex-shrink:0; align-items:center; }
+        #palette {
+            display: flex; flex-direction: row; overflow-x: auto; flex-wrap: nowrap;
+            gap: 8px; padding-bottom: 8px; height: 90px; flex-shrink: 0; align-items: flex-start;
+        }
+        #program-zone {
+            flex: 1; min-height: 0; border: 2px dashed #555; background: #111;
+            display: flex; flex-direction: column; overflow-y: auto; padding: 12px; gap: 8px;
+        }
+        #info-camara {
+            height: 70px; flex-shrink: 0; background: #050a10; border: 1px solid #00f2ff;
+            display: flex; justify-content: center; align-items: center; margin-top: 10px; border-radius: 6px;
+            font-size: 18px; font-weight: bold; color: #777; box-sizing: border-box; padding: 0 12px; text-align: center;
+        }
+        #controls { display:flex; gap:8px; margin-top:10px; flex-shrink:0; }
+
+        /* CANVAS */
+        #canvas-container { flex: 1; display: flex; min-width: 0; position: relative; height: calc(100vh - 70px); }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        /* BLOQUES */
+        .bloque {
+            min-height: 40px; padding: 10px 12px; font-size: 16px; border-radius: 4px; cursor: grab; font-weight: bold;
+            color: #fff; background: #4a4a5a; display: flex; flex-direction: column; position: relative;
+            user-select: none; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+        .bloque:active { cursor: grabbing; }
+        .bloque select {
+            font-size: 15px; margin-top: 5px; padding: 4px; background: #222; color: #fff;
+            border: 1px solid #555; border-radius: 4px; outline: none; cursor: pointer;
+        }
+        .bloque .borrar-bloque { position: absolute; right: 8px; top: 8px; color: #ff5555; cursor: pointer; font-size: 18px; display: none; }
+        .bloque:hover:not(.locked) > .borrar-bloque { display: block; }
+        .bloque.locked { cursor: default; background: #3a3a4a; opacity: 0.9; }
+        .bloque.locked .borrar-bloque { display: none !important; }
+
+        /* BLOQUE CÁMARA */
+        .bloque[data-tipo="CAMARA"] { background: #0a4a6a; border-left: 4px solid #00f2ff; }
+        .etiqueta-nuevo { position: absolute; top: -8px; right: -8px; background: #ff3333; color: white; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+
+        /* CONTENEDORES */
+        .bloque-container { padding: 8px; margin-top: 6px; background: rgba(0,0,0,0.2); border-radius: 4px; min-height: 30px; display: flex; flex-direction: column; gap: 6px; border: 1px dashed #666; }
+        .bloque-container.drag-over { border-color: #00f2ff; background: rgba(0, 242, 255, 0.1); }
+        .slot-condicion { display: flex; align-items: center; min-height: 40px; background: rgba(255,255,255,0.05); border: 1px dashed #aaa; border-radius: 4px; padding: 4px; margin-top: 6px; }
+        .slot-condicion.drag-over { border-color: #00f2ff; background: rgba(0, 242, 255, 0.1); }
+        .hueco-pista { color: #888; font-style: italic; font-weight: normal; font-size: 14px; text-align: center; width: 100%; pointer-events: none; }
+
+        /* BOTONERA */
+        button { border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; pointer-events: auto; }
+        .btn-mision { height: 40px; width: 40px; font-size: 16px; background: #333; color: #fff; border: 1px solid #555; }
+        .btn-mision.activa { background: #ffcc00; color: #000; border-color: #ffaa00; }
+        .btn-mision.completada { background: #00f2ff; color: #000; border-color: #00aaaa; }
+        #txt-mision { font-size: 18px; margin-left: auto; font-weight: bold; color: #fff; }
+        .btn-control { height: 70px; font-size: 18px; flex: 1; }
+        #btn-ejecutar { background: #00f2ff; color: #000; flex: 1.5; font-size: 20px; }
+        #btn-ejecutar:hover { background: #00c0cc; }
+        #btn-parar { background: #ff4444; color: #fff; }
+        #btn-parar:hover { background: #cc0000; }
+        #btn-reiniciar { background: #333; color: #fff; border: 1px solid #555; }
+        #btn-reiniciar:hover { background: #555; }
+        #btn-solucion { background: #ffcc00; color: #000; height: 40px; padding: 0 15px; margin-left: 10px; font-size: 14px; display: none; }
+
+        /* MODAL */
+        #modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; }
+        .modal-content { background: #1a1a2e; border: 2px solid #00f2ff; padding: 40px; border-radius: 10px; text-align: center; max-width: 550px; }
+        .modal-content h1 { font-size: 32px; margin-top: 0; }
+        .modal-content p { font-size: 22px; color: #ddd; margin-bottom: 30px; line-height: 1.4; }
+        .modal-botones { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { height: 70px; padding: 0 25px; font-size: 20px; }
+        .btn-primario { background: #00f2ff; color: #000; }
+        .btn-secundario { background: #333; color: #fff; border: 1px solid #555; }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>COCHE AUTÓNOMO ELEGOO</h1>
+            <h2>Física de Dirección Continua y Esquive</h2>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div id="left-panel">
+            <div id="missions-bar">
+                <button class="btn-mision activa" onclick="cargarMision(1)" id="bm-1">1</button>
+                <button class="btn-mision" onclick="cargarMision(2)" id="bm-2">2</button>
+                <button class="btn-mision" onclick="cargarMision(3)" id="bm-3">3</button>
+                <button class="btn-mision" onclick="cargarMision(4)" id="bm-4">4</button>
+                <button class="btn-mision" onclick="cargarMision(5)" id="bm-5">5</button>
+                <button id="btn-solucion" onclick="mostrarSolucion()">VER SOLUCIÓN</button>
+                <span id="txt-mision">Misión 1 / 5</span>
+            </div>
+
+            <div id="palette"></div>
+            <div id="program-zone"></div>
+
+            <div id="info-camara">📷 Cámara en espera…</div>
+            <div id="controls">
+                <button class="btn-control" id="btn-ejecutar" onclick="ejecutarPrograma()">EJECUTAR</button>
+                <button class="btn-control" id="btn-parar" onclick="stopAllAnimations()">PARAR</button>
+                <button class="btn-control" id="btn-reiniciar" onclick="reiniciarEscenaYUI()">REINICIAR</button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            <div id="modal">
+                <div class="modal-content">
+                    <h1 id="modal-title"></h1>
+                    <p id="modal-text"></p>
+                    <div class="modal-botones">
+                        <button class="modal-btn btn-secundario" onclick="cerrarModal()">Cerrar</button>
+                        <button class="modal-btn btn-primario" id="modal-btn-next" onclick="siguienteMision()">Siguiente Misión</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. ESTADO GLOBAL Y FÍSICAS (True Steering)
+        // ==========================================
+        let estadoCoche = { running: false, crashed: false, lane: 'right' };
+        let animObservers = [];
+        const zonasSuperadas = new Set();
+        let misionActual = 1;
+        const misionesCompletadas = new Set();
+
+        // Variables Físicas
+        let cocheSpeed = 0.0;
+        let targetSpeed = 0.0;
+
+        // Babylon 3D
+        let engine, scene, camera;
+        let cocheGroup, wheelPivots = [];
+        let lidarSensor, matAnilloCamara, lucesSemaforo;
+        
+        let estadoSemaforo = 'ROJO';
+        let peatonCruzando = false;
+        
+        // Reloj maestro del mundo (controla la sincronización)
+        let tiempoGlobal = 0.0;
+        let peatonNode, hombroIzqNode, hombroDerNode, caderaIzqNode, caderaDerNode, rodillaIzqNode, rodillaDerNode;
+
+        // ==========================================
+        // 2. CONFIGURACIÓN BABYLON.JS
+        // ==========================================
+        const canvas = document.getElementById('renderCanvas');
+        engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            // Cielo más vivo (azul oscuro profundo / crepúsculo)
+            scene.clearColor = new BABYLON.Color4(0.12, 0.18, 0.35, 1);
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.015;
+            scene.fogColor = new BABYLON.Color3(0.12, 0.18, 0.35);
+
+            // Cámara Ortográfica Isométrica
+            const orthoSize = 14;
+            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/4, Math.PI/3.5, 50, BABYLON.Vector3.Zero(), scene);
+            camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+            camera.attachControl(canvas, true);
+            
+            function updateOrtho() {
+                const aspect = engine.getRenderWidth() / engine.getRenderHeight();
+                camera.orthoLeft   = -orthoSize * aspect;
+                camera.orthoRight  =  orthoSize * aspect;
+                camera.orthoTop    =  orthoSize;
+                camera.orthoBottom = -orthoSize;
+            }
+            updateOrtho(); 
+            window.addEventListener('resize', () => { engine.resize(); updateOrtho(); });
+
+            // Iluminación Vibrante
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.8; 
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.2); // Sombras azuladas
+            
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-1), scene);
+            dirLight.position = new BABYLON.Vector3(20,40,20);
+            dirLight.diffuse = new BABYLON.Color3(1.0, 0.95, 0.85); // Luz solar cálida
+            dirLight.intensity = 3.5; // Alta intensidad para destacar materiales
+
+            const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            const glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.8;
+
+            // Post-Procesado Cinematográfico
+            const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+            pipeline.msaaSamples = 4;
+            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.7; pipeline.bloomWeight = 0.4;
+            pipeline.vignetteEnabled = true; pipeline.vignetteWeight = 0.8; // Menos viñeteado para ganar luz
+            
+            // Procesamiento de color ACES (hace que los colores brillen de forma hiperrealista)
+            pipeline.imageProcessingEnabled = true;
+            pipeline.imageProcessing.contrast = 1.3;
+            pipeline.imageProcessing.exposure = 1.2;
+            pipeline.imageProcessing.toneMappingEnabled = true;
+            pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+
+            scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+            // Mayor intensidad de entorno para que el coche y los cristales reluzcan
+            scene.environmentIntensity = 1.0; 
+
+            crearCircuito(shadowGen);
+            crearEntidadesZonas(shadowGen);
+            crearCoche(shadowGen);
+            crearPeaton(shadowGen);
+
+            // BUCLE MAESTRO DE FÍSICAS Y ENTORNO
+            scene.onBeforeRenderObservable.add(() => {
+                const dt = engine.getDeltaTime() / 1000;
+                
+                if (estadoCoche.running && !estadoCoche.crashed) {
+                    tiempoGlobal += dt;
+
+                    // 1. Físicas inerciales
+                    cocheSpeed = BABYLON.Scalar.Lerp(cocheSpeed, targetSpeed, 3.5 * dt);
+                    
+                    // 2. TRUE STEERING: Curva matemática perfecta hacia el carril objetivo
+                    let targetX = (estadoCoche.lane === 'left') ? 2.5 : -2.5;
+                    
+                    if (cocheSpeed > 0.1) {
+                        let dx = targetX - cocheGroup.position.x;
+                        let dz = -4.0; // Apuntamos a un punto 4 metros por delante del coche
+                        let targetAngle = Math.atan2(dx, dz);
+                        
+                        let diffRot = targetAngle - cocheGroup.rotation.y;
+                        while(diffRot < -Math.PI) diffRot += 2*Math.PI;
+                        while(diffRot > Math.PI) diffRot -= 2*Math.PI;
+
+                        // Giramos el coche suavemente hacia el objetivo
+                        cocheGroup.rotation.y += diffRot * 3.5 * dt;
+                    }
+
+                    // Avance basado en la rotación (Trigonometría real)
+                    cocheGroup.position.x += Math.sin(cocheGroup.rotation.y) * cocheSpeed * dt;
+                    cocheGroup.position.z += Math.cos(cocheGroup.rotation.y) * cocheSpeed * dt;
+
+                    // 3. Animación de las ruedas
+                    let rotRueda = cocheSpeed * dt * 2.0;
+                    wheelPivots.forEach(w => {
+                        w.rotPivot.rotation.x -= rotRueda;
+                        if (w.steerable) {
+                            // Volanteo visual de las ruedas delanteras
+                            let wheelDir = cocheGroup.rotation.y - Math.PI;
+                            while(wheelDir < -Math.PI) wheelDir += 2*Math.PI;
+                            while(wheelDir > Math.PI) wheelDir -= 2*Math.PI;
+                            w.pivot.rotation.y = wheelDir * 1.5; 
+                        }
+                    });
+
+                    // 4. Múltiple Evaluación Continua para Misiones
+                    checkZona();
+                    checkColision();
+                }
+
+                if (lidarSensor) lidarSensor.rotation.y += 4.0 * dt;
+
+                // --- CICLO MAESTRO DEL MUNDO (20 segundos) ---
+                let cTime = tiempoGlobal % 20.0;
+                
+                // Semáforo: Rojo (0-5s), Verde (5-17s), Ámbar (17-20s)
+                let cR = new BABYLON.Color3(0,0,0), cA = new BABYLON.Color3(0,0,0), cV = new BABYLON.Color3(0,0,0);
+                if (cTime < 5.0) {
+                    estadoSemaforo = 'ROJO'; cR = new BABYLON.Color3(1,0,0);
+                } else if (cTime < 17.0) {
+                    estadoSemaforo = 'VERDE'; cV = new BABYLON.Color3(0,1,0);
+                } else {
+                    estadoSemaforo = 'AMBAR'; cA = new BABYLON.Color3(1,0.7,0);
+                }
+                if (lucesSemaforo) { lucesSemaforo.r.emissiveColor = cR; lucesSemaforo.a.emissiveColor = cA; lucesSemaforo.v.emissiveColor = cV; }
+
+                // Peatón: Espera (0-6s), Cruza (6-10.5s), Espera (10.5-16s), Vuelve (16-20s)
+                let px = -6.5;
+                let isWalking = false;
+                if (cTime < 6.0) {
+                    px = -6.5; peatonNode.rotation.y = Math.PI / 2;
+                } else if (cTime < 10.5) {
+                    px = BABYLON.Scalar.Lerp(-6.5, 6.5, (cTime - 6.0) / 4.5);
+                    peatonNode.rotation.y = Math.PI / 2; isWalking = true;
+                } else if (cTime < 16.0) {
+                    px = 6.5; peatonNode.rotation.y = -Math.PI / 2;
+                } else {
+                    px = BABYLON.Scalar.Lerp(6.5, -6.5, (cTime - 16.0) / 4.0);
+                    peatonNode.rotation.y = -Math.PI / 2; isWalking = true;
+                }
+                
+                peatonNode.position.x = px;
+                
+                // Detección predictiva: el coche autónomo alerta desde que ve intención de cruzar
+                peatonCruzando = isWalking || (px > -4.5 && px < 4.5);
+
+                if (isWalking) {
+                    const f = tiempoGlobal * 4;
+                    hombroIzqNode.rotation.x =  Math.sin(f) * 0.55;
+                    hombroDerNode.rotation.x = -Math.sin(f) * 0.55;
+                    caderaIzqNode.rotation.x = -Math.sin(f) * 0.65;
+                    caderaDerNode.rotation.x =  Math.sin(f) * 0.65;
+                    rodillaIzqNode.rotation.x = Math.max(0, Math.sin(f + 0.5)) * 0.4;
+                    rodillaDerNode.rotation.x = Math.max(0, Math.sin(f + 0.5 + Math.PI)) * 0.4;
+                } else {
+                    hombroIzqNode.rotation.x = 0; hombroDerNode.rotation.x = 0;
+                    caderaIzqNode.rotation.x = 0; caderaDerNode.rotation.x = 0;
+                    rodillaIzqNode.rotation.x = 0; rodillaDerNode.rotation.x = 0;
+                }
+            });
+
+            // Parpadeo modo espera
+            setInterval(() => {
+                if (!estadoCoche.running && matAnilloCamara) {
+                    const act = matAnilloCamara.emissiveColor.b > 0.1;
+                    matAnilloCamara.emissiveColor = act ? new BABYLON.Color3(0,0,0) : new BABYLON.Color3(0,0.4,0.6);
+                }
+            }, 500);
+
+            return scene;
+        }
+
+        // ==========================================
+        // 3. CONSTRUCCIÓN 3D (Escenario)
+        // ==========================================
+        function crearCircuito(shadowGen) {
+            const matAsfalto = new BABYLON.PBRMaterial("matAsf", scene);
+            matAsfalto.albedoColor = new BABYLON.Color3(0.12, 0.14, 0.18); matAsfalto.roughness = 0.9; matAsfalto.metallic = 0.05;
+            const calzada = BABYLON.MeshBuilder.CreateBox("calzada", {width:10, height:0.06, depth:40}, scene);
+            calzada.material = matAsfalto; calzada.receiveShadows = true;
+
+            const matLinea = new BABYLON.PBRMaterial("matLinea", scene);
+            matLinea.albedoColor = new BABYLON.Color3(1.0, 1.0, 1.0); matLinea.roughness = 0.8;
+            for (let z=-18; z<=18; z+=2.5) {
+                let l = BABYLON.MeshBuilder.CreateBox("lin", {width:0.15, height:0.08, depth:1.2}, scene);
+                l.position = new BABYLON.Vector3(0, 0.04, z); l.material = matLinea;
+            }
+
+            const matAcera = new BABYLON.PBRMaterial("matAcera", scene);
+            matAcera.albedoColor = BABYLON.Color3.FromHexString("#a9b4c2"); matAcera.roughness = 0.95; // Grises claros vibrantes
+            const aceraIzq = BABYLON.MeshBuilder.CreateBox("acI", {width:2.5, height:0.12, depth:40}, scene);
+            aceraIzq.position = new BABYLON.Vector3(-6.25, 0.03, 0); aceraIzq.material = matAcera; aceraIzq.receiveShadows = true;
+            const aceraDer = BABYLON.MeshBuilder.CreateBox("acD", {width:2.5, height:0.12, depth:40}, scene);
+            aceraDer.position = new BABYLON.Vector3(6.25, 0.03, 0); aceraDer.material = matAcera; aceraDer.receiveShadows = true;
+            
+            // Edificios con colores más ricos (Tonos profundos que ganan con la iluminación)
+            const bMats = ["#1a4568", "#402654", "#1d5945", "#2a385c"].map(c => { 
+                let m = new BABYLON.PBRMaterial("bMat", scene); 
+                m.albedoColor = BABYLON.Color3.FromHexString(c); 
+                m.roughness = 0.8; 
+                return m; 
+            });
+            
+            [-14, 14].forEach(z => {
+                [-9, 9].forEach(x => {
+                    let b = BABYLON.MeshBuilder.CreateBox("ed", {width:3, height:10, depth:4}, scene);
+                    b.position = new BABYLON.Vector3(x, 5, z); b.material = bMats[Math.floor(Math.random()*bMats.length)];
+                    shadowGen.addShadowCaster(b); b.receiveShadows = true;
+                });
+            });
+        }
+
+        function crearEntidadesZonas(shadowGen) {
+            // Semáforo Z=10
+            const semBase = BABYLON.MeshBuilder.CreateCylinder("sBase", {diameter:0.2, height:4}, scene);
+            semBase.position = new BABYLON.Vector3(5.5, 2, 10);
+            const semCarcasa = BABYLON.MeshBuilder.CreateBox("sCarc", {width:0.4, height:1.2, depth:0.3}, scene);
+            semCarcasa.position = new BABYLON.Vector3(5.5, 4.0, 10);
+            const cMat = new BABYLON.PBRMaterial("cMat", scene); cMat.albedoColor = new BABYLON.Color3(0.05,0.05,0.05); semCarcasa.material = cMat;
+            
+            const mR = new BABYLON.PBRMaterial("mR", scene); mR.albedoColor = new BABYLON.Color3(0,0,0);
+            const mA = new BABYLON.PBRMaterial("mA", scene); mA.albedoColor = new BABYLON.Color3(0,0,0);
+            const mV = new BABYLON.PBRMaterial("mV", scene); mV.albedoColor = new BABYLON.Color3(0,0,0);
+            
+            const sR = BABYLON.MeshBuilder.CreateSphere("sr", {diameter:0.22}, scene); sR.position = new BABYLON.Vector3(5.5, 4.3, 9.84); sR.material = mR;
+            const sA = BABYLON.MeshBuilder.CreateSphere("sa", {diameter:0.22}, scene); sA.position = new BABYLON.Vector3(5.5, 4.0, 9.84); sA.material = mA;
+            const sV = BABYLON.MeshBuilder.CreateSphere("sv", {diameter:0.22}, scene); sV.position = new BABYLON.Vector3(5.5, 3.7, 9.84); sV.material = mV;
+            lucesSemaforo = { r: mR, a: mA, v: mV };
+
+            // Cebra Z=0
+            const matBlanco = new BABYLON.PBRMaterial("mb", scene); matBlanco.albedoColor = new BABYLON.Color3(0.9,0.9,0.9); matBlanco.roughness=0.8;
+            for(let x=-4; x<=4; x+=1.2) {
+                let f = BABYLON.MeshBuilder.CreateBox("ceb", {width:0.6, height:0.08, depth:3}, scene);
+                f.position = new BABYLON.Vector3(x, 0.04, 0); f.material = matBlanco;
+            }
+
+            // Obstáculo en Z=-12.0 (Naranja Neon Brillante)
+            const obsMat = new BABYLON.PBRMaterial("obsM", scene); obsMat.albedoColor = BABYLON.Color3.FromHexString("#ff6600"); obsMat.roughness=0.6;
+            const caja = BABYLON.MeshBuilder.CreateBox("obs", {width:1.5, height:1.2, depth:1.5}, scene);
+            caja.position = new BABYLON.Vector3(-2.5, 0.6, -12); caja.material = obsMat; shadowGen.addShadowCaster(caja);
+        }
+
+        function crearCoche(shadowGen) {
+            cocheGroup = new BABYLON.TransformNode("coche", scene);
+            // El coche ahora es ROJO DEPORTIVO y resalta de manera increíble
+            const matCarcasa = new BABYLON.PBRMaterial("matC", scene); matCarcasa.albedoColor = BABYLON.Color3.FromHexString("#ff1133");
+            matCarcasa.metallic = 0.3; matCarcasa.roughness = 0.15; matCarcasa.alpha = 0.85; matCarcasa.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            matCarcasa.clearCoat.isEnabled = true; matCarcasa.clearCoat.intensity = 1.0;
+            const matBat = new BABYLON.PBRMaterial("mBat", scene); matBat.albedoColor = new BABYLON.Color3(0.2, 0.9, 0.2); matBat.roughness = 0.7;
+            const matMetal = new BABYLON.PBRMaterial("mMet", scene); matMetal.albedoColor = new BABYLON.Color3(0.8, 0.8, 0.8); matMetal.metallic = 0.9;
+
+            const bat = BABYLON.MeshBuilder.CreateBox("bat", {width:1.2, height:0.18, depth:2.0}, scene); bat.parent = cocheGroup; bat.position.y = 0.2; bat.material = matBat;
+            const motor = BABYLON.MeshBuilder.CreateCylinder("motor", {diameter:0.35, height:0.5}, scene); motor.parent = cocheGroup; motor.position = new BABYLON.Vector3(0, 0.3, 1.3); motor.rotation.z = Math.PI/2; motor.material = matMetal;
+            const capot = BABYLON.MeshBuilder.CreateBox("capot", {width:1.8, height:0.2, depth:1.1}, scene); capot.parent = cocheGroup; capot.position = new BABYLON.Vector3(0, 0.5, 1.1); capot.rotation.x = 0.15; capot.material = matCarcasa; shadowGen.addShadowCaster(capot);
+            const cabina = BABYLON.MeshBuilder.CreateBox("cab", {width:1.8, height:0.4, depth:1.6}, scene); cabina.parent = cocheGroup; cabina.position = new BABYLON.Vector3(0, 0.65, -0.3); cabina.material = matCarcasa; shadowGen.addShadowCaster(cabina);
+            const cola = BABYLON.MeshBuilder.CreateBox("cola", {width:1.8, height:0.25, depth:0.8}, scene); cola.parent = cocheGroup; cola.position = new BABYLON.Vector3(0, 0.55, -1.4); cola.material = matCarcasa; shadowGen.addShadowCaster(cola);
+
+            const matTire = new BABYLON.PBRMaterial("mTire", scene); matTire.albedoColor = new BABYLON.Color3(0.05,0.05,0.05); matTire.roughness=0.95;
+            function crearRueda(x, z, steerable) {
+                const pivot = new BABYLON.TransformNode("pivR", scene); pivot.parent = cocheGroup; pivot.position = new BABYLON.Vector3(x, 0.25, z);
+                const rotPivot = new BABYLON.TransformNode("rotP", scene); rotPivot.parent = pivot;
+                const tire = BABYLON.MeshBuilder.CreateCylinder("neu", {diameter:0.5, height:0.2, tessellation:24}, scene);
+                tire.rotation.z = Math.PI/2; tire.parent = rotPivot; tire.material = matTire;
+                wheelPivots.push({ pivot, rotPivot, steerable });
+            }
+            crearRueda(-0.92, 1.1, true); crearRueda(0.92, 1.1, true); 
+            crearRueda(-0.92, -1.0, false); crearRueda(0.92, -1.0, false);
+
+            lidarSensor = BABYLON.MeshBuilder.CreateCylinder("lidar", {diameter:0.38, height:0.2}, scene);
+            lidarSensor.parent = cocheGroup; lidarSensor.position = new BABYLON.Vector3(0, 0.95, -0.2);
+            const mLi = new BABYLON.PBRMaterial("mli", scene); mLi.albedoColor=new BABYLON.Color3(0,0,0); mLi.emissiveColor=new BABYLON.Color3(0,0.6,1); lidarSensor.material = mLi;
+
+            const camBox = BABYLON.MeshBuilder.CreateBox("camF", {width:0.3, height:0.2, depth:0.2}, scene);
+            camBox.parent = cocheGroup; camBox.position = new BABYLON.Vector3(0, 0.8, 0.5); camBox.material = matMetal;
+            matAnilloCamara = new BABYLON.PBRMaterial("mAnillo", scene); matAnilloCamara.albedoColor=new BABYLON.Color3(0,0,0); matAnilloCamara.emissiveColor=new BABYLON.Color3(0,0,0);
+            const anillo = BABYLON.MeshBuilder.CreateTorus("anillo", {diameter:0.15, thickness:0.04}, scene);
+            anillo.parent = camBox; anillo.position = new BABYLON.Vector3(0, 0, 0.1); anillo.rotation.x = Math.PI/2; anillo.material = matAnilloCamara;
+
+            cocheGroup.position = new BABYLON.Vector3(-2.5, 0, 18);
+            cocheGroup.rotation.y = Math.PI; 
+        }
+
+        function crearPeaton(shadowGen) {
+            peatonNode = new BABYLON.TransformNode("peaton", scene); peatonNode.position = new BABYLON.Vector3(-6.5, 0, 0);
+            // Peatón con ropa súper saturada
+            const matRopa = new BABYLON.PBRMaterial("rop", scene); matRopa.albedoColor = BABYLON.Color3.FromHexString("#ffaa00"); matRopa.roughness=0.8;
+            const matPiel = new BABYLON.PBRMaterial("pie", scene); matPiel.albedoColor = BABYLON.Color3.FromHexString("#f5cf98"); matPiel.roughness=0.6;
+            const matPant = new BABYLON.PBRMaterial("pan", scene); matPant.albedoColor = BABYLON.Color3.FromHexString("#1155cc"); matPant.roughness=0.9;
+
+            const torso = BABYLON.MeshBuilder.CreateCapsule("torso", {radius:0.22, height:0.7, tessellation:12}, scene); torso.parent = peatonNode; torso.position.y = 1.05; torso.scaling.x = 0.85; torso.material = matRopa; shadowGen.addShadowCaster(torso);
+            const cabeza = BABYLON.MeshBuilder.CreateSphere("cabP", {diameter:0.38, segments:10}, scene); cabeza.parent = peatonNode; cabeza.position.y = 1.65; cabeza.material = matPiel; shadowGen.addShadowCaster(cabeza);
+
+            hombroIzqNode = new BABYLON.TransformNode("hI", scene); hombroIzqNode.parent = peatonNode; hombroIzqNode.position = new BABYLON.Vector3(-0.28, 1.35, 0);
+            const bI = BABYLON.MeshBuilder.CreateCapsule("bI", {radius:0.08, height:0.45}, scene); bI.parent = hombroIzqNode; bI.position.y = -0.22; bI.material = matRopa;
+            const cI = new BABYLON.TransformNode("cI", scene); cI.parent = hombroIzqNode; cI.position.y = -0.45;
+            const aI = BABYLON.MeshBuilder.CreateCapsule("aI", {radius:0.07, height:0.38}, scene); aI.parent = cI; aI.position.y = -0.19; aI.material = matPiel;
+
+            hombroDerNode = new BABYLON.TransformNode("hD", scene); hombroDerNode.parent = peatonNode; hombroDerNode.position = new BABYLON.Vector3(0.28, 1.35, 0);
+            const bD = BABYLON.MeshBuilder.CreateCapsule("bD", {radius:0.08, height:0.45}, scene); bD.parent = hombroDerNode; bD.position.y = -0.22; bD.material = matRopa;
+            const cD = new BABYLON.TransformNode("cD", scene); cD.parent = hombroDerNode; cD.position.y = -0.45;
+            const aD = BABYLON.MeshBuilder.CreateCapsule("aD", {radius:0.07, height:0.38}, scene); aD.parent = cD; aD.position.y = -0.19; aD.material = matPiel;
+
+            caderaIzqNode = new BABYLON.TransformNode("cadI", scene); caderaIzqNode.parent = peatonNode; caderaIzqNode.position = new BABYLON.Vector3(-0.13, 0.72, 0);
+            const muI = BABYLON.MeshBuilder.CreateCapsule("muI", {radius:0.11, height:0.42}, scene); muI.parent = caderaIzqNode; muI.position.y = -0.21; muI.material = matPant;
+            rodillaIzqNode = new BABYLON.TransformNode("rI", scene); rodillaIzqNode.parent = caderaIzqNode; rodillaIzqNode.position.y = -0.42;
+            const esI = BABYLON.MeshBuilder.CreateCapsule("esI", {radius:0.09, height:0.40}, scene); esI.parent = rodillaIzqNode; esI.position.y = -0.20; esI.material = matPiel;
+
+            caderaDerNode = new BABYLON.TransformNode("cadD", scene); caderaDerNode.parent = peatonNode; caderaDerNode.position = new BABYLON.Vector3(0.13, 0.72, 0);
+            const muD = BABYLON.MeshBuilder.CreateCapsule("muD", {radius:0.11, height:0.42}, scene); muD.parent = caderaDerNode; muD.position.y = -0.21; muD.material = matPant;
+            rodillaDerNode = new BABYLON.TransformNode("rD", scene); rodillaDerNode.parent = caderaDerNode; rodillaDerNode.position.y = -0.42;
+            const esD = BABYLON.MeshBuilder.CreateCapsule("esD", {radius:0.09, height:0.40}, scene); esD.parent = rodillaDerNode; esD.position.y = -0.20; esD.material = matPiel;
+        }
+
+        createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+
+        // ==========================================
+        // 4. GENERACIÓN DE BLOQUES Y DRAG & DROP
+        // ==========================================
+        const BLOQUES_HTML = {
+            'AVANZAR': `<div class="bloque" data-tipo="AVANZAR">AVANZAR<span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'ESPERAR': `<div class="bloque" data-tipo="ESPERAR">ESPERAR 1 SEG<span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'GIRAR': `<div class="bloque" data-tipo="GIRAR">GIRAR<select><option value="IZQ">IZQ (CARRIL IZQ)</option><option value="DER">DER (CARRIL DER)</option></select><span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'CAMARA': `<div class="bloque" data-tipo="CAMARA"><span class="etiqueta-nuevo">NUEVO</span>VER CON CÁMARA<select><option value="" disabled selected>Elegir...</option><option value="SEMÁFORO EN ROJO">SEMÁFORO EN ROJO</option><option value="PEATÓN CRUZANDO">PEATÓN CRUZANDO</option><option value="OBSTÁCULO EN CARRIL">OBSTÁCULO EN CARRIL</option></select><span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'IF': `<div class="bloque bloque-container" data-tipo="IF"><div>SI <span style="font-size:12px">▼</span></div><div class="slot-condicion"><div class="hueco-pista">Arrastra un bloque VER CON CÁMARA aquí</div></div><div style="font-size:12px; margin-top:4px;">DETECTA, HAZ:</div><div class="body-if bloque-container" style="min-height:40px; background:rgba(255,255,255,0.05); border:none;"></div><span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'IF_ELSE': `<div class="bloque bloque-container" data-tipo="IF_ELSE"><div>SI <span style="font-size:12px">▼</span></div><div class="slot-condicion"><div class="hueco-pista">Arrastra un bloque VER CON CÁMARA aquí</div></div><div style="font-size:12px; margin-top:4px;">DETECTA, HAZ:</div><div class="body-if bloque-container" style="min-height:40px; background:rgba(255,255,255,0.05); border:none;"></div><div style="font-size:12px; margin-top:4px;">SI NO:</div><div class="body-else bloque-container" style="min-height:40px; background:rgba(255,255,255,0.05); border:none;"></div><span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`,
+            'LOOP': `<div class="bloque bloque-container" data-tipo="LOOP"><div>REPETIR SIEMPRE</div><div class="contenedor-body bloque-container" style="min-height:40px; background:rgba(255,255,255,0.05); border:none;"></div><span class="borrar-bloque" onclick="this.closest('.bloque').remove()">✕</span></div>`
+        };
+
+        function getBloqueHTML(tipo) {
+            const template = document.createElement('div'); template.innerHTML = BLOQUES_HTML[tipo];
+            const nodo = template.firstElementChild;
+            if (tipo!=='CAMARA') initDraggable(nodo);
+            else { nodo.setAttribute('draggable', 'true'); nodo.addEventListener('dragstart', startDrag); }
+            return nodo;
+        }
+
+        let dragSrcEl = null;
+        function initDraggable(el) { el.setAttribute('draggable', 'true'); el.addEventListener('dragstart', startDrag); }
+        function startDrag(e) {
+            if (e.target.classList.contains('locked')) { e.preventDefault(); return; }
+            dragSrcEl = e.target; e.dataTransfer.effectAllowed = 'copyMove';
+            e.dataTransfer.setData('text/plain', e.target.dataset.tipo); e.stopPropagation();
+        }
+
+        function initDropZones() {
+            const containers = document.querySelectorAll('#program-zone, .body-if, .body-else, .contenedor-body, .slot-condicion');
+            containers.forEach(c => {
+                c.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); c.classList.add('drag-over'); });
+                c.addEventListener('dragleave', e => { e.preventDefault(); e.stopPropagation(); c.classList.remove('drag-over'); });
+                c.addEventListener('drop', handleDrop);
+            });
+        }
+
+        function handleDrop(e) {
+            e.preventDefault(); e.stopPropagation();
+            const container = e.currentTarget; container.classList.remove('drag-over');
+            const tipo = e.dataTransfer.getData('text/plain'); if (!tipo) return;
+
+            if (container.classList.contains('slot-condicion')) {
+                if (tipo !== 'CAMARA') return; 
+                container.innerHTML = ''; container.appendChild(getBloqueHTML('CAMARA')); return;
+            }
+            if (tipo === 'CAMARA') return;
+
+            const isFromPalette = !dragSrcEl || dragSrcEl.closest('#palette');
+            const nodo = isFromPalette ? getBloqueHTML(tipo) : dragSrcEl;
+            insertarBloque(container, nodo); initDropZones();
+        }
+
+        function insertarBloque(container, nodo) {
+            const hueco = container.querySelector(':scope > .hueco-pista');
+            if (hueco) hueco.replaceWith(nodo); else container.appendChild(nodo);
+        }
+
+        const paleta = document.getElementById('palette');
+        ['AVANZAR', 'ESPERAR', 'GIRAR', 'CAMARA', 'IF', 'IF_ELSE', 'LOOP'].forEach(t => { paleta.appendChild(getBloqueHTML(t)); });
+
+        function updateInfoCamara(txt, color) {
+            const panel = document.getElementById('info-camara');
+            panel.innerHTML = txt; panel.style.color = color;
+        }
+
+        // ==========================================
+        // 5. MOTOR ASÍNCRONO DEL "CEREBRO" (Bloques)
+        // ==========================================
+        const sleep = ms => new Promise((resolve, reject) => {
+            const id = setTimeout(() => {
+                if (!estadoCoche.running) { reject("Cancelado"); } else { resolve(); }
+            }, ms);
+            animObservers.push({ type:'timeout', clear: ()=>clearTimeout(id), reject });
+        });
+
+        function stopAllAnimations() {
+            estadoCoche.running = false;
+            animObservers.forEach(o => { if(o.type==='timeout') o.clear(); if(o.reject) try{o.reject("Cancelado");}catch(e){} });
+            animObservers = [];
+            targetSpeed = 0.0; // Freno de emergencia
+            updateInfoCamara('📷 Cámara detenida', '#777');
+        }
+
+        function reiniciarEscenaYUI() {
+            stopAllAnimations();
+            estadoCoche = { running:false, crashed:false, lane:'right' };
+            cocheSpeed = 0.0; targetSpeed = 0.0;
+            zonasSuperadas.clear();
+            
+            // Posicionamiento natural pre-cargado para evitar la espera aburrida
+            if (misionActual === 2) {
+                cocheGroup.position = new BABYLON.Vector3(-2.5, 0, 11.5);
+                tiempoGlobal = 5.0; 
+            } else if (misionActual === 3) {
+                cocheGroup.position = new BABYLON.Vector3(-2.5, 0, 3.5);
+                tiempoGlobal = 12.0;
+            } else {
+                cocheGroup.position = new BABYLON.Vector3(-2.5, 0, 18);
+                tiempoGlobal = 0.0;
+            }
+            
+            cocheGroup.rotation.y = Math.PI;
+            updateInfoCamara('📷 Cámara en espera…', '#777');
+        }
+
+        // --- ACCIONES DE LOS BLOQUES (Modifican el Chasis) ---
+
+        async function blockAvanzar() {
+            targetSpeed = 5.0; 
+            // Avanza durante 200ms. Permite al cerebro evaluar la cámara constantemente.
+            await sleep(200); 
+        }
+        
+        async function blockEsperar() {
+            targetSpeed = 0.0;
+            await sleep(1000);
+        }
+
+        async function blockGirar(dir) {
+            const targetLane = dir==='IZQ' ? 'left' : 'right';
+            if (estadoCoche.lane === targetLane) { await sleep(100); return; } 
+            
+            estadoCoche.lane = targetLane;
+            targetSpeed = 5.0; // Obliga al coche a avanzar trazando la curva de esquive
+            
+            // Un segundo entero es perfecto para trazar la "S" suavemente a 5m/s
+            await sleep(1000); 
+        }
+
+        function animarCamaraFlash() {
+            (async () => {
+                matAnilloCamara.emissiveColor = new BABYLON.Color3(0,0.8,1);
+                await new Promise(r => setTimeout(r, 150));
+                matAnilloCamara.emissiveColor = new BABYLON.Color3(0,0,0);
+            })();
+        }
+
+        async function blockVerCamara(target) {
+            animarCamaraFlash();
+            let detectado = false;
+            const Z = cocheGroup.position.z;
+            
+            // Zonas de frenado afinadas
+            if (target==='SEMÁFORO EN ROJO') {
+                detectado = (estadoSemaforo==='ROJO' || estadoSemaforo==='AMBAR') && (Z <= 15.5 && Z >= 10.5);
+            } else if (target==='PEATÓN CRUZANDO') {
+                detectado = peatonCruzando && (Z <= 8.5 && Z >= 1.5);
+            } else if (target==='OBSTÁCULO EN CARRIL') {
+                detectado = (estadoCoche.lane==='right') && (Z <= -4.0 && Z >= -9.0);
+            }
+            
+            const msgs = {
+                'SEMÁFORO EN ROJO': detectado ? '🔴 Luz de frenado' : '🟢 Vía libre',
+                'PEATÓN CRUZANDO': detectado ? '🚶 Peatón detectado' : '✅ Paso libre',
+                'OBSTÁCULO EN CARRIL': detectado ? '🚧 Obstáculo en carril' : '✅ Carril despejado'
+            };
+            updateInfoCamara('📷 ' + (msgs[target]||target), detectado?'#ff4444':'#00f2ff');
+            
+            await sleep(20); 
+            return detectado;
+        }
+
+        // --- PARSER PRINCIPAL ---
+        async function parseAndRunBlock(domNode) {
+            if (!estadoCoche.running || estadoCoche.crashed) return;
+            const tipo = domNode.dataset.tipo;
+            
+            const prev = domNode.style.outline;
+            domNode.style.outline = '2px solid #ffcc00';
+            await sleep(20); 
+            domNode.style.outline = prev;
+
+            switch(tipo) {
+                case 'AVANZAR': await blockAvanzar(); break;
+                case 'ESPERAR': await blockEsperar(); break;
+                case 'GIRAR': await blockGirar(domNode.querySelector('select')?.value); break;
+                case 'CAMARA': return await blockVerCamara(domNode.querySelector('select')?.value);
+                case 'IF':
+                case 'IF_ELSE': {
+                    const condNode = domNode.querySelector('.slot-condicion .bloque');
+                    let result = false;
+                    if (condNode) result = await parseAndRunBlock(condNode);
+                    const bodyKey = result ? '.body-if' : '.body-else';
+                    const body = domNode.querySelector(bodyKey);
+                    if (body) for (const ch of [...body.children]) {
+                        if (!estadoCoche.running || estadoCoche.crashed) break;
+                        if (ch.classList.contains('bloque')) await parseAndRunBlock(ch);
+                    }
+                    break;
+                }
+                case 'LOOP': {
+                    const body = domNode.querySelector('.contenedor-body');
+                    while (estadoCoche.running && !estadoCoche.crashed) {
+                        for (const ch of [...body.children]) {
+                            if (!estadoCoche.running || estadoCoche.crashed) break;
+                            if (ch.classList.contains('bloque')) await parseAndRunBlock(ch);
+                        }
+                        await sleep(10);
+                        if (checkWin()) break;
+                    }
+                    break;
+                }
+            }
+            checkWin();
+        }
+
+        async function ejecutarPrograma() {
+            reiniciarEscenaYUI();
+            estadoCoche.running = true;
+            try {
+                const zone = document.getElementById('program-zone');
+                for (const ch of [...zone.children]) {
+                    if (!estadoCoche.running) break;
+                    if (ch.classList.contains('bloque')) await parseAndRunBlock(ch);
+                }
+                
+                if (estadoCoche.running && !estadoCoche.crashed) {
+                    await sleep(300);
+                    const won = checkWin();
+                    if (!won && estadoCoche.running) {
+                        mostrarFallo("El programa terminó antes de alcanzar la meta. ¿Te olvidaste de REPETIR SIEMPRE?");
+                    }
+                }
+            } catch (e) { console.log(e); }
+        }
+
+        // ==========================================
+        // 6. LÓGICA DE JUEGO (Colisiones y Victorias)
+        // ==========================================
+        function checkColision() {
+            const Z = cocheGroup.position.z;
+            const X = cocheGroup.position.x;
+            
+            // Colisión Semáforo (Z=10)
+            if (Z < 10.0 && Z > 7.0 && (estadoSemaforo==='ROJO' || estadoSemaforo==='AMBAR') && !zonasSuperadas.has('A')) {
+                mostrarFallo("Has cruzado la intersección con la luz de aviso 🔴");
+            }
+            // Colisión Peatón (Z=0)
+            if (Z < 1.2 && Z > -1.2 && peatonCruzando && !zonasSuperadas.has('B')) {
+                mostrarFallo("Has atropellado al peatón cruzando la calzada 🚶");
+            }
+            // Colisión Obstáculo (Z=-12). Posición física X para permitir evaluación durante curvas cerradas.
+            if (Z < -10.5 && Z > -13.5 && X < -0.85 && !zonasSuperadas.has('C')) {
+                mostrarFallo("Has chocado contra las obras de mantenimiento 🚧");
+            }
+            // Fallo Lógico por no regresar al carril principal
+            if ((misionActual === 3 || misionActual === 4 || misionActual === 5) && Z < -15.0 && estadoCoche.lane !== 'right') {
+                mostrarFallo("Has superado el obstáculo, pero olvidaste regresar al carril derecho 🛣️");
+            }
+        }
+
+        function checkZona() {
+            const Z = cocheGroup.position.z;
+            if (Z <= 7.0 && !estadoCoche.crashed) zonasSuperadas.add('A');
+            if (Z <= -1.2 && !estadoCoche.crashed) zonasSuperadas.add('B');
+            if (Z <= -13.5 && !estadoCoche.crashed) zonasSuperadas.add('C');
+        }
+
+        function checkWin() {
+            if (estadoCoche.crashed) return false;
+            
+            let isWin = false;
+            if (misionActual === 1) isWin = zonasSuperadas.has('A');
+            else if (misionActual === 2) isWin = zonasSuperadas.has('B');
+            // Misión 3 y en adelante requiere haber retornado la lógica al carril derecho
+            else if (misionActual === 3) isWin = zonasSuperadas.has('C') && estadoCoche.lane === 'right';
+            else if (misionActual === 4) isWin = zonasSuperadas.has('A') && zonasSuperadas.has('B') && zonasSuperadas.has('C') && estadoCoche.lane === 'right';
+            else if (misionActual === 5) isWin = zonasSuperadas.has('A') && zonasSuperadas.has('B') && zonasSuperadas.has('C') && cocheGroup.position.z <= -16.0 && estadoCoche.lane === 'right';
+
+            if (isWin && estadoCoche.running) {
+                estadoCoche.running = false;
+                setTimeout(() => {
+                    let msg = 'Has programado correctamente la respuesta lógica a los eventos de la cámara.';
+                    if (misionActual === 1) msg = '¡Has interpretado el semáforo! En la misión 2 abordaremos el paso de cebra.';
+                    mostrarModal('¡Misión Superada!', msg, '#00f2ff');
+                    misionesCompletadas.add(misionActual);
+                    actualizarUIBotones();
+                }, 1000);
+                return true;
+            }
+            return false;
+        }
+
+        function mostrarFallo(motivo) {
+            estadoCoche.crashed = true; estadoCoche.running = false;
+            targetSpeed = 0.0; 
+            setTimeout(() => { mostrarModal('¡Colisión!', motivo, '#ff4444'); }, 500);
+        }
+
+        // ==========================================
+        // 7. UI / GESTOR DE MISIONES
+        // ==========================================
+        function mostrarModal(titulo, texto, color) {
+            document.getElementById('modal-title').innerText = titulo;
+            document.getElementById('modal-title').style.color = color;
+            document.getElementById('modal-text').innerText = texto;
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('modal-btn-next').style.display = misionesCompletadas.has(misionActual) && misionActual<5 ? 'block' : 'none';
+        }
+        function cerrarModal() { document.getElementById('modal').style.display = 'none'; }
+        function siguienteMision() { cerrarModal(); cargarMision(misionActual+1); }
+
+        function actualizarUIBotones() {
+            for(let i=1;i<=5;i++){
+                const b = document.getElementById('bm-'+i);
+                b.className = 'btn-mision';
+                if(misionesCompletadas.has(i)) b.classList.add('completada');
+                if(i===misionActual) b.classList.add('activa');
+            }
+            document.getElementById('txt-mision').innerText = 'Misión '+misionActual+' / 5';
+            const btnSol = document.getElementById('btn-solucion');
+            if (misionActual===1 || misionActual===5) btnSol.style.display = 'none';
+            else btnSol.style.display = 'block';
+        }
+
+        function lockBlock(nodo) {
+            nodo.classList.add('locked'); nodo.setAttribute('draggable', 'false');
+            nodo.querySelectorAll('*').forEach(n => {
+                if(n.tagName==='SELECT') n.disabled = true;
+                if(n.classList.contains('borrar-bloque')) n.style.display = 'none';
+            });
+        }
+
+        function buildMisionDOM(mision) {
+            const z = document.getElementById('program-zone');
+            z.innerHTML = '';
+            
+            if (mision===1) {
+                const bLoop = getBloqueHTML('LOOP'); lockBlock(bLoop);
+                const bIf = getBloqueHTML('IF_ELSE'); lockBlock(bIf);
+                const bCam = getBloqueHTML('CAMARA'); lockBlock(bCam); bCam.querySelector('select').value = "SEMÁFORO EN ROJO";
+                const bWait = getBloqueHTML('ESPERAR'); lockBlock(bWait);
+                const bAv = getBloqueHTML('AVANZAR'); lockBlock(bAv);
+                
+                bIf.querySelector('.slot-condicion').innerHTML=''; bIf.querySelector('.slot-condicion').appendChild(bCam);
+                bIf.querySelector('.body-if').appendChild(bWait);
+                bIf.querySelector('.body-else').appendChild(bAv);
+                bLoop.querySelector('.contenedor-body').appendChild(bIf);
+                z.appendChild(bLoop);
+            }
+            else if (mision===2) {
+                const bLoop = getBloqueHTML('LOOP'); lockBlock(bLoop);
+                const bIf = getBloqueHTML('IF_ELSE'); lockBlock(bIf);
+                const bWait = getBloqueHTML('ESPERAR'); lockBlock(bWait);
+                const bAv = getBloqueHTML('AVANZAR'); lockBlock(bAv);
+                
+                bIf.querySelector('.body-if').appendChild(bWait);
+                bIf.querySelector('.body-else').appendChild(bAv);
+                bLoop.querySelector('.contenedor-body').appendChild(bIf);
+                z.appendChild(bLoop);
+            }
+            else if (mision===3) {
+                const bLoop = getBloqueHTML('LOOP'); lockBlock(bLoop);
+                const bIf = getBloqueHTML('IF_ELSE'); lockBlock(bIf);
+                const bCam = getBloqueHTML('CAMARA'); lockBlock(bCam); bCam.querySelector('select').value = "OBSTÁCULO EN CARRIL";
+                const bAvElse = getBloqueHTML('AVANZAR'); lockBlock(bAvElse);
+                
+                bIf.querySelector('.slot-condicion').innerHTML=''; bIf.querySelector('.slot-condicion').appendChild(bCam);
+                bIf.querySelector('.body-else').appendChild(bAvElse);
+                bLoop.querySelector('.contenedor-body').appendChild(bIf);
+                z.appendChild(bLoop);
+            }
+            else if (mision===4) {
+                const bLoop = getBloqueHTML('LOOP'); lockBlock(bLoop);
+                z.appendChild(bLoop);
+            }
+            initDropZones();
+        }
+
+        function cargarMision(num) {
+            misionActual = num;
+            reiniciarEscenaYUI();
+            actualizarUIBotones();
+            buildMisionDOM(num);
+        }
+
+        function mostrarSolucion() {
+            buildMisionDOM(misionActual);
+            const z = document.getElementById('program-zone');
+            
+            if (misionActual===2) {
+                const bIf = z.querySelector('[data-tipo="IF_ELSE"]');
+                const bCam = getBloqueHTML('CAMARA'); bCam.querySelector('select').value = "PEATÓN CRUZANDO";
+                bIf.querySelector('.slot-condicion').innerHTML=''; bIf.querySelector('.slot-condicion').appendChild(bCam);
+            }
+            else if (misionActual===3) {
+                const bIf = z.querySelector('[data-tipo="IF_ELSE"]');
+                const bG1 = getBloqueHTML('GIRAR'); bG1.querySelector('select').value = "IZQ";
+                const bAv1 = getBloqueHTML('AVANZAR');
+                const bAv2 = getBloqueHTML('AVANZAR');
+                const bAv3 = getBloqueHTML('AVANZAR');
+                const bG2 = getBloqueHTML('GIRAR'); bG2.querySelector('select').value = "DER";
+                bIf.querySelector('.body-if').append(bG1, bAv1, bAv2, bAv3, bG2);
+            }
+            else if (misionActual===4) {
+                const bLoop = z.querySelector('[data-tipo="LOOP"]');
+                const bIf1 = getBloqueHTML('IF_ELSE');
+                const bCam1 = getBloqueHTML('CAMARA'); bCam1.querySelector('select').value = "SEMÁFORO EN ROJO";
+                const bWait1 = getBloqueHTML('ESPERAR');
+                bIf1.querySelector('.slot-condicion').innerHTML=''; bIf1.querySelector('.slot-condicion').appendChild(bCam1);
+                bIf1.querySelector('.body-if').appendChild(bWait1);
+                
+                const bIf2 = getBloqueHTML('IF_ELSE');
+                const bCam2 = getBloqueHTML('CAMARA'); bCam2.querySelector('select').value = "PEATÓN CRUZANDO";
+                const bWait2 = getBloqueHTML('ESPERAR');
+                bIf2.querySelector('.slot-condicion').innerHTML=''; bIf2.querySelector('.slot-condicion').appendChild(bCam2);
+                bIf2.querySelector('.body-if').appendChild(bWait2);
+
+                const bIf3 = getBloqueHTML('IF_ELSE');
+                const bCam3 = getBloqueHTML('CAMARA'); bCam3.querySelector('select').value = "OBSTÁCULO EN CARRIL";
+                const bG1 = getBloqueHTML('GIRAR'); bG1.querySelector('select').value = "IZQ";
+                const bAv1 = getBloqueHTML('AVANZAR');
+                const bAv2 = getBloqueHTML('AVANZAR');
+                const bAv3 = getBloqueHTML('AVANZAR');
+                const bG2 = getBloqueHTML('GIRAR'); bG2.querySelector('select').value = "DER";
+                bIf3.querySelector('.slot-condicion').innerHTML=''; bIf3.querySelector('.slot-condicion').appendChild(bCam3);
+                bIf3.querySelector('.body-if').append(bG1, bAv1, bAv2, bAv3, bG2);
+                
+                const bAv = getBloqueHTML('AVANZAR');
+                bIf3.querySelector('.body-else').appendChild(bAv);
+                bIf2.querySelector('.body-else').appendChild(bIf3);
+                bIf1.querySelector('.body-else').appendChild(bIf2);
+                
+                bLoop.querySelector('.contenedor-body').appendChild(bIf1);
+            }
+            initDropZones();
+        }
+
+        // INIT
+        cargarMision(1);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P4 - Minijuegos Androide Web</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap');
+        :root { --cyan: #00d4ff; --bg: #0f172a; --panel: rgba(255,255,255,0.05); }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Top Navigation */
+        .top-nav { display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center; }
+        .nav-btn { background: var(--panel); border: 2px solid var(--cyan); color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 16px;}
+        .nav-btn:hover, .nav-btn.active { background: var(--cyan); color: #0f172a; }
+        
+        /* Game Container */
+        .game-container { background: var(--panel); padding: 30px; border-radius: 15px; border: 1px solid var(--cyan); max-width: 800px; width: 100%; display: none; box-sizing: border-box;}
+        .game-container.active { display: block; }
+        h2 { color: var(--cyan); text-align: left; margin-top: 0;}
+        p.subtitle { color: #aaa; text-align: left; margin-bottom: 20px;}
+        
+        /* Trivial Options */
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .option-btn { background: rgba(0, 212, 255, 0.1); border: 2px solid var(--cyan); padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; transition: 0.3s; font-size: 16px; color: white;}
+        .option-btn:hover { background: rgba(0, 212, 255, 0.3); }
+        .option-btn.correct { background: #44ff44 !important; border-color: #44ff44; color: black; }
+        .option-btn.incorrect { background: #ff4444 !important; border-color: #ff4444; color: white; }
+        
+        /* Error Banner & Bypass */
+        .error-banner { display: none; background: rgba(255, 0, 0, 0.2); border: 1px solid #ff4444; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: center; }
+        .error-banner.active { display: block; }
+        .bypass-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; flex-wrap: wrap;}
+        .btn-sol { background: #ffd700; color: black; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;}
+        .btn-next { background: var(--cyan); color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px;}
+        .btn-sol:hover { background: #ffea00; }
+        .btn-next:hover { background: #00a8cc; }
+        
+        /* Drag & Drop */
+        .drag-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;}
+        .drag-item { background: rgba(0, 212, 255, 0.1); border: 2px solid var(--cyan); padding: 15px; border-radius: 10px; cursor: grab; font-weight: bold; display: flex; align-items: center; gap: 15px;}
+        .drag-item:active { cursor: grabbing; }
+        .drag-item.over { border: 2px dashed #ffd700; background: rgba(255, 215, 0, 0.2); }
+        .drag-number { background: var(--cyan); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;}
+        
+        /* Matching */
+        .match-container { display: flex; gap: 40px; margin-bottom: 20px; }
+        .match-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .match-item { background: var(--panel); border: 2px solid #555; padding: 15px; border-radius: 10px; cursor: pointer; text-align: center; transition: 0.3s; font-weight: bold;}
+        .match-item:hover { border-color: var(--cyan); }
+        .match-item.selected { border-color: var(--cyan); background: rgba(0, 212, 255, 0.2); box-shadow: 0 0 10px var(--cyan); }
+        .match-item.matched { border-color: #44ff44; background: rgba(68,255,68,0.2); cursor: default; pointer-events: none;}
+        .match-item.error { border-color: #ff4444; background: rgba(255,68,68,0.2); }
+        
+        /* HUD Simulator */
+        .hud-sim { background: radial-gradient(circle, #2a0b1f, #000); border: 2px solid #555; border-radius: 10px; height: 180px; position: relative; margin-bottom: 20px; overflow: hidden; box-shadow: inset 0 0 20px #000; display: flex; justify-content: center; align-items: center;}
+        .hud-bot { font-size: 60px; filter: drop-shadow(0 0 10px var(--cyan)); }
+        .hud-text { position: absolute; color: var(--cyan); font-family: monospace; font-size: 16px; font-weight: bold; text-shadow: 1px 1px 2px #000;}
+        .hud-warn { bottom: 20px; width: 100%; text-align: center; color: #ff4444; font-size: 20px; display: none; animation: blink 1s infinite; position: absolute;}
+        
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        .check-btn { background: var(--cyan); color: #0f172a; padding: 15px; width: 100%; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .check-btn:hover { background: #00a8cc; }
+        
+        #endScreen { text-align: center; }
+        .trophy { font-size: 60px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-nav badge-card">
+        <button class="nav-btn active" onclick="navTo(1)">1. 🎯 Trivial</button>
+        <button class="nav-btn" onclick="navTo(2)">2. 📦 Ordenar</button>
+        <button class="nav-btn" onclick="navTo(3)">3. 🔗 Emparejar</button>
+        <button class="nav-btn" onclick="navTo(4)">4. 🎯 Reto Final</button>
+    </div>
+
+    <!-- JUEGO 1: TRIVIAL -->
+    <div id="game1" class="game-container active">
+        <h2>Juego 1: Conceptos del Simulador (Trivial)</h2>
+        <p class="subtitle">Demuestra que entiendes la magia detrás del Androide.</p>
+        
+        <div id="triv1" class="triv-q active">
+            <p><strong>1/5.</strong> ¿Qué diferencia principal hay entre construir un robot dibujando cajas y descargarlo de Adobe Mixamo?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkTrivial(this, false, 1)">Que el robot de Mixamo pesa mucho más en la vida real.</button>
+                <button class="option-btn" onclick="checkTrivial(this, true, 1)">Que Mixamo ya nos da el modelo tridimensional totalmente diseñado y con animaciones.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 1)">Que el robot de Mixamo no necesita electricidad para funcionar.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 1)">No hay diferencia, ambos se hacen con cajas invisibles.</button>
+            </div>
+        </div>
+        
+        <div id="triv2" class="triv-q" style="display:none;">
+            <p><strong>2/5.</strong> Cuando descargamos a la chica bailando Breakdance... ¿De dónde sacó el programa esos movimientos tan reales?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkTrivial(this, true, 2)">Son movimientos grabados en estudios con actores humanos reales (Captura de movimiento).</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 2)">El ordenador calculó físicamente cuánto debía girar cada pierna.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 2)">Un informático los dibujó en Paint.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 2)">Es inteligencia artificial inventándose bailes aleatorios.</button>
+            </div>
+        </div>
+
+        <div id="triv3" class="triv-q" style="display:none;">
+            <p><strong>3/5.</strong> En el simulador, el robot tiene una "Hitbox" (Caja invisible). ¿Para qué sirve exactamente?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkTrivial(this, false, 3)">Para proteger al robot de los virus informáticos.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 3)">Para darle color a su armadura de metal.</button>
+                <button class="option-btn" onclick="checkTrivial(this, true, 3)">Para darle un peso matemático y evitar que atraviese el suelo cuando caiga.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 3)">Para que la batería dure más tiempo.</button>
+            </div>
+        </div>
+
+        <div id="triv4" class="triv-q" style="display:none;">
+            <p><strong>4/5.</strong> ¿Qué es un "Gemelo Digital" en el mundo de la robótica profesional (como en Boston Dynamics)?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkTrivial(this, true, 4)">Un simulador virtual idéntico al mundo real donde el robot entrena y se cae sin romperse de verdad.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 4)">Fabricar dos robots físicos idénticos por si uno se pierde.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 4)">Una pantalla gigante que muestra la cara del robot.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 4)">Un robot capaz de imitar tus gestos en el espejo.</button>
+            </div>
+        </div>
+
+        <div id="triv5" class="triv-q" style="display:none;">
+            <p><strong>5/5.</strong> ¿Qué ocurre si ejecutamos la animación de "Saltar" en Mixamo, pero olvidamos encender la gravedad de la Hitbox?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkTrivial(this, false, 5)">El robot explotará.</button>
+                <button class="option-btn" onclick="checkTrivial(this, true, 5)">El robot hará el gesto de saltar, pero se quedará flotando en el aire para siempre.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 5)">El robot se hundirá rápidamente hasta el centro de la Tierra.</button>
+                <button class="option-btn" onclick="checkTrivial(this, false, 5)">Nada, el robot no podrá moverse.</button>
+            </div>
+        </div>
+        
+        <div class="error-banner" id="err-triv">
+            <p>⚠️ Respuesta incorrecta. La conexión neuronal virtual ha fallado.</p>
+            <div class="bypass-btns">
+                <button class="btn-sol" onclick="solveTrivial()">Ver Solución 💡</button>
+                <button class="btn-next" onclick="nextQuestion()">Reintentar ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JUEGO 2: ORDENAR -->
+    <div id="game2" class="game-container">
+        <h2>Juego 2: Fabricar un Androide (Drag & Drop)</h2>
+        <p class="subtitle">Arrastra los pasos para ordenar correctamente el flujo de trabajo de los ingenieros de Boston Dynamics / Tesla.</p>
+        
+        <div class="drag-list" id="rthList">
+            <div class="drag-item" draggable="true" data-id="3"><div class="drag-number">A</div>Entrenarlo millones de veces en un Universo de Bolsillo (Simulador virtual) donde las caídas salen gratis.</div>
+            <div class="drag-item" draggable="true" data-id="1"><div class="drag-number">B</div>Crear el modelo en 3D en el ordenador y ponerle animaciones básicas (Ej: Mixamo).</div>
+            <div class="drag-item" draggable="true" data-id="4"><div class="drag-number">C</div>Copiar su "cerebro digital" experto y pegarlo en el robot físico de titanio millonario.</div>
+            <div class="drag-item" draggable="true" data-id="2"><div class="drag-number">D</div>Asignarle una Hitbox con leyes de la gravedad y fricción estrictas.</div>
+        </div>
+        
+        <button class="check-btn" onclick="checkOrder()">Comprobar Secuencia</button>
+        
+        <div class="error-banner" id="err-order">
+            <p>⚠️ Secuencia incorrecta. El robot físico se ha tropezado y ha roto un cristal.</p>
+            <div class="bypass-btns">
+                <button class="btn-sol" onclick="solveOrder()">Ver Solución 💡</button>
+                <button class="btn-next" onclick="navTo(3)">Siguiente Juego ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JUEGO 3: EMPAREJAR -->
+    <div id="game3" class="game-container">
+        <h2>Juego 3: Glosario de Ingeniería</h2>
+        <p class="subtitle">Asocia cada herramienta técnica de la simulación con su función en nuestro mundo.</p>
+        
+        <div class="match-container">
+            <div class="match-col" id="colA">
+                <div class="match-item" data-match="h">Hitbox (Caja Fantasma)</div>
+                <div class="match-item" data-match="m">Mixamo</div>
+                <div class="match-item" data-match="g">Gemelo Digital</div>
+                <div class="match-item" data-match="a">Animación (Mocap)</div>
+            </div>
+            <div class="match-col" id="colB">
+                <div class="match-item" data-match="m">Plataforma de Adobe para descargar figuras animadas.</div>
+                <div class="match-item" data-match="h">Proporciona masa física al androide para que no atraviese el suelo.</div>
+                <div class="match-item" data-match="a">Movimiento hiperrealista capturado de un ser humano.</div>
+                <div class="match-item" data-match="g">Copia virtual exacta de una máquina para entrenarla sin riesgos.</div>
+            </div>
+        </div>
+        
+        <div class="error-banner" id="err-match">
+            <p>⚠️ Error de compilación. Vuelve a enlazar los conceptos.</p>
+            <div class="bypass-btns">
+                <button class="btn-sol" onclick="solveMatch()">Ver Solución 💡</button>
+                <button class="btn-next" onclick="navTo(4)">Siguiente Juego ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JUEGO 4: RETO FINAL -->
+    <div id="game4" class="game-container">
+        <h2>Juego 4: Decisiones en el Universo de Bolsillo</h2>
+        <p class="subtitle">Escenario Virtual 1/4</p>
+        
+        <div class="hud-sim" id="hud">
+            <div class="hud-text" style="left: 20px; top: 20px;">ENGINE: VIRTUAL</div>
+            <div class="hud-text" style="right: 20px; top: 20px;">GRAV: 9.8m/s</div>
+            <div class="hud-bot" id="hud-char">🤖</div>
+            <div class="hud-warn" id="hud-warn">¡COLISIÓN INMINENTE!</div>
+        </div>
+        
+        <div id="scen1" class="scen-q active">
+            <p>Has puesto al androide a intentar dar un salto mortal hacia atrás (Backflip). A mitad del salto, el modelo choca contra una pared virtual de tu simulador. ¿Qué ocurre?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkScenario(this, false, 1)">La pared se rompe como en una película de acción.</button>
+                <button class="option-btn" onclick="checkScenario(this, true, 1)">La Hitbox choca, la animación se interrumpe físicamente, y el androide cae al suelo por su propio peso.</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 1)">El androide atraviesa la pared mágicamente.</button>
+            </div>
+        </div>
+        
+        <div id="scen2" class="scen-q" style="display:none;">
+            <p>Quieres que tu androide baile Capoeira, pero al descargar el personaje de Adobe Mixamo, te has olvidado de descargar la 'animación'. ¿Qué verás en pantalla?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkScenario(this, true, 2)">El androide aparecerá estático y rígido, con los brazos en cruz (Postura en T).</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 2)">El androide bailará salsa en lugar de Capoeira.</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 2)">La pantalla se quedará completamente negra.</button>
+            </div>
+        </div>
+        
+        <div id="scen3" class="scen-q" style="display:none;">
+            <p>Entrenando a tu Gemelo Digital de Tesla, decides poner la gravedad a 'CERO' (0 m/s) por curiosidad. ¿Qué le pasa al robot cuando intenta dar un paso hacia delante?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkScenario(this, false, 3)">Da el paso más rápido de lo normal.</button>
+                <button class="option-btn" onclick="checkScenario(this, true, 3)">Al empujar el suelo con el pie, saldrá despedido hacia el techo y flotará sin control.</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 3)">Se vuelve invisible a las cámaras.</button>
+            </div>
+        </div>
+        
+        <div id="scen4" class="scen-q" style="display:none;">
+            <p>Finalmente, el robot virtual camina perfecto. Has copiado el programa al robot gigante real. De repente, en el mundo real, empieza a llover y el robot patina. ¿Por qué ha fallado?</p>
+            <div class="options">
+                <button class="option-btn" onclick="checkScenario(this, true, 4)">Porque en el Universo de Bolsillo no habíamos programado que el suelo redujera su rozamiento (fricción) por el agua.</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 4)">Porque los pendrives se estropean con la lluvia.</button>
+                <button class="option-btn" onclick="checkScenario(this, false, 4)">Porque la animación de Mixamo ha caducado.</button>
+            </div>
+        </div>
+        
+        <div class="error-banner" id="err-scen">
+            <p>⚠️ Error crítico en la simulación virtual.</p>
+            <div class="bypass-btns">
+                <button class="btn-sol" onclick="solveScenario()">Ver Solución 💡</button>
+                <button class="btn-next" onclick="nextScen()">Reintentar ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA FINAL -->
+    <div id="gameEnd" class="game-container">
+        <div class="trophy">🎓</div>
+        <h1 style="font-size: 35px; color: white;">¡INGENIERO VIRTUAL!</h1>
+        <p style="color: #ccc; max-width: 500px; margin: 0 auto 30px auto;">Has superado los 4 retos sobre la importación de modelos y la creación de Gemelos Digitales para robótica avanzada.</p>
+        <button class="check-btn" style="max-width: 200px;" onclick="location.reload()">Jugar Otra Vez</button>
+    </div>
+
+    <script>
+        // NAVEGACIÓN
+        function navTo(num) {
+            document.querySelectorAll('.game-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            
+            if(num === 5) {
+                document.getElementById('gameEnd').classList.add('active');
+            } else {
+                document.getElementById('game' + num).classList.add('active');
+                document.querySelectorAll('.nav-btn')[num-1].classList.add('active');
+            }
+            document.querySelectorAll('.error-banner').forEach(el => el.classList.remove('active'));
+        }
+
+        // --- JUEGO 1: TRIVIAL ---
+        let currentTriv = 1;
+        function checkTrivial(btn, isCorrect, num) {
+            if(btn.disabled) return;
+            if(isCorrect) {
+                btn.classList.add('correct');
+                document.getElementById('err-triv').classList.remove('active');
+                setTimeout(() => {
+                    document.getElementById('triv' + num).style.display = 'none';
+                    if(num < 5) {
+                        currentTriv = num + 1;
+                        document.getElementById('triv' + (num+1)).style.display = 'block';
+                    } else { navTo(2); }
+                }, 800);
+            } else {
+                btn.classList.add('incorrect');
+                document.getElementById('err-triv').classList.add('active');
+                Array.from(btn.parentElement.children).forEach(b => b.disabled = true);
+            }
+        }
+        function solveTrivial() {
+            let opts = document.getElementById('triv' + currentTriv).querySelectorAll('.option-btn');
+            opts.forEach(opt => {
+                if(opt.getAttribute('onclick').includes('true')) opt.classList.add('correct');
+                opt.classList.remove('incorrect');
+            });
+            setTimeout(() => {
+                document.getElementById('err-triv').classList.remove('active');
+                document.getElementById('triv' + currentTriv).style.display = 'none';
+                if(currentTriv < 5) {
+                    currentTriv++;
+                    document.getElementById('triv' + currentTriv).style.display = 'block';
+                } else { navTo(2); }
+            }, 1500);
+        }
+        function nextQuestion() {
+            document.getElementById('err-triv').classList.remove('active');
+            let opts = document.getElementById('triv' + currentTriv).querySelectorAll('.option-btn');
+            opts.forEach(opt => { opt.classList.remove('incorrect'); opt.disabled = false; });
+        }
+
+        // --- JUEGO 2: ORDENAR (Drag & Drop) ---
+        let draggedItem = null;
+        const dragItems = document.querySelectorAll('.drag-item');
+        
+        dragItems.forEach(item => {
+            item.addEventListener('dragstart', function(e) { draggedItem = this; setTimeout(() => this.style.opacity = '0.5', 0); });
+            item.addEventListener('dragend', function() { setTimeout(() => { this.style.opacity = '1'; draggedItem = null; }, 0); dragItems.forEach(i => i.classList.remove('over')); });
+            item.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('over'); });
+            item.addEventListener('dragleave', function() { this.classList.remove('over'); });
+            item.addEventListener('drop', function(e) {
+                e.preventDefault(); this.classList.remove('over');
+                if(this !== draggedItem) {
+                    let list = document.getElementById('rthList');
+                    let all = Array.from(list.children);
+                    if(all.indexOf(draggedItem) < all.indexOf(this)) { list.insertBefore(draggedItem, this.nextSibling); } 
+                    else { list.insertBefore(draggedItem, this); }
+                }
+            });
+        });
+
+        function checkOrder() {
+            let currentOrder = Array.from(document.getElementById('rthList').children).map(i => i.getAttribute('data-id')).join('');
+            if(currentOrder === '1234') { navTo(3); } else { document.getElementById('err-order').classList.add('active'); }
+        }
+        function solveOrder() {
+            let list = document.getElementById('rthList');
+            let items = Array.from(list.children);
+            items.sort((a,b) => parseInt(a.getAttribute('data-id')) - parseInt(b.getAttribute('data-id')));
+            items.forEach(i => { list.appendChild(i); i.style.borderColor = '#44ff44'; });
+            document.getElementById('err-order').classList.remove('active');
+            setTimeout(() => navTo(3), 1500);
+        }
+
+        // --- JUEGO 3: EMPAREJAR ---
+        let selectedA = null; let selectedB = null;
+        document.querySelectorAll('.match-col#colA .match-item').forEach(item => {
+            item.addEventListener('click', function() {
+                if(this.classList.contains('matched')) return;
+                document.querySelectorAll('#colA .match-item').forEach(i => i.classList.remove('selected', 'error'));
+                this.classList.add('selected'); selectedA = this; checkMatch();
+            });
+        });
+        document.querySelectorAll('.match-col#colB .match-item').forEach(item => {
+            item.addEventListener('click', function() {
+                if(this.classList.contains('matched')) return;
+                document.querySelectorAll('#colB .match-item').forEach(i => i.classList.remove('selected', 'error'));
+                this.classList.add('selected'); selectedB = this; checkMatch();
+            });
+        });
+
+        function checkMatch() {
+            if(selectedA && selectedB) {
+                if(selectedA.getAttribute('data-match') === selectedB.getAttribute('data-match')) {
+                    selectedA.classList.remove('selected'); selectedB.classList.remove('selected');
+                    selectedA.classList.add('matched'); selectedB.classList.add('matched');
+                    selectedA = null; selectedB = null;
+                    document.getElementById('err-match').classList.remove('active');
+                    if(document.querySelectorAll('.match-item.matched').length === 8) { setTimeout(() => navTo(4), 1000); }
+                } else {
+                    selectedA.classList.add('error'); selectedB.classList.add('error');
+                    document.getElementById('err-match').classList.add('active');
+                    setTimeout(() => {
+                        if(selectedA) selectedA.classList.remove('error', 'selected');
+                        if(selectedB) selectedB.classList.remove('error', 'selected');
+                        selectedA = null; selectedB = null;
+                    }, 800);
+                }
+            }
+        }
+        function solveMatch() {
+            document.querySelectorAll('.match-item').forEach(item => { item.classList.remove('selected', 'error'); item.classList.add('matched'); });
+            document.getElementById('err-match').classList.remove('active');
+            setTimeout(() => navTo(4), 1500);
+        }
+
+        // --- JUEGO 4: ESCENARIOS (RETO FINAL) ---
+        let currentScen = 1;
+        function checkScenario(btn, isCorrect, num) {
+            if(btn.disabled) return;
+            if(isCorrect) {
+                btn.classList.add('correct');
+                document.getElementById('err-scen').classList.remove('active');
+                setTimeout(() => {
+                    document.getElementById('scen' + num).style.display = 'none';
+                    if(num < 4) {
+                        currentScen = num + 1;
+                        document.getElementById('scen' + currentScen).style.display = 'block';
+                        document.querySelector('#game4 .subtitle').innerText = "Escenario Virtual " + currentScen + "/4";
+                        
+                        // HUD Updates
+                        if(currentScen === 2) { document.getElementById('hud-char').innerText = "🧍"; } // T-pose
+                        if(currentScen === 3) { document.getElementById('hud-char').style.transform = "translateY(-50px)"; document.querySelector('.hud-text[style*="GRAV"]').innerText = "GRAV: 0m/s"; }
+                    } else { navTo(5); }
+                }, 1000);
+            } else {
+                btn.classList.add('incorrect');
+                document.getElementById('err-scen').classList.add('active');
+                Array.from(btn.parentElement.children).forEach(b => b.disabled = true);
+                if(num === 1) document.getElementById('hud-warn').style.display = 'block';
+            }
+        }
+        
+        function solveScenario() {
+            let opts = document.getElementById('scen' + currentScen).querySelectorAll('.option-btn');
+            opts.forEach(opt => {
+                if(opt.getAttribute('onclick').includes('true')) opt.classList.add('correct');
+                opt.classList.remove('incorrect');
+            });
+            setTimeout(() => {
+                document.getElementById('err-scen').classList.remove('active');
+                document.getElementById('scen' + currentScen).style.display = 'none';
+                if(currentScen < 4) {
+                    currentScen++;
+                    document.getElementById('scen' + currentScen).style.display = 'block';
+                    document.querySelector('#game4 .subtitle').innerText = "Escenario Virtual " + currentScen + "/4";
+                } else { navTo(5); }
+            }, 1500);
+        }
+        
+        function nextScen() {
+            document.getElementById('err-scen').classList.remove('active');
+            document.getElementById('hud-warn').style.display = 'none';
+            let opts = document.getElementById('scen' + currentScen).querySelectorAll('.option-btn');
+            opts.forEach(opt => { opt.classList.remove('incorrect'); opt.disabled = false; });
+        }
+    </script>
+</body>
+</html>

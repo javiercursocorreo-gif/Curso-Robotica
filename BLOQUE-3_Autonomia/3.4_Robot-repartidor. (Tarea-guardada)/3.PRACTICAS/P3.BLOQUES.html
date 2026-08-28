@@ -1,0 +1,939 @@
+<!-- MEJORAS:
+- [VISUAL AAA] Iluminación IBL, oclusión ambiental (SSAO2), reflejos fotorrealistas.
+- [VISUAL CORREGIDO] Textos opacos y nítidos excluidos del post-procesado.
+- [NUEVO] Humanoides Orgánicos con animaciones basadas en articulaciones.
+- [CORRECCIÓN LÓGICA] Anti-Atropello: El vecino que espera lo hace en su acera, evitando el paso del robot.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES - AAA PBR + HUMANOS ORGÁNICOS (CORREGIDO)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; height: 100vh; color: #fff; }
+
+        /* HEADER OBLIGATORIO */
+        header { background: rgba(0,0,0,0.85); border-bottom: 2px solid #00f2ff; height: 70px; z-index: 100; display: flex; align-items: center; padding: 0 30px; box-sizing: border-box; flex-shrink: 0; }
+        .header-titles { display: flex; align-items:baseline; gap: 20px; }
+        .header-titles h1 { margin: 0; font-size: 24px; color: #00f2ff; letter-spacing: 5px; text-transform: uppercase; font-weight: bold; }
+        .header-titles h2 { margin: 0; font-size: 16px; color: #aaaaaa; font-weight: normal; }
+
+        /* LAYOUT FLEXBOX OBLIGATORIO */
+        #main-layout { display: flex; flex: 1; height: calc(100vh - 70px); }
+
+        /* PANEL IZQUIERDO */
+        #left-panel { width: 40%; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; background: #111; overflow: hidden; box-shadow: 5px 0 15px rgba(0,0,0,0.8); z-index: 10; }
+
+        /* SELECTOR DE MISIÓN */
+        #mission-selector { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-mission { height: 40px; width: 40px; border-radius: 5px; border: 2px solid #555; background: #333; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; }
+        .btn-mission.completed { border-color: #00f2ff; background: #222; box-shadow: 0 0 10px rgba(0,242,255,0.3); }
+        .btn-mission.active { background: #ffcc00; color: #000; border-color: #ffcc00; box-shadow: 0 0 10px rgba(255,204,0,0.5); }
+        #mission-text { font-size: 17px; line-height: 1.4; margin-bottom: 15px; color: #ddd; min-height: 50px; }
+
+        /* PALETA DE BLOQUES (HORIZONTAL) */
+        #palette { display: flex; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; gap: 10px; padding-bottom: 10px; margin-bottom: 15px; min-height: 60px; flex-shrink: 0; }
+        #palette::-webkit-scrollbar { height: 8px; }
+        #palette::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
+        /* ZONA DE SECUENCIA */
+        #sequence-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 10px; padding-bottom: 80px; border: 2px dashed #666; background: #1a1a1a; gap: 8px; position: relative; border-radius: 8px; }
+        #sequence-container.drag-over { border-color: #00f2ff; background: rgba(0, 242, 255, 0.05); }
+
+        /* BLOQUES Y BOTÓN BORRAR */
+        .block { padding: 10px 15px; border-radius: 6px; font-size: 16px; color: white; cursor: grab; user-select: none; position: relative; min-height: 40px; display: flex; align-items: center; gap: 10px; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.3); flex-shrink: 0; box-sizing: border-box; }
+        .block:active { cursor: grabbing; }
+        .block.running { outline: 3px solid #ffcc00; z-index: 10; transform: scale(1.02); transition: transform 0.1s; }
+        
+        .btn-delete { position: absolute; top: -10px; right: -10px; background: #e74c3c; border-radius: 50%; width: 24px; height: 24px; display: none; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 20; }
+        #sequence-container .block:not(.locked):hover > .btn-delete { display: flex; }
+        
+        .block-loop { background: #1e8449; flex-direction: column; align-items: flex-start; cursor: default; }
+        .block-loop.draggable { cursor: grab; }
+        
+        .block-ir-punto { background: #00BFA5; border: 3px solid #00f2ff; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .block-accion { background: #8e44ad; font-weight: bold; border: 2px solid #d2b4de; }
+        
+        .tag-nuevo { position: absolute; top: -12px; left: -10px; background: #ff2a2a; color: white; font-size: 12px; padding: 2px 8px; border-radius: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .block select { font-size: 16px; padding: 4px; border-radius: 4px; border: none; background: rgba(255,255,255,0.9); color: #000; cursor: pointer; font-weight: bold; }
+        .block.locked { cursor: default; opacity: 0.9; }
+        .block.locked::after { content: '🔒'; margin-left: auto; font-size: 20px; }
+        .block.locked .btn-delete { display: none !important; }
+
+        /* CONTENEDOR DE BUCLE */
+        .loop-inner { min-height: 60px; width: 100%; background: rgba(0,0,0,0.3); border: 2px dashed #888; border-radius: 4px; margin-top: 10px; padding: 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; }
+        .loop-inner.drag-over { border-color: #00f2ff; background: rgba(0, 242, 255, 0.1); }
+        .hueco-pista { min-height: 50px; border: 2px dashed #ffcc00; background: rgba(255, 204, 0, 0.1); color: #ffcc00; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 16px; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* BOTONERA INFERIOR */
+        #controls { display: flex; gap: 10px; margin-top: 15px; flex-shrink: 0; }
+        button { border: none; border-radius: 8px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        button:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.5); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        #btn-execute { background: linear-gradient(135deg, #28B463, #1D8348); height: 55px; flex: 1.5; }
+        #btn-stop { background: linear-gradient(135deg, #e67e22, #d35400); height: 55px; flex: 1.5; display: none; }
+        #btn-solution { background: linear-gradient(135deg, #3498DB, #2980B9); height: 55px; flex: 1; display: none; }
+        #btn-restart { background: linear-gradient(135deg, #E74C3C, #C0392B); height: 55px; flex: 1; }
+
+        /* CANVAS DERECHO */
+        #right-panel { width: 60%; position: relative; background: #000; }
+        #renderCanvas { width: 100%; height: 100%; outline: none; display: block; }
+
+        /* MODAL */
+        #modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        #modal-content { background: #1a1a2e; border: 2px solid #00f2ff; padding: 40px; border-radius: 10px; text-align: center; max-width: 600px; box-shadow: 0 0 40px rgba(0,242,255,0.4); }
+        #modal-title { color: #00f2ff; font-size: 32px; margin-top: 0; text-transform: uppercase; letter-spacing: 2px; }
+        #modal-text { color: #fff; font-size: 22px; margin-bottom: 30px; line-height: 1.5; }
+        .modal-btns { display: flex; gap: 15px; }
+        .modal-btns button { height: 70px; flex: 1; font-size: 22px; background: linear-gradient(135deg, #00BFA5, #00897B); }
+        .dragging { opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-titles">
+        <h1>ROBOT REPARTIDOR</h1>
+        <h2>Programación por bloques — Entorno de Alta Fidelidad Visual (PBR)</h2>
+    </div>
+</header>
+
+<div id="main-layout">
+    <div id="left-panel">
+        <div id="mission-selector">
+            <div class="btn-mission" onclick="loadMission(1)" id="mbtn-1">M1</div>
+            <div class="btn-mission" onclick="loadMission(2)" id="mbtn-2">M2</div>
+            <div class="btn-mission" onclick="loadMission(3)" id="mbtn-3">M3</div>
+            <div class="btn-mission" onclick="loadMission(4)" id="mbtn-4">M4</div>
+            <div class="btn-mission" onclick="loadMission(5)" id="mbtn-5">M5</div>
+        </div>
+        <div id="mission-text"></div>
+        
+        <div id="palette">
+            <!-- Movimiento -->
+            <div class="block block-ir-punto" draggable="true" data-type="IR_PUNTO">
+                <span class="btn-delete" onclick="this.parentElement.remove()">✖</span>
+                IR A PUNTO 
+                <select class="punto-select" onclick="event.stopPropagation()">
+                    <option value="p1">Punto 1</option>
+                    <option value="p2">Punto 2</option>
+                    <option value="p3">Punto 3</option>
+                    <option value="p4">Punto 4</option>
+                    <option value="almacen">Almacén</option>
+                </select>
+            </div>
+            
+            <!-- Acciones (M5) -->
+            <div class="block block-accion m5-block" draggable="true" data-type="ACC_ESPERA" style="display:none">
+                <span class="btn-delete" onclick="this.parentElement.remove()">✖</span>
+                <div class="tag-nuevo">ACCIÓN</div>
+                VECINO ESPERANDO EN
+                <select class="punto-select" onclick="event.stopPropagation()">
+                    <option value="p1">P1</option> <option value="p2">P2</option>
+                    <option value="p3">P3</option> <option value="p4">P4</option>
+                </select>
+            </div>
+            <div class="block block-accion m5-block" draggable="true" data-type="ACC_LLAMAR" style="display:none">
+                <span class="btn-delete" onclick="this.parentElement.remove()">✖</span>
+                <div class="tag-nuevo">ACCIÓN</div>
+                LLAMAR (3 TONOS) EN
+                <select class="punto-select" onclick="event.stopPropagation()">
+                    <option value="p1">P1</option> <option value="p2">P2</option>
+                    <option value="p3">P3</option> <option value="p4">P4</option>
+                </select>
+            </div>
+            <div class="block block-accion m5-block" draggable="true" data-type="ACC_NOCONTESTA" style="display:none">
+                <span class="btn-delete" onclick="this.parentElement.remove()">✖</span>
+                <div class="tag-nuevo">ACCIÓN</div>
+                NO CONTESTA EN
+                <select class="punto-select" onclick="event.stopPropagation()">
+                    <option value="p1">P1</option> <option value="p2">P2</option>
+                    <option value="p3">P3</option> <option value="p4">P4</option>
+                </select>
+            </div>
+            <div class="block block-accion m5-block" draggable="true" data-type="ACC_2PAQ" style="display:none">
+                <span class="btn-delete" onclick="this.parentElement.remove()">✖</span>
+                <div class="tag-nuevo">ACCIÓN</div>
+                DAR 2 PAQUETES EN
+                <select class="punto-select" onclick="event.stopPropagation()">
+                    <option value="p1">P1</option> <option value="p2">P2</option>
+                    <option value="p3">P3</option> <option value="p4">P4</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="sequence-container"></div>
+
+        <div id="controls">
+            <button id="btn-execute" onclick="executeProgram()">EJECUTAR</button>
+            <button id="btn-stop" onclick="stopExecution()">PARAR</button>
+            <button id="btn-solution" onclick="showSolution()">SOLUCIÓN</button>
+            <button id="btn-restart" onclick="loadMission(currentMission)">REINICIAR</button>
+        </div>
+    </div>
+
+    <div id="right-panel">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+</div>
+
+<div id="modal">
+    <div id="modal-content">
+        <h1 id="modal-title">¡Misión Completada!</h1>
+        <p id="modal-text"></p>
+        <div class="modal-btns">
+            <button onclick="nextMission()">SIGUIENTE MISIÓN</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURACIÓN BABYLON.JS - AAA + HUMANOS ORGÁNICOS
+    // ==========================================
+    const canvas = document.getElementById('renderCanvas');
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+    
+    let scene, camera;
+    let robot, whDoor, boxLidPivot, robotPackage, sensorMat;
+    let wheels = [], houseDoors = [], neighbors = [], deliveryDiscs = [], nDoors = [];
+    
+    const dPos = [[8, -13], [8, 13], [-8, 13], [-8, -13]]; // P1, P2, P3, P4
+    const packageColors = ["#FF3333", "#33FF33", "#3333FF", "#FFFF33"];
+    let packageMats = [];
+    let animObservers = []; 
+
+    function createPBR(name, colorHex, roughness = 0.4, metallic = 0.6, isClearCoat = false) {
+        const mat = new BABYLON.PBRMaterial(name, scene);
+        mat.albedoColor = BABYLON.Color3.FromHexString(colorHex);
+        mat.roughness = roughness; 
+        mat.metallic = metallic;
+        if (isClearCoat) {
+            mat.clearCoat.isEnabled = true;
+            mat.clearCoat.intensity = 1.0;
+            mat.clearCoat.roughness = 0.1;
+        }
+        return mat;
+    }
+
+    const createScene = function () {
+        scene = new BABYLON.Scene(engine);
+        const bgColor = new BABYLON.Color4(0.08, 0.08, 0.12, 1);
+        scene.clearColor = bgColor;
+
+        scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+        scene.fogDensity = 0.015; 
+        scene.fogColor = new BABYLON.Color3(bgColor.r, bgColor.g, bgColor.b);
+
+        camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3.5, 45, BABYLON.Vector3.Zero(), scene);
+        camera.attachControl(canvas, true); 
+        camera.lowerRadiusLimit = 15; 
+        camera.upperRadiusLimit = 55;
+        camera.wheelPrecision = 20;
+
+        scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+        scene.environmentIntensity = 0.8; 
+
+        const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -0.5), scene);
+        dirLight.position = new BABYLON.Vector3(20, 40, 20); 
+        dirLight.intensity = 2.5;
+        dirLight.diffuse = new BABYLON.Color3(1, 0.9, 0.8);
+
+        const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+        shadowGen.useBlurExponentialShadowMap = true;
+        shadowGen.blurKernel = 32;
+        shadowGen.setDarkness(0.2); 
+
+        const glow = new BABYLON.GlowLayer("glow", scene); 
+        glow.intensity = 1.0;
+
+        const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+        pipeline.msaaSamples = 4; 
+        pipeline.bloomEnabled = true; 
+        pipeline.bloomThreshold = 0.8; 
+        pipeline.bloomWeight = 0.3;    
+        pipeline.vignetteEnabled = true; 
+        pipeline.vignetteWeight = 1.5;
+        pipeline.vignetteColor = new BABYLON.Color4(0,0,0,1);
+
+        const ssao = new BABYLON.SSAO2RenderingPipeline("ssao", scene, 0.75, [camera]);
+        ssao.radius = 1.5; 
+        ssao.totalStrength = 1.2; 
+        ssao.expensiveBlur = true;
+
+        packageMats = packageColors.map((hex, i) => createPBR("packMat" + i, hex, 0.3, 0.1, false));
+
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 60, height: 60}, scene);
+        ground.material = createPBR("groundMat", "#111111", 0.8, 0.2); 
+        ground.receiveShadows = true;
+
+        const aceras = BABYLON.MeshBuilder.CreateBox("aceras", {width: 32, height: 0.2, depth: 32}, scene);
+        aceras.position.y = 0.1; 
+        aceras.material = createPBR("acerasMat", "#2a2a30", 0.6, 0.1); 
+        aceras.receiveShadows = true;
+
+        const bColors = ["#4a6fa5", "#6b8e6b", "#8e6b6b", "#8e8b6b"];
+        const bPos = [[13, -13], [13, 13], [-13, 13], [-13, -13]]; 
+        const labels = ["PUNTO 1", "PUNTO 2", "PUNTO 3", "PUNTO 4"];
+        
+        for (let i = 0; i < 4; i++) {
+            const b = BABYLON.MeshBuilder.CreateBox("b" + i, {width: 4, height: 16, depth: 4}, scene);
+            b.position.set(bPos[i][0], 8, bPos[i][1]); 
+            b.material = createPBR("bMat" + i, bColors[i], 0.9, 0.0);
+            shadowGen.addShadowCaster(b); 
+            b.receiveShadows = true;
+
+            const isRightSide = bPos[i][0] > 0;
+            const doorX = isRightSide ? 10.8 : -10.8;  
+            const holeX = isRightSide ? 10.95 : -10.95; 
+            nDoors.push({x: doorX, z: bPos[i][1]});
+
+            const hole = BABYLON.MeshBuilder.CreateBox("hole"+i, {width: 0.1, height: 2.2, depth: 1.2}, scene);
+            hole.position.set(holeX, 1.1, bPos[i][1]); 
+            hole.material = createPBR("holeMat", "#000000", 1.0, 0);
+
+            const hDoor = BABYLON.MeshBuilder.CreateBox("hDoor"+i, {width: 0.15, height: 2.2, depth: 1.3}, scene);
+            hDoor.position.set(doorX, 1.1, bPos[i][1]); 
+            hDoor.material = createPBR("hDoorMat"+i, "#cccccc", 0.3, 0.8);
+            hDoor.targetY = 1.1; 
+            shadowGen.addShadowCaster(hDoor); 
+            houseDoors.push(hDoor);
+
+            const labelPlane = BABYLON.MeshBuilder.CreatePlane("lbl"+i, {width: 6, height: 2}, scene);
+            labelPlane.position.set(dPos[i][0], 6.5, dPos[i][1]); 
+            labelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            const dtTex = new BABYLON.DynamicTexture("dt"+i, {width: 256, height: 128}, scene, false);
+            dtTex.hasAlpha = true; 
+            dtTex.drawText(labels[i], null, 80, "bold 45px Arial", "#FFFFFF", "transparent", true);
+            
+            const lMat = new BABYLON.StandardMaterial("lMat"+i, scene);
+            lMat.diffuseTexture = dtTex; lMat.emissiveTexture = dtTex; 
+            lMat.disableLighting = true; lMat.useAlphaFromDiffuseTexture = true;
+            labelPlane.material = lMat;
+            glow.addExcludedMesh(labelPlane);
+        }
+
+        const whMat = createPBR("whMat", "#FF5722", 0.6, 0.2);
+        const buildWall = (name, w, h, d, x, y, z) => {
+            const wall = BABYLON.MeshBuilder.CreateBox(name, {width: w, height: h, depth: d}, scene);
+            wall.position.set(x, y, z); wall.material = whMat; 
+            shadowGen.addShadowCaster(wall); wall.receiveShadows = true;
+        };
+        buildWall("wallL", 0.4, 3, 4, -1.8, 1.5, 0); buildWall("wallR", 0.4, 3, 4, 1.8, 1.5, 0);
+        buildWall("wallB", 4.0, 3, 0.4, 0, 1.5, 1.8); buildWall("wallFL", 1.2, 3, 0.4, -1.4, 1.5, -1.8);
+        buildWall("wallFR", 1.2, 3, 0.4, 1.4, 1.5, -1.8); buildWall("roof", 4.0, 0.4, 4.0, 0, 3.2, 0);
+
+        whDoor = BABYLON.MeshBuilder.CreateBox("whDoor", {width: 1.6, height: 3, depth: 0.15}, scene);
+        whDoor.position.set(0, 1.5, -1.8); whDoor.material = createPBR("doorMat", "#888888", 0.2, 0.9);
+        whDoor.targetY = 1.5; shadowGen.addShadowCaster(whDoor);
+
+        const planeAlmacen = BABYLON.MeshBuilder.CreatePlane("whLabel", {width: 3.8, height: 1.2}, scene);
+        planeAlmacen.position.set(0, 3.8, -2.01);
+        const dtTexAlm = new BABYLON.DynamicTexture("dtTexAlm", {width: 512, height: 256}, scene);
+        dtTexAlm.drawText("ALMACÉN", null, 160, "bold 80px Arial", "white", "#FF5722", true);
+        const dtMatAlm = new BABYLON.StandardMaterial("dtMatAlm", scene); 
+        dtMatAlm.diffuseTexture = dtTexAlm; dtMatAlm.emissiveTexture = dtTexAlm; dtMatAlm.disableLighting = true;
+        planeAlmacen.material = dtMatAlm; glow.addExcludedMesh(planeAlmacen);
+
+        for (let i = 0; i < 4; i++) {
+            const disc = BABYLON.MeshBuilder.CreateCylinder("d" + i, {diameter: 2.8, height: 0.05}, scene);
+            disc.position.set(dPos[i][0], 0.22, dPos[i][1]);
+            const dMat = new BABYLON.PBRMaterial("dMat"+i, scene);
+            dMat.albedoColor = BABYLON.Color3.FromHexString("#00f2ff");
+            dMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff").scale(0.15); 
+            dMat.roughness = 0.5; dMat.alpha = 0.85; dMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            disc.material = dMat; disc.receiveShadows = true; deliveryDiscs.push(disc);
+        }
+
+        // ========================================================
+        // HUMANOS ORGÁNICOS
+        // ========================================================
+        const skinMat = createPBR("skin", "#FFDCB1", 0.6, 0.0);
+        const pantsMat = createPBR("pants", "#222222", 0.9, 0.0);
+
+        for(let i = 0; i < 4; i++) {
+            const nGroup = new BABYLON.TransformNode("neighbor"+i, scene);
+            
+            const torso = BABYLON.MeshBuilder.CreateSphere("torso", {diameterX: 0.45, diameterY: 0.7, diameterZ: 0.35, segments: 16}, scene);
+            torso.parent = nGroup; 
+            torso.position.y = 1.05; 
+            torso.material = packageMats[i]; 
+            shadowGen.addShadowCaster(torso);
+            
+            const neck = BABYLON.MeshBuilder.CreateCylinder("neck", {diameter: 0.12, height: 0.15}, scene);
+            neck.parent = torso;
+            neck.position.y = 0.35;
+            neck.material = skinMat;
+
+            const head = BABYLON.MeshBuilder.CreateSphere("nHead", {diameter: 0.35, segments: 16}, scene);
+            head.parent = nGroup; 
+            head.position.y = 1.55; 
+            head.material = skinMat; 
+            shadowGen.addShadowCaster(head);
+
+            const buildLimb = (name, h, radius, px, py, pz, mat) => {
+                const pivot = new BABYLON.TransformNode(name+"Pivot", scene);
+                pivot.parent = nGroup; 
+                pivot.position.set(px, py, pz);
+                
+                const joint = BABYLON.MeshBuilder.CreateSphere(name+"Joint", {diameter: radius * 2.2, segments: 12}, scene);
+                joint.parent = pivot;
+                joint.material = mat;
+                shadowGen.addShadowCaster(joint);
+
+                const limb = BABYLON.MeshBuilder.CreateCapsule(name, {height: h, radius: radius}, scene);
+                limb.parent = pivot; 
+                limb.position.y = -h / 2 + radius;
+                limb.material = mat; 
+                shadowGen.addShadowCaster(limb);
+                
+                return pivot;
+            };
+
+            const armL = buildLimb("armL", 0.55, 0.08, -0.28, 1.3, 0, skinMat);
+            const armR = buildLimb("armR", 0.55, 0.08,  0.28, 1.3, 0, skinMat);
+            const legL = buildLimb("legL", 0.75, 0.11, -0.13, 0.7, 0, pantsMat);
+            const legR = buildLimb("legR", 0.75, 0.11,  0.13, 0.7, 0, pantsMat);
+
+            const heldPack = BABYLON.MeshBuilder.CreateBox("heldPack"+i, {width: 0.4, height: 0.3, depth: 0.4}, scene);
+            heldPack.parent = nGroup; heldPack.position.set(0, 1.15, 0.35); 
+            heldPack.material = createPBR("hpMat", packageColors[i], 0.1, 0.2, true);
+            heldPack.isVisible = false; 
+            shadowGen.addShadowCaster(heldPack);
+
+            nGroup.limbs = { armL, armR, legL, legR };
+            nGroup.heldPackage = heldPack; nGroup.hasPackage = false; nGroup.nState = 'IDLE';
+            nGroup.position.set(nDoors[i].x, 0, nDoors[i].z);
+            nGroup.setEnabled(false); 
+            neighbors.push(nGroup);
+        }
+
+        // ROBOT
+        robot = new BABYLON.TransformNode("robot", scene);
+        robot.position.set(0, 0.4, 0); robot.rotation.y = Math.PI;
+
+        const chassis = BABYLON.MeshBuilder.CreateBox("chassis", {width: 1.2, height: 0.25, depth: 1.8}, scene);
+        chassis.parent = robot; chassis.position.y = 0.3; 
+        chassis.material = createPBR("chassisMat", "#ffffff", 0.2, 0.8, true); 
+        shadowGen.addShadowCaster(chassis); chassis.receiveShadows = true;
+
+        const boxBase = BABYLON.MeshBuilder.CreateBox("boxBase", {width: 1.0, height: 0.6, depth: 1.2}, scene);
+        boxBase.parent = robot; boxBase.position.set(0, 0.725, 0); 
+        boxBase.material = createPBR("boxMat", "#00BFA5", 0.2, 0.6, true);
+        shadowGen.addShadowCaster(boxBase); boxBase.receiveShadows = true;
+
+        boxLidPivot = new BABYLON.TransformNode("boxLidPivot", scene);
+        boxLidPivot.parent = boxBase; boxLidPivot.position.set(0, 0.3, -0.6);
+
+        const boxLid = BABYLON.MeshBuilder.CreateBox("boxLid", {width: 1.0, height: 0.15, depth: 1.2}, scene);
+        boxLid.parent = boxLidPivot; boxLid.position.set(0, 0.075, 0.6); 
+        boxLid.material = boxBase.material;
+        shadowGen.addShadowCaster(boxLid); boxLid.receiveShadows = true;
+
+        robotPackage = BABYLON.MeshBuilder.CreateBox("robotPackage", {width: 0.6, height: 0.35, depth: 0.6}, scene);
+        robotPackage.parent = boxBase; robotPackage.position.set(0, 0.15, 0); 
+        robotPackage.isVisible = false; 
+        shadowGen.addShadowCaster(robotPackage);
+
+        const sensor = BABYLON.MeshBuilder.CreateBox("sensor", {width: 0.8, height: 0.08, depth: 0.15}, scene);
+        sensor.parent = robot; sensor.position.set(0, 0.45, 0.95);
+        sensorMat = new BABYLON.PBRMaterial("sensorMat", scene);
+        sensorMat.albedoColor = new BABYLON.Color3(0,0,0);
+        sensorMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff");
+        sensor.material = sensorMat; 
+        shadowGen.addShadowCaster(sensor);
+
+        const wPos = [[-0.65, 0.2, 0.6], [0.65, 0.2, 0.6], [-0.65, 0.2, -0.6], [0.65, 0.2, -0.6]];
+        const wMat = createPBR("wMat", "#111111", 0.9, 0.1); 
+        wPos.forEach(p => {
+            const pivot = new BABYLON.TransformNode("wPivot", scene);
+            pivot.parent = robot; pivot.position.set(p[0], p[1], p[2]);
+            const w = BABYLON.MeshBuilder.CreateCylinder("w", {diameter: 0.5, height: 0.18, tessellation: 24}, scene);
+            w.parent = pivot; w.rotation.z = Math.PI / 2; w.material = wMat;
+            shadowGen.addShadowCaster(w); w.receiveShadows = true; wheels.push(w);
+        });
+
+        scene.onBeforeRenderObservable.add(() => {
+            const dt = engine.getDeltaTime() / 1000;
+            houseDoors.forEach(d => { if(d.targetY) d.position.y += (d.targetY - d.position.y) * 4 * dt; });
+            if(whDoor.targetY) whDoor.position.y += (whDoor.targetY - whDoor.position.y) * 3 * dt;
+        });
+
+        return scene;
+    };
+
+    createScene();
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+
+    // ==========================================
+    // SISTEMA VISUAL: PARTÍCULAS Y ONDAS
+    // ==========================================
+    function createParticleEffect(position, color) {
+        const tex = new BABYLON.DynamicTexture("ptex", {width:16, height:16}, scene, false);
+        const ctx = tex.getContext(); 
+        ctx.beginPath(); ctx.arc(8, 8, 8, 0, Math.PI * 2); ctx.fillStyle = "white"; ctx.fill(); tex.update();
+        
+        const ps = new BABYLON.ParticleSystem("ps", 200, scene);
+        ps.particleTexture = tex; ps.emitter = position.clone(); ps.emitter.y = 0.5;
+        ps.color1 = new BABYLON.Color4(color.r, color.g, color.b, 1.0); 
+        ps.color2 = new BABYLON.Color4(1, 1, 1, 1.0); 
+        ps.colorDead = new BABYLON.Color4(color.r, color.g, color.b, 0.0);
+        ps.minSize = 0.1; ps.maxSize = 0.4; 
+        ps.minLifeTime = 0.5; ps.maxLifeTime = 1.2; 
+        ps.emitRate = 250; ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+        ps.direction1 = new BABYLON.Vector3(-2, 3, -2); ps.direction2 = new BABYLON.Vector3(2, 5, 2); 
+        ps.gravity = new BABYLON.Vector3(0, -5, 0);
+        ps.targetStopDuration = 0.8; 
+        ps.start();
+    }
+
+    function createWave(pos) {
+        const torus = BABYLON.MeshBuilder.CreateTorus("wave", {diameter: 1.5, thickness: 0.1, tessellation: 48}, scene);
+        torus.position = pos.clone(); torus.position.y += 0.8;
+        const mat = new BABYLON.PBRMaterial("waveMat", scene);
+        mat.albedoColor = new BABYLON.Color3(0,0,0);
+        mat.emissiveColor = new BABYLON.Color3(0, 0.9, 1); 
+        mat.alpha = 1.0; 
+        mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+        torus.material = mat;
+
+        let t = 0;
+        const obs = scene.onBeforeRenderObservable.add(() => {
+            if(stopRequested) { torus.dispose(); scene.onBeforeRenderObservable.remove(obs); return; }
+            t += engine.getDeltaTime() / 1000;
+            const p = t / 1.0; 
+            torus.scaling.setAll(1 + p * 6); 
+            mat.alpha = 1 - Math.pow(p, 2);
+            if (p >= 1) { torus.dispose(); scene.onBeforeRenderObservable.remove(obs); }
+        });
+        animObservers.push(obs);
+    }
+
+    // ==========================================
+    // DRAG & DROP UI
+    // ==========================================
+    let draggedElement = null, isPaletteSource = false;
+    document.addEventListener('dragstart', (e) => {
+        if (!e.target.classList || !e.target.classList.contains('block') || e.target.classList.contains('locked')) return;
+        draggedElement = e.target; isPaletteSource = e.target.parentElement.id === 'palette';
+        setTimeout(() => e.target.classList.add('dragging'), 0);
+    });
+    document.addEventListener('dragend', (e) => {
+        if (e.target.classList) e.target.classList.remove('dragging');
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        draggedElement = null;
+    });
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.block:not(.dragging)')].filter(el => el.parentElement === container);
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect(); const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) return { offset: offset, element: child }; else return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+    const seqContainer = document.getElementById('sequence-container');
+    function setupDropZone(zone) {
+        zone.addEventListener('dragover', e => { e.preventDefault(); if(draggedElement) zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', e => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault(); zone.classList.remove('drag-over'); if(!draggedElement) return;
+            
+            let node = isPaletteSource ? createClone(draggedElement) : draggedElement;
+            const targetHueco = e.target.closest ? e.target.closest('.hueco-pista') : null;
+            if (targetHueco) { targetHueco.replaceWith(node); return; }
+
+            const firstHueco = zone.querySelector(':scope > .hueco-pista');
+            if (firstHueco) { firstHueco.replaceWith(node); return; }
+
+            const afterElement = getDragAfterElement(zone, e.clientY);
+            afterElement == null ? zone.appendChild(node) : zone.insertBefore(node, afterElement);
+        });
+    }
+    setupDropZone(seqContainer);
+    
+    function createClone(original) {
+        const clone = original.cloneNode(true); clone.classList.remove('dragging');
+        const origSelect = original.querySelector('select');
+        if (origSelect) { clone.querySelector('select').value = origSelect.value; clone.querySelector('select').addEventListener('mousedown', e => e.stopPropagation()); }
+        if (clone.classList.contains('block-loop')) {
+            const inner = document.createElement('div'); inner.className = 'loop-inner'; setupDropZone(inner); clone.appendChild(inner);
+        }
+        return clone;
+    }
+
+    // ==========================================
+    // MISIONES
+    // ==========================================
+    let currentMission = 1, isRunning = false, stopRequested = false, visitedPoints = [];
+    
+    const Missions = {
+        1: { text: "El robot tiene que llevar paquetes al Punto 1 y al Punto 2 y volver al almacén. Pulsa EJECUTAR y observa.", setup: () => {
+            seqContainer.innerHTML = ''; addLockedBlock('p1'); addLockedBlock('p2'); addLockedBlock('almacen'); document.getElementById('btn-solution').style.display = 'none';
+        }, check: () => visitedPoints.join(',') === 'p1,p2,almacen', msg: "¡Has visto la tarea guardada IR A PUNTO en acción!" },
+        
+        2: { text: "El robot tiene que entregar en el Punto 3. Arrastra el bloque que falta al hueco.", setup: () => {
+            seqContainer.innerHTML = ''; addLockedBlock('almacen');
+            const h = document.createElement('div'); h.className = 'hueco-pista'; h.innerText = '[HUECO — arrastrar aquí]'; seqContainer.appendChild(h);
+            addLockedBlock('almacen'); document.getElementById('btn-solution').style.display = 'none';
+        }, check: () => visitedPoints.join(',') === 'almacen,p3,almacen', msg: "¡Perfecto! Has rellenado el programa llamando a la tarea." },
+        
+        3: { text: "Primero al Punto 2, luego al Punto 4. Empieza desde el Almacén y vuelve al final. Construye el programa completo.", setup: () => {
+            seqContainer.innerHTML = ''; document.getElementById('btn-solution').style.display = 'block';
+        }, check: () => visitedPoints.join(',') === 'almacen,p2,p4,almacen', msg: "¡Excelente! Has construido un programa completo." },
+        
+        4: { text: "Repetir 2 veces: ir al Punto 1 y al Punto 3. Al terminar, vuelve al Almacén. ¡Rellena los huecos!", setup: () => {
+            seqContainer.innerHTML = ''; 
+            const loop = document.createElement('div'); loop.className = 'block block-loop locked'; loop.innerHTML = 'REPETIR 2 VECES';
+            const inner = document.createElement('div'); inner.className = 'loop-inner';
+            const h1 = document.createElement('div'); h1.className = 'hueco-pista'; h1.innerText = '[HUECO 1]'; inner.appendChild(h1);
+            const h2 = document.createElement('div'); h2.className = 'hueco-pista'; h2.innerText = '[HUECO 2]'; inner.appendChild(h2);
+            setupDropZone(inner); loop.appendChild(inner); seqContainer.appendChild(loop); 
+            const h3 = document.createElement('div'); h3.className = 'hueco-pista'; h3.innerText = '[HUECO FINAL]'; seqContainer.appendChild(h3);
+            document.getElementById('btn-solution').style.display = 'block';
+        }, check: () => visitedPoints.join(',') === 'p1,p3,p1,p3,almacen', msg: "¡Impresionante! Has combinado bucles y tareas, sin olvidar el regreso." },
+        
+        5: { text: "Misión Libre: Entrega en P1, P2, P3 y P4 aplicando a cada uno una acción distinta. ¡Sin pistas! Vuelve al almacén al final.", setup: () => {
+            seqContainer.innerHTML = ''; document.getElementById('btn-solution').style.display = 'none';
+        }, check: () => {
+            const req = ['ACC_ESPERA','ACC_LLAMAR','ACC_NOCONTESTA','ACC_2PAQ','almacen'];
+            return req.every(act => visitedPoints.includes(act));
+        }, msg: "¡RETO SUPERADO! Dominas la programación con tareas avanzadas e interacciones modulares." }
+    };
+
+    function addLockedBlock(t) {
+        const b = document.createElement('div'); b.className = 'block block-ir-punto locked'; b.setAttribute('draggable', 'false');
+        const labels = {'p1':'Punto 1', 'p2':'Punto 2', 'p3':'Punto 3', 'p4':'Punto 4', 'almacen':'Almacén'};
+        b.innerHTML = `IR A PUNTO <select disabled><option value="${t}">${labels[t]}</option></select>`; 
+        seqContainer.appendChild(b);
+    }
+
+    function loadMission(n) {
+        stopRequested = true; currentMission = n;
+        document.querySelectorAll('.btn-mission').forEach(b => b.classList.remove('active'));
+        document.getElementById('mbtn-'+n).classList.add('active');
+        document.getElementById('mission-text').innerText = Missions[n].text;
+        
+        document.querySelectorAll('.m5-block').forEach(b => b.style.display = n === 5 ? 'flex' : 'none');
+
+        document.getElementById('btn-execute').style.display = 'block';
+        document.getElementById('btn-stop').style.display = 'none';
+
+        resetMissionState(); Missions[n].setup();
+    }
+
+    function resetMissionState() {
+        stopRequested = true; isRunning = false;
+        document.getElementById('btn-execute').disabled = false;
+        document.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
+        visitedPoints = [];
+        
+        animObservers.forEach(obs => scene.onBeforeRenderObservable.remove(obs));
+        animObservers = [];
+
+        robot.position.set(0, 0.4, 0); robot.rotation.y = Math.PI;
+        whDoor.targetY = 1.5; whDoor.position.y = 1.5;
+        boxLidPivot.rotation.x = 0; robotPackage.isVisible = false;
+        sensorMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff"); 
+        
+        deliveryDiscs.forEach(d => d.material.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff").scale(0.15));
+        
+        neighbors.forEach((n, i) => {
+            n.setEnabled(false); n.position.set(nDoors[i].x, 0, nDoors[i].z);
+            n.hasPackage = false; n.heldPackage.isVisible = false; n.nState = 'IDLE';
+            houseDoors[i].targetY = 1.1; houseDoors[i].position.y = 1.1;
+            if(n.limbs) { n.limbs.armL.rotation.x = 0; n.limbs.armR.rotation.x = 0; n.limbs.legL.rotation.x = 0; n.limbs.legR.rotation.x = 0; }
+        });
+    }
+
+    function showSolution() {
+        seqContainer.innerHTML = '';
+        if (currentMission === 3) ['almacen', 'p2', 'p4', 'almacen'].forEach(addLockedBlock);
+        else if (currentMission === 4) {
+            const loop = document.createElement('div'); loop.className = 'block block-loop locked'; loop.innerHTML = 'REPETIR 2 VECES';
+            const inner = document.createElement('div'); inner.className = 'loop-inner';
+            const b1 = document.createElement('div'); b1.className = 'block block-ir-punto locked'; b1.innerHTML = `IR A PUNTO <select disabled><option value="p1">Punto 1</option></select>`;
+            const b2 = document.createElement('div'); b2.className = 'block block-ir-punto locked'; b2.innerHTML = `IR A PUNTO <select disabled><option value="p3">Punto 3</option></select>`;
+            inner.appendChild(b1); inner.appendChild(b2); loop.appendChild(inner); seqContainer.appendChild(loop);
+            addLockedBlock('almacen');
+        }
+    }
+
+    // ==========================================
+    // LÓGICA DE EJECUCIÓN Y AST
+    // ==========================================
+    function parseDOM(c) {
+        let cmds = [];
+        c.querySelectorAll(':scope > .block').forEach(el => {
+            if (el.classList.contains('block-ir-punto')) cmds.push({ type: 'IR_PUNTO', target: el.querySelector('select').value, el: el });
+            else if (el.classList.contains('block-accion')) cmds.push({ type: 'ACCION', actionType: el.dataset.type, target: el.querySelector('select').value, el: el });
+            else if (el.classList.contains('block-loop')) cmds.push({ type: 'LOOP', count: 2, innerCmds: parseDOM(el.querySelector('.loop-inner')), el: el });
+        }); return cmds;
+    }
+
+    function stopExecution() {
+        stopRequested = true; isRunning = false;
+        document.getElementById('btn-execute').style.display = 'block';
+        document.getElementById('btn-stop').style.display = 'none';
+        document.getElementById('btn-execute').disabled = false;
+        document.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
+    }
+
+    async function executeProgram() {
+        if (isRunning) return; 
+        resetMissionState(); 
+        stopRequested = false; isRunning = true; 
+        document.getElementById('btn-execute').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'block';
+
+        const ast = parseDOM(seqContainer);
+        if (ast.length === 0) { stopExecution(); return; }
+        
+        await runBlocks(ast);
+        
+        if (isRunning) {
+            stopExecution();
+            if (!Missions[currentMission].check()) {
+                sensorMat.emissiveColor = new BABYLON.Color3(1, 0, 0); 
+                setTimeout(() => sensorMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff"), 1500);
+            }
+        }
+    }
+
+    async function runBlocks(cmds) {
+        for (let cmd of cmds) {
+            if (stopRequested) return;
+            cmd.el.classList.add('running');
+            
+            if (cmd.type === 'IR_PUNTO') {
+                await executeActionIR_PUNTO(cmd.target, currentMission <= 4);
+                if (stopRequested) return;
+                visitedPoints.push(cmd.target);
+            } else if (cmd.type === 'ACCION') {
+                await executeActionEspecial(cmd.actionType, cmd.target);
+                if (stopRequested) return;
+                visitedPoints.push(cmd.actionType);
+            } else if (cmd.type === 'LOOP') {
+                for (let i=0; i<cmd.count; i++) { if (stopRequested) break; await runBlocks(cmd.innerCmds); }
+            }
+
+            cmd.el.classList.remove('running');
+            if (Missions[currentMission].check()) { handleWin(); return; }
+            await sleep(500);
+        }
+    }
+
+    // ==========================================
+    // CINEMÁTICAS ASÍNCRONAS
+    // ==========================================
+    function moveEntityTowards(entity, tx, tz, speed, deltaTime, isRobot = false, stopDist = 0.05) {
+        const targetPos = new BABYLON.Vector3(tx, entity.position.y, tz);
+        const dist = BABYLON.Vector3.Distance(entity.position, targetPos);
+        if (dist > stopDist) {
+            const dir = targetPos.subtract(entity.position).normalize();
+            entity.position.addInPlace(dir.scale(speed * deltaTime));
+            const targetAngle = Math.atan2(dir.x, dir.z);
+            let diff = targetAngle - entity.rotation.y;
+            while (diff < -Math.PI) diff += Math.PI * 2; while (diff > Math.PI) diff -= Math.PI * 2;
+            entity.rotation.y += diff * 12 * deltaTime;
+            if (isRobot) { wheels.forEach(w => w.rotation.x += speed * deltaTime * 2.2); } 
+            else if (entity.limbs) {
+                const t = performance.now() * 0.012;
+                if (entity.hasPackage) { entity.limbs.armL.rotation.x = -1.2; entity.limbs.armR.rotation.x = -1.2; } 
+                else { entity.limbs.armL.rotation.x = Math.sin(t)*0.8; entity.limbs.armR.rotation.x = Math.sin(t+Math.PI)*0.8; }
+                entity.limbs.legL.rotation.x = Math.sin(t+Math.PI)*0.8; entity.limbs.legR.rotation.x = Math.sin(t)*0.8;
+            }
+            return { reached: false };
+        }
+        if (!isRobot && entity.limbs) {
+            if (entity.hasPackage) { entity.limbs.armL.rotation.x = -1.2; entity.limbs.armR.rotation.x = -1.2; } 
+            else { entity.limbs.armL.rotation.x = 0; entity.limbs.armR.rotation.x = 0; }
+            entity.limbs.legL.rotation.x = 0; entity.limbs.legR.rotation.x = 0;
+        }
+        return { reached: true };
+    }
+
+    function runUntil(conditionFn, actionFn) {
+        return new Promise(resolve => {
+            const obs = scene.onBeforeRenderObservable.add(() => {
+                if (stopRequested) { scene.onBeforeRenderObservable.remove(obs); resolve(false); return; }
+                const dt = engine.getDeltaTime() / 1000;
+                actionFn(dt);
+                if (conditionFn()) { scene.onBeforeRenderObservable.remove(obs); resolve(true); }
+            });
+            animObservers.push(obs);
+        });
+    }
+
+    const sleep = ms => new Promise(r => {
+        let t = 0; const obs = scene.onBeforeRenderObservable.add(() => {
+            if(stopRequested) { scene.onBeforeRenderObservable.remove(obs); r(); return; }
+            t += engine.getDeltaTime(); if(t >= ms) { scene.onBeforeRenderObservable.remove(obs); r(); }
+        });
+        animObservers.push(obs);
+    });
+
+    async function conducirA(tx, tz) {
+        await runUntil(() => moveEntityTowards(robot, tx, tz, 5.0, engine.getDeltaTime()/1000, true).reached, () => {});
+    }
+
+    async function emitWaves(count) {
+        for(let i=0; i<count; i++){
+            if(stopRequested) return;
+            createWave(robot.position);
+            await sleep(1000);
+        }
+    }
+
+    async function walkTo(n, tx, tz, stopDist) {
+        await runUntil(() => moveEntityTowards(n, tx, tz, 3.5, engine.getDeltaTime()/1000, false, stopDist).reached, () => {});
+    }
+
+    async function openRobotAndTake(n, idx) {
+        robotPackage.material = createPBR("rpMat", packageColors[idx], 0.1, 0.2, true); 
+        robotPackage.isVisible = true;
+        let actionTimer = 0;
+        await runUntil(() => actionTimer >= 2.0, dt => {
+            actionTimer += dt;
+            if (actionTimer < 1) { boxLidPivot.rotation.x = -(Math.PI / 2.2) * actionTimer; } 
+            else if (actionTimer < 2) {
+                boxLidPivot.rotation.x = -(Math.PI / 2.2) * (2 - actionTimer);
+                if (robotPackage.isVisible) { robotPackage.isVisible = false; n.hasPackage = true; n.heldPackage.isVisible = true; }
+            }
+        });
+        boxLidPivot.rotation.x = 0;
+    }
+
+    async function executeActionIR_PUNTO(targetId, autoDeliver = true) {
+        if (targetId === 'almacen') {
+            if (robot.position.z < -2 || Math.abs(robot.position.x) > 0.1) {
+                if (Math.abs(robot.position.z - (-6)) > 0.1) await conducirA(robot.position.x, -6);
+                if (Math.abs(robot.position.x) > 0.1) await conducirA(0, -6);
+                whDoor.targetY = 4.5; await sleep(800);
+                await conducirA(0, 0); robot.rotation.y = Math.PI; whDoor.targetY = 1.5;
+            }
+            return;
+        }
+
+        const idx = parseInt(targetId.replace('p', '')) - 1;
+        const targetPos = dPos[idx];
+
+        if (robot.position.z > -2 && Math.abs(robot.position.x) < 0.1) {
+            whDoor.targetY = 4.5; await sleep(800);
+            await conducirA(0, -6); whDoor.targetY = 1.5;
+        }
+
+        if (Math.abs(robot.position.x - targetPos[0]) > 0.1) await conducirA(targetPos[0], robot.position.z);
+        if (Math.abs(robot.position.z - targetPos[1]) > 0.1) await conducirA(targetPos[0], targetPos[1]);
+
+        if (autoDeliver) {
+            await doNormalDelivery(idx);
+        } else {
+            if (neighbors[idx].nState === 'WAITING') {
+                await walkTo(neighbors[idx], robot.position.x, robot.position.z, 1.4);
+                await openRobotAndTake(neighbors[idx], idx);
+                deliveryDiscs[idx].material.emissiveColor = BABYLON.Color3.FromHexString("#00ff00").scale(0.25);
+                neighbors[idx].nState = 'IDLE';
+                walkBackHome(idx);
+            }
+        }
+    }
+
+    async function executeActionEspecial(actionType, targetId) {
+        if (targetId === 'almacen') return;
+        const idx = parseInt(targetId.replace('p', '')) - 1;
+        const n = neighbors[idx]; const door = houseDoors[idx];
+
+        if (actionType === 'ACC_ESPERA') {
+            door.targetY = 3.3; await sleep(600);
+            n.setEnabled(true); n.position.set(nDoors[idx].x, 0, nDoors[idx].z);
+            
+            // CORRECCIÓN ANTI-ATROPELLO: El vecino espera en su acera (offset de 1.8), no en el centro del disco
+            const waitX = dPos[idx][0] > 0 ? dPos[idx][0] + 1.8 : dPos[idx][0] - 1.8;
+            await walkTo(n, waitX, dPos[idx][1], 0.1); 
+            
+            // Forzamos a que mire hacia la calle (donde aparcará el robot)
+            n.rotation.y = dPos[idx][0] > 0 ? -Math.PI/2 : Math.PI/2;
+            n.nState = 'WAITING';
+            return;
+        } 
+        
+        if (actionType === 'ACC_NOCONTESTA') {
+            await emitWaves(3); await sleep(3000);
+            deliveryDiscs[idx].material.emissiveColor = BABYLON.Color3.FromHexString("#ff4400").scale(0.3);
+            return;
+        }
+
+        if (actionType === 'ACC_LLAMAR') {
+            await emitWaves(3);
+        }
+
+        door.targetY = 3.3; await sleep(600);
+        n.setEnabled(true); n.position.set(nDoors[idx].x, 0, nDoors[idx].z);
+
+        await walkTo(n, robot.position.x, robot.position.z, 1.4);
+        await openRobotAndTake(n, idx);
+
+        if (actionType === 'ACC_2PAQ') {
+            await walkTo(n, nDoors[idx].x, nDoors[idx].z, 0.1);
+            n.hasPackage = false; n.heldPackage.isVisible = false; await sleep(500); 
+            await walkTo(n, robot.position.x, robot.position.z, 1.4);
+            await openRobotAndTake(n, idx);
+        }
+
+        deliveryDiscs[idx].material.emissiveColor = BABYLON.Color3.FromHexString("#00ff00").scale(0.25);
+        walkBackHome(idx);
+    }
+
+    async function doNormalDelivery(idx) {
+        const n = neighbors[idx]; const door = houseDoors[idx];
+        door.targetY = 3.3; await sleep(1000); 
+        n.setEnabled(true); n.position.set(nDoors[idx].x, 0, nDoors[idx].z);
+        await walkTo(n, robot.position.x, robot.position.z, 1.4);
+        await openRobotAndTake(n, idx);
+        deliveryDiscs[idx].material.emissiveColor = BABYLON.Color3.FromHexString("#00ff00").scale(0.25);
+        walkBackHome(idx);
+    }
+
+    function walkBackHome(idx) {
+        (async () => {
+            if(stopRequested) return;
+            const n = neighbors[idx];
+            await walkTo(n, nDoors[idx].x, nDoors[idx].z, 0.1);
+            if(stopRequested) return;
+            n.setEnabled(false); n.hasPackage = false; n.heldPackage.isVisible = false; houseDoors[idx].targetY = 1.1; 
+        })();
+    }
+
+    // ==========================================
+    // MODALES Y CELEBRACIÓN
+    // ==========================================
+    async function handleWin() {
+        stopExecution(); 
+        document.getElementById('mbtn-'+currentMission).classList.add('completed');
+        
+        if (currentMission === 5) {
+            deliveryDiscs.forEach(d => d.material.emissiveColor = BABYLON.Color3.FromHexString("#00ff00").scale(0.25));
+            createParticleEffect(robot.position, new BABYLON.Color3(0, 1, 0));
+            let spinTime = 0; const spinObs = scene.onBeforeRenderObservable.add(() => {
+                robot.rotation.y += 0.1; spinTime += engine.getDeltaTime();
+                if(spinTime > 3000) scene.onBeforeRenderObservable.remove(spinObs);
+            });
+            animObservers.push(spinObs);
+        }
+        await sleep(2500);
+        document.getElementById('modal-text').innerText = Missions[currentMission].msg;
+        document.getElementById('modal').style.display = 'flex';
+    }
+    
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    function nextMission() { closeModal(); if (currentMission < 5) loadMission(currentMission + 1); }
+
+    window.onload = () => loadMission(1);
+</script>
+</body>
+</html>

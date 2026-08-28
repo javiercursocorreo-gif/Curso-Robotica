@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6.14 - Transformer POO (P1)</title>
+    
+    <!-- BabylonJS Core and Loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #renderCanvas {
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+            outline: none;
+        }
+        #uiContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: rgba(15, 15, 30, 0.8);
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(0,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .cyber-btn {
+            background: linear-gradient(135deg, #001f3f, #003366);
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,255,255,0.2);
+        }
+        .cyber-btn:hover {
+            background: #00ffff;
+            color: #001f3f;
+            box-shadow: 0 0 20px rgba(0,255,255,0.6);
+            transform: translateY(-2px);
+        }
+        .cyber-btn:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="uiContainer">
+        <button class="cyber-btn" id="btnAssemble">ENSAMBLAR</button>
+        <button class="cyber-btn" id="btnDisassemble">MODO VEHÍCULO</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        // ==========================================
+        // LA CLASE TRANSFORMER (POO)
+        // ==========================================
+        class Transformer {
+            constructor(scene, position) {
+                this.scene = scene;
+                this.position = position;
+                
+                // Propiedades que guardarán los datos del modelo 3D
+                this.wrapper = null;
+                this.animationGroup = null;
+                this.isAssembled = false;
+
+                // Lanzamos la carga asíncrona
+                this.loadModel();
+            }
+
+            async loadModel() {
+                // Creamos un wrapper lógico para mover al robot por el mundo matemáticamente
+                this.wrapper = new BABYLON.TransformNode("transformer_wrapper", this.scene);
+                this.wrapper.position = this.position;
+                
+                try {
+                    // Cargamos el GLB. Usamos importMeshAsync para tener control total
+                    const result = await BABYLON.SceneLoader.ImportMeshAsync(
+                        "", 
+                        "../../1.FICHEROS-AUXILIARES/", 
+                        "transformer.glb", 
+                        this.scene
+                    );
+
+                    let rootMesh = result.meshes[0];
+                    rootMesh.parent = this.wrapper; // Emparentamos el 3D a nuestro nodo matemático
+                    
+                    // Ajustamos el tamaño a x27 (aprox 1/3 más grande que x20)
+                    rootMesh.scaling = new BABYLON.Vector3(27, 27, 27); 
+
+                    // Buscamos la animación de transformación
+                    if (result.animationGroups && result.animationGroups.length > 0) {
+                        // Sabemos por ingeniería inversa que la animación se llama "transform_to_main_hero"
+                        this.animationGroup = result.animationGroups.find(ag => ag.name === "transform_to_main_hero");
+                        
+                        if (this.animationGroup) {
+                            // Detenemos la animación que se reproduce automáticamente por defecto
+                            this.animationGroup.stop();
+                            
+                            // Forzamos el robot al fotograma 0 (vehículo desensamblado)
+                            this.animationGroup.start(false, 1.0, 0, 0, false);
+                        }
+                    }
+                    console.log("Transformer cargado con éxito.");
+                    
+                } catch (error) {
+                    console.error("Error al cargar el Transformer:", error);
+                }
+            }
+
+            ensamblar() {
+                if (!this.animationGroup) return;
+                
+                console.log("Iniciando ensamblaje...");
+                // Reproducimos de principio a fin, sin bucle, velocidad normal
+                this.animationGroup.start(false, 1.0, this.animationGroup.from, this.animationGroup.to, false);
+                this.isAssembled = true;
+            }
+
+            desensamblar() {
+                if (!this.animationGroup) return;
+                
+                console.log("Iniciando desensamblaje...");
+                // Para reproducir marcha atrás en BabylonJS, se debe usar un speedRatio negativo (-1.0).
+                // IMPORTANTE: Los frames from y to siempre deben pasarse en orden cronológico (menor a mayor),
+                // es el speedRatio el que indica internamente que se lea de derecha a izquierda.
+                this.animationGroup.start(false, -1.0, this.animationGroup.from, this.animationGroup.to, false);
+                this.isAssembled = false;
+            }
+        }
+
+        // ==========================================
+        // CREACIÓN DE LA ESCENA
+        // ==========================================
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
+
+            // Cámara (al bajar el target a Y=10, el robot "sube" visualmente en la pantalla para no chocar con los botones)
+            // Aumentamos el radio a 90 para que quepa entero con su nuevo tamaño x20.
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 90, new BABYLON.Vector3(0, 10, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 20;
+
+            // Luces
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.8;
+            
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight.intensity = 0.8;
+
+            // Suelo tipo rejilla cibernética
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+            gridMat.specularColor = new BABYLON.Color3(0, 0, 0);
+            gridMat.wireframe = true;
+            ground.material = gridMat;
+
+            // ==========================================
+            // ¡INSTANCIAMOS NUESTRO TRANSFORMER USANDO LA CLASE!
+            // ==========================================
+            const optimus = new Transformer(scene, BABYLON.Vector3.Zero());
+
+            // Conectamos los botones de la UI con los métodos del objeto
+            document.getElementById("btnAssemble").onclick = () => optimus.ensamblar();
+            document.getElementById("btnDisassemble").onclick = () => optimus.desensamblar();
+
+            return scene;
+        };
+
+        const scene = createScene();
+
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

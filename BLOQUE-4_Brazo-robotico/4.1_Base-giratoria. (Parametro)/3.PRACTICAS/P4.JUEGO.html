@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — Base Giratoria</title>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #0d0d1a;
+  --bg2: #13132a;
+  --glass: rgba(0,20,40,0.85);
+  --text: #ffffff;
+  --sub: #aaaaaa;
+  --success: #00e676;
+  --danger: #ff4444;
+  --warning: #ffcc00;
+  --orange: #FF6B35;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 2px solid var(--primary);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+#header h1 { font-size: 22px; color: var(--primary); letter-spacing: 5px; text-transform: uppercase; }
+#header .subtitle { font-size: 14px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: bold; }
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 1px solid #333;
+  display: flex; z-index: 99; padding: 6px 12px; gap: 8px;
+}
+.prog-btn {
+  flex: 1; height: 44px; border: 2px solid #444; background: transparent;
+  color: var(--sub); font-size: 14px; cursor: pointer;
+  border-radius: 8px; transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+  outline: none;
+}
+.prog-btn.active { border-color: var(--warning); color: var(--warning); background: rgba(255,204,0,0.1); }
+.prog-btn.done { border-color: var(--primary); color: var(--primary); background: rgba(0,242,255,0.1); }
+#main {
+  margin-top: 130px;
+  min-height: calc(100vh - 130px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pantalla {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 800px; width: 100%;
+}
+.pantalla.activa { display: flex; }
+.portada-emojis { font-size: 80px; margin-bottom: 20px; }
+.portada-titulo { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 12px; }
+.portada-desc { font-size: 18px; color: var(--sub); margin-bottom: 30px; max-width: 520px; line-height: 1.6; }
+.badges-container { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 14px 22px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+.btn-empezar {
+  background: var(--primary); color: #000; border: none; padding: 18px 48px;
+  font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer;
+  min-height: 70px; transition: all 0.2s; letter-spacing: 2px;
+}
+.btn-empezar:hover { background: #00d4e0; transform: scale(1.03); }
+
+.game-card {
+  background: var(--glass);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 800px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,242,255,0.08);
+}
+.game-title { font-size: 13px; letter-spacing: 4px; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+.game-question { font-size: 22px; line-height: 1.4; margin-bottom: 28px; color: var(--text); font-weight: 600; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.opt-btn {
+  min-height: 75px; padding: 16px 20px;
+  border: 2px solid #444; background: rgba(255,255,255,0.04);
+  color: var(--text); font-size: 18px; cursor: pointer;
+  border-radius: 12px; transition: all 0.25s;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,68,68,0.1); color: var(--danger); }
+.opt-btn:disabled { cursor: default; }
+
+.feedback {
+  min-height: 60px; padding: 14px 20px;
+  border-radius: 10px; font-size: 18px; margin-bottom: 18px;
+  display: none; line-height: 1.4;
+}
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,230,118,0.15); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+.btn-siguiente {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-siguiente.show { display: block; }
+.btn-siguiente:hover { background: #00d4e0; transform: translateY(-2px); }
+
+.btn-solucion {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--warning); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-solucion.show { display: block; }
+.btn-solucion:hover { background: #e6b800; transform: translateY(-2px); }
+
+.btn-reiniciar {
+  min-height: 55px; padding: 0 24px;
+  background: transparent; border: 2px solid #555; color: var(--sub);
+  border-radius: 10px; font-size: 16px; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-top: 14px;
+}
+.btn-reiniciar:hover { border-color: var(--warning); color: var(--warning); }
+
+/* Base Rotator HUD */
+.base-hud {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #050515;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.base-dial {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  border: 3px solid #333;
+  border-radius: 50%;
+  background: rgba(0,242,255,0.03);
+}
+.base-dial-tick {
+  position: absolute;
+  width: 3px;
+  height: 12px;
+  background: #444;
+  left: 63px;
+  top: 0;
+  transform-origin: 2px 65px;
+}
+.base-arm-pointer {
+  position: absolute;
+  width: 6px;
+  height: 55px;
+  background: var(--orange);
+  left: 62px;
+  top: 10px;
+  transform-origin: 3px 55px;
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+  border-radius: 3px;
+  box-shadow: 0 0 12px var(--orange);
+}
+.base-center-hub {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: var(--primary);
+  border-radius: 50%;
+  left: 56px;
+  top: 56px;
+  box-shadow: 0 0 10px var(--primary);
+}
+.base-hud-labels {
+  position: absolute;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: bold;
+  font-family: monospace;
+  background: rgba(0,0,0,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+@keyframes sweep-alarm {
+  0%, 100% { transform: rotate(90deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+/* Sortable items */
+.sortable-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.sort-item {
+  min-height: 70px; padding: 14px 20px;
+  background: rgba(0,191,165,0.08); border: 2px solid var(--teal);
+  border-radius: 12px; font-size: 18px; cursor: grab;
+  display: flex; align-items: center; gap: 14px;
+  user-select: none; transition: all 0.2s;
+}
+.sort-item:active { cursor: grabbing; }
+.sort-item.dragging { opacity: 0.4; }
+.sort-item.over { border: 2px dashed var(--warning) !important; background: rgba(255,204,0,0.08) !important; }
+.sort-num {
+  width: 36px; height: 36px; background: var(--teal);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 16px; color: #000; flex-shrink: 0;
+}
+.btn-verificar {
+  min-height: 75px; width: 100%;
+  background: var(--orange); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-bottom: 12px;
+}
+.btn-verificar:hover { background: #e55c28; }
+
+/* Match grid */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-item {
+  min-height: 70px; padding: 14px 16px;
+  border: 2px solid #444; border-radius: 10px;
+  font-size: 17px; cursor: pointer; transition: all 0.25s;
+  display: flex; align-items: center; line-height: 1.3;
+}
+.match-item.left { background: rgba(255,107,53,0.1); border-color: var(--orange); }
+.match-item.right { background: rgba(0,191,165,0.1); border-color: var(--teal); }
+.match-item.selected { transform: scale(1.03); box-shadow: 0 0 20px rgba(0,242,255,0.4); border-color: var(--primary); }
+.match-item.matched { opacity: 0.5; cursor: default; border-style: dashed; }
+.match-item.match-ok { border-color: var(--success); background: rgba(0,230,118,0.12); color: var(--success); }
+.match-item.match-ko { border-color: var(--danger); background: rgba(255,68,68,0.1); animation: shake 0.4s; }
+.match-pair-0 { border-color: #00e676 !important; background: rgba(0, 230, 118, 0.15) !important; color: #00e676 !important; }
+.match-pair-1 { border-color: #29b6f6 !important; background: rgba(41, 182, 246, 0.15) !important; color: #29b6f6 !important; }
+.match-pair-2 { border-color: #ab47bc !important; background: rgba(171, 71, 188, 0.15) !important; color: #ab47bc !important; }
+.match-pair-3 { border-color: #ffa726 !important; background: rgba(255, 167, 38, 0.15) !important; color: #ffa726 !important; }
+.match-pair-4 { border-color: #ffee58 !important; background: rgba(255, 238, 88, 0.15) !important; color: #ffee58 !important; }
+.match-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+/* Reto Final flights scenario styles */
+.sc-meta-box { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 20px; margin-bottom: 18px; }
+.sc-emoji { font-size: 50px; }
+.sc-desc { font-size: 17px; line-height: 1.5; color: #fff; }
+
+#final-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px;
+}
+.trophy { font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite alternate; }
+@keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+.final-title { font-size: 32px; color: var(--primary); letter-spacing: 4px; margin-bottom: 12px; }
+.final-score { font-size: 22px; color: var(--warning); margin-bottom: 30px; }
+.btn-replay {
+  min-height: 75px; padding: 0 48px;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 16px;
+  font-size: 22px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; letter-spacing: 2px;
+}
+.btn-replay:hover { background: #00d4e0; }
+
+@media (max-width: 768px) {
+  #header { height: auto; padding: 10px; flex-direction: column; gap: 5px; align-items: flex-start; }
+  #score-display { text-align: left !important; font-size: 18px; }
+  #progress-bar { top: 105px; }
+  #main { margin-top: 165px; min-height: calc(100vh - 165px); }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Base Giratoria</h1>
+    <div class="subtitle">Repaso · El parámetro y el servo</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Ordenar</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar</button>
+  <button class="prog-btn" onclick="goGame(3)">🎯 Reto Final</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">🦾⚙️</div>
+    <div class="portada-titulo">¿Qué es el parámetro en un robot?</div>
+    <div class="portada-desc">4 minijuegos para repasar cómo los parámetros permiten dar detalles precisos a las órdenes del brazo robótico.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial</div>
+      <div class="badge-card">📦 Ordenar</div>
+      <div class="badge-card">🔗 Emparejar</div>
+      <div class="badge-card">🎯 Reto Final</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡EMPEZAR!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 800px;"></div>
+</div>
+
+<script>
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0;
+  currentGame = 0;
+  completedGames.fill(false);
+  updateScore(0);
+  updateProgressBar();
+  game1();
+}
+
+function goGame(n) {
+  currentGame = n;
+  updateProgressBar();
+  games[n]();
+}
+
+function nextGame() {
+  completedGames[currentGame] = true;
+  updateProgressBar();
+  if (currentGame < 3) {
+    currentGame++;
+    updateProgressBar();
+    games[currentGame]();
+  } else {
+    showFinal();
+  }
+}
+
+// ─── JUEGO 1: TRIVIAL (5 Preguntas) ──────────────────────────────────────────
+const trivia = [
+  {
+    q: "¿Qué es un parámetro en el contexto de la programación de robots?",
+    opts: [
+      "Una orden directa para que el robot se apague de inmediato",
+      "Un detalle o valor variable que se añade a una orden para especificar cómo debe actuar",
+      "La marca de la placa electrónica que controla el servomotor",
+      "Un tipo de cable plano para conectar la batería"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! El parámetro es un valor numérico o detalle variable (como un ángulo o tiempo) que especifica y da sentido preciso a una orden genérica."
+  },
+  {
+    q: "Pensemos en un microondas doméstico. ¿Cuáles son los parámetros que ajustan la orden de calentar?",
+    opts: [
+      "El tipo de enchufe y el color de la puerta del aparato",
+      "El tiempo de cocción y el nivel de potencia seleccionados",
+      "La marca del plato de cristal y el tipo de alimento",
+      "El microondas no usa parámetros, solo calienta de una forma"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! La orden base es siempre 'calentar', pero el tiempo y la potencia son los parámetros variables que determinan el resultado."
+  },
+  {
+    q: "En el termostato de una casa, ¿qué valor representa el parámetro?",
+    opts: [
+      "La temperatura en grados (ej. 21°C) que elegimos en el dial",
+      "El color de la caldera de la calefacción",
+      "La marca de la caldera instalada",
+      "La cantidad de radiadores que tiene la casa"
+    ],
+    ok: 0,
+    exp: "✅ ¡Exacto! Los grados seleccionados son el parámetro que le dice al termostato cuándo activar o detener la caldera."
+  },
+  {
+    q: "¿Por qué son tan útiles los parámetros al diseñar máquinas y robots?",
+    opts: [
+      "Hacen que los robots consuman menos corriente eléctrica",
+      "Permiten tener un solo botón u orden y adaptarla con infinitos detalles, evitando tener miles de botones diferentes",
+      "Eliminan la necesidad de usar cables de conexión en la placa",
+      "Hacen que los sensores de distancia funcionen en la oscuridad"
+    ],
+    ok: 1,
+    exp: "✅ ¡Perfecto! Gracias a los parámetros, una única función ('Girar base') puede orientar el brazo a cualquier lado sin necesidad de inventar una orden para cada ángulo."
+  },
+  {
+    q: "¿Cómo recibe físicamente un servomotor el parámetro de ángulo desde la placa?",
+    opts: [
+      "A través de una señal luminosa emitida por la placa",
+      "Mediante una señal PWM (ancho de pulso) donde la duración del pulso (de 1ms a 2ms) determina el ángulo",
+      "Enviando corriente por tres cables diferentes a la vez",
+      "El servomotor no recibe parámetros, gira al azar"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! El ancho del pulso (modulación PWM) transmite el parámetro: 1ms indica 0°, 1.5ms indica 90° y 2ms representa 180°."
+  }
+];
+
+let triviaIdx = 0;
+let triviaAnswered = false;
+let triviaAttempts = 0;
+
+function game1() {
+  triviaIdx = 0;
+  renderTrivia();
+}
+
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx];
+  triviaAnswered = false;
+  triviaAttempts = 0;
+  
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(q.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial · Pregunta ${triviaIdx+1} de ${trivia.length}</div>
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE →</button>
+      <button class="btn-reiniciar" onclick="game1()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = q.exp;
+    if (triviaAttempts === 0) {
+      updateScore(20);
+    } else {
+      updateScore(10);
+    }
+    document.getElementById('btn-sol').classList.remove('show');
+    document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show');
+  document.getElementById('btn-sig').classList.add('show');
+}
+
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR (6 pasos Drag & Drop nativo) ────────────────────────────
+const sortItems = [
+  { id: 'a', text: '🔌 Alimentamos el brazo y el sensor se activa en espera' },
+  { id: 'b', text: '📦 Una caja llega a la cinta y es detectada por el sensor' },
+  { id: 'c', text: '🧠 El programa evalúa la condición "SI es caja del centro"' },
+  { id: 'd', text: '⚙️ La placa envía la señal PWM con el parámetro de 90°' },
+  { id: 'e', text: '🔄 El servomotor gira físicamente la base al centro exacto' },
+  { id: 'f', text: '📥 La caja se deposita de forma segura en la bandeja central' }
+];
+const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f'];
+let sortCurrentOrder = [];
+let sortDone = false;
+let sortAttempts = 0;
+
+function game2() {
+  sortCurrentOrder = shuffleArray([...sortItems]);
+  sortDone = false;
+  sortAttempts = 0;
+  renderSort();
+}
+
+function renderSort() {
+  const html = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Flujo de Clasificación</div>
+      <div class="game-question">Arrastra los pasos para ordenar de principio a fin la secuencia lógica y física que realiza el brazo para clasificar una caja en el centro.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div>
+            <span>${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  initDragSort();
+}
+
+function initDragSort() {
+  const list = document.getElementById('sort-list');
+  let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => { item.classList.remove('dragging'); dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); if (dragEl && dragEl !== item) item.classList.add('over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault(); item.classList.remove('over');
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        const fromIdx = items.indexOf(dragEl);
+        const toIdx = items.indexOf(item);
+        if (fromIdx < toIdx) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+
+function renumberSort() {
+  document.querySelectorAll('.sort-item').forEach((el, i) => {
+    el.querySelector('.sort-num').textContent = i + 1;
+  });
+}
+
+function disableDrag() {
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.removeAttribute('draggable');
+    el.style.cursor = 'default';
+  });
+}
+
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Perfecto! La secuencia física de detección y la transmisión del parámetro de ángulo correcto ocurren en este orden exacto para clasificar la caja.';
+    if (sortAttempts === 0) {
+      updateScore(30);
+    }
+    sortDone = true;
+    disableDrag();
+    document.getElementById('btn-sol2').classList.remove('show');
+    document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ El orden no es correcto todavía. Piensa en qué ocurre primero (detección física) y cómo se calcula y envía el parámetro antes de moverse.';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+
+function showSortSolution() {
+  sortDone = true;
+  const list = document.getElementById('sort-list');
+  list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `<div class="sort-num">${i+1}</div><span>${item.text}</span>`;
+    list.appendChild(div);
+  });
+  const fb = document.getElementById('fb-sort');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes los pasos ordenados secuencialmente.';
+  disableDrag();
+  document.getElementById('btn-sol2').classList.remove('show');
+  document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR (5 Conceptos) ─────────────────────────────────────────
+const matchPairs = [
+  { left: 'Ángulo de 0°', right: 'Base apuntando al frente (centro)' },
+  { left: 'Ángulo de 90°', right: 'Base girada completamente a la izquierda' },
+  { left: 'Ángulo de -90°', right: 'Base girada completamente a la derecha' },
+  { left: 'El Parámetro', right: 'Detalle numérico (como el ángulo) que precisa una orden' },
+  { left: 'El Servomotor', right: 'Motor que gira a una posición exacta y la mantiene' }
+];
+let matchSelected = null;
+let matchDone = 0;
+let matchAutoCount = 0;
+
+function game3() {
+  matchSelected = null;
+  matchDone = 0;
+  matchAutoCount = 0;
+  
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Base Giratoria y Conceptos</div>
+      <div class="game-question">Pulsa un concepto de la izquierda y luego su descripción correspondiente en la derecha.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">
+          ${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+        <div class="match-col" id="right-col">
+          ${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function selectMatch(el) {
+  if (el.classList.contains('matched') || el.classList.contains('match-ok')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) {
+    if (side !== 'left') return;
+    matchSelected = el;
+    el.classList.add('selected');
+  } else {
+    if (side !== 'right') {
+      matchSelected.classList.remove('selected');
+      el.classList.add('selected');
+      matchSelected = el;
+      return;
+    }
+    const idxA = parseInt(matchSelected.dataset.idx);
+    const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('matched', 'match-pair-' + idxA);
+      el.classList.add('matched', 'match-pair-' + idxA);
+      
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][idxA];
+      matchSelected.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      el.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        const ownMatches = matchPairs.length - matchAutoCount;
+        updateScore(ownMatches * 6);
+        const fb = document.getElementById('fb-match');
+        fb.className = 'feedback show ok';
+        fb.textContent = '✅ ¡Excelente! Relacionas perfectamente cada parámetro y señal con su función en la base.';
+        document.getElementById('btn-sol3').classList.remove('show');
+        document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('match-ko');
+      el.classList.add('match-ko');
+      const prev = matchSelected;
+      setTimeout(() => { prev.classList.remove('match-ko'); el.classList.remove('match-ko'); }, 600);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+
+function showMatchSolution() {
+  const lefts = document.querySelectorAll('#left-col .match-item');
+  const rights = document.querySelectorAll('#right-col .match-item');
+  
+  for (let i = 0; i < matchPairs.length; i++) {
+    const l = Array.from(lefts).find(el => parseInt(el.dataset.idx) === i);
+    const r = Array.from(rights).find(el => parseInt(el.dataset.idx) === i);
+    
+    if (l && r && !l.classList.contains('matched')) {
+      l.classList.add('matched', 'match-pair-' + i);
+      r.classList.add('matched', 'match-pair-' + i);
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][i];
+      l.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      r.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+    }
+  }
+  
+  matchAutoCount = matchPairs.length - matchDone;
+  matchDone = matchPairs.length;
+  
+  const fb = document.getElementById('fb-match');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes los conceptos emparejados.';
+  document.getElementById('btn-sol3').classList.remove('show');
+  document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL (4 Escenarios de Decisión) ──────────────────────────
+const scenarios = [
+  {
+    emoji: "⏳",
+    title: "Posición de Espera",
+    desc: "El brazo robótico acaba de arrancar y debe posicionarse en espera de cajas apuntando a la derecha.",
+    angle: -90,
+    q: "Si la base del brazo debe quedarse apuntando a la derecha esperando las cajas, ¿qué parámetro de ángulo debemos enviar?",
+    opts: [
+      "Parámetro de -90° (derecha)",
+      "Parámetro de 0° (centro)",
+      "Parámetro de 90° (izquierda)",
+      "Parámetro de -45° (inclinado a la derecha)"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! El parámetro de -90° orienta el brazo a la derecha en su posición de espera (sentido horario)."
+  },
+  {
+    emoji: "📦",
+    title: "Clasificación Central",
+    desc: "Una caja llega a la cinta. El sensor determina que debe ir a la bandeja del centro.",
+    angle: 0,
+    q: "Para orientar la base hacia la bandeja del centro y depositar la caja, ¿qué parámetro debemos configurar?",
+    opts: [
+      "Parámetro de 0° (centro)",
+      "Parámetro de -90° (derecha)",
+      "Parámetro de 90° (izquierda)",
+      "Parámetro de 45° (izquierda)"
+    ],
+    ok: 0,
+    exp: "✅ ¡Perfecto! Un parámetro de 0° mantiene el brazo en el centro exacto (posición de reposo Home)."
+  },
+  {
+    emoji: "◀️",
+    title: "Clasificación Izquierda",
+    desc: "El brazo recoge una caja que debe almacenarse en la bandeja de la izquierda.",
+    angle: 90,
+    q: "Para orientar la base hacia la bandeja izquierda, ¿qué parámetro de ángulo debe enviar la placa de control?",
+    opts: [
+      "Parámetro de 90° (izquierda)",
+      "Parámetro de 0° (centro)",
+      "Parámetro de -90° (derecha)",
+      "Parámetro de -45° (derecha)"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! El parámetro de 90° gira la base completamente a la izquierda (sentido antihorario)."
+  },
+  {
+    emoji: "🔄",
+    title: "Barrido Alarma",
+    desc: "Queremos crear una alarma visual barriendo la base continuamente de extremo a extremo sin parar para ahuyentar un pájaro.",
+    angle: 0,
+    q: "¿Qué estructura lógica y parámetros permiten lograr este barrido continuo?",
+    opts: [
+      "Repetir siempre con: Girar a -90° ➔ Esperar 1s ➔ Girar a 90°",
+      "Una única orden de 'Girar a 0°' sin bucles",
+      "Apagar el interruptor de energía general",
+      "Un bloque 'Esperar 10s' sin mover ningún motor"
+    ],
+    ok: 0,
+    exp: "✅ ¡Excelente! El bucle infinito alternando los extremos de -90° y 90° con esperas intermedias genera la oscilación de alarma deseada."
+  }
+];
+
+let scIdx = 0;
+let scAnswered = false;
+let scAttempts = 0;
+
+function game4() {
+  scIdx = 0;
+  renderScenario();
+}
+
+function renderScenario() {
+  if (scIdx >= scenarios.length) { nextGame(); return; }
+  const s = scenarios[scIdx];
+  scAnswered = false;
+  scAttempts = 0;
+
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(s.ok);
+
+  let cssRotation = -s.angle;
+  let isSweep = (scIdx === 3);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Reto Final · Escenario ${scIdx+1} de ${scenarios.length}</div>
+      
+      <div class="sc-meta-box">
+        <div class="sc-emoji">${s.emoji}</div>
+        <div class="sc-desc"><strong>${s.title}</strong><br>${s.desc}</div>
+      </div>
+
+      <div class="base-hud">
+        <div class="base-dial">
+          <div class="base-dial-tick" style="transform: rotate(90deg);"></div>
+          <div class="base-dial-tick" style="transform: rotate(45deg);"></div>
+          <div class="base-dial-tick" style="transform: rotate(0deg); background: var(--primary);"></div>
+          <div class="base-dial-tick" style="transform: rotate(-45deg);"></div>
+          <div class="base-dial-tick" style="transform: rotate(-90deg);"></div>
+          
+          <div class="base-arm-pointer" style="transform: rotate(${cssRotation}deg); ${isSweep ? 'animation: sweep-alarm 3s ease-in-out infinite;' : ''}"></div>
+          <div class="base-center-hub"></div>
+        </div>
+        <div class="base-hud-labels" style="right: 15px; top: 80px;">-90° (Espera)</div>
+        <div class="base-hud-labels" style="left: calc(50% - 46px); top: 15px;">0° (Centro)</div>
+        <div class="base-hud-labels" style="left: 15px; top: 80px;">90° (Izq)</div>
+      </div>
+
+      <div class="game-question">${s.q}</div>
+      <div class="options-grid" id="ifops">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerScenario(this, ${pos}, ${correctShuffled})">${s.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-f"></div>
+      <button class="btn-solucion" id="btn-solf" onclick="showScenarioSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sigf" onclick="scenarioNext()">${scIdx < scenarios.length - 1 ? 'SIGUIENTE ▶' : 'VER RESULTADO FINAL ▶'}</button>
+      <button class="btn-reiniciar" onclick="game4()">REINICIAR JUEGO</button>
+    </div>`;
+
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerScenario(btn, pos, correctPos) {
+  if (scAnswered) return;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  const fb = document.getElementById('fb-f');
+  if (pos === correctPos) {
+    scAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = s.exp;
+    if (scAttempts === 0) {
+      updateScore(25);
+    } else {
+      updateScore(12);
+    }
+    document.getElementById('btn-solf').classList.remove('show');
+    document.getElementById('btn-sigf').classList.add('show');
+  } else {
+    scAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-solf').classList.add('show');
+  }
+}
+
+function showScenarioSolution(correctPos) {
+  scAnswered = true;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb-f');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + s.exp;
+  document.getElementById('btn-solf').classList.remove('show');
+  document.getElementById('btn-sigf').classList.add('show');
+}
+
+function scenarioNext() { scIdx++; renderScenario(); }
+
+// ─── FINAL ───────────────────────────────────────────────────────────────────
+function showFinal() {
+  document.getElementById('progress-bar').style.display = 'none';
+  const trofeo = score >= 230 ? '🏆' : score >= 180 ? '🥈' : '🎖️';
+  const msg = score >= 230
+    ? '¡Excelente! Eres un experto absoluto controlando los parámetros de la base giratoria.'
+    : score >= 180
+    ? '¡Muy bien! Sabes perfectamente cómo orientar el brazo robótico y usar las señales PWM.'
+    : '¡Buen trabajo! Repasa los ángulos de la base y los barridos automáticos para ganar el oro.';
+    
+  document.getElementById('game-area').innerHTML = `
+    <div id="final-screen" style="display:flex">
+      <div class="trophy">${trofeo}</div>
+      <div class="final-title">¡REPASO COMPLETADO!</div>
+      <div class="final-score">⭐ ${score} puntos · ${msg}</div>
+      <button class="btn-replay" onclick="iniciar()">JUGAR OTRA VEZ</button>
+    </div>`;
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

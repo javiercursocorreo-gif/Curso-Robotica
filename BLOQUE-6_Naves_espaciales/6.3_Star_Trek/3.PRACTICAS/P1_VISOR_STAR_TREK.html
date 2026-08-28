@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6.3 STAR TREK</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: radial-gradient(circle at center, #5d2a1a 0%, #2f140a 50%, #140502 100%); }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; background: transparent; }
+        #header { position: absolute; top: 20px; left: 20px; color: #ffffff; pointer-events: none; }
+        h1 { margin: 0; font-size: 2.5em; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+        p { margin: 5px 0; font-size: 1.2em; font-weight: 300; color: #ffcc88; }
+        #loadingScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 1.5em; z-index: 100; transition: opacity 0.5s ease; }
+        .spinner { border: 6px solid rgba(255, 255, 255, 0.1); border-top: 6px solid white; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-top: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <div>Cargando Artefacto 3D...</div>
+        <div class="spinner"></div>
+    </div>
+    <div id="header">
+        <h1>6.3 STAR TREK</h1>
+        <p>Visor Interactivo (Arrastra para girar, rueda para zoom)</p>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // Fondo Transparente para ver el CSS
+
+            const ambientLight = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.6;
+            
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.intensity = 0.8;
+
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 5, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+
+            // PON AQUÍ LA RUTA A TU MODELO
+            const modelUrl = "../../../MODELOS/STAR%20TRECK/U.S.S.%20Enterprise%20NCC%20-%201701/"; 
+            const modelFile = "scene.gltf";
+
+            if (modelUrl && modelFile) {
+                try {
+                                        const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, modelFile, scene);
+                    const rootMesh = result.meshes[0];
+                    rootMesh.normalizeToUnitCube();
+                    rootMesh.scaling.scaleInPlace(3);
+                    
+                    const pivot = new BABYLON.TransformNode("pivot", scene);
+                    rootMesh.parent = pivot;
+                    
+                    // Centrado dinámico basado en geometría visible (ignora basura invisible del GLTF)
+                    let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                    let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                    rootMesh.getChildMeshes().forEach(m => {
+                        if (m.getTotalVertices() > 0) {
+                            m.computeWorldMatrix(true);
+                            const b = m.getBoundingInfo().boundingBox;
+                            min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                            max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                        }
+                    });
+                    const center = BABYLON.Vector3.Center(min, max);
+                    rootMesh.position.subtractInPlace(center);
+                    
+                    const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+                    
+                    const sidePanel = new BABYLON.GUI.StackPanel();
+                    sidePanel.width = "300px";
+                    sidePanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                    sidePanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+                    sidePanel.left = "20px";
+                    sidePanel.background = "rgba(10, 15, 20, 0.8)";
+                    sidePanel.isVertical = true;
+                    sidePanel.paddingTop = "20px";
+                    sidePanel.paddingBottom = "20px";
+                    advancedTexture.addControl(sidePanel);
+
+                    const panelTitle = new BABYLON.GUI.TextBlock();
+                    panelTitle.text = "ESPECIFICACIONES";
+                    panelTitle.height = "40px";
+                    panelTitle.color = "#ffcc88";
+                    panelTitle.fontSize = 20;
+                    panelTitle.fontWeight = "bold";
+                    sidePanel.addControl(panelTitle);
+
+                    const addFeature = function(title, description) {
+                        const featureHeader = new BABYLON.GUI.TextBlock();
+                        featureHeader.text = title.toUpperCase();
+                        featureHeader.height = "40px";
+                        featureHeader.color = "white";
+                        featureHeader.fontSize = 18;
+                        featureHeader.fontWeight = "bold";
+                        featureHeader.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                        featureHeader.paddingLeft = "15px";
+                        featureHeader.paddingTop = "10px";
+                        sidePanel.addControl(featureHeader);
+
+                        const featureText = new BABYLON.GUI.TextBlock();
+                        featureText.text = description;
+                        featureText.height = "130px";
+                        featureText.color = "#bbccdd";
+                        featureText.fontSize = 16;
+                        featureText.textWrapping = true;
+                        featureText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                        featureText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+                        featureText.paddingLeft = "15px";
+                        featureText.paddingRight = "15px";
+                        sidePanel.addControl(featureText);
+                    };
+
+                    addFeature("Sección del Platillo", "Alberga la tripulación principal, puente de mando, laboratorios científicos y bahías médicas.");
+                    addFeature("Barquillas Warp", "Canalizan la reacción de materia-antimateria para crear una burbuja warp y viajar más rápido que la luz.");
+                    addFeature("Cuello de Ingeniería", "Conecta el platillo con la sección de ingeniería, alojando sistemas de soporte vital y torpedos fotónicos.");
+                    
+                    scene.onBeforeRenderObservable.add(() => { pivot.rotation.y += 0.002; });
+                    
+                    const ls = document.getElementById("loadingScreen");
+                    ls.style.opacity = "0";
+                    setTimeout(() => ls.style.display = "none", 500);
+                } catch (e) {
+                    document.getElementById("loadingScreen").innerHTML = "Error cargando el modelo.";
+                }
+            } else {
+                document.getElementById("loadingScreen").innerHTML = "Esperando ruta del modelo 3D...";
+            }
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => { scene.render(); });
+        });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>

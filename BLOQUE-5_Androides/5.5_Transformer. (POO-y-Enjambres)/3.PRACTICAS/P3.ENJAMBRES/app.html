@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6.14 - Transformer POO (P3: Enjambres)</title>
+    
+    <!-- BabylonJS Core and Loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a2e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #renderCanvas { width: 100vw; height: 100vh; touch-action: none; outline: none; }
+        
+        #uiContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(15, 15, 30, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,255,255,0.2);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            max-width: 95%;
+        }
+        
+        .cyber-btn {
+            background: linear-gradient(135deg, #002244, #004488);
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,255,255,0.1);
+        }
+        .cyber-btn:hover { background: #00ffff; color: #001f3f; box-shadow: 0 0 20px rgba(0,255,255,0.6); transform: translateY(-2px); }
+        .cyber-btn.active { background: #ff0055; color: white; border-color: #ff0055; box-shadow: 0 0 20px rgba(255,0,85,0.6); }
+        .cyber-btn.gold { background: linear-gradient(135deg, #664400, #aa8800); color: #ffff00; border-color: #ffff00; }
+        .cyber-btn.gold:hover { background: #ffff00; color: #332200; box-shadow: 0 0 20px rgba(255,255,0,0.6); }
+
+        #topPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-left: 4px solid #00ffff;
+            font-size: 16px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="topPanel">
+        <h3>SISTEMA ENJAMBRE (POO MULTI-INSTANCIA)</h3>
+        <p>1. Invoca todos los refuerzos que quieras.</p>
+        <p>2. Dales una orden masiva.</p>
+        <p id="statusText">Estado: DESCARGANDO RECURSOS 3D...</p>
+    </div>
+
+    <div id="uiContainer">
+        <button class="cyber-btn" id="btnIrMarcador">IR AL MARCADOR (TODOS)</button>
+        <button class="cyber-btn" id="btnBase">LLAMAR A BASE (TODOS)</button>
+        <button class="cyber-btn" id="btnModoViaje">VIAJE: MANADA</button>
+        <button class="cyber-btn" id="btnPresentacion">PRESENTACIÓN</button>
+        <button class="cyber-btn gold" id="btnRefuerzos" style="display:none;">⚡ INVOCAR REFUERZOS ⚡</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        // ==========================================
+        // VARIABLES GLOBALES DE ESCENA (EL ENJAMBRE)
+        // ==========================================
+        let globalMarker = null;
+        let ejercito = []; // Array que guardará a todos los objetos Transformer
+        let globalModoViaje = "MANADA"; 
+        let assetContainerGlobal = null; // Contenedor que guarda el GLB para clonarlo infinito
+        const statusText = document.getElementById("statusText");
+
+        function updateStatus(text) {
+            statusText.innerText = "Estado: " + text + " | Unidades: " + ejercito.length;
+        }
+        
+        // ==========================================
+        // LA CLASE TRANSFORMER (INTELIGENCIA ARTIFICIAL INDEPENDIENTE)
+        // ==========================================
+        class Transformer {
+            // AHORA el constructor NO carga el archivo, recibe los datos "clonados" (cloneData)
+            constructor(scene, position, cloneData) {
+                this.scene = scene;
+                
+                // Nodo matemático raíz (El "cerebro" posicional)
+                this.wrapper = new BABYLON.TransformNode("transformer_wrapper", this.scene);
+                this.wrapper.position = position;
+                
+                // Nodo objetivo para que la cámara lo mire (a la altura del pecho)
+                this.cameraTarget = new BABYLON.TransformNode("cam_target", this.scene);
+                this.cameraTarget.parent = this.wrapper;
+                this.cameraTarget.position = new BABYLON.Vector3(0, 15, 0);
+                
+                this.animationGroup = null;
+                
+                // MÁQUINA DE ESTADOS
+                this.state = "ROBOT"; 
+                
+                // IA de Navegación
+                this.targetPos = null;
+                this.speed = 15.0; // Podríamos hacer que cada uno tenga una velocidad ligeramente aleatoria!
+                this.speed += (Math.random() * 4 - 2); // Variación entre 13 y 17 para que parezca más natural
+                
+                this.turnSpeed = 5.0;
+                this.isPatrolling = false;
+
+                // Enganchamos la geometría clonada a nuestra clase
+                this.setupClone(cloneData);
+            }
+
+            setupClone(cloneData) {
+                let rootMesh = cloneData.rootNodes[0];
+                rootMesh.parent = this.wrapper; 
+                rootMesh.scaling = new BABYLON.Vector3(27, 27, 27); 
+
+                // Extraemos LA ANIMACIÓN ESPECÍFICA de este clon
+                // Nota: Al instanciar, BabylonJS renombra las animaciones añadiendo "_clon_X", así que usamos includes()
+                if (cloneData.animationGroups && cloneData.animationGroups.length > 0) {
+                    this.animationGroup = cloneData.animationGroups.find(ag => ag.name.includes("transform_to_main_hero"));
+                    if (!this.animationGroup) {
+                        this.animationGroup = cloneData.animationGroups[0]; // Fallback por si acaso
+                    }
+                    if (this.animationGroup) {
+                        this.animationGroup.stop();
+                        // Nos aseguramos de empezar en estado Robot (final de la animación)
+                        this.animationGroup.start(false, 1.0, this.animationGroup.to, this.animationGroup.to, false);
+                    }
+                }
+            }
+
+            // --- SISTEMA DE ANIMACIONES (Promesas para saber cuándo terminan) ---
+            async transformarAVehiculo() {
+                if (this.state === "VEHICULO" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = -1.5;
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "VEHICULO";
+                        resolve();
+                    });
+                });
+            }
+
+            async transformarARobot() {
+                if (this.state === "ROBOT" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = 1.5;
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "ROBOT";
+                        resolve();
+                    });
+                });
+            }
+
+            // --- INTELIGENCIA DE NAVEGACIÓN ---
+            darOrdenIrA(punto, autoPatrulla = false) {
+                this.isPatrolling = autoPatrulla;
+                
+                // Si estaba en el aire por el modo presentación, lo bajamos al suelo de golpe
+                this.wrapper.position.y = 0;
+                
+                if (!punto) return;
+                this.targetPos = punto.clone();
+                this.targetPos.y = 0; // Ignorar alturas
+            }
+
+            // Esta función es llamada 60 veces por segundo por el motor
+            update(deltaTime) {
+                if (!this.targetPos) return; 
+                if (this.state === "TRANSFORMANDO") return; 
+
+                if (globalModoViaje === "MANADA" && this.state === "ROBOT") {
+                    this.transformarAVehiculo();
+                    return;
+                }
+                if (globalModoViaje === "TITAN" && this.state === "VEHICULO") {
+                    this.transformarARobot();
+                    return;
+                }
+
+                let distance = BABYLON.Vector3.Distance(this.wrapper.position, this.targetPos);
+                
+                if (distance < 2.0) { 
+                    this.targetPos = null; 
+                    if (this.isPatrolling) {
+                        // En Patrulla NO ordenamos ensamblarse, para que sigan viajando rápidamente al siguiente punto
+                        setTimeout(() => {
+                            let randomX = (Math.random() - 0.5) * 80;
+                            let randomZ = (Math.random() - 0.5) * 80;
+                            this.darOrdenIrA(new BABYLON.Vector3(randomX, 0, randomZ), true);
+                        }, 2000);
+                    } else {
+                        // Si es una orden única, sí se ensamblan al llegar a su puesto
+                        if (globalModoViaje === "MANADA") {
+                            this.transformarARobot();
+                        }
+                    }
+                    return;
+                }
+
+                let direction = this.targetPos.subtract(this.wrapper.position).normalize();
+                let targetAngle = Math.atan2(direction.x, direction.z);
+                let currentSpeed = this.speed;
+                
+                if (this.state === "ROBOT") {
+                    targetAngle += Math.PI;
+                    currentSpeed = -this.speed;
+                }
+                
+                let currentAngle = this.wrapper.rotation.y;
+                while (currentAngle - targetAngle > Math.PI) currentAngle -= Math.PI * 2;
+                while (targetAngle - currentAngle > Math.PI) currentAngle += Math.PI * 2;
+                this.wrapper.rotation.y = currentAngle;
+                
+                this.wrapper.rotation.y = BABYLON.Scalar.Lerp(this.wrapper.rotation.y, targetAngle, this.turnSpeed * deltaTime);
+
+                let forward = new BABYLON.Vector3(Math.sin(this.wrapper.rotation.y), 0, Math.cos(this.wrapper.rotation.y));
+                this.wrapper.position.addInPlace(forward.scale(currentSpeed * deltaTime));
+            }
+        }
+
+
+        // ==========================================
+        // CREACIÓN DE LA ESCENA Y CONTENEDOR
+        // ==========================================
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
+
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 110, new BABYLON.Vector3(0, 15, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 20; 
+            camera.maxZ = 100000;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.8;
+            
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200}, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+            gridMat.wireframe = true;
+            ground.material = gridMat;
+
+            globalMarker = BABYLON.MeshBuilder.CreateTorus("marker", {diameter: 4, thickness: 0.5}, scene);
+            let markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+            markerMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+            globalMarker.material = markerMat;
+            globalMarker.position.y = 0.25;
+            globalMarker.isVisible = false; 
+
+            // LA CARGA DEL MODELO (Solo 1 vez en toda la aplicación)
+            BABYLON.SceneLoader.LoadAssetContainerAsync("", "../../1.FICHEROS-AUXILIARES/transformer.glb", scene).then((container) => {
+                assetContainerGlobal = container;
+                // Instanciamos el primer líder en el centro
+                invocarNuevoRobot(new BABYLON.Vector3(0, 0, 0));
+                
+                updateStatus("Carga completada.");
+                document.getElementById("btnRefuerzos").style.display = "block"; // Mostrar el botón
+            });
+
+            // Función para Clonar e Instanciar usando POO
+            window.invocarNuevoRobot = function(pos) {
+                if (!assetContainerGlobal) return;
+                
+                // .instantiateModelsToScene crea un clon matemático de las mallas y las animaciones
+                let cloneData = assetContainerGlobal.instantiateModelsToScene(name => name + "_clon_" + ejercito.length, true);
+                
+                // Creamos nuestro objeto lógico
+                let nuevoRobot = new Transformer(scene, pos, cloneData);
+                ejercito.push(nuevoRobot);
+                updateStatus("Clon creado.");
+            };
+
+            // --- EVENTOS DEL RATÓN ---
+            scene.onPointerDown = function (evt, pickResult) {
+                if (evt.button === 0 && pickResult.hit && pickResult.pickedMesh === ground) {
+                    globalMarker.position.x = pickResult.pickedPoint.x;
+                    globalMarker.position.z = pickResult.pickedPoint.z;
+                    globalMarker.isVisible = true;
+                }
+            };
+
+            // --- EVENTOS DEL HMI (AHORA AFECTAN A TODO EL ENJAMBRE) ---
+            document.getElementById("btnIrMarcador").onclick = () => {
+                if (!globalMarker.isVisible) {
+                    alert("¡Primero haz clic en el suelo para poner una diana!");
+                    return;
+                }
+                updateStatus("Viajando al marcador...");
+                
+                // Enviar la orden distribuyendo al ejército en una formación circular
+                let numRobots = ejercito.length;
+                let radioFormacion = numRobots > 1 ? 30 : 0; // 30 metros de separación para que quepan
+
+                for (let i = 0; i < numRobots; i++) {
+                    let r = ejercito[i];
+                    let angulo = (i / numRobots) * Math.PI * 2;
+                    let objetivoFormacion = globalMarker.position.clone();
+                    objetivoFormacion.x += Math.cos(angulo) * radioFormacion;
+                    objetivoFormacion.z += Math.sin(angulo) * radioFormacion;
+                    
+                    r.darOrdenIrA(objetivoFormacion, false);
+                }
+            };
+
+            document.getElementById("btnBase").onclick = () => {
+                globalMarker.position = new BABYLON.Vector3(0, 0.25, 0);
+                globalMarker.isVisible = true;
+                updateStatus("Regresando a base en formación...");
+                
+                let numRobots = ejercito.length;
+                let radioFormacion = numRobots > 1 ? 30 : 0;
+
+                for (let i = 0; i < numRobots; i++) {
+                    let r = ejercito[i];
+                    let angulo = (i / numRobots) * Math.PI * 2;
+                    let objetivoFormacion = BABYLON.Vector3.Zero();
+                    objetivoFormacion.x += Math.cos(angulo) * radioFormacion;
+                    objetivoFormacion.z += Math.sin(angulo) * radioFormacion;
+                    
+                    r.darOrdenIrA(objetivoFormacion, false);
+                }
+            };
+
+            const btnModoViaje = document.getElementById("btnModoViaje");
+            btnModoViaje.onclick = () => {
+                if (globalModoViaje === "MANADA") {
+                    globalModoViaje = "TITAN";
+                    btnModoViaje.innerText = "VIAJE: TITÁN";
+                    btnModoViaje.classList.add("active");
+                } else {
+                    globalModoViaje = "MANADA";
+                    btnModoViaje.innerText = "VIAJE: MANADA";
+                    btnModoViaje.classList.remove("active");
+                }
+            };
+
+            document.getElementById("btnPresentacion").onclick = async () => {
+                globalMarker.isVisible = false;
+                updateStatus("Modo Presentación...");
+
+                // Alineamos a TODO el ejército en el aire
+                for (let i = 0; i < ejercito.length; i++) {
+                    let r = ejercito[i];
+                    r.targetPos = null;
+                    r.isPatrolling = false;
+                    
+                    // Los colocamos en fila espaciados por 40 metros
+                    let offsetX = (i - ejercito.length/2) * 40;
+                    r.wrapper.position = new BABYLON.Vector3(offsetX, 15, 0);
+                    r.wrapper.rotation.y = 0; 
+                    
+                    if (r.state === "ROBOT") {
+                        r.transformarAVehiculo();
+                    }
+                }
+                
+                camera.setTarget(new BABYLON.Vector3(0, 15, 0));
+            };
+
+            // Botón estrella de POO: Invocar Refuerzos
+            document.getElementById("btnRefuerzos").onclick = () => {
+                // Lo hacemos aparecer en un círculo aleatorio alrededor del centro
+                let radio = 30 + Math.random() * 20;
+                let angulo = Math.random() * Math.PI * 2;
+                let randomX = Math.cos(angulo) * radio;
+                let randomZ = Math.sin(angulo) * radio;
+                
+                invocarNuevoRobot(new BABYLON.Vector3(randomX, 0, randomZ));
+            };
+
+            // --- BUCLE PRINCIPAL (MOTOR DE LA IA PARA TODOS) ---
+            scene.onBeforeRenderObservable.add(() => {
+                let dt = engine.getDeltaTime() / 1000.0;
+                for (let r of ejercito) {
+                    r.update(dt);
+                }
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>

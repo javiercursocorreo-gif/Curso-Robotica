@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Episodio IV - A New Hope</title>
+    
+    <!-- Google Fonts para la tipografía del Opening Crawl -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pathway+Gothic+One&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Librerías de Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+    <!-- Babylon.js Inspector para depuración -->
+    <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+</head>
+<body>
+
+    <!-- Contenedor del Opening Crawl con CSS -->
+    <div id="crawl-container">
+        <div id="crawl-text">
+            <p>Hace mucho tiempo en una galaxia muy,<br>
+            muy lejana...</p>
+            <br>
+            <h1>STAR WARS</h1>
+            <h2>EPISODIO IV</h2>
+            <h3>UNA NUEVA ESPERANZA</h3>
+            <p>
+                Es un período de guerra civil. Naves espaciales rebeldes, atacando desde una base oculta, han ganado su primera victoria contra el malvado Imperio Galáctico.
+            </p>
+            <p>
+                Durante la batalla, espías rebeldes lograron robar los planos secretos del arma decisiva del Imperio, la ESTRELLA DE LA MUERTE, una estación espacial blindada con suficiente poder para destruir un planeta entero.
+            </p>
+            <p>
+                Perseguida por los siniestros agentes del Imperio, la Princesa Leia corre a casa a bordo de su nave estelar, custodia de los planos robados que pueden salvar a su pueblo y restaurar la libertad en la galaxia...
+            </p>
+        </div>
+    </div>
+
+    <!-- Canvas para Babylon.js (El espacio y la nave) -->
+    <canvas id="renderCanvas"></canvas>
+
+    <script src="app.js?v=32"></script>
+</body>
+</html>

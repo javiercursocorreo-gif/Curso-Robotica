@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6.14 - Transformer POO (P4: Minijuego Swarm Defense)</title>
+    
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050510; font-family: 'Courier New', Courier, monospace; }
+        #renderCanvas { width: 100vw; height: 100vh; touch-action: none; outline: none; }
+        
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            background: rgba(0,20,40,0.8);
+            padding: 15px 30px;
+            border-left: 5px solid #00ffff;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            box-shadow: 0 0 20px rgba(0,255,255,0.3);
+        }
+
+        #gameOverScreen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(20, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ff0055;
+            z-index: 100;
+        }
+
+        #gameOverScreen h1 { font-size: 80px; margin: 0; text-shadow: 0 0 30px #ff0055; }
+        #gameOverScreen p { font-size: 30px; color: white; }
+
+        .cyber-btn {
+            background: #ff0055;
+            color: white;
+            border: 2px solid white;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: 0.3s;
+        }
+        .cyber-btn:hover { background: white; color: #ff0055; box-shadow: 0 0 30px white; }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 18px;
+            pointer-events: none;
+            text-shadow: 0 0 5px black;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="hud">
+        PUNTUACIÓN: <span id="scoreVal">0</span><br>
+        <span style="font-size: 16px; color:#aaa;">NÚCLEO AL: <span id="hpVal">100</span>%</span>
+    </div>
+
+    <div id="instructions">
+        Haz CLIC en el suelo para enviar a tu ENJAMBRE. ¡Intercepta los virus antes de que destruyan el NÚCLEO!
+    </div>
+
+    <div id="gameOverScreen">
+        <h1>NÚCLEO DESTRUIDO</h1>
+        <p>Puntuación Final: <span id="finalScore">0</span></p>
+        <button class="cyber-btn" onclick="location.reload()">REINICIAR SISTEMA</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        let globalMarker = null;
+        let ejercito = []; 
+        let virusList = [];
+        let assetContainerGlobal = null; 
+        
+        let score = 0;
+        let hp = 100;
+        let isGameOver = false;
+        let spawnIntervalId = null;
+        let spawnRate = 3000;
+        
+        // ==========================================
+        // CLASE TRANSFORMER (EL DEFENSOR)
+        // ==========================================
+        class Transformer {
+            constructor(scene, position, cloneData) {
+                this.scene = scene;
+                this.wrapper = new BABYLON.TransformNode("transformer_wrapper", this.scene);
+                this.wrapper.position = position;
+                
+                this.state = "ROBOT"; 
+                this.targetPos = null;
+                this.speed = 25.0 + (Math.random() * 5); // Muy rápidos para el juego
+                this.turnSpeed = 8.0;
+
+                this.setupClone(cloneData);
+            }
+
+            setupClone(cloneData) {
+                let rootMesh = cloneData.rootNodes[0];
+                rootMesh.parent = this.wrapper; 
+                rootMesh.scaling = new BABYLON.Vector3(20, 20, 20); 
+
+                if (cloneData.animationGroups && cloneData.animationGroups.length > 0) {
+                    this.animationGroup = cloneData.animationGroups.find(ag => ag.name.includes("transform_to_main_hero"));
+                    if (!this.animationGroup) this.animationGroup = cloneData.animationGroups[0];
+                    if (this.animationGroup) {
+                        this.animationGroup.stop();
+                        this.animationGroup.start(false, 1.0, this.animationGroup.to, this.animationGroup.to, false);
+                    }
+                }
+            }
+
+            async transformarAVehiculo() {
+                if (this.state === "VEHICULO" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = -2.5; // Transformación hiper rápida
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "VEHICULO";
+                        resolve();
+                    });
+                });
+            }
+
+            async transformarARobot() {
+                if (this.state === "ROBOT" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = 2.5;
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "ROBOT";
+                        resolve();
+                    });
+                });
+            }
+
+            darOrdenIrA(punto) {
+                this.targetPos = punto.clone();
+                this.targetPos.y = 0; 
+            }
+
+            update(deltaTime) {
+                if (!this.targetPos) return; 
+                if (this.state === "TRANSFORMANDO") return; 
+
+                // En el juego SIEMPRE viajan como vehículo para ser rápidos
+                if (this.state === "ROBOT") {
+                    this.transformarAVehiculo();
+                    return;
+                }
+
+                let distance = BABYLON.Vector3.Distance(this.wrapper.position, this.targetPos);
+                
+                if (distance < 2.0) { 
+                    this.targetPos = null; 
+                    this.transformarARobot(); // Se ensamblan al llegar al punto de guardia
+                    return;
+                }
+
+                let direction = this.targetPos.subtract(this.wrapper.position).normalize();
+                let targetAngle = Math.atan2(direction.x, direction.z);
+                
+                let currentAngle = this.wrapper.rotation.y;
+                while (currentAngle - targetAngle > Math.PI) currentAngle -= Math.PI * 2;
+                while (targetAngle - currentAngle > Math.PI) currentAngle += Math.PI * 2;
+                this.wrapper.rotation.y = BABYLON.Scalar.Lerp(this.wrapper.rotation.y, targetAngle, this.turnSpeed * deltaTime);
+
+                let forward = new BABYLON.Vector3(Math.sin(this.wrapper.rotation.y), 0, Math.cos(this.wrapper.rotation.y));
+                this.wrapper.position.addInPlace(forward.scale(this.speed * deltaTime));
+            }
+        }
+
+        // ==========================================
+        // CLASE VIRUS (EL ENEMIGO)
+        // ==========================================
+        class Virus {
+            constructor(scene, startPos) {
+                this.scene = scene;
+                this.mesh = BABYLON.MeshBuilder.CreateSphere("virus", {diameter: 6}, scene);
+                this.mesh.position = startPos;
+                
+                let mat = new BABYLON.StandardMaterial("virusMat", scene);
+                mat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                this.mesh.material = mat;
+                
+                // Efecto de latido
+                this.tiempoVida = 0;
+                this.speed = 8.0 + (score / 500); // Se vuelven más rápidos según la puntuación
+            }
+
+            update(deltaTime) {
+                this.tiempoVida += deltaTime * 5;
+                let scale = 1.0 + Math.sin(this.tiempoVida) * 0.2;
+                this.mesh.scaling = new BABYLON.Vector3(scale, scale, scale);
+
+                // Moverse siempre hacia el centro (0,0,0)
+                let direction = BABYLON.Vector3.Zero().subtract(this.mesh.position).normalize();
+                this.mesh.position.addInPlace(direction.scale(this.speed * deltaTime));
+            }
+
+            destruir() {
+                // Crear explosión visual
+                let part = BABYLON.MeshBuilder.CreateSphere("boom", {diameter: 12}, this.scene);
+                part.position = this.mesh.position.clone();
+                let mat = new BABYLON.StandardMaterial("boomMat", this.scene);
+                mat.emissiveColor = new BABYLON.Color3(1, 1, 0);
+                mat.alpha = 0.8;
+                part.material = mat;
+                
+                let s = 1.0;
+                let interval = setInterval(() => {
+                    s += 0.5;
+                    part.scaling = new BABYLON.Vector3(s, s, s);
+                    mat.alpha -= 0.1;
+                    if (mat.alpha <= 0) {
+                        part.dispose();
+                        clearInterval(interval);
+                    }
+                }, 30);
+
+                this.mesh.dispose();
+            }
+        }
+
+
+        // ==========================================
+        // CREACIÓN DE LA ESCENA
+        // ==========================================
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 1);
+
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 4, 180, BABYLON.Vector3.Zero(), scene);
+            // La cámara está estática para no marear en el juego
+            
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.6;
+            
+            // Suelo Cibernético
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 250, height: 250}, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            gridMat.emissiveColor = new BABYLON.Color3(0.0, 0.1, 0.2);
+            gridMat.wireframe = true;
+            ground.material = gridMat;
+
+            // Núcleo Central a proteger
+            const core = BABYLON.MeshBuilder.CreateCylinder("core", {diameter: 15, height: 10}, scene);
+            core.position.y = 5;
+            const coreMat = new BABYLON.StandardMaterial("coreMat", scene);
+            coreMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+            coreMat.alpha = 0.7;
+            core.material = coreMat;
+
+            // Marcador de destino
+            globalMarker = BABYLON.MeshBuilder.CreateTorus("marker", {diameter: 10, thickness: 1}, scene);
+            let markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+            markerMat.emissiveColor = new BABYLON.Color3(0, 1, 0);
+            globalMarker.material = markerMat;
+            globalMarker.position.y = 0.5;
+            globalMarker.isVisible = false; 
+
+            // Carga del Modelo
+            BABYLON.SceneLoader.LoadAssetContainerAsync("", "../../1.FICHEROS-AUXILIARES/transformer.glb", scene).then((container) => {
+                assetContainerGlobal = container;
+                
+                // Empezamos con 4 robots guardianes
+                invocarNuevoRobot(new BABYLON.Vector3(10, 0, 10));
+                invocarNuevoRobot(new BABYLON.Vector3(-10, 0, 10));
+                invocarNuevoRobot(new BABYLON.Vector3(10, 0, -10));
+                invocarNuevoRobot(new BABYLON.Vector3(-10, 0, -10));
+                
+                iniciarOleadas();
+            });
+
+            window.invocarNuevoRobot = function(pos) {
+                if (!assetContainerGlobal) return;
+                let cloneData = assetContainerGlobal.instantiateModelsToScene(name => name + "_clon_" + ejercito.length, true);
+                let nuevoRobot = new Transformer(scene, pos, cloneData);
+                ejercito.push(nuevoRobot);
+            };
+
+            // Controles del RTS
+            scene.onPointerDown = function (evt, pickResult) {
+                if (isGameOver) return;
+                if (evt.button === 0 && pickResult.hit && pickResult.pickedMesh === ground) {
+                    globalMarker.position.x = pickResult.pickedPoint.x;
+                    globalMarker.position.z = pickResult.pickedPoint.z;
+                    globalMarker.isVisible = true;
+
+                    // Enviar formación
+                    let numRobots = ejercito.length;
+                    let radioFormacion = numRobots > 1 ? 15 : 0; 
+                    for (let i = 0; i < numRobots; i++) {
+                        let r = ejercito[i];
+                        let angulo = (i / numRobots) * Math.PI * 2;
+                        let objetivoFormacion = globalMarker.position.clone();
+                        objetivoFormacion.x += Math.cos(angulo) * radioFormacion;
+                        objetivoFormacion.z += Math.sin(angulo) * radioFormacion;
+                        
+                        r.darOrdenIrA(objetivoFormacion);
+                    }
+                }
+            };
+
+            // Lógica de Juego (Colisiones e IA)
+            scene.onBeforeRenderObservable.add(() => {
+                if (isGameOver) return;
+                
+                let dt = engine.getDeltaTime() / 1000.0;
+                
+                // Animar núcleo
+                core.rotation.y += dt;
+
+                // Actualizar Robots
+                for (let r of ejercito) r.update(dt);
+
+                // Actualizar Virus y detectar colisiones
+                for (let i = virusList.length - 1; i >= 0; i--) {
+                    let v = virusList[i];
+                    v.update(dt);
+
+                    // ¿Llegó al núcleo?
+                    if (BABYLON.Vector3.Distance(v.mesh.position, core.position) < 12) {
+                        hp -= 25;
+                        document.getElementById("hpVal").innerText = hp;
+                        v.destruir();
+                        virusList.splice(i, 1);
+                        
+                        if (hp <= 0) {
+                            gameOver();
+                        }
+                        continue;
+                    }
+
+                    // ¿Le interceptó un Transformer?
+                    let interceptado = false;
+                    for (let r of ejercito) {
+                        // Radio de colisión táctica: 12 metros
+                        if (BABYLON.Vector3.Distance(v.mesh.position, r.wrapper.position) < 12) {
+                            interceptado = true;
+                            break;
+                        }
+                    }
+
+                    if (interceptado) {
+                        score += 100;
+                        document.getElementById("scoreVal").innerText = score;
+                        v.destruir();
+                        virusList.splice(i, 1);
+                        
+                        // Cada 1000 puntos, subimos la dificultad y damos 1 robot extra
+                        if (score % 1000 === 0) {
+                            spawnRate = Math.max(500, spawnRate - 300); // Más rápido
+                            reiniciarOleadas();
+                            invocarNuevoRobot(core.position.clone()); // Refuerzo
+                        }
+                    }
+                }
+            });
+
+            return scene;
+        };
+
+        function iniciarOleadas() {
+            spawnIntervalId = setInterval(() => {
+                if (isGameOver) return;
+                let angle = Math.random() * Math.PI * 2;
+                let dist = 120;
+                let startX = Math.cos(angle) * dist;
+                let startZ = Math.sin(angle) * dist;
+                
+                let v = new Virus(scene, new BABYLON.Vector3(startX, 2, startZ));
+                virusList.push(v);
+            }, spawnRate);
+        }
+
+        function reiniciarOleadas() {
+            clearInterval(spawnIntervalId);
+            iniciarOleadas();
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(spawnIntervalId);
+            document.getElementById("finalScore").innerText = score;
+            document.getElementById("gameOverScreen").style.display = "flex";
+        }
+
+        const scene = createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>

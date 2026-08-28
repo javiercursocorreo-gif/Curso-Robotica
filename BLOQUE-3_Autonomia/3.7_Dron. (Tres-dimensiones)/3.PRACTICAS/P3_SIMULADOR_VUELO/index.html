@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador Dron - Babylon.js</title>
+    <style>
+        :root {
+            --cyan: #00f2ff;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #uiContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+        
+        /* 🕹️ CONTROLES VIRTUALES */
+        #virtual-controls { position: absolute; inset: 0; pointer-events: none; z-index: 50; display: block; }
+        
+        #throttle-bg { position: absolute; left: 40px; top: 50%; transform: translateY(-50%); width: 60px; height: 350px; background: rgba(0, 20, 40, 0.7); border: 2px solid rgba(0, 242, 255, 0.4); border-radius: 30px; pointer-events: auto; cursor: ns-resize; display: flex; justify-content: center; box-shadow: 0 0 25px rgba(0,0,0,0.9); }
+        #throttle-track { position: absolute; top: 30px; bottom: 30px; width: 6px; background: var(--cyan); opacity: 0.6; border-radius: 3px; box-shadow: 0 0 10px var(--cyan); }
+        #throttle-knob { position: absolute; left: 5px; width: 50px; height: 70px; background: linear-gradient(180deg, #444, #111); border: 2px solid var(--cyan); border-radius: 12px; top: 140px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 5px; }
+        .t-grip { width: 25px; height: 4px; background: #777; border-radius: 2px; }
+        #throttle-label { position: absolute; bottom: -35px; width: 100%; text-align: center; color: var(--cyan); font-size: 14px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 5px #000;}
+
+        #joystick-bg { position: absolute; right: 50px; top: 50%; transform: translateY(-50%); width: 260px; height: 260px; background: radial-gradient(circle, rgba(0, 30, 60, 0.7) 0%, rgba(0,0,0,0.6) 100%); border: 3px solid rgba(0, 242, 255, 0.3); border-radius: 50%; pointer-events: auto; cursor: crosshair; box-shadow: inset 0 0 30px rgba(0,242,255,0.2), 0 0 25px rgba(0,0,0,0.9); }
+        #joystick-bg::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0, 242, 255, 0.2); transform: translateY(-50%); }
+        #joystick-bg::after { content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: rgba(0, 242, 255, 0.2); transform: translateX(-50%); }
+        #joystick-knob { position: absolute; left: 90px; top: 90px; width: 80px; height: 80px; background: radial-gradient(circle at 30% 30%, #666, #111); border: 3px solid var(--cyan); border-radius: 50%; box-shadow: 0 10px 25px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,242,255,0.6); pointer-events: none; transition: transform 0.1s ease-out; }
+        
+        @keyframes blinkAlarm {
+            0% { opacity: 1; transform: translateX(-50%) scale(1); box-shadow: 0 0 20px red; }
+            100% { opacity: 0.2; transform: translateX(-50%) scale(1.05); box-shadow: 0 0 0px red; }
+        }
+    </style>
+    <!-- Incluir Babylon.js y Cannon.js para las físicas -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <!-- Loaders for GLTF/GLB -->
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- Cannon.js for Physics -->
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
+</head>
+<body>
+    <!-- HUD de Batería -->
+    <div id="batteryUI" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; height: 30px; background-color: rgba(0,0,0,0.6); border: 2px solid white; border-radius: 15px; pointer-events: none; overflow: hidden; z-index: 10;">
+        <div id="batteryBar" style="width: 100%; height: 100%; background-color: #44ff44; transition: width 0.2s, background-color 0.2s;"></div>
+        <span id="batteryText" style="position: absolute; left: 0; top: 4px; width: 100%; text-align: center; color: white; font-weight: bold; font-family: sans-serif; font-size: 16px; text-shadow: 1px 1px 2px black;">100% BATERÍA</span>
+    </div>
+
+    <!-- Alarma Batería Baja -->
+    <div id="lowBatteryAlarm" style="position: absolute; top: 60px; left: 50%; transform: translateX(-50%); color: #ff3333; font-family: sans-serif; font-size: 22px; font-weight: bold; background: rgba(0,0,0,0.9); padding: 10px 25px; border: 3px solid #ff3333; border-radius: 10px; display: none; z-index: 20; text-align: center; text-shadow: 0 0 10px red; animation: blinkAlarm 0.4s infinite alternate; pointer-events: none;">
+        ⚠️ BATERÍA CRÍTICA: ¡VUELVE A LA BASE! ⚠️
+    </div>
+    
+    <!-- Telemetría (Altitud y Distancia) -->
+    <div id="telemetryUI" style="position: absolute; top: 60px; left: 50%; transform: translateX(-50%); width: 220px; background-color: rgba(0,0,0,0.6); border: 2px solid var(--cyan); border-radius: 10px; pointer-events: none; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px 0;">
+        <span id="altimeterText" style="color: var(--cyan); font-weight: bold; font-family: monospace; font-size: 18px; text-shadow: 0 0 5px var(--cyan);">ALT: 0.0m</span>
+        <span id="distanceText" style="color: #ffaa00; font-weight: bold; font-family: monospace; font-size: 16px; text-shadow: 0 0 5px #ffaa00;">DIST: 0.0m</span>
+    </div>
+
+    <!-- CONTROLES VIRTUALES -->
+    <div id="virtual-controls">
+        <!-- El slider izquierdo ha sido eliminado a petición del usuario, usará las flechas del teclado -->
+        <div id="joystick-bg">
+            <div id="joystick-knob"></div>
+        </div>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="uiContainer" style="z-index: 10; left: 120px;">
+        <h2>Panel de Vuelo 5.5 (TECLADO)</h2>
+        <p>FLECHA ARRIBA: Acelerar (Subir)</p>
+        <p>FLECHA ABAJO: Desacelerar (Bajar)</p>
+        <p>FLECHA IZQ/DER: Girar (Yaw)</p>
+        <br>
+        <p>TECLAS W/S: Avanzar / Retroceder</p>
+        <p>TECLAS A/D: Moverse de lado</p>
+        <button id="btnEngine" style="margin-top: 10px; font-size: 18px; font-weight: bold; padding: 10px 20px; background-color: #ff4444; color: white; border: 2px solid white; border-radius: 8px; cursor: pointer; text-shadow: 1px 1px 2px black; pointer-events: auto;">Arrancar Motores (ESPACIO)</button>
+        <br>
+        <button id="btnLoop" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #ffaa00; color: black; border: 2px solid white; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Acrobacia 360 (Tecla L)</button>
+        <br>
+        <button id="btnRTH" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #aa00ff; color: white; border: 2px solid white; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Volver a Base (RTH - Tecla H)</button>
+        <br>
+        <button id="btnFPV" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #00aa44; color: white; border: 2px solid white; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Cámara FPV (Tecla V)</button>
+        <br>
+        <button id="btnSmoke" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #555555; color: white; border: 2px solid white; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Estela de Humo (Tecla T)</button>
+        <br>
+        <button id="btnPhoto" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #ffffff; color: black; border: 2px solid black; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Hacer Foto (Tecla C)</button>
+        <br>
+        <button id="btnSound" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #4444ff; color: white; border: 2px solid white; border-radius: 8px; cursor: pointer; pointer-events: auto;">Desactivar Sonido (Mute)</button>
+        <br>
+        <button id="btnReset" style="margin-top: 10px; font-size: 14px; padding: 8px 16px; background-color: #ff0000; color: white; border: 2px solid white; border-radius: 8px; font-weight: bold; cursor: pointer; pointer-events: auto;">Reiniciar Simulador</button>
+        <br><br>
+        <div style="margin-top: 10px; padding: 10px; border: 2px solid #ffd700; border-radius: 10px; background-color: rgba(0,0,0,0.8); pointer-events: auto; text-align: center;">
+            <label for="autoPilotSpeed" style="color: #ffd700; font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px black;">Velocidad máxima: <span id="speedVal">25</span> m/s</label><br>
+            <input type="range" id="autoPilotSpeed" min="10" max="80" value="25" style="width: 100%; margin-top: 8px; cursor: pointer;" oninput="document.getElementById('speedVal').innerText = this.value">
+            <div id="realSpeed" style="margin-top: 5px; color: white; font-size: 12px; font-weight: bold;">Velocidad Real: 0 m/s</div>
+        </div>
+        <button id="btnAutoPilot" style="margin-top: 10px; font-size: 16px; padding: 12px 20px; background-color: #ffd700; color: black; border: 3px solid white; border-radius: 10px; font-weight: bold; cursor: pointer; pointer-events: auto; box-shadow: 0 0 15px #ffd700;">Demo Automática Aros</button>
+    </div>
+
+    <script src="droneBase64.js"></script>
+    <script src="audioBase64.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

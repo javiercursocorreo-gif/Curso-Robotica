@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MOCAP y Skinning (Captura de Movimiento)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f141e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Panel de Información a la izquierda */
+        #infoPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            background: rgba(15, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        #infoPanel h3 {
+            margin: 0 0 10px 0;
+            color: #f39c12;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+        #infoPanel p {
+            margin: 0;
+            color: #ccc;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Selector de Personajes en la parte superior */
+        #characterSelector {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            background: rgba(15, 20, 25, 0.8);
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 1px solid #333;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .char-btn {
+            background: #2c3e50;
+            color: #bdc3c7;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .char-btn:hover {
+            background: #34495e;
+            color: white;
+        }
+
+        .char-btn.active {
+            background: #00d2ff;
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
+        }
+
+        /* Panel de Skinning a la derecha */
+        #uiPanel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(15, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        h2 { margin: 0 0 15px 0; font-size: 1.4rem; color: #00d2ff; }
+        
+        .status-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            transition: background 0.3s;
+        }
+        .status-badge.on { background: #2ecc71; }
+
+        .btn-action {
+            width: 100%;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-action:hover { box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); }
+        .btn-action:active { transform: scale(0.98); }
+        .btn-action.active { background: linear-gradient(135deg, #f39c12, #d35400); }
+
+        #loadingScreen {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: #111;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; color: white; font-size: 1.5rem;
+        }
+        
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-top-color: #00d2ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+    </style>
+</head>
+<body>
+
+<div id="loadingScreen">
+    <div class="spinner"></div>
+    <div id="loadingText">Cargando MOCAP...</div>
+</div>
+
+<div id="characterSelector">
+    <button class="char-btn active" data-char="salsa">Salsa</button>
+    <button class="char-btn" data-char="capoeira">Capoeira</button>
+    <button class="char-btn" data-char="combate">Combate</button>
+</div>
+
+<div id="infoPanel">
+    <h3 id="infoTitle">Salsa</h3>
+    <p id="infoDesc">Bailarina experta en ritmos latinos. Esta animación muestra movimientos fluidos de caderas y giros elegantes capturados de una profesional de la salsa.</p>
+</div>
+
+<div id="uiPanel">
+    <div id="modeBadge" class="status-badge">MODO: MOCAP (RAYOS X)</div>
+    <h2>PROCESO DE ANIMACIÓN</h2>
+    <p id="descText" style="color: #ccc; line-height: 1.5; font-size: 0.95rem;">
+        Estás viendo los <strong style="color:white;">huesos (rigging)</strong> del personaje procesando los datos de captura de movimiento puros.
+    </p>
+    
+    <button class="btn-action" id="btnSkinning">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+        APLICAR PIEL (SORPRESA)
+    </button>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    
+    let scene = null;
+    let camera = null;
+    let isSkinningOn = false;
+    let mainMeshes = [];
+    let skeletonViewer = null;
+    let currentAnimGroup1 = null;
+    let currentAnimGroup2 = null;
+    let animationObserver = null;
+
+    const characters = {
+        salsa: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/",
+            file1: "Salsa Dancing.glb",
+            file2: "Salsa Dancing-2.glb"
+        },
+        capoeira: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/",
+            file1: "Chapaeu De Couro.glb",
+            file2: "Esquiva 1.glb"
+        },
+        combate: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/",
+            file1: "Great Sword Walk.glb",
+            file2: "Great Sword Jump.glb"
+        }
+    };
+
+    const initEngine = () => {
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+
+        // Cámara de frente
+        camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2.2, 3.5, new BABYLON.Vector3(0, 0.75, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 100; 
+        camera.lowerRadiusLimit = 1; 
+        camera.upperRadiusLimit = 20;
+
+        // Luz más cinemática
+        const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+        hemiLight.intensity = 0.3;
+        
+        const spotLight = new BABYLON.SpotLight("spot", new BABYLON.Vector3(10, 20, -10), new BABYLON.Vector3(-1, -2, 1), Math.PI / 3, 2, scene);
+        spotLight.intensity = 2;
+
+        // Rejilla de suelo neón
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+        const gridMat = new BABYLON.StandardMaterial("grid", scene);
+        gridMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        gridMat.emissiveColor = new BABYLON.Color3(0.1, 0.3, 0.4);
+        gridMat.wireframe = true;
+        ground.material = gridMat;
+
+        // HUD Nombre Personaje
+        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        const nameLabel = new BABYLON.GUI.TextBlock("nameLabel", "");
+        nameLabel.text = "";
+        nameLabel.color = "#00d2ff";
+        nameLabel.fontSize = 48;
+        nameLabel.fontWeight = "bold";
+        nameLabel.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        nameLabel.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        nameLabel.paddingRight = "50px";
+        nameLabel.paddingBottom = "100px";
+        advancedTexture.addControl(nameLabel);
+        scene.nameLabel = nameLabel;
+    };
+
+    const loadCharacter = async (charKey) => {
+        const loadingScreen = document.getElementById("loadingScreen");
+        const loadingText = document.getElementById("loadingText");
+        loadingScreen.style.display = "flex";
+        
+        const charData = characters[charKey];
+        
+        // Limpiar escena anterior
+        if (mainMeshes.length > 0) {
+            mainMeshes.forEach(m => m.dispose());
+            mainMeshes = [];
+        }
+        if (skeletonViewer) {
+            skeletonViewer.dispose();
+            skeletonViewer = null;
+        }
+        const ags = scene.animationGroups.slice();
+        ags.forEach(ag => ag.dispose());
+        
+        if (animationObserver) {
+            if (currentAnimGroup1) currentAnimGroup1.onAnimationGroupEndObservable.remove(animationObserver);
+            if (currentAnimGroup2) currentAnimGroup2.onAnimationGroupEndObservable.remove(animationObserver);
+            animationObserver = null;
+        }
+
+        try {
+            // Mapeo de nombres propios
+            const properNames = {
+                "salsa": "AMY",
+                "capoeira": "THE BOSS",
+                "combate": "MARÍA ONG"
+            };
+            if(scene.nameLabel) scene.nameLabel.text = properNames[charKey];
+
+            const charDescriptions = {
+                salsa: {
+                    title: "Salsa",
+                    desc: "Bailarina experta en ritmos latinos. Esta animación muestra movimientos fluidos de caderas y giros elegantes capturados de una profesional de la salsa."
+                },
+                capoeira: {
+                    title: "Capoeira",
+                    desc: "Arte marcial afrobrasileño que combina danza, acrobacias y música. Se caracteriza por movimientos rápidos, ágiles y complejos cerca del suelo."
+                },
+                combate: {
+                    title: "Luchadora (Combate)",
+                    desc: "Guerrera equipada con una gran espada. Esta secuencia captura el peso real del arma, mostrando cómo el cuerpo debe compensar físicamente en cada golpe."
+                }
+            };
+            document.getElementById("infoTitle").innerText = charDescriptions[charKey].title;
+            document.getElementById("infoDesc").innerText = charDescriptions[charKey].desc;
+
+            // Cargar malla base (Movimiento 1)
+            loadingText.innerText = `Cargando ${charKey} (Paso 1)...`;
+            const result1 = await BABYLON.SceneLoader.ImportMeshAsync("", charData.folder, charData.file1, scene);
+            mainMeshes = result1.meshes;
+            currentAnimGroup1 = result1.animationGroups[0];
+
+            // Cargar Animación 2 y aplicarla a la malla base usando Retargeting
+            loadingText.innerText = `Cargando ${charKey} (Paso 2)...`;
+            const result2 = await BABYLON.SceneLoader.ImportMeshAsync("", charData.folder, charData.file2, scene);
+            const rawAg2 = result2.animationGroups[0];
+            
+            if (rawAg2) {
+                currentAnimGroup2 = new BABYLON.AnimationGroup("anim2");
+                rawAg2.targetedAnimations.forEach(ta => {
+                    const newTarget = scene.transformNodes.find(n => n.name === ta.target.name) || scene.getBoneByName(ta.target.name);
+                    if (newTarget) {
+                        currentAnimGroup2.addTargetedAnimation(ta.animation, newTarget);
+                    }
+                });
+                
+                rawAg2.dispose();
+            }
+            result2.meshes.forEach(m => m.dispose());
+            result2.skeletons.forEach(s => s.dispose());
+
+            // Ajustar cámara
+            camera.setTarget(new BABYLON.Vector3(0, 0.75, 0));
+            camera.radius = 3.5;
+            camera.minZ = 0.1;
+
+            // Configurar Rayos X vs Piel
+            updateSkinningState();
+
+            // Configurar el Skeleton Viewer para Rayos X
+            if (result1.skeletons && result1.skeletons.length > 0) {
+                const rootNode = mainMeshes[0];
+                const skeleton = result1.skeletons[0];
+                skeletonViewer = new BABYLON.Debug.SkeletonViewer(
+                    skeleton, rootNode, scene, true, 1, 
+                    {
+                        displayMode: BABYLON.Debug.SkeletonViewer.DISPLAY_SPHERE_AND_SPURS,
+                        returnToRest: false,
+                        displayOptions: { sphereBaseSize: 0.03, spurLength: 0.1 }
+                    }
+                );
+                skeletonViewer.color = new BABYLON.Color3(0, 1, 1);
+                skeletonViewer.isEnabled = !isSkinningOn;
+            }
+
+            // Lógica para concatenar Movimiento 1 -> Movimiento 2 -> Movimiento 1
+            scene.animationGroups.forEach(ag => ag.stop());
+            currentAnimGroup1.play(false);
+            
+            let activeGroup = currentAnimGroup1;
+            
+            const onAnimationEnd = () => {
+                if (activeGroup === currentAnimGroup1) {
+                    activeGroup = currentAnimGroup2;
+                } else {
+                    activeGroup = currentAnimGroup1;
+                }
+                
+                if (activeGroup) {
+                    activeGroup.stop();
+                    activeGroup.play(false);
+                    animationObserver = activeGroup.onAnimationGroupEndObservable.addOnce(onAnimationEnd);
+                }
+            };
+            
+            animationObserver = activeGroup.onAnimationGroupEndObservable.addOnce(onAnimationEnd);
+
+            loadingScreen.style.display = "none";
+        } catch (e) {
+            console.error(e);
+            loadingText.innerHTML = "Error cargando. Revisa la consola.<br>" + e.toString();
+            loadingText.style.color = "red";
+        }
+    };
+
+    const updateSkinningState = () => {
+        const btnSkinning = document.getElementById("btnSkinning");
+        const modeBadge = document.getElementById("modeBadge");
+        const descText = document.getElementById("descText");
+
+        if (isSkinningOn) {
+            // PIEL ACTIVADA
+            mainMeshes.forEach(m => { 
+                if(m.name !== "__root__") m.isVisible = true; 
+            });
+            if(skeletonViewer) skeletonViewer.isEnabled = false;
+            
+            btnSkinning.classList.add("active");
+            btnSkinning.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg> QUITAR PIEL (RAYOS X)`;
+            modeBadge.className = "status-badge on";
+            modeBadge.innerText = "MODO: RENDER FINAL";
+            descText.innerHTML = `¡Sorpresa! Ahora ves la malla completa con texturas adherida a los huesos.`;
+        } else {
+            // MOCAP (RAYOS X)
+            mainMeshes.forEach(m => { 
+                if(m.name !== "__root__") m.isVisible = false; 
+            });
+            if(skeletonViewer) skeletonViewer.isEnabled = true;
+            
+            btnSkinning.classList.remove("active");
+            btnSkinning.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> APLICAR PIEL (SORPRESA)`;
+            modeBadge.className = "status-badge";
+            modeBadge.innerText = "MODO: MOCAP (RAYOS X)";
+            descText.innerHTML = `Estás viendo los huesos puros. El ordenador no sabe qué aspecto tiene el personaje.`;
+        }
+    };
+
+    initEngine();
+    loadCharacter("salsa"); // Cargar salsa por defecto en MOCAP
+    
+    engine.runRenderLoop(() => { scene.render(); });
+    window.addEventListener("resize", () => { engine.resize(); });
+
+    // Botones de interfaz
+    document.getElementById("btnSkinning").addEventListener("click", () => {
+        isSkinningOn = !isSkinningOn;
+        updateSkinningState();
+    });
+
+    document.querySelectorAll(".char-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            document.querySelectorAll(".char-btn").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+            isSkinningOn = false; // Al cambiar personaje, forzamos MOCAP para mantener la sorpresa
+            loadCharacter(e.target.dataset.char);
+        });
+    });
+
+</script>
+</body>
+</html>

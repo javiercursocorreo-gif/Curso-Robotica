@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>P2.EJEMPLO-REAL - Isométrico con Cámara Central</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #1a1a2e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* HEADER OBLIGATORIO */
+    #header {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 70px;
+      background: rgba(0, 0, 0, 0.85);
+      border-bottom: 2px solid #00f2ff;
+      z-index: 100;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+    }
+    #header-title {
+      font-size: 26px; color: #00f2ff; letter-spacing: 5px;
+      margin: 0 0 4px 0; text-transform: uppercase; font-weight: bold;
+    }
+    #header-subtitle { font-size: 16px; color: #aaaaaa; margin: 0; }
+
+    /* PANEL DE CONTROL (GLASS-UI) */
+    #control-panel {
+      position: fixed; top: 90px; left: 20px;
+      width: 40%; max-width: 440px;
+      background: rgba(10, 10, 25, 0.7);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px; padding: 25px; color: white;
+      z-index: 90; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      overflow-y: auto; max-height: calc(100vh - 130px);
+    }
+
+    .ui-section { margin-bottom: 22px; }
+    .ui-label { font-size: 18px; color: #cccccc; margin-bottom: 10px; font-weight: bold; }
+
+    /* INDICADOR VARIABLE */
+    #var-indicator {
+      font-size: 42px; font-weight: bold; text-align: center;
+      padding: 15px; border-radius: 8px; transition: all 0.3s ease;
+    }
+    #var-indicator.no { background: rgba(255, 0, 0, 0.15); border: 2px solid #ff4444; color: #ff4444; }
+    #var-indicator.yes { background: rgba(0, 255, 0, 0.15); border: 2px solid #44ff44; color: #44ff44; }
+
+    /* BARRA DE CONFIANZA */
+    .bar-container { background: #2a2a3a; height: 28px; border-radius: 14px; overflow: hidden; border: 1px solid #444; position: relative; }
+    .bar-fill { background: linear-gradient(90deg, #0088ff, #00f2ff); height: 100%; width: 0%; transition: width 0.1s linear; }
+    #conf-value-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+
+    input[type="range"] { width: 100%; height: 20px; cursor: pointer; }
+
+    /* ACCIONES ACTIVAS */
+    .action-item { font-size: 20px; margin: 8px 0; color: #666666; display: flex; align-items: center; transition: color 0.3s; }
+    .action-item .icon { font-size: 24px; margin-right: 12px; filter: grayscale(100%) opacity(0.5); transition: all 0.3s; }
+    .action-item.active { color: #00f2ff; font-weight: bold; }
+    .action-item.active .icon { filter: grayscale(0%) opacity(1); }
+
+    /* HISTORIAL */
+    #history-log { list-style: none; padding: 0; margin: 0; background: rgba(0, 0, 0, 0.3); border-radius: 8px; border: 1px solid #333; }
+    #history-log li { padding: 10px 15px; font-size: 18px; border-bottom: 1px solid #333; color: #dddddd; }
+    #history-log li:last-child { border-bottom: none; }
+    .history-empty { color: #666 !important; font-style: italic; }
+
+    /* BOTONES */
+    .btn-group { display: flex; gap: 15px; margin-bottom: 15px; }
+    .btn { flex: 1; min-height: 70px; font-size: 18px; font-weight: bold; background: #2a2a40; border: 2px solid #555; color: white; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .btn.active-mode { background: #00f2ff; color: #000; border-color: #00f2ff; }
+    .btn:hover { filter: brightness(1.2); }
+    .btn-reset { width: 100%; background: #4a2222; border-color: #ff4444; color: #ff4444; }
+    .btn-reset:hover { background: #ff4444; color: white; }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+
+  <div id="header">
+    <h1 id="header-title">CÁMARA INTELIGENTE — PERSPECTIVA ISOMÉTRICA</h1>
+    <p id="header-subtitle">Observa cómo un SÍ o NO puede activar todo un sistema</p>
+  </div>
+
+  <div id="control-panel">
+    <div class="ui-section">
+      <div class="ui-label">VARIABLE "PERSONA DETECTADA"</div>
+      <div id="var-indicator" class="no">NO</div>
+    </div>
+    <div class="ui-section">
+      <div class="ui-label">CONFIANZA DE DETECCIÓN</div>
+      <div class="bar-container"><div id="conf-bar" class="bar-fill"></div><div id="conf-value-text">0%</div></div>
+    </div>
+    <div class="ui-section">
+      <div class="ui-label">UMBRAL DE ACTIVACIÓN: <span id="thresh-val">70%</span></div>
+      <input type="range" id="threshold-slider" min="50" max="95" value="70">
+    </div>
+    <div class="ui-section">
+      <div class="ui-label">ACCIONES ACTIVAS</div>
+      <div class="action-item" id="act-light"><span class="icon">💡</span> Luz encendida</div>
+      <div class="action-item" id="act-rec"><span class="icon">🔴</span> Grabando</div>
+      <div class="action-item" id="act-notif"><span class="icon">📱</span> Notificación enviada</div>
+    </div>
+    <div class="ui-section">
+      <div class="ui-label">HISTORIAL (Últimas detecciones)</div>
+      <ul id="history-log"><li class="history-empty">Sin detecciones recientes...</li></ul>
+    </div>
+    <div class="btn-group">
+      <button id="btn-day" class="btn">MODO DÍA</button>
+      <button id="btn-night" class="btn active-mode">MODO NOCHE</button>
+    </div>
+    <button id="btn-reset" class="btn btn-reset">REINICIAR SISTEMA</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // --- 1. CONFIGURACIÓN ISOMÉTRICA ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a1a);
+
+    let aspect = window.innerWidth / window.innerHeight;
+    const frustumSize = 35; 
+
+    const camera = new THREE.OrthographicCamera(
+      frustumSize * aspect / -2, frustumSize * aspect / 2,
+      frustumSize / 2, frustumSize / -2, 0.1, 1000
+    );
+
+    // Perspectiva Isométrica clásica
+    camera.position.set(30, 30, 30);
+    camera.lookAt(0, 2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.domElement.style.cssText = 'position:absolute;top:0;left:0;z-index:1';
+    document.body.appendChild(renderer.domElement);
+
+    window.addEventListener('resize', () => {
+      aspect = window.innerWidth / window.innerHeight;
+      camera.left = -frustumSize * aspect / 2;
+      camera.right = frustumSize * aspect / 2;
+      camera.top = frustumSize / 2;
+      camera.bottom = -frustumSize / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- 2. ILUMINACIÓN ---
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    dirLight.position.set(-20, 30, 15);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.left = -30;
+    dirLight.shadow.camera.right = 30;
+    dirLight.shadow.camera.top = 30;
+    dirLight.shadow.camera.bottom = -30;
+    dirLight.shadow.camera.far = 100;
+    scene.add(dirLight);
+
+    const portalLight = new THREE.PointLight(0xffaa44, 40, 20);
+    portalLight.position.set(0, 7.5, -2.5);
+    portalLight.intensity = 0;
+    scene.add(portalLight);
+
+    // --- 3. CONSTRUCCIÓN DE LA ESCENA ---
+    const floorGeo = new THREE.PlaneGeometry(200, 200);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(200, 100, 0x00f2ff, 0x555555);
+    grid.material.opacity = 0.15;
+    grid.material.transparent = true;
+    grid.position.y = 0.05; 
+    scene.add(grid);
+
+    const facadeGeo = new THREE.BoxGeometry(60, 20, 2);
+    const facadeMat = new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.9, emissive: new THREE.Color(0,0,0) });
+    const facade = new THREE.Mesh(facadeGeo, facadeMat);
+    facade.position.set(0, 10, -5);
+    facade.castShadow = true;
+    facade.receiveShadow = true;
+    scene.add(facade);
+
+    const doorGeo = new THREE.BoxGeometry(7, 9, 2.2);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x221105, roughness: 0.6, emissive: new THREE.Color(0,0,0) });
+    const door = new THREE.Mesh(doorGeo, doorMat);
+    door.position.set(0, 4.5, -4.9);
+    door.receiveShadow = true;
+    scene.add(door);
+
+    const canopyGeo = new THREE.BoxGeometry(9, 0.5, 4);
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: new THREE.Color(0,0,0) });
+    const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+    canopy.position.set(0, 9, -3);
+    canopy.castShadow = true;
+    canopy.receiveShadow = true;
+    scene.add(canopy);
+
+    // --- 3.1. CÁMARA DE SEGURIDAD CENTRAL BAJO EL TEJADO ---
+    const camGroup = new THREE.Group();
+    camGroup.position.set(0, 8.75, -1.5); // Debajo de la marquesina, centrada
+    
+    // Soporte vertical anclado al techo
+    const camBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 0.5), 
+      new THREE.MeshStandardMaterial({color: 0x333333, emissive: new THREE.Color(0,0,0)})
+    );
+    camBase.position.set(0, -0.25, 0); 
+    camBase.castShadow = true;
+    camGroup.add(camBase);
+
+    // Cuerpo de la cámara
+    const camBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.5, 1.2), 
+      new THREE.MeshStandardMaterial({color: 0xdddddd, emissive: new THREE.Color(0,0,0)})
+    );
+    camBody.position.set(0, -0.5, 0.2);
+    camBody.rotation.x = Math.PI / 6; // Inclinada 30 grados hacia abajo
+    camBody.castShadow = true;
+    
+    // Lente oscura frontal
+    const camLens = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.2, 0.1),
+      new THREE.MeshStandardMaterial({color: 0x050505, roughness: 0.1, emissive: new THREE.Color(0,0,0)})
+    );
+    camLens.rotation.x = Math.PI / 2;
+    camLens.position.set(0, 0, 0.6);
+    camBody.add(camLens);
+
+    // Material global para el Piloto LED de grabación
+    const camLedMat = new THREE.MeshStandardMaterial({color: 0x330000, emissive: new THREE.Color(0,0,0)});
+    const camLed = new THREE.Mesh(new THREE.SphereGeometry(0.06), camLedMat);
+    camLed.position.set(0, 0.18, 0.6); // Arriba de la lente
+    camBody.add(camLed);
+
+    camGroup.add(camBody);
+    scene.add(camGroup);
+
+    // --- 4. SISTEMA DE PERSONAS (HUMANOIDES) ---
+    const peoplePool = [];
+    const MAX_PEOPLE = 4;
+
+    for (let i = 0; i < MAX_PEOPLE; i++) {
+      const pGroup = new THREE.Group();
+      
+      const clothMat = new THREE.MeshStandardMaterial({color: 0xffffff, emissive: new THREE.Color(0,0,0)});
+      const skinMat = new THREE.MeshStandardMaterial({color: 0xffccaa, emissive: new THREE.Color(0,0,0)});
+      const pantsMat = new THREE.MeshStandardMaterial({color: 0x2c3e50, emissive: new THREE.Color(0,0,0)});
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.4), clothMat);
+      torso.position.y = 1.5; torso.castShadow = true;
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.3), skinMat);
+      head.position.y = 2.3; head.castShadow = true;
+
+      const createLimb = (x, y, w, h, d, mat, pivotY) => {
+          const group = new THREE.Group();
+          group.position.set(x, y, 0); 
+          const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+          mesh.position.y = pivotY; 
+          mesh.castShadow = true;
+          group.add(mesh);
+          return group;
+      };
+
+      const armL = createLimb(0.45, 1.9, 0.2, 0.8, 0.2, clothMat, -0.3);
+      const armR = createLimb(-0.45, 1.9, 0.2, 0.8, 0.2, clothMat, -0.3);
+      const legL = createLimb(0.2, 1.0, 0.25, 1.0, 0.25, pantsMat, -0.5);
+      const legR = createLimb(-0.2, 1.0, 0.25, 1.0, 0.25, pantsMat, -0.5);
+
+      pGroup.add(torso, head, armL, armR, legL, legR);
+
+      const detectBox = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1.6, 3.0, 1.6)),
+        new THREE.LineBasicMaterial({color: 0xffff00, linewidth: 2})
+      );
+      detectBox.position.y = 1.4;
+      detectBox.visible = false;
+      pGroup.add(detectBox);
+
+      pGroup.userData = { box: detectBox, clothMat: clothMat, limbs: { armL, armR, legL, legR } };
+      pGroup.visible = false;
+      scene.add(pGroup);
+      peoplePool.push(pGroup);
+    }
+
+    // --- 5. VARIABLES DE ESTADO Y LÓGICA ---
+    let isDayMode = false;
+    let threshold = 70;
+    let currentConfidence = 0;
+    let isDetected = false;
+    let historyLog = [];
+    let spawnTimer = 1.0;
+
+    const varIndicator = document.getElementById('var-indicator');
+    const confBar = document.getElementById('conf-bar');
+    const confValText = document.getElementById('conf-value-text');
+    const threshValText = document.getElementById('thresh-val');
+    const thresholdSlider = document.getElementById('threshold-slider');
+    const actLight = document.getElementById('act-light');
+    const actRec = document.getElementById('act-rec');
+    const actNotif = document.getElementById('act-notif');
+    const historyUl = document.getElementById('history-log');
+
+    thresholdSlider.addEventListener('input', (e) => { threshold = parseInt(e.target.value); threshValText.innerText = threshold + '%'; });
+    document.getElementById('btn-day').addEventListener('click', () => setMode(true));
+    document.getElementById('btn-night').addEventListener('click', () => setMode(false));
+    document.getElementById('btn-reset').addEventListener('click', resetSystem);
+
+    function setMode(day) {
+      isDayMode = day;
+      if (day) {
+        document.getElementById('btn-day').classList.add('active-mode'); document.getElementById('btn-night').classList.remove('active-mode');
+        hemiLight.intensity = 3.5; dirLight.intensity = 4.0; scene.background.setHex(0x5599ff);
+      } else {
+        document.getElementById('btn-night').classList.add('active-mode'); document.getElementById('btn-day').classList.remove('active-mode');
+        hemiLight.intensity = 1.5; dirLight.intensity = 2.0; scene.background.setHex(0x0a0a1a);
+      }
+      updateActionsUI();
+    }
+
+    function addHistoryEntry() {
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+      historyLog.unshift(`[${timeStr}] Persona detectada`);
+      if (historyLog.length > 5) historyLog.pop();
+      historyUl.innerHTML = '';
+      historyLog.forEach(entry => { const li = document.createElement('li'); li.innerText = entry; historyUl.appendChild(li); });
+    }
+
+    function resetSystem() {
+      historyLog = []; historyUl.innerHTML = '<li class="history-empty">Sin detecciones recientes...</li>';
+      threshold = 70; thresholdSlider.value = 70; threshValText.innerText = '70%';
+      setMode(false); peoplePool.forEach(p => p.visible = false); currentConfidence = 0; updateState(0, null);
+    }
+
+    function updateActionsUI() {
+      if (isDetected) {
+        actLight.className = "action-item active"; 
+        actRec.className = "action-item active";
+        actNotif.className = isDayMode ? "action-item" : "action-item active"; 
+        portalLight.intensity = 40;
+        
+        // Encender el piloto LED de la cámara de seguridad
+        camLedMat.emissive.setHex(0xff0000);
+        camLedMat.emissiveIntensity = 2;
+      } else {
+        actLight.className = "action-item"; 
+        actRec.className = "action-item"; 
+        actNotif.className = "action-item"; 
+        portalLight.intensity = 0;
+
+        // Apagar el piloto LED de la cámara
+        camLedMat.emissive.setHex(0x000000);
+        camLedMat.emissiveIntensity = 0;
+      }
+    }
+
+    function updateState(confidence, targetPerson) {
+      confBar.style.width = confidence + '%'; confValText.innerText = Math.round(confidence) + '%';
+      peoplePool.forEach(p => { if (p.userData.box) p.userData.box.visible = false; });
+      
+      const newDetected = confidence >= threshold;
+      
+      if (newDetected && targetPerson) targetPerson.userData.box.visible = true;
+      
+      if (newDetected !== isDetected) {
+        isDetected = newDetected;
+        if (isDetected) { varIndicator.innerText = "SÍ"; varIndicator.className = "yes"; addHistoryEntry(); } 
+        else { varIndicator.innerText = "NO"; varIndicator.className = "no"; }
+        updateActionsUI();
+      } else {
+        updateActionsUI();
+      }
+    }
+
+    // --- 6. BUCLE PRINCIPAL (ANIMACIÓN) ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+
+      spawnTimer -= delta;
+      if (spawnTimer <= 0) {
+        const p = peoplePool.find(x => !x.visible);
+        if (p) {
+          p.visible = true;
+          const dir = Math.random() > 0.5 ? 1 : -1;
+          p.position.set(dir * 30, 0, -1 + (Math.random() * 2));
+          p.userData.dir = -dir;
+          
+          const colors = [0xff4444, 0x44ff44, 0x4444ff, 0xffff44, 0xff44ff];
+          p.userData.clothMat.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
+        }
+        spawnTimer = 3 + Math.random() * 5; 
+      }
+
+      let maxTargetConfidence = 0;
+      let activePerson = null;
+
+      peoplePool.forEach(p => {
+        if (!p.visible) return;
+        
+        p.position.x += p.userData.dir * 4.5 * delta;
+        p.rotation.y = p.userData.dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+
+        const walkSpeed = 10;
+        const limbs = p.userData.limbs;
+        limbs.armL.rotation.x = Math.sin(time * walkSpeed) * 0.6;
+        limbs.armR.rotation.x = Math.sin(time * walkSpeed + Math.PI) * 0.6;
+        limbs.legL.rotation.x = Math.sin(time * walkSpeed + Math.PI) * 0.6;
+        limbs.legR.rotation.x = Math.sin(time * walkSpeed) * 0.6;
+        
+        if (Math.abs(p.position.x) > 35) {
+          p.visible = false;
+        }
+
+        const dist = Math.abs(p.position.x);
+        if (dist < 10) { 
+          const conf = 100 - (dist * 4.0);
+          if (conf > maxTargetConfidence) {
+            maxTargetConfidence = conf;
+            activePerson = p;
+          }
+        }
+      });
+
+      if (currentConfidence < maxTargetConfidence) {
+        currentConfidence += 60 * delta; 
+        if (currentConfidence > maxTargetConfidence) currentConfidence = maxTargetConfidence;
+      } else {
+        currentConfidence -= 40 * delta; 
+        if (currentConfidence < maxTargetConfidence) currentConfidence = maxTargetConfidence;
+      }
+
+      let displayConf = currentConfidence;
+      if (maxTargetConfidence > 0) displayConf += (Math.random() * 4 - 2);
+      displayConf = Math.max(0, Math.min(100, displayConf));
+
+      updateState(displayConf, activePerson);
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+  </script>
+</body>
+</html>

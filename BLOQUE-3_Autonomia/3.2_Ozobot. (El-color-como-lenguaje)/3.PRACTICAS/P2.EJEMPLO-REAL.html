@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2.EJEMPLO-REAL — Ozobot Bit (Babylon.js V8 Gold)</title>
+    <!-- Babylon.js V8 Gold CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --bg: #0d0d1a;
+            --glass: rgba(10, 15, 30, 0.88);
+            --text: #ffffff;
+            --sub: #aaaaaa;
+            --success: #00e676;
+            --danger: #ff4444;
+            --warning: #ffcc00;
+            --orange: #ff8800;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+        /* HEADER OBLIGATORIO */
+        #header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.92);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+        #header h1 {
+            font-size: 24px;
+            color: var(--primary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        #header .subtitle {
+            font-size: 15px;
+            color: var(--sub);
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            height: calc(100vh - 70px);
+        }
+        #left-panel {
+            width: 310px;
+            background: var(--glass);
+            border-right: 1px solid rgba(0, 242, 255, 0.25);
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+            overflow-y: auto;
+            backdrop-filter: blur(12px);
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #090913;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* PANEL INFERIOR DE LEYENDA (DERECHA - ANTI-OCLUSIÓN) */
+        #bottom-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-radius: 12px;
+            padding: 16px 22px;
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            max-width: 480px;
+        }
+        #bottom-panel table {
+            border-collapse: collapse;
+            width: 100%;
+            text-align: left;
+            font-size: 15px;
+        }
+        #bottom-panel th {
+            color: var(--primary);
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        #bottom-panel td {
+            padding: 8px 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            vertical-align: middle;
+        }
+        .code-strip {
+            display: inline-flex;
+            height: 20px;
+            width: 66px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            overflow: hidden;
+            vertical-align: middle;
+        }
+        .code-col { flex: 1; }
+
+        /* TELEMETRÍA EN PANEL IZQUIERDO */
+        .telemetry-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .tele-label {
+            font-size: 13px;
+            color: var(--sub);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        #colorBox {
+            width: 100%;
+            height: 36px;
+            background: #ffffff;
+            border: 2px solid #444;
+            border-radius: 8px;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+            font-size: 14px;
+        }
+        #instructionText {
+            font-size: 19px;
+            font-weight: bold;
+            color: #ffffff;
+            line-height: 1.3;
+            min-height: 48px;
+        }
+        .vel-bar-bg {
+            width: 100%;
+            height: 16px;
+            background: #222;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #444;
+            margin-top: 4px;
+        }
+        #velBar {
+            height: 100%;
+            width: 50%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+        #distText {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* BOTONES DE INTERVENCIÓN MANUAL ININTERRUMPIDA */
+        .btn-ctrl {
+            background: rgba(0, 242, 255, 0.1);
+            color: var(--text);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-ctrl:hover { background: var(--primary); color: #000; transform: translateY(-2px); }
+        .btn-ctrl.red { border-color: var(--danger); background: rgba(255,68,68,0.1); }
+        .btn-ctrl.red:hover { background: var(--danger); color: white; }
+        .btn-ctrl.blue { border-color: #00aaff; background: rgba(0,170,255,0.1); }
+        .btn-ctrl.blue:hover { background: #00aaff; color: white; }
+        .btn-ctrl.green { border-color: var(--success); background: rgba(0,230,118,0.1); }
+        .btn-ctrl.green:hover { background: var(--success); color: black; }
+        .btn-ctrl.yellow { border-color: #ffdd00; background: rgba(255,221,0,0.1); color: #ffdd00; }
+        .btn-ctrl.yellow:hover { background: #ffdd00; color: black; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div>
+            <h1>El Robot que lee Colores</h1>
+            <div class="subtitle">P2.EJEMPLO-REAL · Simulación 3D continua sobre códigos ópticos</div>
+        </div>
+        <div style="font-size: 16px; color: var(--warning); font-weight: bold;">ArcRotateCamera 3D Activa</div>
+    </div>
+
+    <div id="main-container">
+        <!-- PANEL IZQUIERDO: TELEMETRÍA Y CONTROL -->
+        <div id="left-panel">
+            <div class="telemetry-box">
+                <div class="tele-label">Sensor Óptico Inferior</div>
+                <div id="colorBox" style="background: #ffffff; color: #000;">BLANCO (Pista)</div>
+            </div>
+
+            <div class="telemetry-box">
+                <div class="tele-label">Instrucción Lógica Actual</div>
+                <div id="instructionText">AVANZANDO NORMAL POR LÍNEA</div>
+            </div>
+
+            <div class="telemetry-box">
+                <div class="tele-label">Velocidad de Motores</div>
+                <div class="vel-bar-bg">
+                    <div id="velBar"></div>
+                </div>
+            </div>
+
+            <div class="telemetry-box">
+                <div class="tele-label">Odómetro (Distancia)</div>
+                <div id="distText">0.0 cm</div>
+            </div>
+
+            <div style="font-size: 13px; color: var(--sub); letter-spacing: 1px; text-transform: uppercase; margin-top: 6px;">Intervención Manual en Vivo</div>
+            <button class="btn-ctrl red" onclick="injectCode('SPIN360', '#ff2222', 'GIRANDO 360° SOBRE EJE CENTRAL')">🔴 Inyectar Giro 360° (Eje)</button>
+            <button class="btn-ctrl blue" onclick="injectCode('ACCEL', '#00aaff', 'ACELERANDO MÁXIMO (x2)')">🔵 Inyectar Aceleración</button>
+            <button class="btn-ctrl green" onclick="injectCode('LOOP', '#00ff44', 'EJECUTANDO BUCLE 360°')">🟢 Inyectar Bucle Óptico</button>
+            <button class="btn-ctrl yellow" onclick="injectCode('SLOW', '#ffdd00', 'RALENTIZANDO VELOCIDAD (÷2)')">🟡 Inyectar Ralentización</button>
+            
+            <div style="display: flex; gap: 8px; margin-top: auto;">
+                <button class="btn-ctrl" style="flex: 1;" id="btnPause" onclick="togglePause()">⏸ PAUSAR</button>
+                <button class="btn-ctrl" style="flex: 1; border-color: var(--warning); color: var(--warning);" onclick="resetSim()">🔄 REINICIAR</button>
+            </div>
+        </div>
+
+        <!-- CANVAS CENTRAL 3D BABYLON.JS -->
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            
+            <!-- PANEL INFERIOR DERECHO (LEYENDA ANTI-OCLUSIÓN) -->
+            <div id="bottom-panel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>COMBINACIÓN DE COLORES</th>
+                            <th>EFECTO FÍSICO EN OZOBOT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="code-strip">
+                                    <div class="code-col" style="background:#111;"></div>
+                                    <div class="code-col" style="background:#ff2222;"></div>
+                                    <div class="code-col" style="background:#111;"></div>
+                                </div>
+                                <span style="margin-left: 8px;">Negro·Rojo·Negro</span>
+                            </td>
+                            <td><strong>Giro 360° sobre su eje central</strong> (pirueta de escaneo)</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="code-strip">
+                                    <div class="code-col" style="background:#111;"></div>
+                                    <div class="code-col" style="background:#00aaff;"></div>
+                                    <div class="code-col" style="background:#111;"></div>
+                                </div>
+                                <span style="margin-left: 8px;">Negro·Azul·Negro</span>
+                            </td>
+                            <td><strong>Acelera (x2)</strong> durante 3 segundos</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="code-strip">
+                                    <div class="code-col" style="background:#111;"></div>
+                                    <div class="code-col" style="background:#00ff44;"></div>
+                                    <div class="code-col" style="background:#111;"></div>
+                                </div>
+                                <span style="margin-left: 8px;">Negro·Verde·Negro</span>
+                            </td>
+                            <td><strong>Bucle 360° / Parada</strong> de inspección</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="code-strip">
+                                    <div class="code-col" style="background:#111;"></div>
+                                    <div class="code-col" style="background:#ffdd00;"></div>
+                                    <div class="code-col" style="background:#111;"></div>
+                                </div>
+                                <span style="margin-left: 8px;">Negro·Amarillo·Negro</span>
+                            </td>
+                            <td><strong>Ralentiza (÷2)</strong> para lectura fina</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── VARIABLES GLOBALES DE SIMULACIÓN ───
+        let t = 0;
+        let isPaused = false;
+        let totalDistance = 0;
+        let currentState = "NORMAL";
+        let stateTimer = 0;
+        let speedMult = 1.0;
+        let loopAngle = 0;
+        let loopCenter = null;
+        let spinAngle = 0;
+
+        // ─── BABYLON.JS V8 GOLD SETUP ───
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.1, 1);
+
+            // ARC ROTATE CAMERA
+            const camera = new BABYLON.ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 16, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 6;
+            camera.upperRadiusLimit = 35;
+            camera.wheelPrecision = 30;
+
+            // ILUMINACIÓN
+            const hemiLight = new BABYLON.HemisphericLight("Hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.9;
+            hemiLight.diffuse = new BABYLON.Color3(1, 1, 0.95);
+
+            const dirLight = new BABYLON.DirectionalLight("Dir", new BABYLON.Vector3(4, -6, 4), scene);
+            dirLight.intensity = 0.6;
+
+            // PAPEL BLANCO DE MESA (Y = 0)
+            const paper = BABYLON.MeshBuilder.CreateGround("paper", { width: 30, height: 20, subdivisions: 2 }, scene);
+            const paperMat = new BABYLON.StandardMaterial("paperMat", scene);
+            paperMat.diffuseColor = new BABYLON.Color3(0.96, 0.96, 0.93);
+            paperMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            paper.material = paperMat;
+            paper.position.y = 0;
+
+            // CURVA PARAMÉTRICA PRINCIPAL DE RECORRIDO (OVAL / CIRCUITO)
+            const trackPoints = [];
+            for (let a = 0; a <= Math.PI * 2; a += 0.04) {
+                const rx = 11;
+                const rz = 6;
+                trackPoints.push(new BABYLON.Vector3(rx * Math.cos(a), 0.03, rz * Math.sin(a)));
+            }
+            const trackTube = BABYLON.MeshBuilder.CreateTube("trackTube", { path: trackPoints, radius: 0.15, tessellation: 16 }, scene);
+            const trackMat = new BABYLON.StandardMaterial("trackMat", scene);
+            trackMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+            trackTube.material = trackMat;
+
+            // ─── CÓDIGOS DE COLOR DISTRIBUIDOS EN LA PISTA ───
+            const codesData = [];
+            const addCodeStrip = (angleRad, colorHex, label, type) => {
+                const rx = 11;
+                const rz = 6;
+                const pos = new BABYLON.Vector3(rx * Math.cos(angleRad), 0.04, rz * Math.sin(angleRad));
+                const codeGroup = new BABYLON.TransformNode("codeGroup_" + type, scene);
+                codeGroup.position = pos;
+                codeGroup.rotation.y = -angleRad;
+
+                const box = BABYLON.MeshBuilder.CreateBox("strip_" + type, { width: 0.8, height: 0.02, depth: 0.5 }, scene);
+                const mat = new BABYLON.StandardMaterial("mStrip_" + type, scene);
+                mat.diffuseColor = BABYLON.Color3.FromHexString(colorHex);
+                mat.emissiveColor = BABYLON.Color3.FromHexString(colorHex).scale(0.5);
+                box.material = mat;
+                box.parent = codeGroup;
+
+                codesData.push({ angle: angleRad, color: colorHex, label: label, type: type, triggered: false });
+            };
+
+            addCodeStrip(0, "#ff2222", "GIRANDO 360° SOBRE EJE CENTRAL", "SPIN360");
+            addCodeStrip(Math.PI * 0.5, "#00aaff", "ACELERANDO MÁXIMO (x2)", "ACCEL");
+            addCodeStrip(Math.PI * 1.0, "#00ff44", "HACIENDO BUCLE DE LECTURA", "LOOP");
+            addCodeStrip(Math.PI * 1.5, "#ffdd00", "RALENTIZANDO VELOCIDAD (÷2)", "SLOW");
+            scene.codesData = codesData;
+
+            // ─── CONSTRUCCIÓN DEL OZOBOT BIT EN BABYLON.JS (CON RUEDAS Y MORRO) ───
+            const robotGroup = new BABYLON.TransformNode("robotRoot", scene);
+            
+            // Cuerpo y base translúcida
+            const body = BABYLON.MeshBuilder.CreateCylinder("body", { diameter: 0.8, height: 0.5 }, scene);
+            body.position.y = 0.28;
+            const bodyMat = new BABYLON.StandardMaterial("bodyMat", scene);
+            bodyMat.diffuseColor = new BABYLON.Color3(0.15, 0.18, 0.22);
+            bodyMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+            bodyMat.alpha = 0.42; // Transparencia cutaway
+            body.material = bodyMat;
+            body.parent = robotGroup;
+
+            // Marca frontal de referencia: Raya blanca vertical en el morro para apreciar giros 360° y sentido frontal
+            const stripe = BABYLON.MeshBuilder.CreateBox("morro_stripe", { width: 0.08, height: 0.35, depth: 0.04 }, scene);
+            stripe.position = new BABYLON.Vector3(0, 0.28, 0.41);
+            const stripeMat = new BABYLON.StandardMaterial("stripeMat", scene);
+            stripeMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+            stripeMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+            stripe.material = stripeMat;
+            stripe.parent = robotGroup;
+
+            // Ruedas laterales (ejes perpendiculares al avance)
+            const ruedaIzq = BABYLON.MeshBuilder.CreateCylinder("ruedaIzq", { diameter: 0.35, height: 0.12 }, scene);
+            ruedaIzq.rotation.z = Math.PI / 2;
+            ruedaIzq.position = new BABYLON.Vector3(-0.44, 0.18, 0);
+            const ruedaMat = new BABYLON.StandardMaterial("ruedaMat", scene);
+            ruedaMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+            ruedaIzq.material = ruedaMat;
+            ruedaIzq.parent = robotGroup;
+
+            const ruedaDer = BABYLON.MeshBuilder.CreateCylinder("ruedaDer", { diameter: 0.35, height: 0.12 }, scene);
+            ruedaDer.rotation.z = Math.PI / 2;
+            ruedaDer.position = new BABYLON.Vector3(0.44, 0.18, 0);
+            ruedaDer.material = ruedaMat;
+            ruedaDer.parent = robotGroup;
+
+            // Cúpula superior blanca translúcida
+            const dome = BABYLON.MeshBuilder.CreateSphere("dome", { diameter: 0.8, slice: 0.5 }, scene);
+            dome.position.y = 0.52;
+            const domeMat = new BABYLON.StandardMaterial("domeMat", scene);
+            domeMat.diffuseColor = new BABYLON.Color3(0.95, 0.98, 1);
+            domeMat.alpha = 0.65;
+            dome.material = domeMat;
+            dome.parent = robotGroup;
+
+            // LED RGB interior
+            const led = BABYLON.MeshBuilder.CreateSphere("led", { diameter: 0.45 }, scene);
+            led.position.y = 0.55;
+            const ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+            ledMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+            ledMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            led.material = ledMat;
+            led.parent = robotGroup;
+            scene.robotLedMat = ledMat;
+
+            // Visor frontal oscuro orientativo
+            const visor = BABYLON.MeshBuilder.CreateBox("visor", { width: 0.25, height: 0.12, depth: 0.15 }, scene);
+            visor.position = new BABYLON.Vector3(0, 0.45, 0.38);
+            const visorMat = new BABYLON.StandardMaterial("visorMat", scene);
+            visorMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            visor.material = visorMat;
+            visor.parent = robotGroup;
+
+            scene.robotGroup = robotGroup;
+
+            // ─── BUCLE PRINCIPAL DE FÍSICAS Y SEGUIMIENTO ───
+            scene.registerBeforeRender(() => {
+                if (isPaused) return;
+
+                const dt = engine.getDeltaTime() / 1000;
+                const rx = 11;
+                const rz = 6;
+                const vx = -rx * Math.sin(t);
+                const vz = rz * Math.cos(t);
+                const baseForwardAngle = Math.atan2(vx, vz);
+
+                if (currentState === "SPIN360") {
+                    // Giro de 360 grados sobre su propio eje central (pirueta de escaneo visible por la raya blanca)
+                    spinAngle += 6.0 * dt;
+                    robotGroup.rotation.y = baseForwardAngle + spinAngle;
+                    if (spinAngle >= Math.PI * 2) {
+                        spinAngle = 0;
+                        currentState = "NORMAL";
+                        updateTelemetry("AVANZANDO NORMAL POR LÍNEA", "#ffffff", "#ffffff");
+                    }
+                    return;
+                } else if (currentState === "LOOP") {
+                    loopAngle += 4.5 * dt;
+                    if (loopAngle >= Math.PI * 2) {
+                        currentState = "NORMAL";
+                        updateTelemetry("AVANZANDO NORMAL POR LÍNEA", "#ffffff", "#ffffff");
+                    } else {
+                        const radius = 0.9;
+                        robotGroup.position.x = loopCenter.x + radius * Math.cos(loopAngle);
+                        robotGroup.position.z = loopCenter.z + radius * Math.sin(loopAngle);
+                        const lvx = -radius * Math.sin(loopAngle);
+                        const lvz = radius * Math.cos(loopAngle);
+                        robotGroup.rotation.y = Math.atan2(lvx, lvz);
+                        totalDistance += 5 * dt;
+                    }
+                } else {
+                    if (stateTimer > 0) {
+                        stateTimer -= dt;
+                        if (stateTimer <= 0) {
+                            speedMult = 1.0;
+                            currentState = "NORMAL";
+                            updateTelemetry("AVANZANDO NORMAL POR LÍNEA", "#ffffff", "#ffffff");
+                        }
+                    }
+
+                    // Avance paramétrico por el óvalo
+                    const angSpeed = 0.25 * speedMult;
+                    t += angSpeed * dt;
+                    if (t >= Math.PI * 2) t -= Math.PI * 2;
+
+                    const px = rx * Math.cos(t);
+                    const pz = rz * Math.sin(t);
+                    robotGroup.position.set(px, 0, pz);
+                    const currVx = -rx * Math.sin(t);
+                    const currVz = rz * Math.cos(t);
+                    robotGroup.rotation.y = Math.atan2(currVx, currVz);
+
+                    totalDistance += (15 * angSpeed * dt);
+
+                    // DETECCIÓN ÓPTICA DE CÓDIGOS DE COLOR EN LA PISTA
+                    codesData.forEach(code => {
+                        const diff = Math.abs(t - code.angle);
+                        if (diff < 0.12 && !code.triggered) {
+                            code.triggered = true;
+                            injectCode(code.type, code.color, code.label);
+                        } else if (diff >= 0.3) {
+                            code.triggered = false;
+                        }
+                    });
+                }
+
+                document.getElementById("distText").innerText = totalDistance.toFixed(1) + " cm";
+                updateVelBarUI();
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+
+        // ─── TELEMETRÍA E INTERVENCIÓN MANUAL ───
+        function updateTelemetry(text, colorBoxStr, ledHex) {
+            document.getElementById("instructionText").innerText = text;
+            const cBox = document.getElementById("colorBox");
+            cBox.style.background = colorBoxStr;
+            cBox.innerText = text.split(" ")[0] || "CÓDIGO";
+            if (colorBoxStr === "#ffffff") cBox.innerText = "BLANCO (Pista)";
+            if (scene.robotLedMat) {
+                scene.robotLedMat.emissiveColor = BABYLON.Color3.FromHexString(ledHex);
+            }
+        }
+
+        function updateVelBarUI() {
+            const bar = document.getElementById("velBar");
+            if (isPaused) bar.style.width = "0%";
+            else bar.style.width = Math.min(100, (speedMult * 50)) + "%";
+        }
+
+        function injectCode(type, colorHex, label) {
+            updateTelemetry(label, colorHex, colorHex);
+            currentState = type;
+            if (type === "SPIN360") {
+                spinAngle = 0;
+                speedMult = 1.0;
+            } else if (type === "ACCEL") {
+                speedMult = 2.0;
+                stateTimer = 3.0;
+            } else if (type === "SLOW") {
+                speedMult = 0.5;
+                stateTimer = 3.0;
+            } else if (type === "LOOP") {
+                currentState = "LOOP";
+                loopAngle = 0;
+                const rx = 11;
+                const rz = 6;
+                loopCenter = new BABYLON.Vector3(rx * Math.cos(t), 0, rz * Math.sin(t));
+            }
+            updateVelBarUI();
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById("btnPause").innerText = isPaused ? "▶ REANUDAR" : "⏸ PAUSAR";
+            updateVelBarUI();
+        }
+
+        function resetSim() {
+            t = 0;
+            totalDistance = 0;
+            speedMult = 1.0;
+            currentState = "NORMAL";
+            stateTimer = 0;
+            isPaused = false;
+            document.getElementById("btnPause").innerText = "⏸ PAUSAR";
+            if (scene.robotGroup) scene.robotGroup.position.set(11, 0, 0);
+            updateTelemetry("AVANZANDO NORMAL POR LÍNEA", "#ffffff", "#ffffff");
+            updateVelBarUI();
+            if (scene.codesData) scene.codesData.forEach(c => c.triggered = false);
+        }
+
+        updateVelBarUI();
+    </script>
+</body>
+</html>

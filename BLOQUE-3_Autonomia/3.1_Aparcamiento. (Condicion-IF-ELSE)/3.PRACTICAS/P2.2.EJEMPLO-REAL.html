@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 3.1 — P2.2 Ejemplo Real: Laboratorio de Sensor HC-SR04 (Gold V8)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        
+        #ui-panel {
+            width: 390px; flex-shrink: 0; background: rgba(12, 16, 24, 0.96);
+            border-right: 2px solid #00f2ff; padding: 24px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 16px; z-index: 10;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+        }
+        
+        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; }
+        .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: #00f2ff; font-weight: 700; }
+        h1 { font-size: 1.35rem; font-weight: 700; color: #fff; margin-top: 4px; }
+        .subtitle { font-size: 0.82rem; color: #8a9ba8; margin-top: 4px; line-height: 1.4; }
+        
+        .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1.5px; color: #00f2ff; font-weight: 700; margin-top: 4px; }
+        
+        .card-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; }
+        .stat-val { font-family: monospace; font-size: 1.15rem; color: #00ff88; font-weight: 700; }
+        
+        .dist-display {
+            background: rgba(0, 242, 255, 0.08); border: 2px solid #00f2ff; border-radius: 16px;
+            padding: 20px; text-align: center; transition: all 0.3s ease;
+        }
+        .dist-val { font-size: 3rem; font-weight: 800; font-family: monospace; color: #fff; line-height: 1; }
+        .dist-unit { font-size: 1.2rem; color: #8a9ba8; font-weight: 600; }
+        
+        .zone-pill {
+            display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: 700;
+            font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;
+            background: #0055ff; color: #fff; transition: all 0.3s ease;
+        }
+
+        .btn-action {
+            background: #00f2ff; color: #06090e; border: none; padding: 16px;
+            border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer;
+            transition: all 0.25s ease; text-align: center; box-shadow: 0 0 15px rgba(0,242,255,0.4);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-action:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 0 25px rgba(0,242,255,0.7); }
+        .btn-action:active { transform: scale(0.98); }
+        
+        .btn-reset {
+            background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.2);
+            padding: 12px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-reset:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
+
+        #canvas-container { flex: 1; position: relative; }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+        
+        .instruction-banner {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(12, 18, 28, 0.95); border: 1px solid #00f2ff; border-radius: 30px;
+            padding: 14px 28px; font-weight: 600; font-size: 0.95rem; color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,242,255,0.3); z-index: 20;
+            display: flex; align-items: center; gap: 12px; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <div class="header">
+            <div class="tag">Clase 3.1 · Práctica 2.2</div>
+            <h1>Laboratorio HC-SR04</h1>
+            <div class="subtitle">Análisis en tiempo real de la respuesta ultrasónica frontal ante un muro y frenado automático por umbrales SI / SI NO.</div>
+        </div>
+        
+        <div class="dist-display" id="box-dist">
+            <div class="dist-val" id="val-dist">0.0<span class="dist-unit"> cm</span></div>
+            <div class="zone-pill" id="pill-zone">ZONA SEGURA</div>
+        </div>
+
+        <button class="btn-action" id="btn-drive" onmousedown="isDriving=true" onmouseup="isDriving=false" onmouseleave="isDriving=false" ontouchstart="isDriving=true" ontouchend="isDriving=false">🚜 Mantener para Avanzar</button>
+        <button class="btn-reset" onclick="resetSim()">🔄 Reiniciar Posición</button>
+
+        <div class="section-title">Umbrales de Control SI / SI NO</div>
+        <div class="card-box">
+            <div class="stat-row"><span>> 150 cm (Seguro):</span><span class="stat-val" style="color:#00f2ff">PWM 255 (100%)</span></div>
+            <div class="stat-row"><span>50 - 150 cm (Aviso):</span><span class="stat-val" style="color:#ffcc00">PWM 150 (60%)</span></div>
+            <div class="stat-row"><span>30 - 50 cm (Peligro):</span><span class="stat-val" style="color:#ff7800">PWM 80 (30%)</span></div>
+            <div class="stat-row"><span>≤ 30 cm (Bloqueo):</span><span class="stat-val" style="color:#ff4444">PWM 0 (STOP)</span></div>
+        </div>
+
+        <div class="section-title">Estado de Actuadores</div>
+        <div class="card-box">
+            <div class="stat-row"><span>Motor (Potencia PWM):</span><span class="stat-val" id="val-pwm">PWM 0</span></div>
+            <div class="stat-row"><span>Alerta LED Frontal:</span><span class="stat-val" id="val-led">OFF</span></div>
+            <div class="stat-row"><span>Frecuencia Sonar:</span><span class="stat-val" id="val-freq">Normal</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div class="instruction-banner">👉 Mantén pulsado el botón <b>"Mantener para Avanzar"</b> para aproximar el vehículo hacia el muro</div>
+    </div>
+
+    <script>
+        window.isDriving = false;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('renderCanvas');
+            const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+
+            let scene, camera, shadowGen;
+            let cocheGroup, muro, ondaSonar;
+            let velocidad = 0;
+            let distanciaCm = 0;
+            let ledMat;
+
+            const createScene = function() {
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.06, 0.08, 0.12, 1.0);
+                new BABYLON.GlowLayer("glow", scene).intensity = 0.8;
+
+                camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2, Math.PI / 2.6, 15, new BABYLON.Vector3(0, 1, 5), scene);
+                camera.attachControl(canvas, true);
+                camera.lowerRadiusLimit = 4; camera.upperRadiusLimit = 30;
+
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 0.8; hemiLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+                const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(10, 20, 10); dirLight.intensity = 2.5;
+
+                shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                // Suelo y Cuadrícula
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 40, height: 40}, scene);
+                const matGround = new BABYLON.PBRMaterial("matG", scene);
+                matGround.albedoColor = new BABYLON.Color3(0.12, 0.14, 0.18);
+                matGround.roughness = 0.8; ground.material = matGround; ground.receiveShadows = true;
+
+                for (let i = -15; i <= 15; i += 1) {
+                    const lX = BABYLON.MeshBuilder.CreateLines("gx_" + i, {points: [new BABYLON.Vector3(-15, 0.001, i), new BABYLON.Vector3(15, 0.001, i)]}, scene);
+                    lX.color = (i === 0 || i === 12) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+                }
+
+                // Muro
+                muro = BABYLON.MeshBuilder.CreateBox("muro", {width: 8, height: 4, depth: 0.6}, scene);
+                muro.position = new BABYLON.Vector3(0, 2, 12);
+                const matMuro = new BABYLON.PBRMaterial("matM", scene);
+                matMuro.albedoColor = new BABYLON.Color3(0.8, 0.8, 0.85); matMuro.roughness = 0.3;
+                muro.material = matMuro; shadowGen.addShadowCaster(muro); muro.receiveShadows = true;
+
+                // MATERIALES PBR OFICIALES PARA VEHÍCULO DETALLADO (SKILL ELEGOO)
+                const matPaint = new BABYLON.PBRMaterial("matP", scene);
+                matPaint.albedoColor = BABYLON.Color3.FromHexString("#00f2ff"); matPaint.metallic = 0.4; matPaint.roughness = 0.1;
+                matPaint.clearCoat.isEnabled = true; matPaint.clearCoat.intensity = 1.0;
+                matPaint.emissiveColor = new BABYLON.Color3(0.0, 0.15, 0.25);
+
+                const matGlass = new BABYLON.PBRMaterial("matGlass", scene);
+                matGlass.albedoColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+                matGlass.metallic = 0.8; matGlass.roughness = 0.05; matGlass.alpha = 0.85;
+                matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+                const matDarkPlastic = new BABYLON.PBRMaterial("matDarkPlastic", scene);
+                matDarkPlastic.albedoColor = BABYLON.Color3.FromHexString("#111111");
+                matDarkPlastic.metallic = 0.1; matDarkPlastic.roughness = 0.8;
+
+                const matTire = new BABYLON.PBRMaterial("matTire", scene);
+                matTire.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); matTire.roughness = 0.95;
+
+                const matRim = new BABYLON.PBRMaterial("matRim", scene);
+                matRim.albedoColor = BABYLON.Color3.FromHexString("#cccccc"); matRim.metallic = 0.8; matRim.roughness = 0.2;
+
+                const matTail = new BABYLON.PBRMaterial("matTail", scene);
+                matTail.emissiveColor = new BABYLON.Color3(0.9, 0.05, 0.05); matTail.roughness = 0.2;
+
+                // VEHÍCULO ELEGOO DETALLADO (IGUAL QUE P1)
+                cocheGroup = new BABYLON.TransformNode("coche", scene);
+
+                const skirt = BABYLON.MeshBuilder.CreateBox("skirt", {width:2.2, height:0.12, depth:4.0}, scene);
+                skirt.position.y = 0.30; skirt.material = matDarkPlastic; skirt.parent = cocheGroup; shadowGen.addShadowCaster(skirt);
+                
+                const cabin = BABYLON.MeshBuilder.CreateBox("cabin", {width:2.0, height:0.45, depth:1.8}, scene);
+                cabin.position = new BABYLON.Vector3(0, 0.80, -0.2); cabin.material = matPaint; cabin.parent = cocheGroup;
+                
+                const capot = BABYLON.MeshBuilder.CreateBox("capot", {width:2.0, height:0.35, depth:1.2}, scene);
+                capot.position = new BABYLON.Vector3(0, 0.55, 1.3); capot.rotation.x = 0.05; capot.material = matPaint; capot.parent = cocheGroup;
+                
+                const maletero = BABYLON.MeshBuilder.CreateBox("maletero", {width:2.0, height:0.35, depth:1.1}, scene);
+                maletero.position = new BABYLON.Vector3(0, 0.55, -1.35); maletero.rotation.x = -0.05; maletero.material = matPaint; maletero.parent = cocheGroup;
+
+                const winF = BABYLON.MeshBuilder.CreateBox("winF", {width:1.8, height:0.1, depth:0.7}, scene);
+                winF.rotation.x = 0.5; winF.position = new BABYLON.Vector3(0, 0.93, 0.45); winF.material = matGlass; winF.parent = cocheGroup;
+                const winR = BABYLON.MeshBuilder.CreateBox("winR", {width:1.8, height:0.1, depth:0.6}, scene);
+                winR.rotation.x = -0.5; winR.position = new BABYLON.Vector3(0, 0.93, -0.85); winR.material = matGlass; winR.parent = cocheGroup;
+
+                const bumperF = BABYLON.MeshBuilder.CreateBox("bumperF", {width:2.1, height:0.2, depth:0.3}, scene);
+                bumperF.position = new BABYLON.Vector3(0, 0.35, 1.95); bumperF.material = matDarkPlastic; bumperF.parent = cocheGroup;
+                const bumperR = BABYLON.MeshBuilder.CreateBox("bumperR", {width:2.1, height:0.2, depth:0.3}, scene);
+                bumperR.position = new BABYLON.Vector3(0, 0.35, -1.95); bumperR.material = matDarkPlastic; bumperR.parent = cocheGroup;
+
+                const tailL = BABYLON.MeshBuilder.CreateBox("tailL", {width:0.4, height:0.12, depth:0.05}, scene);
+                tailL.position = new BABYLON.Vector3(-0.7, 0.50, -2.08); tailL.material = matTail; tailL.parent = cocheGroup;
+                const tailR = BABYLON.MeshBuilder.CreateBox("tailR", {width:0.4, height:0.12, depth:0.05}, scene);
+                tailR.position = new BABYLON.Vector3(0.7, 0.50, -2.08); tailR.material = matTail; tailR.parent = cocheGroup;
+
+                // 4 Ruedas detalladas con llantas
+                const ruedas = [];
+                [[-1.15, 1.2], [1.15, 1.2], [-1.15, -1.2], [1.15, -1.2]].forEach((pos, idx) => {
+                    const wGroup = new BABYLON.TransformNode("w_"+idx, scene);
+                    wGroup.parent = cocheGroup; wGroup.position = new BABYLON.Vector3(pos[0], 0.40, pos[1]);
+                    const tire = BABYLON.MeshBuilder.CreateCylinder("tire", {diameter:0.7, height:0.28, tessellation:24}, scene);
+                    tire.rotation.z = Math.PI / 2; tire.material = matTire; tire.parent = wGroup; shadowGen.addShadowCaster(tire);
+                    const rim = BABYLON.MeshBuilder.CreateCylinder("rim", {diameter:0.48, height:0.3, tessellation:16}, scene);
+                    rim.rotation.z = Math.PI / 2; rim.material = matRim; rim.parent = wGroup;
+                    ruedas.push(wGroup);
+                });
+
+                // Sensor Ultrasonido frontal (HC-SR04) - Realista, compacto y pegado al morro
+                const sonarPlate = BABYLON.MeshBuilder.CreateBox("sPlate", {width: 0.35, height: 0.15, depth: 0.05}, scene);
+                sonarPlate.position = new BABYLON.Vector3(0, 0.43, 2.05);
+                const matSonar = new BABYLON.PBRMaterial("matS", scene); matSonar.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.6);
+                sonarPlate.material = matSonar; sonarPlate.parent = cocheGroup;
+
+                const ojoI = BABYLON.MeshBuilder.CreateCylinder("ojoI", {diameter: 0.08, height: 0.06}, scene);
+                ojoI.rotation.x = Math.PI/2; ojoI.position = new BABYLON.Vector3(-0.08, 0.43, 2.07);
+                const matOjo = new BABYLON.PBRMaterial("matO", scene); matOjo.metallic = 1.0; matOjo.roughness = 0.1;
+                ojoI.material = matOjo; ojoI.parent = cocheGroup;
+                const ojoD = ojoI.clone("ojoD"); ojoD.position.x = 0.08; ojoD.parent = cocheGroup;
+
+                // LED Alerta en capó
+                ledMat = new BABYLON.PBRMaterial("ledMat", scene);
+                ledMat.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.1); ledMat.emissiveColor = new BABYLON.Color3(0, 0, 0);
+                const led = BABYLON.MeshBuilder.CreateSphere("led", {diameter: 0.2}, scene);
+                led.position = new BABYLON.Vector3(0, 0.85, 1.5); led.material = ledMat; led.parent = cocheGroup;
+
+                // Onda ultrasónica visual originada en el sensor
+                ondaSonar = BABYLON.MeshBuilder.CreateTorus("onda", {diameter: 0.5, thickness: 0.03, tessellation: 32}, scene);
+                ondaSonar.rotation.x = Math.PI/2; ondaSonar.position = new BABYLON.Vector3(0, 0.43, 2.1);
+                const matOnda = new BABYLON.PBRMaterial("matOnda", scene);
+                matOnda.emissiveColor = new BABYLON.Color3(0, 0.95, 1); matOnda.alpha = 0.8;
+                matOnda.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+                ondaSonar.material = matOnda; ondaSonar.parent = cocheGroup;
+
+                // Bucle de lógica y simulación
+                scene.onBeforeRenderObservable.add(() => {
+                    const dt = engine.getDeltaTime() / 1000;
+                    const muroZ = muro.position.z - 0.3;
+                    const cocheZ = cocheGroup.position.z + 2.1;
+                    distanciaCm = Math.max(0, (muroZ - cocheZ) * 100);
+
+                    const boxDist = document.getElementById('box-dist');
+                    const valDist = document.getElementById('val-dist');
+                    const pillZone = document.getElementById('pill-zone');
+                    const valPwm = document.getElementById('val-pwm');
+                    const valLed = document.getElementById('val-led');
+                    const valFreq = document.getElementById('val-freq');
+
+                    valDist.innerHTML = `${distanciaCm.toFixed(1)}<span class="dist-unit"> cm</span>`;
+
+                    let targetSpeed = 0;
+                    let freq = 2.0;
+
+                    if (distanciaCm <= 30) {
+                        // STOP TOTAL / BLOQUEO
+                        targetSpeed = 0;
+                        boxDist.style.borderColor = "#ff4444"; boxDist.style.background = "rgba(255, 68, 68, 0.15)";
+                        pillZone.innerText = "¡STOP! - BLOQUEO DE SEGURIDAD"; pillZone.style.background = "#ff4444";
+                        valPwm.innerText = "PWM 0 (STOP)"; valLed.innerText = "CONTINUO"; valLed.style.color = "#ff4444";
+                        valFreq.innerText = "Bloqueado (0 Hz)";
+                        ledMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                        matOnda.emissiveColor = new BABYLON.Color3(1, 0, 0);
+                        freq = 0;
+                    } 
+                    else if (distanciaCm <= 50) {
+                        // PELIGRO
+                        targetSpeed = isDriving ? 0.8 : 0;
+                        boxDist.style.borderColor = "#ff7800"; boxDist.style.background = "rgba(255, 120, 0, 0.15)";
+                        pillZone.innerText = "ZONA: PELIGRO"; pillZone.style.background = "#ff7800";
+                        valPwm.innerText = "PWM 80 (30%)"; valLed.innerText = "PARPADEO RÁPIDO"; valLed.style.color = "#ff7800";
+                        valFreq.innerText = "Alta (10 Hz)";
+                        ledMat.emissiveColor = (Math.sin(performance.now()*0.02) > 0) ? new BABYLON.Color3(1, 0.4, 0) : new BABYLON.Color3(0,0,0);
+                        matOnda.emissiveColor = new BABYLON.Color3(1, 0.4, 0);
+                        freq = 8.0;
+                    }
+                    else if (distanciaCm <= 150) {
+                        // AVISO
+                        targetSpeed = isDriving ? 1.8 : 0;
+                        boxDist.style.borderColor = "#ffcc00"; boxDist.style.background = "rgba(255, 204, 0, 0.15)";
+                        pillZone.innerText = "ZONA: AVISO"; pillZone.style.background = "#ffcc00";
+                        valPwm.innerText = "PWM 150 (60%)"; valLed.innerText = "PARPADEO LENTO"; valLed.style.color = "#ffcc00";
+                        valFreq.innerText = "Media (4 Hz)";
+                        ledMat.emissiveColor = (Math.sin(performance.now()*0.008) > 0) ? new BABYLON.Color3(1, 0.8, 0) : new BABYLON.Color3(0,0,0);
+                        matOnda.emissiveColor = new BABYLON.Color3(1, 0.8, 0);
+                        freq = 4.0;
+                    }
+                    else {
+                        // SEGURO
+                        targetSpeed = isDriving ? 3.5 : 0;
+                        boxDist.style.borderColor = "#00f2ff"; boxDist.style.background = "rgba(0, 242, 255, 0.08)";
+                        pillZone.innerText = "ZONA: SEGURA"; pillZone.style.background = "#0055ff";
+                        valPwm.innerText = "PWM 255 (100%)"; valLed.innerText = "OFF"; valLed.style.color = "#8a9ba8";
+                        valFreq.innerText = "Normal (1 Hz)";
+                        ledMat.emissiveColor = new BABYLON.Color3(0, 0, 0);
+                        matOnda.emissiveColor = new BABYLON.Color3(0, 0.95, 1);
+                        freq = 1.5;
+                    }
+
+                    velocidad = BABYLON.Scalar.Lerp(velocidad, targetSpeed, 0.1);
+                    cocheGroup.position.z += velocidad * dt;
+                    ruedas.forEach(w => w.rotation.x += velocidad * dt * 2);
+
+                    camera.target.z = BABYLON.Scalar.Lerp(camera.target.z, cocheGroup.position.z + 2, 0.1);
+
+                    // Animación onda sonar
+                    if (freq > 0) {
+                        const pTime = (performance.now() * 0.001 * freq) % 1;
+                        ondaSonar.position = new BABYLON.Vector3(0, 0.6, cocheGroup.position.z + 2.2 + pTime * (distanciaCm / 100));
+                        const esc = 1 + pTime * 3;
+                        ondaSonar.scaling = new BABYLON.Vector3(esc, esc, 1);
+                        matOnda.alpha = 0.8 * (1 - pTime);
+                    } else {
+                        matOnda.alpha = 0;
+                    }
+                });
+
+                return scene;
+            };
+
+            scene = createScene();
+            engine.runRenderLoop(() => scene.render());
+            window.addEventListener('resize', () => engine.resize());
+
+            window.resetSim = function() {
+                cocheGroup.position.z = 0;
+                velocidad = 0;
+                camera.target = new BABYLON.Vector3(0, 1, 5);
+            };
+        });
+    </script>
+</body>
+</html>

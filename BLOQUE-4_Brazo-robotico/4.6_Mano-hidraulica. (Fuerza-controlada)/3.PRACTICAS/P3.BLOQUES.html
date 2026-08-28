@@ -1,0 +1,898 @@
+<!-- Decisiones Técnicas: Babylon.js con cámara frontal (alpha=Math.PI/2) para no enfocar de espaldas al arrancar. Sistema completo Drag & Drop HTML5 nativo para arrastrar bloques desde la caja de herramientas al área de trabajo y reordenarlos libremente moviéndolos de arriba a abajo. Altura de seguridad (y=2.20) que hace matemáticamente imposible penetrar el suelo. -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P3.BLOQUES</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #070714;
+    --panel-bg: rgba(13, 13, 34, 0.96);
+    --primary: #00f2ff;
+    --primary-glow: rgba(0, 242, 255, 0.35);
+    --accent: #ff6f00;
+    --text: #e8e8f0;
+    --text-muted: #8888aa;
+    --success: #00c853;
+    --warning: #ffd600;
+    --danger: #d50000;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 100%; height: 100vh; overflow: hidden;
+    background: var(--bg-dark); font-family: 'Outfit', 'Segoe UI', sans-serif;
+    color: var(--text); display: flex; flex-direction: column;
+  }
+  header {
+    height: 65px; background: rgba(0,0,0,0.92); border-bottom: 2px solid var(--primary);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100;
+    box-shadow: 0 2px 25px rgba(0,242,255,0.18); flex-shrink: 0;
+  }
+  .ht { color: var(--primary); font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; }
+  .hs { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+  .header-badge {
+    background: rgba(0, 242, 255, 0.12); border: 1px solid var(--primary);
+    padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; color: var(--primary);
+  }
+  
+  .app { display: flex; flex: 1; height: calc(100vh - 65px); position: relative; }
+  
+  /* Panel izquierdo de Misiones y Bloques */
+  #ui-layout {
+    width: 580px; flex-shrink: 0; background: var(--panel-bg);
+    border-right: 1px solid rgba(0,242,255,0.25); display: flex; flex-direction: column;
+    z-index: 10; box-shadow: 5px 0 30px rgba(0,0,0,0.6);
+  }
+  
+  /* Selector de Misiones */
+  .mission-tabs { display: flex; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(0,242,255,0.2); padding: 8px 12px; gap: 6px; }
+  .mtab {
+    flex: 1; padding: 9px 4px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px; color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer;
+    text-align: center; transition: all 0.2s;
+  }
+  .mtab:hover { background: rgba(0,242,255,0.1); color: #fff; }
+  .mtab.active { background: rgba(0,242,255,0.22); border-color: var(--primary); color: var(--primary); box-shadow: 0 0 12px var(--primary-glow); }
+
+  /* Info Misión */
+  .mission-desc {
+    padding: 12px 16px; background: rgba(0,242,255,0.04); border-bottom: 1px solid rgba(0,242,255,0.15);
+    font-size: 12.5px; line-height: 1.4; color: #cbd5e1; min-height: 65px;
+  }
+  .mission-desc strong { color: var(--primary); }
+
+  /* Contenedor del IDE por Bloques */
+  .ide-body { display: flex; flex: 1; min-height: 0; }
+  
+  /* Toolbox (Caja de bloques) */
+  #toolbox {
+    width: 250px; background: rgba(0,0,0,0.3); border-right: 1px solid rgba(255,255,255,0.08);
+    padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  }
+  #toolbox::-webkit-scrollbar { width: 5px; }
+  #toolbox::-webkit-scrollbar-thumb { background: rgba(0,242,255,0.2); border-radius: 3px; }
+  .tb-cat { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px; }
+  
+  /* Estilo de los bloques */
+  .blk {
+    padding: 8px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff;
+    cursor: grab; transition: transform 0.15s, box-shadow 0.15s; display: flex; align-items: center; justify-content: space-between;
+    user-select: none; border-left: 5px solid; box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+  }
+  .blk:active { cursor: grabbing; }
+  .blk:hover { transform: translateX(3px); filter: brightness(1.15); }
+  .blk-action { background: linear-gradient(135deg, #005f73, #0a9396); border-left-color: var(--primary); }
+  .blk-sensor { background: linear-gradient(135deg, #bb3e03, #ca6702); border-left-color: var(--warning); }
+  .blk-logic  { background: linear-gradient(135deg, #5b2c6f, #8e44ad); border-left-color: #d7bde2; }
+  .blk-box    { background: linear-gradient(135deg, #1e8449, #27ae60); border-left-color: #2ecc71; }
+  
+  /* Workspace (Área de Programa) */
+  #workspace-wrap {
+    flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+    background: rgba(10,10,24,0.7);
+  }
+  #workspace-wrap::-webkit-scrollbar { width: 5px; }
+  #workspace-wrap::-webkit-scrollbar-thumb { background: rgba(0,242,255,0.2); border-radius: 3px; }
+  .ws-title { font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+  #workspace {
+    flex: 1; border: 2px dashed rgba(0,242,255,0.25); border-radius: 10px; padding: 10px;
+    display: flex; flex-direction: column; gap: 7px; min-height: 220px; transition: background 0.2s, border-color 0.2s;
+  }
+  #workspace.drag-over {
+    background: rgba(0, 242, 255, 0.08); border-color: var(--primary);
+  }
+  #workspace.empty::after {
+    content: "Arrastra bloques aquí o haz clic para construir y ordenar tu programa robótico...";
+    color: var(--text-muted); font-size: 12.5px; font-style: italic; text-align: center; margin: auto; pointer-events: none;
+  }
+  .ws-blk { position: relative; animation: popIn 0.2s ease-out; }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  .ws-blk.active-step { box-shadow: 0 0 16px var(--warning); border: 2px solid var(--warning); }
+  .del-btn {
+    background: rgba(0,0,0,0.4); border: none; color: #ff8080; border-radius: 4px; padding: 2px 6px;
+    font-size: 11px; cursor: pointer; font-weight: bold;
+  }
+  .del-btn:hover { background: var(--danger); color: #fff; }
+
+  /* Barra de Acciones Inferior */
+  .action-bar {
+    padding: 12px 16px; background: rgba(0,0,0,0.85); border-top: 1px solid rgba(0,242,255,0.2);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 10px; border-radius: 8px; font-family: 'Outfit', sans-serif; font-size: 13px;
+    font-weight: 800; cursor: pointer; transition: all 0.2s; text-transform: uppercase; border: 1px solid;
+  }
+  .btn-run { background: linear-gradient(135deg, #00897b, #00c853); border-color: #00e676; color: #fff; }
+  .btn-run:hover { box-shadow: 0 0 15px rgba(0,200,83,0.5); transform: translateY(-1px); }
+  .btn-stop { background: rgba(213,0,0,0.2); border-color: var(--danger); color: #ff8080; }
+  .btn-stop:hover { background: var(--danger); color: #fff; }
+  .btn-sol { background: rgba(255,111,0,0.18); border-color: var(--accent); color: #ffb74d; }
+  .btn-sol:hover { background: rgba(255,111,0,0.35); color: #fff; box-shadow: 0 0 15px rgba(255,111,0,0.4); }
+
+  /* Consola de feedback */
+  #log-box {
+    background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+    padding: 8px 10px; font-size: 12px; font-family: monospace; color: #00e676; min-height: 40px; max-height: 55px; overflow-y: auto;
+  }
+
+  /* Visor 3D */
+  .wrap3d { flex: 1; min-width: 0; position: relative; }
+  #c { width: 100%; height: 100%; display: block; outline: none; }
+
+  /* Telemetría HUD 3D */
+  .hud-3d {
+    position: absolute; top: 16px; right: 16px; background: rgba(10, 10, 26, 0.9);
+    border: 1px solid rgba(0,242,255,0.35); border-radius: 12px; padding: 14px 18px;
+    width: 270px; box-shadow: 0 8px 25px rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    display: flex; flex-direction: column; gap: 7px; pointer-events: none;
+  }
+  .hud-title { font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+  .hud-row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--text); }
+  .hud-val { font-weight: 700; font-family: monospace; color: var(--primary); }
+  .laser-status { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; }
+  .ls-off { background: rgba(255,0,0,0.2); color: #ff8080; border: 1px solid #ff8080; }
+  .ls-on  { background: rgba(0,200,83,0.2); color: #00e676; border: 1px solid #00e676; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="ht">Estación Robótica de Inspección</span>
+    <p class="hs">P3 · Programación por Bloques con Doble Cinta Transportadora</p>
+  </div>
+  <span class="header-badge">Efector: Mano Hidráulica Fija 💧</span>
+</header>
+
+<div class="app">
+  <!-- Panel Izquierdo IDE -->
+  <div id="ui-layout">
+    
+    <div class="mission-tabs">
+      <div class="mtab active" id="tab-m1" onclick="selectMission(1)">Misión 1: Agarre Básico 🔩</div>
+      <div class="mtab" id="tab-m2" onclick="selectMission(2)">Misión 2: Cristal Frágil 🔋</div>
+      <div class="mtab" id="tab-m3" onclick="selectMission(3)">Misión 3: Metal vs Esponja 🔄</div>
+    </div>
+
+    <div class="mission-desc" id="mission-info">
+      <strong>Misión 1: Inspección y Transporte Estándar.</strong> Arranca la cinta. Cuando el láser detecte la pieza frente a su poste (x=0), detén la cinta e inspecciona. Tras soltarla, reanuda la cinta hacia la <strong>CAJA VERDE (Aprobadas)</strong>.
+    </div>
+
+    <div class="ide-body">
+      <!-- Toolbox -->
+      <div id="toolbox">
+        <div class="tb-cat">Actuadores y Cinta</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'belt_on', '🟢 Mover Cinta: Adelante')" onclick="addBlock('belt_on', '🟢 Mover Cinta: Adelante')">🟢 Mover Cinta: Adelante</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'belt_off', '🔴 Mover Cinta: Detener')" onclick="addBlock('belt_off', '🔴 Mover Cinta: Detener')">🔴 Mover Cinta: Detener</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'hand_grab', '✊ Cerrar Dedos (Inspeccionar)')" onclick="addBlock('hand_grab', '✊ Cerrar Dedos (Inspeccionar)')">✊ Cerrar Dedos (Inspeccionar)</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'hand_open', '✋ Abrir Dedos (Soltar Pieza)')" onclick="addBlock('hand_open', '✋ Abrir Dedos (Soltar Pieza)')">✋ Abrir Dedos (Soltar)</div>
+        
+        <div class="tb-cat">Fuerza Hidráulica</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'press_25', '💧 Regular Fuerza: 25% (Suave)')" onclick="addBlock('press_25', '💧 Regular Fuerza: 25% (Suave)')">💧 Consigna Fuerza: 25%</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'press_50', '💧 Regular Fuerza: 50% (Firme)')" onclick="addBlock('press_50', '💧 Regular Fuerza: 50% (Firme)')">💧 Consigna Fuerza: 50%</div>
+        <div class="blk blk-action" draggable="true" ondragstart="dragToolbox(event, 'press_90', '💧 Regular Fuerza: 90% (Fuerte)')" onclick="addBlock('press_90', '💧 Regular Fuerza: 90% (Fuerte)')">💧 Consigna Fuerza: 90%</div>
+
+        <div class="tb-cat">Sensores y Clasificación</div>
+        <div class="blk blk-sensor" draggable="true" ondragstart="dragToolbox(event, 'wait_laser', '⚡ Esperar Sensor Fotoeléctrico (x=0)')" onclick="addBlock('wait_laser', '⚡ Esperar Sensor Fotoeléctrico (x=0)')">⚡ Esperar Sensor Láser</div>
+        <div class="blk blk-box" draggable="true" ondragstart="dragToolbox(event, 'belt_to_green', '🟢 Reanudar Cinta -> CAJA VERDE')" onclick="addBlock('belt_to_green', '🟢 Reanudar Cinta -> CAJA VERDE')">🟢 Cinta -> CAJA VERDE</div>
+        <div class="blk blk-logic" draggable="true" ondragstart="dragToolbox(event, 'classify_auto', '🔍 SI Presión > 3 Bar: -> CAJA VERDE | SI NO: -> CAJA ROJA')" onclick="addBlock('classify_auto', '🔍 SI Presión > 3 Bar: -> CAJA VERDE | SI NO: -> CAJA ROJA')">🔍 SI Presión > 3 Bar: Verde / Roja</div>
+      </div>
+
+      <!-- Workspace -->
+      <div id="workspace-wrap">
+        <div class="ws-title">Programa Robótico (Haz clic o arrastra para añadir/reordenar)</div>
+        <div id="workspace" class="empty"></div>
+      </div>
+    </div>
+
+    <!-- Barra inferior -->
+    <div class="action-bar">
+      <div class="btn-row">
+        <button class="btn btn-run" onclick="runProgram()">▶ Ejecutar Programa</button>
+        <button class="btn btn-stop" onclick="resetScene()">⏹ Reiniciar</button>
+        <button class="btn btn-sol" onclick="loadSolution()">💡 Ver Solución</button>
+      </div>
+      <div id="log-box">Log: Sistema preparado. Arrastra bloques o pulsa para construir tu programa.</div>
+    </div>
+
+  </div>
+
+  <!-- Visor 3D -->
+  <div class="wrap3d">
+    <canvas id="c"></canvas>
+    
+    <div class="hud-3d">
+      <div class="hud-title">Telemetría de la Estación</div>
+      <div class="hud-row"><span>Cinta Transportadora:</span><span class="hud-val" id="hud-belt">DETENIDA</span></div>
+      <div class="hud-row"><span>Sensor Fotoeléctrico:</span><span id="hud-laser" class="laser-status ls-off">ESPERANDO</span></div>
+      <div class="hud-row"><span>Fuerza Hidráulica:</span><span class="hud-val" id="hud-target-press">50 %</span></div>
+      <div class="hud-row"><span>Presión Transductor:</span><span class="hud-val" id="hud-bar">1.0 Bar</span></div>
+      <div class="hud-row"><span>Estado Pieza:</span><span class="hud-val" id="hud-pieza">En cinta</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MOTOR 3D CON CÁMARA FRONTAL Y ALTURA DE SEGURIDAD Y=2.20
+// ═══════════════════════════════════════════════════════════════
+var canvas = document.getElementById('c');
+var engine, scene, camera, shadowGen;
+var handRoot;
+var mats = {};
+var fj = [];
+var syringes = [];
+
+// Variables de la estación robótica
+var beltRunning = false;
+var sensorActive = false;
+var targetT = [0, 0, 0, 0, 0, 0];
+var currentT = [0, 0, 0, 0, 0, 0];
+var pressureConsigna = 50;
+var currentPressureBar = 1.0;
+var activeMission = 1;
+
+// Objeto en cinta
+var piezaMesh;
+var piezaType = 'metal'; // 'metal', 'fragil', 'esponja'
+var piezaX = -5.0;
+var piezaZ = 0.55;
+var piezaGrabbed = false;
+var piezaDiverting = false;
+var cristalRoto = false;
+var cristalExplotado = false;
+var glassShards = [];
+
+window.addEventListener('DOMContentLoaded', function(){
+  engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true});
+  buildScene();
+  engine.runRenderLoop(function(){ scene.render(); });
+  window.addEventListener('resize', function(){ engine.resize(); });
+  setupDnD();
+  selectMission(1);
+});
+
+function sm(r,g,b,a){
+  var m = new BABYLON.StandardMaterial('m'+Math.random(), scene);
+  m.diffuseColor = new BABYLON.Color3(r,g,b);
+  if(a !== undefined) m.alpha = a;
+  return m;
+}
+
+function initMats(){
+  mats.orange = sm(1.00, 0.42, 0.10);
+  mats.black  = sm(0.12, 0.12, 0.22);
+  mats.palm   = sm(0.82, 0.82, 0.82, 0.45);
+  mats.metal  = sm(0.75, 0.75, 0.75);
+  mats.white  = sm(0.92, 0.92, 0.92);
+  mats.tClear = sm(0.00, 0.60, 1.00, 0.45);
+  mats.tWater = sm(0.00, 0.80, 1.00, 0.80);
+  mats.belt   = sm(0.15, 0.15, 0.20);
+  mats.laser  = sm(1.00, 0.05, 0.05, 0.8);
+  mats.laser.emissiveColor = new BABYLON.Color3(1, 0, 0);
+  mats.boxGreen = sm(0.15, 0.75, 0.35);
+  mats.boxRed   = sm(0.85, 0.20, 0.20);
+}
+
+function cbox(n,w,h,d){ return BABYLON.MeshBuilder.CreateBox(n,{width:w,height:h,depth:d},scene); }
+function ccyl(n,d,h){ return BABYLON.MeshBuilder.CreateCylinder(n,{diameter:d,height:h,tessellation:14},scene); }
+
+function buildScene(){
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.04, 0.04, 0.12, 1);
+
+  // Cámara orientada de frente a la escena (alpha = Math.PI/2) para no enfocar de espaldas al cargar
+  camera = new BABYLON.ArcRotateCamera('cam', Math.PI/2, Math.PI/2.5, 13.5, new BABYLON.Vector3(0.0, 1.1, 0.4), scene);
+  camera.attachControl(canvas, true);
+  camera.lowerRadiusLimit = 4; camera.upperRadiusLimit = 25;
+
+  var h = new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0, 1, 0), scene); h.intensity = 0.65;
+  var d = new BABYLON.DirectionalLight('d', new BABYLON.Vector3(-1, -2, -1), scene);
+  d.position = new BABYLON.Vector3(5, 12, 5); d.intensity = 1.6;
+  shadowGen = new BABYLON.ShadowGenerator(1024, d);
+  shadowGen.useBlurExponentialShadowMap = true;
+
+  initMats();
+
+  // Mesa de laboratorio
+  var t = cbox('t', 18, 0.2, 14);
+  t.position.y = -0.1; t.receiveShadows = true; t.material = sm(0.90, 0.88, 0.82);
+
+  // Cinta Transportadora Principal + Ramal Perpendicular Hacia Caja Roja
+  buildConveyorBelts();
+
+  // Cajas de Clasificación en la mesa (Verde y Roja)
+  buildContainers();
+
+  // Mano Hidráulica fija, con altura de seguridad elevada (y=2.20) para que sea imposible tocar la mesa
+  buildHand();
+
+  // Pieza de prueba
+  createTestPiece();
+
+  scene.onBeforeRenderObservable.add(function(){
+    var dt = engine.getDeltaTime() / 1000;
+    
+    // Movimiento realista de transporte por las cintas
+    if (beltRunning && !piezaGrabbed) {
+      if (!piezaDiverting) {
+        // Viaja por la Cinta Principal hacia la Caja Verde
+        if (piezaX < 5.8) {
+          piezaX += 2.5 * dt;
+          piezaMesh.position.x = piezaX;
+        }
+        if (piezaX >= 5.5 && piezaMesh.position.y > 0.25) {
+          piezaMesh.position.y -= 3.0 * dt;
+        }
+      } else {
+        // Viaja por la Cinta Principal hasta la intersección en x = 1.8
+        if (piezaX < 1.8) {
+          piezaX += 2.5 * dt;
+          piezaMesh.position.x = piezaX;
+        } else {
+          // Es desviada y viaja perpendicularmente por el Ramal Lateral (eje Z) hacia la Caja Roja
+          if (piezaZ > -1.7) {
+            piezaZ -= 2.5 * dt;
+            piezaMesh.position.z = piezaZ;
+          }
+          if (piezaZ <= -1.6 && piezaMesh.position.y > 0.25) {
+            piezaMesh.position.y -= 3.0 * dt;
+          }
+        }
+      }
+    }
+
+    // Comprobar sensor fotoeléctrico exactamente frente al poste en x = 0.00
+    if (Math.abs(piezaX - 0.00) < 0.15) {
+      sensorActive = true;
+    } else {
+      sensorActive = false;
+    }
+
+    // Interpolar dedos
+    for (var i = 1; i <= 5; i++) {
+      currentT[i] += (targetT[i] - currentT[i]) * (1 - Math.exp(-9 * dt));
+    }
+    fj.forEach(f => setRotFinger(f, currentT[f.id]));
+
+    // Animar jeringuillas hidráulicas
+    syringes.forEach(s => {
+      var tVal = currentT[s.fingerId];
+      s.p.position.y = 0.65 - tVal * 0.50;
+      s.w.scaling.y = 1 - tVal * 0.60;
+      s.w.position.y = -0.655 + (0.95 / 2) * (1 - tVal * 0.60);
+    });
+
+    // Calcular presión en Bar
+    var closedAmount = currentT.slice(1).reduce((a,b)=>a+b,0) / 5;
+    if (closedAmount > 0.25 && Math.abs(piezaX - 0.00) < 0.35) {
+      if (piezaType === 'metal') currentPressureBar = 1.0 + (pressureConsigna / 100) * 4.5;
+      else if (piezaType === 'fragil') {
+        currentPressureBar = 1.0 + (pressureConsigna / 100) * 4.2;
+        if (currentPressureBar > 2.8 && !cristalExplotado) {
+          explodeCrystal();
+        }
+      }
+      else if (piezaType === 'esponja') currentPressureBar = 1.0 + (pressureConsigna / 100) * 1.5;
+    } else {
+      currentPressureBar = 1.0 + closedAmount * 0.5;
+    }
+
+    // Animar astillas/fragmentos de cristal estallados
+    if (glassShards.length > 0) {
+      glassShards.forEach(s => {
+        if (s.mesh.position.y > s.y0) {
+          s.mesh.position.x += s.vx * dt;
+          s.mesh.position.y += s.vy * dt;
+          s.mesh.position.z += s.vz * dt;
+          s.vy -= 14.0 * dt; // Gravedad
+          s.mesh.rotation.x += s.rx * dt;
+          s.mesh.rotation.y += s.ry * dt;
+          s.mesh.rotation.z += s.rz * dt;
+        } else {
+          if (Math.abs(s.vy) > 1.2) {
+            s.vy = -s.vy * 0.35;
+            s.vx *= 0.6; s.vz *= 0.6;
+          } else {
+            s.vy = 0; s.vx = 0; s.vz = 0;
+            s.mesh.position.y = s.y0;
+          }
+        }
+      });
+    }
+
+    updateTelemetry();
+  });
+}
+
+function buildConveyorBelts(){
+  // 1. Cinta Principal (A lo largo de X, en z = 0.55)
+  var beltMain = cbox('beltMain', 12.0, 0.16, 1.5);
+  beltMain.position.set(0, 0.08, 0.55); beltMain.material = mats.belt; shadowGen.addShadowCaster(beltMain);
+
+  var bm1 = cbox('bm1', 12.0, 0.25, 0.1); bm1.position.set(0, 0.12, -0.2); bm1.material = mats.metal;
+  var bm2 = cbox('bm2', 12.0, 0.25, 0.1); bm2.position.set(0, 0.12, 1.35); bm2.material = mats.metal;
+
+  // 2. Ramal Perpendicular Hacia Caja Roja (En x = 1.8, recorriendo Z hacia -1.5)
+  var beltSide = cbox('beltSide', 1.5, 0.16, 2.3);
+  beltSide.position.set(1.8, 0.08, -0.6); beltSide.material = mats.belt; shadowGen.addShadowCaster(beltSide);
+
+  var bs1 = cbox('bs1', 0.1, 0.25, 2.3); bs1.position.set(1.05, 0.12, -0.6); bs1.material = mats.metal;
+  var bs2 = cbox('bs2', 0.1, 0.25, 2.3); bs2.position.set(2.55, 0.12, -0.6); bs2.material = mats.metal;
+
+  // Poste Sensor fotoeléctrico en x = 0.00
+  var emisor = cbox('emisor', 0.2, 0.6, 0.2); emisor.position.set(0.00, 0.4, -0.25); emisor.material = mats.black;
+  var receptor = cbox('rec', 0.2, 0.6, 0.2); receptor.position.set(0.00, 0.4, 1.4); receptor.material = mats.black;
+  var laser = ccyl('laserBeam', 0.04, 1.6);
+  laser.position.set(0.00, 0.4, 0.55); laser.rotation.x = Math.PI/2; laser.material = mats.laser;
+}
+
+function buildContainers(){
+  // Caja Verde 🟢 (Al final de la Cinta Principal en x = +5.8)
+  var boxG = cbox('boxG', 2.0, 0.4, 1.6);
+  boxG.position.set(5.8, 0.15, 0.55); boxG.material = mats.boxGreen; shadowGen.addShadowCaster(boxG);
+
+  // Caja Roja 🔴 (Al final del Ramal Lateral en x = +1.8, z = -1.9)
+  var boxR = cbox('boxR', 1.8, 0.4, 1.6);
+  boxR.position.set(1.8, 0.15, -1.9); boxR.material = mats.boxRed; shadowGen.addShadowCaster(boxR);
+}
+
+function buildHand(){
+  handRoot = new BABYLON.TransformNode('hr', scene);
+  // Elevación de seguridad: y = 2.20 garantiza que ningún dedo flexionado pueda alcanzar la coordenada y=-0.10 de la mesa
+  handRoot.position.set(0.00, 2.20, -0.60);
+
+  var palma = cbox('palma', 1.6, 0.40, 1.4);
+  palma.parent = handRoot; palma.position.set(0, 0, 0.70); palma.material = mats.palm; shadowGen.addShadowCaster(palma);
+
+  var mun = ccyl('mun', 1.1, 0.9);
+  mun.parent = handRoot; mun.position.set(0, 0, -0.10); mun.rotation.x = Math.PI/2; mun.material = mats.metal; shadowGen.addShadowCaster(mun);
+
+  var YD = -0.20; var ZD = 1.40;
+  mkFinger(2,  0.52, YD, ZD,  0.384, 0.90, 0.63, 0.34);
+  mkFinger(3,  0.17, YD, ZD,  0.000, 0.95, 0.63, 0.34);
+  mkFinger(4, -0.17, YD, ZD, -0.384, 0.90, 0.63, 0.34);
+  mkFinger(5, -0.52, YD, ZD-0.08, -0.524, 0.72, 0.50, 0.28);
+  mkThumb(0.90, YD - 0.10, 0.15);
+
+  [-0.48,-0.24,0,0.24,0.48].forEach(x => {
+    var tb = ccyl('tb', 0.10, 1.6); tb.parent = handRoot; tb.position.set(x, 0.22, -0.15); tb.rotation.x = Math.PI/2; tb.material = mats.tClear;
+    var tw = ccyl('tw', 0.07, 1.58); tw.parent = handRoot; tw.position.set(x, 0.22, -0.15); tw.rotation.x = Math.PI/2; tw.material = mats.tWater;
+  });
+
+  mkSyr(7,  0.75, -1.3); mkSyr(8,  0.40, -1.3); mkSyr(8,  0.00, -1.3); mkSyr(8, -0.40, -1.3); mkSyr(8, -0.75, -1.3);
+}
+
+function mkFinger(id, x, y, z, fanY, l1, l2, l3){
+  var root = new BABYLON.TransformNode('fr'+id, scene); root.parent = handRoot; root.position.set(x, y, z); root.rotation.y = fanY;
+  var j1 = new BABYLON.TransformNode('j1'+id, scene); j1.parent = root;
+  var f1 = ccyl('f1'+id, 0.28, l1); f1.parent = j1; f1.rotation.x = -Math.PI/2; f1.position.z = l1/2; f1.material = mats.black;
+  var j2 = new BABYLON.TransformNode('j2'+id, scene); j2.parent = j1; j2.position.z = l1;
+  var f2 = ccyl('f2'+id, 0.24, l2); f2.parent = j2; f2.rotation.x = -Math.PI/2; f2.position.z = l2/2; f2.material = mats.black;
+  var j3 = new BABYLON.TransformNode('j3'+id, scene); j3.parent = j2; j3.position.z = l2;
+  var f3 = ccyl('f3'+id, 0.20, l3); f3.parent = j3; f3.rotation.x = -Math.PI/2; f3.position.z = l3/2; f3.material = mats.orange;
+  fj.push({j1: j1, j2: j2, j3: j3, id: id, thumb: false});
+  [f1, f2, f3].forEach(m => shadowGen.addShadowCaster(m));
+}
+
+function mkThumb(x, y, z){
+  var root = new BABYLON.TransformNode('frt', scene); root.parent = handRoot; root.position.set(x, y, z); root.rotation.y = Math.PI / 2;
+  var j1 = new BABYLON.TransformNode('j1t', scene); j1.parent = root;
+  var f1 = ccyl('f1t', 0.28, 0.72); f1.parent = j1; f1.rotation.x = -Math.PI/2; f1.position.z = 0.72/2; f1.material = mats.black;
+  var j2 = new BABYLON.TransformNode('j2t', scene); j2.parent = j1; j2.position.z = 0.72;
+  var f2 = ccyl('f2t', 0.24, 0.55); f2.parent = j2; f2.rotation.x = -Math.PI/2; f2.position.z = 0.55/2; f2.material = mats.black;
+  var j3 = new BABYLON.TransformNode('j3t', scene); j3.parent = j2; j3.position.z = 0.55;
+  var f3 = ccyl('f3t', 0.20, 0.38); f3.parent = j3; f3.rotation.x = -Math.PI/2; f3.position.z = 0.38/2; f3.material = mats.orange;
+  fj.push({j1: j1, j2: j2, j3: j3, id: 1, thumb: true});
+  [f1, f2, f3].forEach(m => shadowGen.addShadowCaster(m));
+}
+
+function mkSyr(id, x, z){
+  var g = new BABYLON.TransformNode('sy', scene); g.parent = handRoot; g.position.set(x, 0.25, z);
+  var e = ccyl('e', 0.30, 1.3); e.parent = g; e.position.y = 0; e.material = mats.white; shadowGen.addShadowCaster(e);
+  var p = ccyl('p', 0.18, 0.85); p.parent = g; p.position.y = 0.65; p.material = mats.metal; shadowGen.addShadowCaster(p);
+  var k = ccyl('k', 0.09, 0.28); k.parent = g; k.position.y = -0.80; k.material = mats.black;
+  var w = ccyl('w', 0.24, 0.95); w.parent = g; w.position.y = -0.18; w.material = mats.tWater;
+  var fingerId = 1;
+  if(id === 8) {
+    if(x === 0.40) fingerId = 2; else if(x === 0.00) fingerId = 3; else if(x === -0.40) fingerId = 4; else if(x === -0.75) fingerId = 5;
+  }
+  syringes.push({fingerId: fingerId, p: p, w: w});
+}
+
+var CLOSE = { 2: {mcp:90, pip:65}, 3: {mcp:83, pip:70}, 4: {mcp:90, pip:63}, 5: {mcp:90, pip:65} };
+function setRotFinger(f, t){
+  var R = Math.PI / 180;
+  if(f.thumb){
+    f.j1.rotation.x = t * 75 * R; f.j1.rotation.y = 0; f.j2.rotation.x = t * 65 * R; f.j3.rotation.x = t * 40 * R;
+  } else {
+    var c = CLOSE[f.id];
+    f.j1.rotation.x = t * c.mcp * R; f.j2.rotation.x = t * c.pip * R; f.j3.rotation.x = t * c.pip * (2/3) * R;
+  }
+}
+
+function explodeCrystal() {
+  if (cristalExplotado) return;
+  cristalExplotado = true;
+  cristalRoto = true;
+  
+  if (piezaMesh) piezaMesh.setEnabled(false);
+
+  var ps = new BABYLON.ParticleSystem('psGlass', 150, scene);
+  var pmat = new BABYLON.StandardMaterial('pmat', scene);
+  pmat.emissiveColor = new BABYLON.Color3(1, 0.8, 0.1);
+  var sphere = BABYLON.MeshBuilder.CreateSphere('psph', {diameter:0.1}, scene);
+  ps.particleTexture = new BABYLON.Texture('https://assets.babylonjs.com/environments/flare.png', scene);
+  sphere.dispose();
+  ps.emitter = new BABYLON.Vector3(0.00, 0.45, 0.55);
+  ps.minEmitBox = new BABYLON.Vector3(-0.2, -0.2, -0.2);
+  ps.maxEmitBox = new BABYLON.Vector3(0.2, 0.2, 0.2);
+  ps.color1 = new BABYLON.Color4(1.0, 0.9, 0.2, 1.0);
+  ps.color2 = new BABYLON.Color4(1.0, 0.4, 0.0, 1.0);
+  ps.colorDead = new BABYLON.Color4(0.5, 0.1, 0.0, 0.0);
+  ps.minSize = 0.08; ps.maxSize = 0.25;
+  ps.minLifeTime = 0.3; ps.maxLifeTime = 0.8;
+  ps.emitRate = 500;
+  ps.targetStopDuration = 0.25;
+  ps.gravity = new BABYLON.Vector3(0, -5, 0);
+  ps.direction1 = new BABYLON.Vector3(-3, 4, -3);
+  ps.direction2 = new BABYLON.Vector3(3, 8, 3);
+  ps.minEmitPower = 2; ps.maxEmitPower = 6;
+  ps.start();
+
+  var shardMat = sm(0.95, 0.85, 0.2, 0.85);
+  shardMat.emissiveColor = new BABYLON.Color3(0.4, 0.3, 0.05);
+
+  for (var i = 0; i < 16; i++) {
+    var shard = BABYLON.MeshBuilder.CreatePolyhedron('sh'+i, {type: Math.floor(Math.random()*3), size: 0.12 + Math.random()*0.12}, scene);
+    shard.position.set(0.00 + (Math.random()-0.5)*0.3, 0.45 + (Math.random()-0.5)*0.2, 0.55 + (Math.random()-0.5)*0.3);
+    shard.scaling.set(0.5 + Math.random()*1.2, 0.3 + Math.random()*0.8, 0.5 + Math.random()*1.2);
+    shard.material = shardMat;
+    shadowGen.addShadowCaster(shard);
+
+    var vx = (Math.random() - 0.5) * 5.0;
+    var vy = 2.5 + Math.random() * 4.5;
+    var vz = (Math.random() - 0.5) * 5.0;
+    var rx = (Math.random() - 0.5) * 15;
+    var ry = (Math.random() - 0.5) * 15;
+    var rz = (Math.random() - 0.5) * 15;
+
+    glassShards.push({ mesh: shard, vx: vx, vy: vy, vz: vz, rx: rx, ry: ry, rz: rz, y0: -0.05 });
+  }
+}
+
+function createTestPiece(){
+  if (piezaMesh) piezaMesh.dispose();
+  if (glassShards.length > 0) {
+    glassShards.forEach(s => s.mesh.dispose());
+    glassShards = [];
+  }
+  cristalExplotado = false;
+  piezaX = -5.0;
+  piezaZ = 0.55;
+  piezaGrabbed = false;
+  piezaDiverting = false;
+  cristalRoto = false;
+
+  if (activeMission === 1) {
+    piezaType = 'metal';
+    piezaMesh = cbox('pMetal', 0.75, 0.65, 0.65);
+    piezaMesh.material = sm(0.6, 0.65, 0.75);
+  } else if (activeMission === 2) {
+    piezaType = 'fragil';
+    piezaMesh = cbox('pFragil', 0.75, 0.6, 0.6);
+    piezaMesh.material = sm(0.95, 0.8, 0.1);
+  } else {
+    piezaType = 'esponja';
+    piezaMesh = cbox('pEsponja', 0.8, 0.65, 0.65);
+    piezaMesh.material = sm(0.85, 0.45, 0.2);
+  }
+  piezaMesh.position.set(piezaX, 0.45, piezaZ);
+  shadowGen.addShadowCaster(piezaMesh);
+}
+
+function updateTelemetry(){
+  document.getElementById('hud-belt').innerText = beltRunning ? "EN MARCHA 🟢" : "DETENIDA 🔴";
+  var ls = document.getElementById('hud-laser');
+  if (sensorActive) { ls.className = "laser-status ls-on"; ls.innerText = "DETECTADA 🟢"; }
+  else { ls.className = "laser-status ls-off"; ls.innerText = "ESPERANDO"; }
+  document.getElementById('hud-target-press').innerText = pressureConsigna + " %";
+  document.getElementById('hud-bar').innerText = currentPressureBar.toFixed(1) + " Bar";
+  
+  if (cristalRoto) {
+    document.getElementById('hud-pieza').innerText = "¡ESTALLADO EN FRAGMENTOS! 💥";
+  } else if (piezaGrabbed) {
+    document.getElementById('hud-pieza').innerText = "INSPECCIÓN ✊";
+  } else {
+    document.getElementById('hud-pieza').innerText = "En cinta (" + piezaX.toFixed(1) + "m)";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SISTEMA DRAG & DROP HTML5 NATIVO E INTÉRPRETE ROBÓTICO
+// ═══════════════════════════════════════════════════════════════
+
+var programBlocks = [];
+var isRunning = false;
+
+function dragToolbox(e, type, label) {
+  e.dataTransfer.setData('text/plain', JSON.stringify({source: 'toolbox', type: type, label: label}));
+}
+
+function setupDnD() {
+  var ws = document.getElementById('workspace');
+  ws.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    ws.classList.add('drag-over');
+  });
+  ws.addEventListener('dragleave', function(e) {
+    ws.classList.remove('drag-over');
+  });
+  ws.addEventListener('drop', function(e) {
+    e.preventDefault();
+    ws.classList.remove('drag-over');
+    try {
+      var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data.source === 'toolbox') {
+        addBlock(data.type, data.label);
+      }
+    } catch(err) {}
+  });
+}
+
+function addBlock(type, label) {
+  var ws = document.getElementById('workspace');
+  if (ws.classList.contains('empty')) {
+    ws.classList.remove('empty');
+    ws.innerHTML = '';
+  }
+  var id = 'blk_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+  programBlocks.push({ id: id, type: type, label: label });
+  renderWorkspace();
+}
+
+function removeBlock(id) {
+  programBlocks = programBlocks.filter(b => b.id !== id);
+  renderWorkspace();
+}
+
+function renderWorkspace() {
+  var ws = document.getElementById('workspace');
+  if (programBlocks.length === 0) {
+    ws.classList.add('empty');
+    ws.innerHTML = '';
+    return;
+  }
+  ws.classList.remove('empty');
+  ws.innerHTML = '';
+  programBlocks.forEach((blk, idx) => {
+    var cls = 'blk-action';
+    if (blk.type.indexOf('wait') !== -1) cls = 'blk-sensor';
+    if (blk.type.indexOf('if') !== -1 || blk.type.indexOf('classify') !== -1) cls = 'blk-logic';
+    if (blk.type === 'belt_to_green') cls = 'blk-box';
+    
+    var div = document.createElement('div');
+    div.className = 'blk ws-blk ' + cls;
+    div.id = blk.id;
+    div.draggable = true;
+    div.innerHTML = `<span><strong style="color:var(--primary);">${idx+1}.</strong> ${blk.label}</span>
+                     <button class="del-btn" onclick="removeBlock('${blk.id}')">✕</button>`;
+    
+    div.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('text/plain', JSON.stringify({source: 'workspace', idx: idx}));
+      setTimeout(() => div.style.opacity = '0.3', 0);
+    });
+    div.addEventListener('dragend', function() {
+      div.style.opacity = '1';
+    });
+    div.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      div.style.borderTop = '2px solid var(--warning)';
+    });
+    div.addEventListener('dragleave', function(e) {
+      div.style.borderTop = '';
+    });
+    div.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      div.style.borderTop = '';
+      try {
+        var data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data.source === 'workspace' && data.idx !== idx) {
+          var movedItem = programBlocks.splice(data.idx, 1)[0];
+          programBlocks.splice(idx, 0, movedItem);
+          renderWorkspace();
+        } else if (data.source === 'toolbox') {
+          var id = 'blk_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+          programBlocks.splice(idx, 0, { id: id, type: data.type, label: data.label });
+          renderWorkspace();
+        }
+      } catch(err) {}
+    });
+
+    ws.appendChild(div);
+  });
+}
+
+function log(msg, color) {
+  var lb = document.getElementById('log-box');
+  if(color) lb.style.color = color; else lb.style.color = '#00e676';
+  lb.innerText = "Log: " + msg;
+}
+
+function resetScene() {
+  isRunning = false;
+  beltRunning = false;
+  piezaGrabbed = false;
+  piezaDiverting = false;
+  targetT = [0, 0, 0, 0, 0, 0];
+  pressureConsigna = 50;
+  createTestPiece();
+  document.querySelectorAll('.ws-blk').forEach(b => b.classList.remove('active-step'));
+  log("Escena reiniciada y lista.", "#00f2ff");
+}
+
+function selectMission(num) {
+  activeMission = num;
+  document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-m' + num).classList.add('active');
+  
+  var desc = document.getElementById('mission-info');
+  if(num === 1) desc.innerHTML = "<strong>Misión 1: Inspección y Transporte Estándar.</strong> Arranca la cinta. Cuando el láser detecte la pieza frente a su poste (x=0), detén la cinta e inspecciona. Tras soltarla, reanuda la cinta hacia la <strong>CAJA VERDE (Aprobadas)</strong>.";
+  if(num === 2) desc.innerHTML = "<strong>Misión 2: Cristal Frágil 🔋.</strong> Si aplicas presión > 35% (> 2.8 Bar), el cristal estalla. Detén la cinta al láser, ajusta fuerza a 25% (suave), inspecciónala sin romperla, suéltala y reanuda la cinta hacia la <strong>CAJA VERDE</strong>.";
+  if(num === 3) desc.innerHTML = "<strong>Misión 3: Clasificación Inteligente por Presión 🔄.</strong> Llega una pieza incógnita (Esponja Blanda). Detén la cinta al láser, inspecciona y ejecuta: <code>SI Presión > 3 Bar: -> CAJA VERDE | SI NO: -> CAJA ROJA</code>.";
+  
+  resetScene();
+}
+
+function loadSolution() {
+  programBlocks = [];
+  if (activeMission === 1) {
+    addBlock('belt_on', '🟢 Mover Cinta: Adelante');
+    addBlock('wait_laser', '⚡ Esperar Sensor Fotoeléctrico (x=0)');
+    addBlock('belt_off', '🔴 Mover Cinta: Detener');
+    addBlock('hand_grab', '✊ Cerrar Dedos (Inspeccionar)');
+    addBlock('hand_open', '✋ Abrir Dedos (Soltar Pieza)');
+    addBlock('belt_to_green', '🟢 Reanudar Cinta -> CAJA VERDE');
+  } else if (activeMission === 2) {
+    addBlock('belt_on', '🟢 Mover Cinta: Adelante');
+    addBlock('wait_laser', '⚡ Esperar Sensor Fotoeléctrico (x=0)');
+    addBlock('belt_off', '🔴 Mover Cinta: Detener');
+    addBlock('press_25', '💧 Regular Fuerza: 25% (Suave)');
+    addBlock('hand_grab', '✊ Cerrar Dedos (Inspeccionar)');
+    addBlock('hand_open', '✋ Abrir Dedos (Soltar Pieza)');
+    addBlock('belt_to_green', '🟢 Reanudar Cinta -> CAJA VERDE');
+  } else {
+    addBlock('belt_on', '🟢 Mover Cinta: Adelante');
+    addBlock('wait_laser', '⚡ Esperar Sensor Fotoeléctrico (x=0)');
+    addBlock('belt_off', '🔴 Mover Cinta: Detener');
+    addBlock('hand_grab', '✊ Cerrar Dedos (Inspeccionar)');
+    addBlock('classify_auto', '🔍 SI Presión > 3 Bar: -> CAJA VERDE | SI NO: -> CAJA ROJA');
+  }
+  log("Solución correcta cargada en el área de trabajo.", "#ffd600");
+}
+
+// Intérprete asíncrono de bloques
+async function runProgram() {
+  if (isRunning) return;
+  if (programBlocks.length === 0) {
+    log("El área de programa está vacía. Añade bloques primero.", "#ff8080");
+    return;
+  }
+  resetScene();
+  isRunning = true;
+  log("Iniciando ejecución del programa robótico...", "#00f2ff");
+
+  for (var i = 0; i < programBlocks.length; i++) {
+    if (!isRunning) break;
+    var blk = programBlocks[i];
+    
+    document.querySelectorAll('.ws-blk').forEach(b => b.classList.remove('active-step'));
+    var domBlk = document.getElementById(blk.id);
+    if (domBlk) domBlk.classList.add('active-step');
+
+    log(`Paso ${i+1}: ${blk.label}...`);
+
+    if (blk.type === 'belt_on') {
+      beltRunning = true;
+    } else if (blk.type === 'belt_off') {
+      beltRunning = false;
+      piezaX = 0.00; // Anclaje de precisión milimétrica frente al poste del láser (x=0.00)
+      piezaMesh.position.x = 0.00;
+    } else if (blk.type === 'hand_grab') {
+      targetT = [0.70, 0.70, 0.70, 0.70, 0.70, 0.70];
+      piezaGrabbed = true;
+      await sleep(1000);
+      if (activeMission === 2 && cristalRoto) {
+        log("💥 ¡CRISTAL ESTALLADO! La fuerza al " + pressureConsigna + "% generó excesiva presión (" + currentPressureBar.toFixed(1) + " Bar > 2.8 Bar).", "#ff5252");
+      }
+    } else if (blk.type === 'hand_open') {
+      targetT = [0, 0, 0, 0, 0, 0];
+      piezaGrabbed = false;
+      await sleep(1000);
+    } else if (blk.type === 'press_25') {
+      pressureConsigna = 25;
+    } else if (blk.type === 'press_50') {
+      pressureConsigna = 50;
+    } else if (blk.type === 'press_90') {
+      pressureConsigna = 90;
+    } else if (blk.type === 'wait_laser') {
+      while (!sensorActive && isRunning) {
+        await sleep(20);
+      }
+      log("¡Sensor Fotoeléctrico detectó la pieza frente al poste láser (x=0)!", "#00e676");
+    } else if (blk.type === 'belt_to_green') {
+      targetT = [0, 0, 0, 0, 0, 0];
+      piezaGrabbed = false;
+      piezaDiverting = false;
+      beltRunning = true;
+      await sleep(2400);
+      log("Pieza transportada al final de la cinta y depositada en CAJA VERDE.", "#00e676");
+    } else if (blk.type === 'classify_auto') {
+      await sleep(500);
+      targetT = [0, 0, 0, 0, 0, 0];
+      piezaGrabbed = false;
+      await sleep(800);
+      if (currentPressureBar > 3.0) {
+        log("Evaluación: Presión (" + currentPressureBar.toFixed(1) + " Bar) indica METAL DURO. Enviando a CAJA VERDE...", "#ffd600");
+        piezaDiverting = false;
+        beltRunning = true;
+        await sleep(2400);
+      } else {
+        log("Evaluación: Presión baja (" + currentPressureBar.toFixed(1) + " Bar) indica ESPONJA BLANDA. Desviando por Ramal Lateral a CAJA ROJA...", "#ff8080");
+        piezaDiverting = true;
+        beltRunning = true;
+        await sleep(2300);
+      }
+      break;
+    }
+
+    if (blk.type !== 'wait_laser' && blk.type !== 'belt_on') {
+      await sleep(350);
+    } else {
+      await sleep(10);
+    }
+  }
+
+  document.querySelectorAll('.ws-blk').forEach(b => b.classList.remove('active-step'));
+  isRunning = false;
+  
+  if (activeMission === 2 && cristalRoto) {
+    log("❌ MISIÓN FALLIDA: El cristal ha estallado por aplicar consigna del " + pressureConsigna + "%. ¡Debes regular al 25% para no romperlo!", "#ff5252");
+  } else {
+    log("🎉 ¡MISIÓN FINALIZADA CON ÉXITO!", "#00e676");
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+</script>
+</body>
+</html>

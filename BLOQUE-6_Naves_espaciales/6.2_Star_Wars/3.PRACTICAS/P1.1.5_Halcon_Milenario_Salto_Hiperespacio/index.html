@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1: Salto al Hiperespacio - Motor Warp</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2">
+    
+    <!-- Babylon.js core and loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="ui-container">
+        <h2>HALCÓN MILENARIO - SISTEMA HYPERDRIVE</h2>
+        <p id="telemetry">HYPERDRIVE: EN ESPERA</p>
+        <button id="btn-warp" class="cyber-button">SALTAR AL HIPERESPACIO</button>
+    </div>
+
+    <!-- CARTEl DE ACUMULACIÓN DE ENERGÍA -->
+    <div id="charge-sign" style="display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-family: 'Orbitron', sans-serif; font-size: 3rem; color: #ffaa00; text-shadow: 0 0 20px #ff0000, 0 0 40px #ffaa00; font-weight: bold; letter-spacing: 4px; z-index: 100; text-align: center; animation: pulse 1s infinite alternate;">
+        ¡ACUMULANDO ENERGÍA!
+    </div>
+
+    <style>
+        @keyframes pulse {
+            0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+        }
+    </style>
+
+    <script src="app.js?v=6"></script>
+</body>
+</html>

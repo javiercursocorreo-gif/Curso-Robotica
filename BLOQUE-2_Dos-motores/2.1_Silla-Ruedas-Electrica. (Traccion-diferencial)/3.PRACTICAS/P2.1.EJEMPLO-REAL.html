@@ -1,0 +1,449 @@
+<!-- 
+REVISADO V2 (CORRECCIÓN DE ERROR JS EN BUCLE DE ANIMACIÓN Y ALINEACIÓN DE BRAZOS):
+- Corrección del bucle de control (adiós pantalla negra): Se ha restaurado el bucle de animación propio de P2.1 basado en control por botones e interpolación de motores (curIzq, curDer) sobre el grupo 'silla', eliminando cualquier referencia errónea al raycaster que provocaba un fallo fatal de Javascript y dejaba el lienzo en negro.
+- Alineación sagital pura (rotación en Z = 0): Al eliminar las rotaciones compuestas en el eje Z y el eje Y, los brazos dejan de salir en diagonal u oblicuo hacia afuera. Todo el conjunto (hombro, brazo superior, codo, antebrazo y mano) se alinea en un plano vertical recto y perfectamente paralelo a los laterales de la silla de ruedas (en x=±0.48).
+- Proporción anatómica del torso y hombros: Se ha ajustado la anchura del torso a 0.66 (proporcionado al asiento de 0.85) y los hombros a x=±0.48, situándolos exactamente sobre la vertical de los reposabrazos. Con esto se elimina por completo el efecto de "codos pegados al tronco".
+- Rótulas esféricas de soldadura y brazo derecho estático sujetando el joystick mantenidos con exactitud.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SILLA DE RUEDAS ELÉCTRICA — TRACCIÓN DIFERENCIAL V2</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: #1a1a2e; user-select: none; }
+
+        /* HEADER OBLIGATORIO */
+        #header-main {
+            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: rgba(0, 0, 0, 0.85); border-bottom: 2px solid #00f2ff;
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; pointer-events: none;
+        }
+        #header-main .title {
+            color: #00f2ff; font-size: 24px; letter-spacing: 5px;
+            text-transform: uppercase; font-weight: bold; margin: 0; line-height: 1.2;
+        }
+        #header-main .subtitle { color: #aaaaaa; font-size: 18px; margin: 0; }
+
+        /* PANEL DE INTERFAZ Y CONTROLES */
+        #ui-panel {
+            position: absolute; top: 90px; left: 20px; bottom: 20px;
+            width: 380px; padding: 20px; background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 15px; color: white; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            z-index: 10; pointer-events: auto; overflow-y: auto; display: flex;
+            flex-direction: column; gap: 10px; box-sizing: border-box;
+        }
+        #ui-panel::-webkit-scrollbar { width: 8px; }
+        #ui-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 4px; }
+
+        .label { font-weight: bold; color: #ffcc00; font-size: 18px; text-transform: uppercase; display: block; margin-top: 5px; }
+        #accion-texto { font-size: 18px; line-height: 1.4; margin-bottom: 10px; display: block; min-height: 70px; border-left: 3px solid #00f2ff; padding-left: 10px; color: #eeeeee; }
+        .bar-bg { background: rgba(0,0,0,0.4); height: 16px; border-radius: 8px; margin-bottom: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .bar-fill { height: 100%; width: 0%; transition: width 0.1s; background: #00f2ff; }
+        .data-row { display: flex; justify-content: space-between; font-size: 18px; margin-bottom: 4px; }
+        .data-val { font-weight: bold; color: #00f2ff; font-family: monospace; font-size: 20px; }
+
+        .controls-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;
+        }
+        button {
+            padding: 10px 5px; border: none; border-radius: 10px;
+            background: #ffffff; cursor: pointer; font-weight: bold;
+            font-size: 18px; text-transform: uppercase; user-select: none;
+            box-shadow: 0 5px 0 #999; height: 70px; width: 100%;
+            transition: background 0.1s, transform 0.1s, box-shadow 0.1s;
+            color: #1a1a1a; display: flex; align-items: center; justify-content: center; text-align: center;
+            line-height: 1.2;
+        }
+        button:active { background: #00f2ff; transform: translateY(5px); box-shadow: 0 0px 0 #008ba3; }
+        
+        .btn-pivot { background: #fff8e7; border: 2px solid #ffcc00; color: #b37700; }
+        .btn-pivot:active { background: #ffcc00; color: #000; }
+
+        .btn-toggle-pilot {
+            background: #2a3a4a; color: #00f2ff; border: 2px solid #00f2ff;
+            height: 55px; font-size: 16px; margin-bottom: 5px; box-shadow: 0 4px 0 #008ba3;
+        }
+        .btn-toggle-pilot:active { background: #00f2ff; color: #000; }
+    </style>
+    <script type="importmap">
+        { 
+            "imports": { 
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            } 
+        }
+    </script>
+</head>
+<body>
+
+<div id="header-main">
+    <div class="title">SILLA DE RUEDAS ELÉCTRICA</div>
+    <div class="subtitle">Tracción Diferencial — Prueba con Humanoide del Skill V2</div>
+</div>
+
+<div id="ui-panel">
+    <button class="btn-toggle-pilot" onclick="togglePilot()">👤 Ocultar Piloto</button>
+    
+    <span class="label">Acción en tiempo real</span>
+    <span id="accion-texto">Pulsa y mantén los botones inferiores para probar la tracción diferencial. Observa cómo los brazos reposan rectos y paralelos a la silla sin ángulos oblicuos.</span>
+    
+    <span class="label">Motor Izquierdo (Potencia)</span>
+    <div class="bar-bg"><div id="bar-izq" class="bar-fill"></div></div>
+    
+    <span class="label">Motor Derecho (Potencia)</span>
+    <div class="bar-bg"><div id="bar-der" class="bar-fill"></div></div>
+    
+    <div class="data-row"><span>MOTOR IZQ:</span><span id="val-izq" class="data-val">0%</span></div>
+    <div class="data-row"><span>MOTOR DER:</span><span id="val-der" class="data-val">0%</span></div>
+    <div class="data-row"><span>ESTADO:</span><span id="val-vel" class="data-val">PARADA</span></div>
+    
+    <span class="label" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 15px;">Mando de Tracción</span>
+    <div class="controls-grid">
+        <button onmousedown="mov(1,1,'adelante')" onmouseup="parar()" onmouseleave="parar()">⬆️ Avanzar</button>
+        <button onmousedown="mov(-1,-1,'atras')" onmouseup="parar()" onmouseleave="parar()">⬇️ Retroceder</button>
+        <button onmousedown="mov(0,1,'girar_izq')" onmouseup="parar()" onmouseleave="parar()">↖️ Girar Izq</button>
+        <button onmousedown="mov(1,0,'girar_der')" onmouseup="parar()" onmouseleave="parar()">↗️ Girar Der</button>
+        <button class="btn-pivot" onmousedown="mov(-1,1,'pivotar_izq')" onmouseup="parar()" onmouseleave="parar()">🔄 Pivotar Izq</button>
+        <button class="btn-pivot" onmousedown="mov(1,-1,'pivotar_der')" onmouseup="parar()" onmouseleave="parar()">🔄 Pivotar Der</button>
+    </div>
+</div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const descripciones = {
+        adelante:    '<b>ADELANTE:</b> Los dos motores al mismo ritmo. La silla avanza de frente en línea recta.',
+        atras:       '<b>ATRÁS:</b> Ambos motores en reversa. La silla retrocede recta.',
+        girar_der:   '<b>GIRAR DERECHA (arco):</b> Motor izquierdo activo, derecho parado. Describe un arco suave hacia la derecha.',
+        girar_izq:   '<b>GIRAR IZQUIERDA (arco):</b> Motor derecho activo, izquierdo parado. Describe un arco suave hacia la izquierda.',
+        pivotar_der: '<b>PIVOTAR DERECHA:</b> Sentidos opuestos a misma velocidad. Giro en el propio centro sin avanzar.',
+        pivotar_izq: '<b>PIVOTAR IZQUIERDA:</b> Sentidos opuestos a misma velocidad. Giro en el propio centro sin avanzar.'
+    };
+
+    let mIzq = 0, mDer = 0, curIzq = 0, curDer = 0;
+
+    window.mov = (i, d, key) => {
+        mIzq = i; mDer = d;
+        document.getElementById('accion-texto').innerHTML = descripciones[key];
+        document.getElementById('val-vel').innerText = 'EN MOVIMIENTO';
+        document.getElementById('val-vel').style.color = '#00e676';
+    };
+    window.parar = () => {
+        mIzq = 0; mDer = 0;
+        document.getElementById('accion-texto').innerHTML = 'Pulsa y mantén los botones inferiores para probar la tracción diferencial. Observa cómo los brazos reposan rectos y paralelos a la silla sin ángulos oblicuos.';
+        document.getElementById('val-vel').innerText = 'PARADA';
+        document.getElementById('val-vel').style.color = '#00f2ff';
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(4, 5, 6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI / 2.1; 
+    controls.target.set(0, 0, -1);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    scene.add(dirLight);
+
+    const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+    pointLight.position.set(-10, 10, 5);
+    scene.add(pointLight);
+
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, emissive: new THREE.Color(0,0,0) })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    const ground = floor; // Alias para máxima seguridad
+    
+    const grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    // FUNCIÓN DE CREACIÓN DEL MODELO 14 PIEZAS UNIFICADO + HUMANOIDE SKILL V2
+    function createWheelchairV2(parentScene) {
+        const matMetalic = new THREE.MeshPhysicalMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0,0,0) });
+        const matMotor = new THREE.MeshPhysicalMaterial({ color: 0xff8800, metalness: 0.8, roughness: 0.3, emissive: new THREE.Color(0,0,0) });
+        const matRueda = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.9, emissive: new THREE.Color(0,0,0) });
+        const matLlanta = new THREE.MeshPhysicalMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1, emissive: new THREE.Color(0,0,0) });
+        const matCojin = new THREE.MeshPhysicalMaterial({ color: 0x0055ff, roughness: 0.9, clearcoat: 0.1, emissive: new THREE.Color(0,0,0) });
+        const matPlastico = new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.7, emissive: new THREE.Color(0,0,0) });
+        const matBateria = new THREE.MeshPhysicalMaterial({ color: 0x11aa11, metalness: 0.5, roughness: 0.5, emissive: new THREE.Color(0,0,0) });
+        const matRojo = new THREE.MeshPhysicalMaterial({ color: 0xff0000, roughness: 0.4, emissive: new THREE.Color(0,0,0) });
+
+        const group = new THREE.Group();
+        const wheelsDrivenLeft = [];
+        const wheelsDrivenRight = [];
+        const wheelsFree = [];
+
+        // Chasis
+        const chasis = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 1.2), matMetalic);
+        chasis.position.set(0, 0.5, -0.2); chasis.castShadow = true; group.add(chasis);
+
+        // Rueda trasera izq
+        const gRTI = new THREE.Group();
+        const meshRTI = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 32), matRueda);
+        meshRTI.rotation.z = Math.PI / 2; meshRTI.castShadow = true;
+        const llantaRTI = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 16), matLlanta);
+        llantaRTI.rotation.z = Math.PI / 2; gRTI.add(meshRTI); gRTI.add(llantaRTI);
+        gRTI.position.set(-0.55, 0.3, 0.2); group.add(gRTI);
+        wheelsDrivenLeft.push(gRTI);
+
+        // Rueda trasera der
+        const gRTD = new THREE.Group();
+        const meshRTD = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 32), matRueda);
+        meshRTD.rotation.z = Math.PI / 2; meshRTD.castShadow = true;
+        const llantaRTD = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 16), matLlanta);
+        llantaRTD.rotation.z = Math.PI / 2; gRTD.add(meshRTD); gRTD.add(llantaRTD);
+        gRTD.position.set(0.55, 0.3, 0.2); group.add(gRTD);
+        wheelsDrivenRight.push(gRTD);
+
+        // Motor izq y der
+        const motorI = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), matMotor);
+        motorI.position.set(-0.35, 0.5, 0.2); motorI.castShadow = true; group.add(motorI);
+        const motorD = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), matMotor);
+        motorD.position.set(0.35, 0.5, 0.2); motorD.castShadow = true; group.add(motorD);
+
+        // Ruedas delanteras locas
+        const gRDI = new THREE.Group();
+        const horquillaI = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2), matMetalic);
+        horquillaI.position.set(0, 0.15, 0); gRDI.add(horquillaI);
+        const ruedaDI = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matRueda);
+        ruedaDI.position.set(0, 0, 0); ruedaDI.castShadow = true; gRDI.add(ruedaDI);
+        gRDI.position.set(-0.35, 0.12, -0.7); group.add(gRDI);
+        wheelsFree.push(ruedaDI);
+
+        const gRDD = new THREE.Group();
+        const horquillaD = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2), matMetalic);
+        horquillaD.position.set(0, 0.15, 0); gRDD.add(horquillaD);
+        const ruedaDD = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matRueda);
+        ruedaDD.position.set(0, 0, 0); ruedaDD.castShadow = true; gRDD.add(ruedaDD);
+        gRDD.position.set(0.35, 0.12, -0.7); group.add(gRDD);
+        wheelsFree.push(ruedaDD);
+
+        // Asiento y Respaldo
+        const asiento = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.15, 0.85), matCojin);
+        asiento.position.set(0, 0.8, -0.2); asiento.castShadow = true; group.add(asiento);
+        const respaldo = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.9, 0.15), matCojin);
+        respaldo.position.set(0, 1.3, 0.2); respaldo.castShadow = true; group.add(respaldo);
+
+        // Reposabrazos (almohadilla en y=1.175)
+        const gRepI = new THREE.Group();
+        const soporteI = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), matMetalic);
+        soporteI.position.set(0, -0.15, 0); gRepI.add(soporteI);
+        const padI = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.7), matPlastico);
+        padI.position.set(0, 0, -0.1); gRepI.add(padI);
+        gRepI.position.set(-0.5, 1.15, -0.1); gRepI.castShadow = true; group.add(gRepI);
+
+        const gRepD = new THREE.Group();
+        const soporteD = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), matMetalic);
+        soporteD.position.set(0, -0.15, 0); gRepD.add(soporteD);
+        const padD = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.7), matPlastico);
+        padD.position.set(0, 0, -0.1); gRepD.add(padD);
+        gRepD.position.set(0.5, 1.15, -0.1); gRepD.castShadow = true; group.add(gRepD);
+
+        // Reposapiés
+        const gRepPies = new THREE.Group();
+        const padPies = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.3), matPlastico);
+        padPies.position.set(0, 0, 0); gRepPies.add(padPies);
+        const barraL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), matMetalic);
+        barraL.position.set(-0.25, 0.2, 0.15); barraL.rotation.x = Math.PI/4; gRepPies.add(barraL);
+        const barraR = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), matMetalic);
+        barraR.position.set(0.25, 0.2, 0.15); barraR.rotation.x = Math.PI/4; gRepPies.add(barraR);
+        gRepPies.position.set(0, 0.25, -0.85); gRepPies.castShadow = true; group.add(gRepPies);
+
+        // Joystick (Bola roja en x=0.5, y=1.325, z=-0.4)
+        const gJoy = new THREE.Group();
+        const baseJoy = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.15), matPlastico);
+        gJoy.add(baseJoy);
+        const joyPivot = new THREE.Group();
+        joyPivot.position.set(0, 0.025, 0); gJoy.add(joyPivot);
+        const stickJoy = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1), matMetalic);
+        stickJoy.position.set(0, 0.05, 0); joyPivot.add(stickJoy);
+        const bolaJoy = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), matRojo);
+        bolaJoy.position.set(0, 0.1, 0); joyPivot.add(bolaJoy);
+        gJoy.position.set(0.5, 1.2, -0.4); gJoy.castShadow = true; group.add(gJoy);
+
+        // Batería
+        const bateria = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.4), matBateria);
+        bateria.position.set(0, 0.65, -0.2); bateria.castShadow = true; group.add(bateria);
+
+        // =========================================================================
+        // HUMANOIDE DEL SKILL ESTÁNDAR (Adaptado a Three.js - Low Poly Box/Sphere)
+        // =========================================================================
+        const skinMat  = new THREE.MeshPhysicalMaterial({ color: 0xf0c080, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+        const pantsMat = new THREE.MeshPhysicalMaterial({ color: 0x333399, roughness: 0.9, emissive: new THREE.Color(0,0,0) });
+        const ropaMat  = new THREE.MeshPhysicalMaterial({ color: 0xcc2222, roughness: 0.7, emissive: new THREE.Color(0,0,0) });
+        const bootMat  = new THREE.MeshPhysicalMaterial({ color: 0x221111, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+
+        const humanoid = new THREE.Group();
+
+        // Torso (Box 0.66 x 0.7 x 0.3 - ropaMat - proporciones atléticas para el asiento)
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.7, 0.3), ropaMat);
+        torso.position.set(0, 1.22, -0.05); torso.castShadow = true; humanoid.add(torso);
+
+        // Cabeza (Sphere diameter 0.4 -> radius 0.2 - skinMat)
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 32, 32), skinMat);
+        head.position.set(0, 1.75, -0.05); head.castShadow = true; humanoid.add(head);
+
+        // Piernas (Pantalón - Sentadas sobre asiento y reposapiés)
+        const musloI = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.45), pantsMat);
+        musloI.position.set(-0.16, 0.96, -0.3); musloI.castShadow = true; humanoid.add(musloI);
+        const musloD = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.45), pantsMat);
+        musloD.position.set(0.16, 0.96, -0.3); musloD.castShadow = true; humanoid.add(musloD);
+
+        const piernaI = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.16), pantsMat);
+        piernaI.rotation.x = 0.3; piernaI.position.set(-0.16, 0.6, -0.65); piernaI.castShadow = true; humanoid.add(piernaI);
+        const piernaD = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, 0.16), pantsMat);
+        piernaD.rotation.x = 0.3; piernaD.position.set(0.16, 0.6, -0.65); piernaD.castShadow = true; humanoid.add(piernaD);
+
+        const zapatoI = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), bootMat);
+        zapatoI.position.set(-0.16, 0.32, -0.78); zapatoI.castShadow = true; humanoid.add(zapatoI);
+        const zapatoD = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), bootMat);
+        zapatoD.position.set(0.16, 0.32, -0.78); zapatoD.castShadow = true; humanoid.add(zapatoD);
+
+        // =========================================================================
+        // BRAZOS RECTOS Y PARALELOS A LA SILLA (SIN OBLICUOS NI CODOS PEGADOS)
+        // =========================================================================
+        // Al alinear los hombros en x=±0.48 y eliminar las rotaciones en el eje Z (rotation.z = 0),
+        // todo el brazo desciende en un plano sagital paralelo a los reposabrazos de la silla.
+
+        // --- BRAZO IZQUIERDO ---
+        const armLGroup = new THREE.Group();
+        armLGroup.position.set(-0.48, 1.45, -0.05);
+        armLGroup.rotation.x = 0.35; // Flexión hacia adelante en el hombro, 0 en Z
+
+        const hombroSphereI = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), skinMat);
+        armLGroup.add(hombroSphereI);
+        const brazoSupI = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, 0.12), skinMat);
+        brazoSupI.position.set(0, -0.13, 0); brazoSupI.castShadow = true;
+        armLGroup.add(brazoSupI);
+
+        // Codo Izquierdo: Hijo en el extremo inferior (y=-0.26)
+        const elbowLGroup = new THREE.Group();
+        elbowLGroup.position.set(0, -0.26, 0);
+        elbowLGroup.rotation.x = 1.22;  // Flexión pura hacia adelante sobre el reposabrazos (-Z)
+
+        const codoSphereI = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), skinMat);
+        elbowLGroup.add(codoSphereI); 
+        const antebrazoI = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.28, 0.11), skinMat);
+        antebrazoI.position.set(0, -0.14, 0); antebrazoI.castShadow = true;
+        elbowLGroup.add(antebrazoI);
+        const manoI = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.12), skinMat);
+        manoI.position.set(0, -0.31, 0); manoI.castShadow = true;
+        elbowLGroup.add(manoI);
+
+        armLGroup.add(elbowLGroup);
+        humanoid.add(armLGroup);
+
+        // --- BRAZO DERECHO (ESTÁTICO SUJETANDO EL JOYSTICK - RECTO Y PARALELO) ---
+        const armRGroup = new THREE.Group();
+        armRGroup.position.set(0.48, 1.45, -0.05);
+        armRGroup.rotation.x = 0.35; // 0 en Z, paralelo a la silla
+
+        const hombroSphereD = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), skinMat);
+        armRGroup.add(hombroSphereD);
+        const brazoSupD = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.26, 0.12), skinMat);
+        brazoSupD.position.set(0, -0.13, 0); brazoSupD.castShadow = true;
+        armRGroup.add(brazoSupD);
+
+        const elbowRGroup = new THREE.Group();
+        elbowRGroup.position.set(0, -0.26, 0);
+        elbowRGroup.rotation.x = 1.22; // Flexión pura hacia adelante hacia el joystick
+
+        const codoSphereD = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), skinMat);
+        elbowRGroup.add(codoSphereD);
+        const antebrazoD = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.26, 0.11), skinMat);
+        antebrazoD.position.set(0, -0.13, 0); antebrazoD.castShadow = true;
+        elbowRGroup.add(antebrazoD);
+        const manoD = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.13), skinMat);
+        manoD.position.set(0, -0.28, 0); manoD.castShadow = true;
+        elbowRGroup.add(manoD);
+
+        armRGroup.add(elbowRGroup);
+        humanoid.add(armRGroup);
+
+        group.add(humanoid);
+
+        if(parentScene) parentScene.add(group);
+        return { group, wheelsDrivenLeft, wheelsDrivenRight, wheelsFree, joyPivot, humanoid };
+    }
+
+    const { group: silla, wheelsDrivenLeft, wheelsDrivenRight, wheelsFree, joyPivot, humanoid } = createWheelchairV2(scene);
+
+    window.togglePilot = () => {
+        if(!humanoid) return;
+        humanoid.visible = !humanoid.visible;
+        const btn = document.querySelector('.btn-toggle-pilot');
+        if(btn) btn.innerText = humanoid.visible ? '👤 Ocultar Piloto' : '👤 Mostrar Piloto';
+    };
+
+    const clock = new THREE.Clock();
+    const multi = 0.15;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.05);
+
+        curIzq = THREE.MathUtils.lerp(curIzq, mIzq, dt * 5);
+        curDer = THREE.MathUtils.lerp(curDer, mDer, dt * 5);
+
+        const vL = curIzq * multi;
+        const vR = curDer * multi;
+        const lineal  = (vL + vR) / 2 * 3.5;
+        const angular = (vL - vR) * 0.4;
+
+        silla.rotateY(-angular * 10 * dt);
+        silla.translateZ(-lineal * 10 * dt);
+
+        wheelsDrivenLeft.forEach(mesh => mesh.rotation.x -= curIzq * dt * 10);
+        wheelsDrivenRight.forEach(mesh => mesh.rotation.x -= curDer * dt * 10);
+        wheelsFree.forEach(mesh => mesh.rotation.x -= lineal * dt * 12);
+
+        // EL BRAZO DERECHO PERMANECE 100% ESTÁTICO SUJETANDO EL JOYSTICK SIN AGITARSE
+
+        document.getElementById('bar-izq').style.width = Math.abs(curIzq) * 100 + '%';
+        document.getElementById('bar-der').style.width = Math.abs(curDer) * 100 + '%';
+        document.getElementById('val-izq').innerText = Math.round(Math.abs(curIzq) * 100) + '%';
+        document.getElementById('val-der').innerText = Math.round(Math.abs(curDer) * 100) + '%';
+
+        controls.target.copy(silla.position); 
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>

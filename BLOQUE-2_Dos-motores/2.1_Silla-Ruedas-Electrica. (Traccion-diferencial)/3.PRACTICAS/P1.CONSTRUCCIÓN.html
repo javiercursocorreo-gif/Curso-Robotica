@@ -1,0 +1,539 @@
+<!--
+REVISADO V2 (UNIFICACIÓN DE MODELO Y ROTACIÓN CONTINUA):
+- Modelo de silla unificado: Modelo idéntico de 14 piezas en P1, P2.1, P2.2 y P3.
+- Rotación en fase de montaje: El escenario y la silla rotan suave y continuamente mientras el alumno añade las piezas (robotGroup.rotation.y += 0.4 * dt), permitiendo apreciar la construcción 3D desde todos los ángulos. Al iniciar la conducción, la rotación se restablece a 0 para un control preciso.
+- Anti-oclusión del canvas 3D: Cero modales superpuestos. Todo mensaje de finalización y conducción se despliega en el panel izquierdo (#panel-izq).
+- Colorimetría Premium & Glassmorphism: Fondo oscuro #1a1a2e, bordes neón #00f2ff y paneles con desenfoque (backdrop-filter: blur(15px)).
+- Iluminación PBR y Materiales: Configuración estricta de emissive: new THREE.Color(0,0,0).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P1.CONSTRUCCION — Montaje V2</title>
+    <style>
+        body { 
+            margin: 0; overflow: hidden; background: #1a1a2e; 
+            font-family: 'Segoe UI', sans-serif; user-select: none;
+        }
+
+        /* HEADER OBLIGATORIO */
+        #header-main {
+            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background: rgba(0, 0, 0, 0.85); border-bottom: 2px solid #00f2ff;
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; pointer-events: none;
+        }
+        #header-main .title {
+            color: #00f2ff; font-size: 26px; letter-spacing: 5px;
+            text-transform: uppercase; font-weight: bold; margin: 0; line-height: 1.2;
+        }
+        #header-main .subtitle { color: #aaaaaa; font-size: 18px; margin: 0; }
+
+        /* DISEÑO DE PANELES: IZQUIERDA Y DERECHA */
+        .panel {
+            position: absolute; top: 90px; bottom: 20px; width: 30%; min-width: 340px;
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); z-index: 10; display: flex;
+            flex-direction: column; padding: 20px; box-sizing: border-box;
+            color: white; pointer-events: auto;
+        }
+
+        #panel-izq { left: 20px; }
+        #panel-der { right: 20px; }
+
+        .panel-title {
+            font-size: 22px; font-weight: bold; color: #ffcc00; text-align: center;
+            margin-bottom: 20px; text-transform: uppercase;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2); padding-bottom: 10px;
+        }
+        .step-info {
+            flex-grow: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+        }
+        .step-emoji { font-size: 80px; margin-bottom: 15px; }
+        .step-name { font-size: 24px; font-weight: bold; color: #00f2ff; margin-bottom: 15px; }
+        .step-desc { font-size: 20px; line-height: 1.5; color: #eeeeee; }
+
+        /* BANDEJA DE PIEZAS */
+        #tray-container {
+            display: flex; flex-direction: column; gap: 12px;
+            overflow-y: auto; flex-grow: 1; padding-right: 10px;
+        }
+        #tray-container::-webkit-scrollbar { width: 8px; }
+        #tray-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        #tray-container::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 4px; }
+
+        .piece-item {
+            background: rgba(0, 0, 0, 0.4); border: 2px solid transparent;
+            border-radius: 10px; padding: 15px; display: flex; align-items: center;
+            cursor: grab; transition: all 0.2s; min-height: 70px; box-sizing: border-box;
+        }
+        .piece-item:hover { border-color: #00f2ff; background: rgba(0, 242, 255, 0.1); }
+        .piece-item:active { cursor: grabbing; }
+        
+        .piece-emoji { font-size: 32px; margin-right: 15px; }
+        .piece-text { font-size: 18px; font-weight: bold; color: white; }
+
+        .piece-installed {
+            opacity: 0.4; cursor: default !important;
+            border-color: transparent !important; background: rgba(0, 0, 0, 0.6) !important;
+        }
+    </style>
+    
+    <script type="importmap">
+        { 
+            "imports": { 
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            } 
+        }
+    </script>
+</head>
+<body>
+
+    <div id="header-main">
+        <div class="title">MONTAJE DE SILLA DE RUEDAS ELÉCTRICA</div>
+        <div class="subtitle">Arrastra cada pieza a su posición en el lienzo 3D y construye la silla</div>
+    </div>
+
+    <div id="panel-izq" class="panel">
+        <div class="panel-title" id="step-counter">PASO 1 DE 14</div>
+        <div class="step-info">
+            <div class="step-emoji" id="step-icon">🏗️</div>
+            <div class="step-name" id="step-title">CHASIS</div>
+            <div class="step-desc" id="step-desc">Base metálica de la silla.<br>La estructura sobre la que se monta todo.</div>
+        </div>
+    </div>
+
+    <div id="panel-der" class="panel">
+        <div class="panel-title">BANDEJA DE PIEZAS</div>
+        <div id="tray-container"></div>
+    </div>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let currentStepIndex = 0;
+    let installedPieces = {};
+    let piecesCount = 0;
+    const TOTAL_PIECES = 14;
+    let isDriving = false;
+    let isShowcase = false;
+    let skipQueue = [];
+    let isTesting = false;
+
+    // DEFINICIÓN DE LAS 14 PIEZAS UNIFICADAS
+    const piecesData = [
+        { id: 'chasis', name: 'CHASIS', emoji: '🏗️', desc: 'Base metálica de la silla.<br>La estructura principal.', build: buildChasis },
+        { id: 'rueda_ti', name: 'RUEDA TRASERA IZQ', emoji: '🛞', desc: 'Rueda grande de tracción.<br>Acoplada a motor izquierdo.', build: buildRuedaTI },
+        { id: 'rueda_td', name: 'RUEDA TRASERA DER', emoji: '🛞', desc: 'Rueda grande de tracción.<br>Acoplada a motor derecho.', build: buildRuedaTD },
+        { id: 'motor_i', name: 'MOTOR IZQUIERDO', emoji: '⚙️', desc: 'Mueve la rueda izquierda independiente.<br>Va dentro del chasis.', build: buildMotorI },
+        { id: 'motor_d', name: 'MOTOR DERECHO', emoji: '⚙️', desc: 'Mueve la rueda derecha independiente.<br>Va dentro del chasis.', build: buildMotorD },
+        { id: 'rueda_di', name: 'RUEDA DELANTERA IZQ', emoji: '🔘', desc: 'Rueda loca frontal de apoyo.<br>Giratoria libre y sin motor.', build: buildRuedaDI },
+        { id: 'rueda_dd', name: 'RUEDA DELANTERA DER', emoji: '🔘', desc: 'Rueda loca frontal de apoyo.<br>Giratoria libre y sin motor.', build: buildRuedaDD },
+        { id: 'asiento', name: 'ASIENTO', emoji: '💺', desc: 'Superficie acolchada<br>donde se sienta el usuario.', build: buildAsiento },
+        { id: 'respaldo', name: 'RESPALDO', emoji: '🔙', desc: 'Soporte vertical<br>trasero del asiento.', build: buildRespaldo },
+        { id: 'reposa_i', name: 'REPOSABRAZOS IZQ', emoji: '➖', desc: 'Apoyo lateral izquierdo<br>para confort ergonómico.', build: buildReposaI },
+        { id: 'reposa_d', name: 'REPOSABRAZOS DER', emoji: '➖', desc: 'Apoyo lateral derecho.<br>Soporta el joystick de mando.', build: buildReposaD },
+        { id: 'reposapies', name: 'REPOSAPIÉS', emoji: '🦶', desc: 'Soporte frontal<br>plegable para los pies.', build: buildReposapies },
+        { id: 'joystick', name: 'JOYSTICK', emoji: '🕹️', desc: 'Palanca de control.<br>Se monta en reposabrazos derecho.', build: buildJoystick },
+        { id: 'bateria', name: 'BATERÍA', emoji: '🔋', desc: 'Bloque de energía eléctrica.<br>La última pieza que activa la silla.', build: buildBateria }
+    ];
+
+    const wheelsDrivenLeft = [];
+    const wheelsDrivenRight = [];
+    const wheelsFree = [];
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(4, 5, 6);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '1';
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, -1);
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI / 2.1;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3.5));
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    scene.add(dirLight);
+
+    const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+    pointLight.position.set(-10, 10, 5);
+    scene.add(pointLight);
+
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: 0x444444, emissive: new THREE.Color(0,0,0) })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    const robotGroup = new THREE.Group();
+    scene.add(robotGroup);
+
+    // MATERIALES UNIFICADOS (EMISSIVE NEGRO STRICTO)
+    const matMetalic = new THREE.MeshPhysicalMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.1, clearcoat: 1.0, emissive: new THREE.Color(0,0,0) });
+    const matMotor = new THREE.MeshPhysicalMaterial({ color: 0xff8800, metalness: 0.8, roughness: 0.3, emissive: new THREE.Color(0,0,0) });
+    const matRueda = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.9, emissive: new THREE.Color(0,0,0) });
+    const matLlanta = new THREE.MeshPhysicalMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1, emissive: new THREE.Color(0,0,0) });
+    const matCojin = new THREE.MeshPhysicalMaterial({ color: 0x0055ff, roughness: 0.9, clearcoat: 0.1, emissive: new THREE.Color(0,0,0) });
+    const matPlastico = new THREE.MeshPhysicalMaterial({ color: 0x222222, roughness: 0.7, emissive: new THREE.Color(0,0,0) });
+    const matBateria = new THREE.MeshPhysicalMaterial({ color: 0x11aa11, metalness: 0.5, roughness: 0.5, emissive: new THREE.Color(0,0,0) });
+    const matRojo = new THREE.MeshPhysicalMaterial({ color: 0xff0000, roughness: 0.4, emissive: new THREE.Color(0,0,0) });
+
+    function buildChasis() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 1.2), matMetalic);
+        mesh.position.set(0, 0.5, -0.2); mesh.castShadow = true;
+        return mesh;
+    }
+    function buildRuedaTI() {
+        const g = new THREE.Group();
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 32), matRueda);
+        mesh.rotation.z = Math.PI / 2; mesh.castShadow = true;
+        const llanta = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 16), matLlanta);
+        llanta.rotation.z = Math.PI / 2; g.add(mesh); g.add(llanta);
+        g.position.set(-0.55, 0.3, 0.2);
+        wheelsDrivenLeft.push(g);
+        return g;
+    }
+    function buildRuedaTD() {
+        const g = new THREE.Group();
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 32), matRueda);
+        mesh.rotation.z = Math.PI / 2; mesh.castShadow = true;
+        const llanta = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.16, 16), matLlanta);
+        llanta.rotation.z = Math.PI / 2; g.add(mesh); g.add(llanta);
+        g.position.set(0.55, 0.3, 0.2);
+        wheelsDrivenRight.push(g);
+        return g;
+    }
+    function buildMotorI() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), matMotor);
+        mesh.position.set(-0.35, 0.5, 0.2); mesh.castShadow = true;
+        return mesh;
+    }
+    function buildMotorD() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), matMotor);
+        mesh.position.set(0.35, 0.5, 0.2); mesh.castShadow = true;
+        return mesh;
+    }
+    function buildRuedaDI() {
+        const g = new THREE.Group();
+        const horquilla = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2), matMetalic);
+        horquilla.position.set(0, 0.15, 0); g.add(horquilla);
+        const rueda = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matRueda);
+        rueda.position.set(0, 0, 0); rueda.castShadow = true; g.add(rueda);
+        g.position.set(-0.35, 0.12, -0.7);
+        wheelsFree.push(rueda);
+        return g;
+    }
+    function buildRuedaDD() {
+        const g = new THREE.Group();
+        const horquilla = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2), matMetalic);
+        horquilla.position.set(0, 0.15, 0); g.add(horquilla);
+        const rueda = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), matRueda);
+        rueda.position.set(0, 0, 0); rueda.castShadow = true; g.add(rueda);
+        g.position.set(0.35, 0.12, -0.7);
+        wheelsFree.push(rueda);
+        return g;
+    }
+    function buildAsiento() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.15, 0.85), matCojin);
+        mesh.position.set(0, 0.8, -0.2); mesh.castShadow = true;
+        return mesh;
+    }
+    function buildRespaldo() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.9, 0.15), matCojin);
+        mesh.position.set(0, 1.3, 0.2); mesh.castShadow = true;
+        return mesh;
+    }
+    function buildReposaI() {
+        const g = new THREE.Group();
+        const soporte = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), matMetalic);
+        soporte.position.set(0, -0.15, 0); g.add(soporte);
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.7), matPlastico);
+        pad.position.set(0, 0, -0.1); g.add(pad);
+        g.position.set(-0.5, 1.15, -0.1); g.castShadow = true;
+        return g;
+    }
+    function buildReposaD() {
+        const g = new THREE.Group();
+        const soporte = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), matMetalic);
+        soporte.position.set(0, -0.15, 0); g.add(soporte);
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.7), matPlastico);
+        pad.position.set(0, 0, -0.1); g.add(pad);
+        g.position.set(0.5, 1.15, -0.1); g.castShadow = true;
+        return g;
+    }
+    function buildReposapies() {
+        const g = new THREE.Group();
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.3), matPlastico);
+        pad.position.set(0, 0, 0); g.add(pad);
+        const barraL = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), matMetalic);
+        barraL.position.set(-0.25, 0.2, 0.15); barraL.rotation.x = Math.PI/4; g.add(barraL);
+        const barraR = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), matMetalic);
+        barraR.position.set(0.25, 0.2, 0.15); barraR.rotation.x = Math.PI/4; g.add(barraR);
+        g.position.set(0, 0.25, -0.85); g.castShadow = true;
+        return g;
+    }
+    function buildJoystick() {
+        const g = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.15), matPlastico);
+        g.add(base);
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1), matMetalic);
+        stick.position.set(0, 0.05, 0); g.add(stick);
+        const bola = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), matRojo);
+        bola.position.set(0, 0.1, 0); g.add(bola);
+        g.position.set(0.5, 1.2, -0.4); g.castShadow = true;
+        return g;
+    }
+    function buildBateria() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.4), matBateria);
+        mesh.position.set(0, 0.65, -0.2); mesh.castShadow = true;
+        return mesh;
+    }
+
+    function initUI() {
+        const tray = document.getElementById('tray-container');
+        piecesData.forEach(piece => {
+            const div = document.createElement('div');
+            div.className = 'piece-item';
+            div.id = 'tray-' + piece.id;
+            div.draggable = true;
+            div.innerHTML = `<div class="piece-emoji">${piece.emoji}</div><div class="piece-text">${piece.name}</div>`;
+            
+            div.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', piece.id);
+            });
+            div.addEventListener('click', () => {
+                if(!installedPieces[piece.id]) installPiece(piece.id);
+            });
+            tray.appendChild(div);
+        });
+
+        document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain');
+            if(id) installPiece(id);
+        });
+
+        updateInstructionPanel();
+    }
+
+    window.nextStep = function() {
+        currentStepIndex = (currentStepIndex + 1) % TOTAL_PIECES;
+        updateInstructionPanel();
+    }
+
+    window.skipAll = function() {
+        skipQueue = piecesData.map(p => p.id).filter(id => !installedPieces[id]);
+        if(skipQueue.length > 0 && !isTesting) {
+            installPiece(skipQueue.shift());
+        }
+    }
+
+    window.resetSim = function() {
+        isDriving = false;
+        isShowcase = false;
+        robotGroup.position.set(0, 0, 0);
+        robotGroup.rotation.set(0, 0, 0);
+        camera.position.set(4, 5, 6);
+        controls.target.set(0, 0, -1);
+        scene.background.setHex(0x1a1a2e);
+        
+        if(piecesCount === TOTAL_PIECES) {
+            startDrivingPhase();
+        } else {
+            updateInstructionPanel();
+        }
+    }
+
+    function updateInstructionPanel() {
+        if (isDriving || isShowcase) return;
+        const piece = piecesData[currentStepIndex];
+        document.getElementById('step-counter').innerText = `PASO ${currentStepIndex + 1} DE 14`;
+        document.getElementById('step-counter').style.color = "#ffcc00";
+        document.getElementById('step-icon').innerText = piece.emoji;
+        document.getElementById('step-title').innerText = piece.name;
+        document.getElementById('step-title').style.color = "#00f2ff";
+        document.getElementById('step-desc').innerHTML = piece.desc;
+    }
+
+    function installPiece(id) {
+        if(installedPieces[id]) return;
+        
+        const pieceDef = piecesData.find(p => p.id === id);
+        if(!pieceDef) return;
+
+        installedPieces[id] = true;
+        piecesCount++;
+
+        const trayItem = document.getElementById('tray-' + id);
+        trayItem.classList.add('piece-installed');
+        trayItem.draggable = false;
+        trayItem.style.cursor = 'default';
+
+        const mesh = pieceDef.build();
+        mesh.scale.setScalar(0.01);
+        robotGroup.add(mesh);
+
+        const startTime = performance.now();
+        const duration = 300;
+
+        function animatePop(time) {
+            let p = (time - startTime) / duration;
+            if(p > 1) p = 1;
+            mesh.scale.setScalar(0.01 + 0.99 * p);
+            if(p < 1) {
+                requestAnimationFrame(animatePop);
+            } else {
+                afterInstall();
+            }
+        }
+        requestAnimationFrame(animatePop);
+    }
+
+    function afterInstall() {
+        if(skipQueue.length > 0) {
+            installPiece(skipQueue.shift());
+        } else {
+            if(piecesCount === TOTAL_PIECES && !isDriving && !isShowcase) {
+                startDrivingPhase();
+            }
+        }
+    }
+
+    let timerDrive = null;
+    function startDrivingPhase() {
+        isDriving = true;
+        robotGroup.rotation.set(0, 0, 0); // Alineación frontal para iniciar conducción
+        robotGroup.position.set(0, 0, 0);
+        scene.background.setHex(0x0f2a1a);
+        
+        document.getElementById('step-counter').innerText = "¡MONTAJE COMPLETADO!";
+        document.getElementById('step-counter').style.color = "#00e676";
+        document.getElementById('step-icon').innerText = "🦽🏆";
+        document.getElementById('step-title').innerText = "¡A CONDUCIR!";
+        document.getElementById('step-title').style.color = "#00f2ff";
+        document.getElementById('step-desc').innerHTML = `
+            <div style="text-align: left; font-size: 18px; line-height: 1.5; color: #fff;">
+                <b>Tracción Diferencial en Acción:</b><br><br>
+                ⌨️ <b>WASD / Flechas:</b> Conduce la silla por el taller.<br>
+                🔄 <b>Giro Diferencial:</b> Observa cómo las ruedas motrices traseras giran a diferente velocidad o sentido.<br><br>
+                <i>⏱️ Tienes 15 segundos antes de pasar a la vista de exposición automática.</i>
+            </div>
+        `;
+        
+        clearTimeout(timerDrive);
+        timerDrive = setTimeout(() => {
+            isDriving = false;
+            isShowcase = true;
+            scene.background.setHex(0x1a1a2e);
+            targetMotorL = 0;
+            targetMotorR = 0;
+            document.getElementById('step-counter').innerText = "EXPOSICIÓN 3D";
+            document.getElementById('step-counter').style.color = "#ffcc00";
+            document.getElementById('step-icon').innerText = "✨";
+            document.getElementById('step-title').innerText = "VISTA DE EXPOSICIÓN";
+            document.getElementById('step-title').style.color = "#00f2ff";
+            document.getElementById('step-desc').innerHTML = "La silla rota suavemente para contemplar todos sus componentes de hardware y diseño motriz.";
+        }, 15000);
+    }
+
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    let targetMotorL = 0;
+    let targetMotorR = 0;
+    let motorL = 0;
+    let motorR = 0;
+    const clock = new THREE.Clock();
+
+    function updatePhysics(dt) {
+        // ROTACIÓN SUAVE DURANTE EL MONTAJE DE PIEZAS
+        if(!isDriving && !isShowcase) {
+            robotGroup.rotation.y += 0.4 * dt;
+            return;
+        }
+
+        if(isDriving) {
+            targetMotorL = 0;
+            targetMotorR = 0;
+            
+            if(keys['KeyW'] || keys['ArrowUp']) { targetMotorL += 1; targetMotorR += 1; }
+            if(keys['KeyS'] || keys['ArrowDown']) { targetMotorL -= 1; targetMotorR -= 1; }
+            if(keys['KeyA'] || keys['ArrowLeft']) { targetMotorL -= 1; targetMotorR += 1; }
+            if(keys['KeyD'] || keys['ArrowRight']) { targetMotorL += 1; targetMotorR -= 1; }
+
+            motorL += (targetMotorL - motorL) * 0.1;
+            motorR += (targetMotorR - motorR) * 0.1;
+
+            const speed = 3.5;
+            const rotSpeed = 1.5;
+            
+            const v = (motorL + motorR) / 2 * speed;
+            const w = (motorR - motorL) * rotSpeed;
+
+            robotGroup.translateZ(-v * dt);
+            robotGroup.rotateY(w * dt);
+
+            wheelsDrivenLeft.forEach(mesh => mesh.rotation.x -= motorL * dt * 5);
+            wheelsDrivenRight.forEach(mesh => mesh.rotation.x -= motorR * dt * 5);
+            wheelsFree.forEach(mesh => mesh.rotation.x -= v * dt * 8);
+        }
+
+        if(isShowcase) {
+            robotGroup.rotation.y += 0.5 * dt;
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.05);
+
+        updatePhysics(dt);
+        
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    initUI();
+    animate();
+</script>
+</body>
+</html>

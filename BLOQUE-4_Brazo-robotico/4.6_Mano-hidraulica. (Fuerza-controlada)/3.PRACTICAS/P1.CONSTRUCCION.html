@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P1.CONSTRUCCION</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:'Segoe UI',Arial,sans-serif;color:#e8e8f0;font-size:18px;}
+header{position:fixed;top:0;left:0;width:100%;height:70px;background:rgba(0,0,0,0.92);border-bottom:2px solid #00f2ff;z-index:100;display:flex;align-items:center;padding:0 24px;gap:14px;}
+.ht{color:#00f2ff;font-size:20px;font-weight:700;}
+.hs{color:#888;font-size:13px;}
+.app{display:flex;position:fixed;top:70px;left:0;right:0;bottom:0;}
+#panel{width:300px;flex-shrink:0;background:#0d0d22;border-right:1px solid #222244;display:flex;flex-direction:column;overflow-y:auto;padding:16px;gap:10px;}
+.inst{font-size:14px;color:#00f2ff;background:rgba(0,242,255,0.06);border:1px solid rgba(0,242,255,0.25);border-radius:8px;padding:10px;text-align:center;}
+.prog{font-size:17px;font-weight:700;text-align:center;color:#e8e8f0;}
+#cards{display:flex;flex-direction:column;gap:8px;flex:1;}
+.card{display:flex;align-items:center;gap:10px;background:#111130;border:1.5px solid #333355;border-radius:10px;padding:10px 12px;cursor:grab;user-select:none;min-height:64px;transition:border-color .2s,background .2s;}
+.card:hover:not(.done){border-color:#00f2ff;background:#16163a;}
+.card.done{border-color:#00c853;background:rgba(0,200,83,.08);cursor:default;}
+.card:active:not(.done){cursor:grabbing;}
+.ci{font-size:24px;flex-shrink:0;}
+.cn{font-weight:700;font-size:14px;}
+.cd{font-size:11px;color:#8888aa;margin-top:1px;}
+.wrap3d{flex:1;display:flex;min-width:0;position:relative;}
+.wrap3d.over{outline:3px dashed #00f2ff;outline-offset:-4px;}
+#c{width:100%;height:100%;display:block;outline:none;touch-action:none;}
+.ok{display:none;background:rgba(0,200,83,.12);border:1.5px solid #00c853;border-radius:10px;padding:12px;text-align:center;color:#00c853;font-size:14px;flex-shrink:0;}
+.cnt-btn{background:#222244;color:#e8e8f0;border:1px solid #444466;border-radius:4px;padding:4px 8px;font-size:16px;cursor:pointer;transition:background .2s,border-color .2s;margin-top:5px;}
+.cnt-btn:hover{background:#2a2a55;border-color:#00f2ff;}
+.rst{background:#222244;color:#e8e8f0;border:1px solid #444466;border-radius:8px;height:64px;font-size:15px;cursor:pointer;width:100%;margin-top:auto;flex-shrink:0;}
+.rst:hover{background:#2a2a55;border-color:#00f2ff;}
+</style>
+</head>
+<body>
+<header>
+  <span class="ht">Mano Hidráulica</span>
+  <span class="hs">Construcción · Fuerza controlada</span>
+</header>
+<div class="app">
+  <div id="panel">
+    <div class="inst">Arrastra cada pieza hasta el canvas para montarla</div>
+    <div class="prog" id="prog">0 / 10 piezas colocadas</div>
+    <div id="cards"></div>
+    <div class="ok" id="ok">
+      ¡Mano hidráulica lista!<br>Fuerza controlada por agua 💧
+      <div style="margin-top:10px; display:flex; justify-content:center; gap:5px; flex-wrap:wrap;">
+        <button class="cnt-btn" onclick="setCount(0)">✊</button>
+        <button class="cnt-btn" onclick="setCount(1)">1️⃣</button>
+        <button class="cnt-btn" onclick="setCount(2)">2️⃣</button>
+        <button class="cnt-btn" onclick="setCount(3)">3️⃣</button>
+        <button class="cnt-btn" onclick="setCount(4)">4️⃣</button>
+        <button class="cnt-btn" onclick="setCount(5)">5️⃣</button>
+        <button class="cnt-btn" onclick="setCount(6)">👍</button>
+      </div>
+    </div>
+    <button class="rst" onclick="reset()">Reiniciar Construcción 🔄</button>
+  </div>
+  <div class="wrap3d" id="wrap3d">
+    <canvas id="c"></canvas>
+  </div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+// VALORES CONFIRMADOS POR PRUEBA VISUAL (captura 2026-06-08)
+//
+// Cilindros: rotation.x = -PI/2 → apuntan en Z+ ✓
+// Cierre: rotation.x POSITIVO → dedo baja y adelanta ✓
+//
+// Ángulos de abanico (fan) reales confirmados:
+//   índice:  +22° = +0.384 rad
+//   medio:    0°
+//   anular:  -22° = -0.384 rad
+//   meñique: -30° = -0.524 rad
+//
+// Ángulos de cierre confirmados:
+//   MCP: índice 90°, medio 83°, anular 90°, meñique 90°
+//   PIP: índice 65°, medio 70°, anular 63°, meñique 65°
+//   DIP: acoplado = 2/3 * PIP
+//
+// Pulgar: rotation.y = +PI/2 (+90°) → apunta hacia X- (hacia los dedos)
+//   Fan Z = -6°, MCP = 43°, IP = 52° (confirmados en captura)
+// ═══════════════════════════════════════════════════════
+
+var engine, scene, camera, shadowGen;
+var handRoot;
+var mats={};
+var pm=[];
+var fj=[];
+var syringes=[];
+var inst=Array(10).fill(false);
+var done=false,sanim=[],lobs=null,psys=null,ball=null;
+var currentT = [0, 0, 0, 0, 0, 0];
+var targetT = [0, 0, 0, 0, 0, 0];
+var isDemoActive = true;
+for(var i=0;i<10;i++) pm.push([]);
+
+var PIECES=[
+  {id:0,icon:'✋',name:'Palma y Muñeca',    desc:'La base central que sostiene todos los dedos.'},
+  {id:1,icon:'👍',name:'Dedo Pulgar',       desc:'El dedo del agarre en pinza.'},
+  {id:2,icon:'☝️',name:'Dedo Índice',       desc:'El primero en tocar los objetos.'},
+  {id:3,icon:'🖕',name:'Dedo Medio',        desc:'El más largo y fuerte del agarre.'},
+  {id:4,icon:'💍',name:'Dedo Anular',       desc:'Aumenta la superficie de contacto.'},
+  {id:5,icon:'🤙',name:'Dedo Meñique',      desc:'Cierra el agarre por el borde exterior.'},
+  {id:6,icon:'🧪',name:'Tubos Hidráulicos', desc:'El agua viaja aquí para mover cada dedo.'},
+  {id:7,icon:'💉',name:'Pistón del Pulgar', desc:'Empuja agua → el pulgar se cierra.'},
+  {id:8,icon:'🎛️',name:'Pistones de Dedos', desc:'Un pistón por cada dedo de apoyo.'},
+  {id:9,icon:'💧',name:'Agua de Cebado',    desc:'Sin agua no hay fuerza. El aire rompe el control.'},
+];
+
+window.addEventListener('DOMContentLoaded',function(){
+  var canvas=document.getElementById('c');
+  engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:true});
+  buildScene();
+  engine.runRenderLoop(function(){ scene.render(); });
+  window.addEventListener('resize',function(){ engine.resize(); });
+  renderCards();
+  setupDnD();
+});
+
+function buildScene(){
+  scene=new BABYLON.Scene(engine);
+  scene.clearColor=new BABYLON.Color4(0.04,0.04,0.12,1);
+
+  camera=new BABYLON.ArcRotateCamera('cam',Math.PI/2,Math.PI/2.5,13,
+    new BABYLON.Vector3(0,2.2,1.8),scene);
+  camera.attachControl(document.getElementById('c'),true);
+  camera.lowerRadiusLimit=4; camera.upperRadiusLimit=30;
+
+  var h=new BABYLON.HemisphericLight('h',new BABYLON.Vector3(0,1,0),scene);
+  h.intensity=0.65;
+  var d=new BABYLON.DirectionalLight('d',new BABYLON.Vector3(-1,-2,-1),scene);
+  d.position=new BABYLON.Vector3(5,12,5); d.intensity=1.6;
+  shadowGen=new BABYLON.ShadowGenerator(1024,d);
+  shadowGen.useBlurExponentialShadowMap=true;
+
+  var t=BABYLON.MeshBuilder.CreateBox('t',{width:18,height:0.2,depth:14},scene);
+  t.position.y=-0.1; t.receiveShadows=true;
+  t.material=sm(0.90,0.88,0.82);
+
+  initMats();
+  buildHand();
+  initStates();
+
+  scene.onBeforeRenderObservable.add(function(){
+    if(!done) camera.alpha+=0.003;
+    var dt=engine.getDeltaTime();
+    for(var i=sanim.length-1;i>=0;i--){
+      var a=sanim[i];
+      a.e=Math.min(a.e+dt,a.dur);
+      var f=1-Math.pow(1-a.e/a.dur,3);
+      a.mesh.scaling.setAll(0.01+0.99*f);
+      if(a.e>=a.dur) sanim.splice(i,1);
+    }
+    if(done) {
+      fj.forEach(function(f){
+        var id = f.id;
+        currentT[id] = currentT[id] + (targetT[id] - currentT[id]) * (1 - Math.exp(-0.008 * dt));
+        setRotFinger(f, currentT[id]);
+      });
+      // Animamos los émbolos y el agua de las jeringuillas
+      syringes.forEach(function(s){
+        var t = currentT[s.fingerId];
+        s.p.position.y = 0.65 - t * 0.50; // Embolo baja de 0.65 a 0.15
+        s.w.scaling.y = 1 - t * 0.60;     // El agua baja de escala 1 a 0.40
+        s.w.position.y = -0.655 + (0.95 / 2) * (1 - t * 0.60);
+      });
+    }
+  });
+}
+
+function sm(r,g,b,a){
+  var m=new BABYLON.StandardMaterial('m'+Math.random(),scene);
+  m.diffuseColor=new BABYLON.Color3(r,g,b);
+  if(a!==undefined) m.alpha=a;
+  return m;
+}
+function initMats(){
+  mats.orange=sm(1.00,0.42,0.10);
+  mats.black =sm(0.12,0.12,0.22);
+  mats.palm  =sm(0.82,0.82,0.82,0.45);
+  mats.metal =sm(0.75,0.75,0.75);
+  mats.white =sm(0.92,0.92,0.92);
+  mats.tClear=sm(0.00,0.60,1.00,0.45);
+  mats.tWater=sm(0.00,0.80,1.00,0.80);
+  mats.holo  =(function(){var m=sm(0.00,0.95,1.00,0.20);m.emissiveColor=new BABYLON.Color3(0,0.4,0.8);return m;})();
+}
+
+function buildHand(){
+  handRoot=new BABYLON.TransformNode('hr',scene);
+  handRoot.position.set(0,3.0,0);
+
+  // PALMA: 1.6 ancho × 0.40 alto × 1.4 profundidad
+  var palma=cbox('palma',1.6,0.40,1.4);
+  palma.parent=handRoot; palma.position.set(0,0,0.70);
+  pm[0].push({mesh:palma,mat:mats.palm,water:false});
+  shadowGen.addShadowCaster(palma);
+
+  var mun=ccyl('mun',1.1,0.9);
+  mun.parent=handRoot; mun.position.set(0,0,-0.10); mun.rotation.x=Math.PI/2;
+  pm[0].push({mesh:mun,mat:mats.metal,water:false});
+
+  var YD=-0.20;  // cara inferior de la palma (espacio local handRoot)
+  var ZD=1.40;   // borde frontal
+
+  // ── DEDOS 2-5 ─────────────────────────────────────────────
+  // Fan Y original de Claude:
+  //   índice: +22°, medio: 0°, anular: -22°, meñique: -30°
+  mkFinger(2,  0.52, YD, ZD,  0.384, 0.90, 0.63, 0.34); // índice
+  mkFinger(3,  0.17, YD, ZD,  0.000, 0.95, 0.63, 0.34); // medio
+  mkFinger(4, -0.17, YD, ZD, -0.384, 0.90, 0.63, 0.34); // anular
+  mkFinger(5, -0.52, YD, ZD-0.08, -0.524, 0.72, 0.50, 0.28); // meñique
+
+  // ── PULGAR ────────────────────────────────────────────────
+  // Llevado un poco hacia adelante en Z (de -0.20 a +0.15) y más debajo del plano de la palma en Y
+  mkThumb(0.90, YD - 0.10, 0.15);
+
+  // ── TUBOS ─────────────────────────────────────────────────
+  [-0.48,-0.24,0,0.24,0.48].forEach(function(x){
+    var tb=ccyl('tb',0.10,1.6);
+    tb.parent=handRoot; tb.position.set(x,0.22,-0.15); tb.rotation.x=Math.PI/2;
+    pm[6].push({mesh:tb,mat:mats.tClear,water:false});
+    var tw=ccyl('tw',0.07,1.58);
+    tw.parent=handRoot; tw.position.set(x,0.22,-0.15); tw.rotation.x=Math.PI/2;
+    pm[9].push({mesh:tw,mat:mats.tWater,water:true});
+  });
+
+  // ── JERINGUILLAS ──────────────────────────────────────────
+  mkSyr(7, 0.75,-1.3);
+  mkSyr(8, 0.4,-1.3); mkSyr(8, 0.0,-1.3);
+  mkSyr(8,-0.4,-1.3); mkSyr(8,-0.75,-1.3);
+}
+
+function mkFinger(id,x,y,z,fanY,l1,l2,l3){
+  var root=new BABYLON.TransformNode('fr'+id,scene);
+  root.parent=handRoot; root.position.set(x,y,z);
+  root.rotation.y=fanY;
+
+  var j1=new BABYLON.TransformNode('j1'+id,scene); j1.parent=root;
+  var f1=ccyl('f1'+id,0.28,l1); f1.parent=j1; f1.rotation.x=-Math.PI/2; f1.position.z=l1/2;
+
+  var j2=new BABYLON.TransformNode('j2'+id,scene); j2.parent=j1; j2.position.z=l1;
+  var f2=ccyl('f2'+id,0.24,l2); f2.parent=j2; f2.rotation.x=-Math.PI/2; f2.position.z=l2/2;
+
+  var j3=new BABYLON.TransformNode('j3'+id,scene); j3.parent=j2; j3.position.z=l2;
+  var f3=ccyl('f3'+id,0.20,l3); f3.parent=j3; f3.rotation.x=-Math.PI/2; f3.position.z=l3/2;
+
+  pm[id].push({mesh:f1,mat:mats.black, water:false});
+  pm[id].push({mesh:f2,mat:mats.black, water:false});
+  pm[id].push({mesh:f3,mat:mats.orange,water:false});
+  fj.push({j1:j1,j2:j2,j3:j3,id:id,thumb:false});
+  [f1,f2,f3].forEach(function(m){ shadowGen.addShadowCaster(m); });
+}
+
+function mkThumb(x,y,z){
+  var root=new BABYLON.TransformNode('frt',scene);
+  root.parent=handRoot; root.position.set(x,y,z);
+  root.rotation.y = Math.PI / 2; // Reposo a 90° de la palma (apuntando en X-)
+
+  var j1=new BABYLON.TransformNode('j1t',scene); j1.parent=root;
+  var f1=ccyl('f1t',0.28,0.72); f1.parent=j1; f1.rotation.x=-Math.PI/2; f1.position.z=0.72/2;
+
+  var j2=new BABYLON.TransformNode('j2t',scene); j2.parent=j1; j2.position.z=0.72;
+  var f2=ccyl('f2t',0.24,0.55); f2.parent=j2; f2.rotation.x=-Math.PI/2; f2.position.z=0.55/2;
+
+  var j3=new BABYLON.TransformNode('j3t',scene); j3.parent=j2; j3.position.z=0.55;
+  var f3=ccyl('f3t',0.20,0.38); f3.parent=j3; f3.rotation.x=-Math.PI/2; f3.position.z=0.38/2;
+
+  pm[1].push({mesh:f1,mat:mats.black, water:false});
+  pm[1].push({mesh:f2,mat:mats.black, water:false});
+  pm[1].push({mesh:f3,mat:mats.orange,water:false});
+  fj.push({j1:j1,j2:j2,j3:j3,id:1,thumb:true});
+  [f1,f2,f3].forEach(function(m){ shadowGen.addShadowCaster(m); });
+}
+
+function mkSyr(id,x,z){
+  var g=new BABYLON.TransformNode('sy',scene);
+  g.parent=handRoot; g.position.set(x,0.25,z);
+  var e=ccyl('e',0.30,1.3); e.parent=g; e.position.y=0;
+  var p=ccyl('p',0.18,0.85); p.parent=g; p.position.y=0.65;
+  var k=ccyl('k',0.09,0.28); k.parent=g; k.position.y=-0.80;
+  var w=ccyl('w',0.24,0.95); w.parent=g; w.position.y=-0.18;
+  pm[id].push({mesh:e,mat:mats.white, water:false});
+  pm[id].push({mesh:p,mat:mats.metal, water:false});
+  pm[id].push({mesh:k,mat:mats.black, water:false});
+  pm[9].push( {mesh:w,mat:mats.tWater,water:true});
+
+  // Identificar qué dedo controla cada jeringuilla
+  var fingerId = 1; // Pulgar por defecto (id=7)
+  if(id === 8) {
+    if(x === 0.4) fingerId = 2;      // índice
+    else if(x === 0.0) fingerId = 3;  // medio
+    else if(x === -0.4) fingerId = 4; // anular
+    else if(x === -0.75) fingerId = 5;// meñique
+  }
+  syringes.push({fingerId: fingerId, p: p, w: w});
+}
+
+function cbox(n,w,h,d){ return BABYLON.MeshBuilder.CreateBox(n,{width:w,height:h,depth:d},scene); }
+function ccyl(n,d,h){ return BABYLON.MeshBuilder.CreateCylinder(n,{diameter:d,height:h,tessellation:14},scene); }
+
+function initStates(){
+  pm.forEach(function(arr){
+    arr.forEach(function(item){
+      if(item.water) item.mesh.setEnabled(false);
+      else item.mesh.material=mats.holo;
+    });
+  });
+  fj.forEach(function(f){
+    setRotFinger(f, 0);
+  });
+}
+
+// ── CIERRE ────────────────────────────────────────────────────
+var CLOSE={
+  2:{mcp:90,pip:65},
+  3:{mcp:83,pip:70},
+  4:{mcp:90,pip:63},
+  5:{mcp:90,pip:65},
+  thumb:{mcp:81,ip:49,dip:43}
+};
+
+function setRotFinger(f, t) {
+  var R=Math.PI/180;
+  if(f.thumb){
+    // PULGAR — reposo a 90° en Y fijo (root) y flexión continua acumulada profunda en X hacia la bola
+    f.j1.rotation.x = t * 75 * R; // flexión MCP 75° (gira más hacia adentro)
+    f.j1.rotation.y = 0;          // rotación inicial de reposo de 90° ya definida en root
+    f.j2.rotation.x = t * 65 * R; // flexión IP 65°
+    f.j3.rotation.x = t * 40 * R; // flexión DIP 40°
+  } else {
+    var c=CLOSE[f.id];
+    f.j1.rotation.x=t*c.mcp*R;
+    f.j2.rotation.x=t*c.pip*R;
+    f.j3.rotation.x=t*c.pip*(2/3)*R;
+  }
+}
+
+function setRot(t){
+  for(var i=1; i<=5; i++) {
+    targetT[i] = t;
+  }
+}
+
+window.setCount = function(num) {
+  isDemoActive = false; // Detiene el bucle automático de la demo
+  switch(num) {
+    case 0: targetT = [0, 1, 1, 1, 1, 1]; break; // Puño cerrado ✊
+    case 1: targetT = [0, 1, 0, 1, 1, 1]; break; // 1 (índice abierto, otros cerrados)
+    case 2: targetT = [0, 1, 0, 0, 1, 1]; break; // 2 (índice y medio abiertos)
+    case 3: targetT = [0, 1, 0, 0, 0, 1]; break; // 3 (índice, medio y anular abiertos)
+    case 4: targetT = [0, 1, 0, 0, 0, 0]; break; // 4 (dedos 2-5 abiertos, pulgar cerrado)
+    case 5: targetT = [0, 0, 0, 0, 0, 0]; break; // 5 (mano abierta ✋)
+    case 6: targetT = [0, 0, 1, 1, 1, 1]; break; // Pulgar arriba 👍 (pulgar abierto, otros cerrados)
+  }
+};
+
+// ── DRAG & DROP ───────────────────────────────────────────────
+function renderCards(){
+  var c=document.getElementById('cards'); c.innerHTML='';
+  PIECES.forEach(function(p){
+    var ok=inst[p.id];
+    var el=document.createElement('div');
+    el.className='card'+(ok?' done':'');
+    el.innerHTML='<span class="ci">'+(ok?'✅':p.icon)+'</span>'
+      +'<div><div class="cn">'+p.name+'</div>'
+      +'<div class="cd">'+p.desc+'</div></div>';
+    if(!ok){
+      el.draggable=true;
+      el.addEventListener('dragstart',function(e){
+        e.dataTransfer.setData('text/plain',String(p.id));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',function(){ el.style.opacity=''; });
+    }
+    c.appendChild(el);
+  });
+  var n=inst.filter(Boolean).length;
+  document.getElementById('prog').textContent=n+' / 10 piezas colocadas';
+}
+
+function setupDnD(){
+  var w=document.getElementById('wrap3d');
+  w.addEventListener('dragover',function(e){ e.preventDefault(); w.classList.add('over'); });
+  w.addEventListener('dragleave',function(){ w.classList.remove('over'); });
+  w.addEventListener('drop',function(e){
+    e.preventDefault(); w.classList.remove('over');
+    var id=parseInt(e.dataTransfer.getData('text/plain'));
+    if(!isNaN(id)&&!inst[id]) place(id);
+  });
+}
+
+function place(id){
+  inst[id]=true; renderCards();
+  pm[id].forEach(function(item){
+    if(item.water) item.mesh.setEnabled(true);
+    else item.mesh.material=item.mat;
+    item.mesh.scaling.setAll(0.01);
+    sanim.push({mesh:item.mesh,e:0,dur:380});
+  });
+  if(inst.every(Boolean)) setTimeout(demo,1200);
+}
+
+function demo(){
+  done=true;
+
+  // Pelota de demostración subida a Y=2.05 e inclinada a Z=0.85
+  ball = BABYLON.MeshBuilder.CreateSphere('ball', {diameter: 0.5}, scene);
+  ball.position.set(0.15, 2.05, 0.85);
+  ball.material = mats.orange;
+  shadowGen.addShadowCaster(ball);
+
+  psys=new BABYLON.ParticleSystem('ps',1500,scene);
+  
+  // Crear textura de partícula dinámica (evita cuadrados rojos por fallos de red)
+  var ptex = new BABYLON.DynamicTexture("ptex", 64, scene, true);
+  var pctx = ptex.getContext();
+  var grad = pctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  pctx.fillStyle = grad;
+  pctx.fillRect(0, 0, 64, 64);
+  ptex.update();
+  psys.particleTexture = ptex;
+
+  psys.emitter=new BABYLON.Vector3(0.15,2.05,0.85);
+  psys.color1=new BABYLON.Color4(0,0.95,1,1);
+  psys.color2=new BABYLON.Color4(1,0.42,0.1,1);
+  psys.emitRate=45; psys.gravity=new BABYLON.Vector3(0,-3,0);
+  psys.minLifeTime=1.0; psys.maxLifeTime=2.0;
+  psys.minSize=0.06; psys.maxSize=0.22; psys.start();
+
+  document.getElementById('ok').style.display='block';
+
+  var t0=0;
+  isDemoActive = true;
+  lobs=scene.onBeforeRenderObservable.add(function(){
+    if (isDemoActive) {
+      t0+=engine.getDeltaTime();
+      var ct=t0%5500;
+      var t=ct<1500?ct/1500:ct<3500?1:ct<4500?1-(ct-3500)/1000:0;
+      setRot(t);
+    }
+  });
+}
+
+function reset(){
+  inst.fill(false); done=false; sanim=[];
+  isDemoActive = true;
+  currentT = [0, 0, 0, 0, 0, 0];
+  targetT = [0, 0, 0, 0, 0, 0];
+  if(lobs){ scene.onBeforeRenderObservable.remove(lobs); lobs=null; }
+  if(psys){ psys.stop(); psys.dispose(); psys=null; }
+  if(ball){ ball.dispose(); ball=null; }
+  pm.forEach(function(arr){
+    arr.forEach(function(item){
+      if(item.water) item.mesh.setEnabled(false);
+      else item.mesh.material=mats.holo;
+    });
+  });
+  fj.forEach(function(f){
+    setRotFinger(f, 0);
+  });
+  syringes.forEach(function(s){
+    s.p.position.y = 0.65;
+    s.w.scaling.y = 1;
+    s.w.position.y = -0.18;
+  });
+  document.getElementById('ok').style.display='none';
+  camera.alpha=-Math.PI/2; camera.beta=Math.PI/2.5; camera.radius=13;
+  renderCards();
+}
+</script>
+</body>
+</html>

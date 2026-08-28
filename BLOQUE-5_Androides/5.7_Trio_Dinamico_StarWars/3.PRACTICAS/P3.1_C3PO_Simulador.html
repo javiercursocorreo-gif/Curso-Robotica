@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
+    <title>C-3PO: Control Avanzado (WASD + IK)</title>
+    <!-- Babylon.js Core and Loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            color: #f1c40f;
+        }
+
+        #renderCanvas {
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.85);
+            border: 2px solid #f1c40f;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+            display: flex;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .key-instruction {
+            padding: 10px;
+            border-right: 1px solid rgba(241, 196, 15, 0.3);
+        }
+        .key-instruction:last-child {
+            border-right: none;
+        }
+        .key {
+            display: inline-block;
+            background: #f1c40f;
+            color: #000;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(241, 196, 15, 0.3);
+            border-top-color: #f1c40f;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #title-sign {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: #f1c40f;
+            text-shadow: 4px 4px 10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(241, 196, 15, 0.5);
+            font-family: 'Arial Black', Impact, sans-serif;
+            pointer-events: none;
+            z-index: 10;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        #status-text {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: red;
+            font-size: 1.5rem;
+            font-weight: bold;
+            z-index: 200;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(241, 196, 15, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+        }
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: #f1c40f;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-text"></div>
+
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <div>CARGANDO SISTEMAS IK Y CONTROL WASD...</div>
+    </div>
+
+    <div id="title-sign">C-3PO</div>
+    <div id="crosshair"></div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="ui-container">
+        <div class="key-instruction"><span class="key">↑</span> <span class="key">←</span> <span class="key">↓</span> <span class="key">→</span> Mover</div>
+        <div class="key-instruction"><span class="key">B</span> Macarena</div>
+        <div class="key-instruction"><span class="key">Espacio</span> Salto</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        // Variables Globales
+        let mainCharacterMesh = null;
+        let animationGroups = {};
+        let currentAnimation = null;
+        
+        let inputMap = {};
+        let targetLookAtMesh = null; // La malla invisible a la que mirará C-3PO (IK)
+
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            const errStr = `Error en línea ${lineNo}: ${msg}`;
+            document.getElementById('status-text').innerText = errStr;
+            document.getElementById('loading-screen').style.display = 'none';
+            return false;
+        };
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
+            
+            // Gravedad y Colisiones
+            scene.gravity = new BABYLON.Vector3(0, -0.9, 0);
+            scene.collisionsEnabled = true;
+
+            // 1. Suelo (Subdivisiones altas para que el wireframe parezca una cuadrícula de TRON y se note el movimiento)
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200, subdivisions: 50}, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+            // Hacer que se note el movimiento con wireframe (ya que quitamos el grid material)
+            groundMat.wireframe = true;
+            groundMat.specularColor = new BABYLON.Color3(0,0,0);
+            ground.material = groundMat;
+            ground.checkCollisions = true;
+
+            // Iluminación
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.5;
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(50, 100, 50);
+            dirLight.intensity = 1.0;
+
+            const goldMaterial = new BABYLON.PBRMaterial("goldMat", scene);
+            goldMaterial.albedoColor = new BABYLON.Color3(1.0, 0.766, 0.336);
+            goldMaterial.metallic = 1.0;
+            goldMaterial.roughness = 0.2;
+            const envTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+            scene.environmentTexture = envTexture;
+
+            // Helper de clonado
+            const loadAndRetargetAnimation = async (filename, animName, baseNodes) => {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", filename, scene);
+                const anim = result.animationGroups[0];
+                anim.stop();
+                const clonedAnim = anim.clone(animName, (oldTarget) => {
+                    return baseNodes.find(n => n.name === oldTarget.name) || oldTarget;
+                });
+                anim.dispose();
+                result.meshes[0].dispose();
+                return clonedAnim;
+            };
+
+            let headBone = null;
+            let skeleton = null;
+
+            try {
+                // Importar Base
+                const baseResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "C-3PO_Base.glb", scene);
+                mainCharacterMesh = baseResult.meshes[0];
+                const baseNodes = [mainCharacterMesh, ...mainCharacterMesh.getDescendants(false)];
+                skeleton = baseResult.skeletons && baseResult.skeletons.length > 0 ? baseResult.skeletons[0] : null;
+
+                // Inicializar quaternion para que mire al frente (0 en vez de Math.PI)
+                mainCharacterMesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0, 0, 0);
+
+                baseResult.meshes.forEach(m => {
+                    if(m.material) m.material = goldMaterial;
+                });
+
+                // Aumentar el tamaño un tercio
+                mainCharacterMesh.scaling = new BABYLON.Vector3(1.333, 1.333, 1.333);
+
+                // Cargar Animación de Caminar
+                const walk = await loadAndRetargetAnimation("C-3PO_Walking.glb", "Walk", baseNodes);
+                animationGroups["Walk"] = walk;
+
+                // Cargar Animaciones extra para que no solo ande
+                const macarena = await loadAndRetargetAnimation("C-3PO_Macarena.glb", "Macarena", baseNodes);
+                animationGroups["Macarena"] = macarena;
+                const jumpStart = await loadAndRetargetAnimation("C-3PO_JumpStart.glb", "JumpStart", baseNodes);
+                animationGroups["JumpStart"] = jumpStart;
+                const jumpLoop = await loadAndRetargetAnimation("C-3PO_JumpLoop.glb", "JumpLoop", baseNodes);
+                animationGroups["JumpLoop"] = jumpLoop;
+                const jumpEnd = await loadAndRetargetAnimation("C-3PO_JumpEnd.glb", "JumpEnd", baseNodes);
+                animationGroups["JumpEnd"] = jumpEnd;
+
+                // --- CINEMÁTICA INVERSA (IK) DE LA CABEZA ---
+                // Desactivado temporalmente porque los ejes locales del hueso mixamorig:Head
+                // provocan que la cabeza se incline hacia atrás. Dejamos que la animación controle la cabeza.
+                /*
+                const headNode = baseNodes.find(n => n.name === "mixamorig:Head" || n.name === "mixamorig:Neck");
+                
+                if (headNode) {
+                    Object.values(animationGroups).forEach(ag => {
+                        ag.targetedAnimations = ag.targetedAnimations.filter(ta => ta.target !== headNode);
+                    });
+                }
+                */
+
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+
+            } catch (e) {
+                console.error("Error crítico:", e);
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+
+            // --- CONTROLES Y CÁMARA 3ª PERSONA ---
+            
+            // Creamos un pivote invisible para la cámara, que seguirá al personaje
+            const cameraPivot = BABYLON.MeshBuilder.CreateBox("camPivot", {size: 0.1}, scene);
+            cameraPivot.isVisible = false;
+            // Configurar posición inicial del pivote para que la cámara no haga un paneo brusco al arrancar
+            cameraPivot.position = new BABYLON.Vector3(0, 15, 0);
+            
+            // Cámara universal giratoria anclada al pivote
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2.5, 70, cameraPivot.position, scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 20;
+            // IMPORTANTE: Desvincular las flechas del control de la cámara para que no gire al pulsar arriba/abajo
+            camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
+
+            // Entradas de teclado
+            scene.actionManager = new BABYLON.ActionManager(scene);
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = evt.sourceEvent.type == "keydown";
+            }));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = evt.sourceEvent.type == "keydown";
+            }));
+
+            // Bucle principal de físicas y movimiento
+            const speed = 0.15;
+            scene.onBeforeRenderObservable.add(() => {
+                if (!mainCharacterMesh) return;
+
+                let isMoving = false;
+                
+                // Actualizar la posición del pivote de la cámara para que siga a C-3PO (Altura 15 para no cortar los brazos)
+                cameraPivot.position = BABYLON.Vector3.Lerp(cameraPivot.position, mainCharacterMesh.position.add(new BABYLON.Vector3(0, 15, 0)), 0.1);
+
+                // Movimiento WASD basado en la rotación de la cámara (para moverse hacia donde miramos)
+                let forward = camera.getDirection(new BABYLON.Vector3(0, 0, 1));
+                forward.y = 0; // No volar
+                forward.normalize();
+                let right = BABYLON.Vector3.Cross(new BABYLON.Vector3(0, 1, 0), forward);
+                right.normalize();
+
+                let moveDirection = new BABYLON.Vector3(0, 0, 0);
+
+                if (inputMap["arrowup"]) { moveDirection.addInPlace(forward); isMoving = true; }
+                if (inputMap["arrowdown"]) { moveDirection.subtractInPlace(forward); isMoving = true; }
+                if (inputMap["arrowleft"]) { moveDirection.subtractInPlace(right); isMoving = true; }
+                if (inputMap["arrowright"]) { moveDirection.addInPlace(right); isMoving = true; }
+
+                // --- CONTROL DE TECLADO (ACCIONES EXTRA) ---
+                let isAction = false;
+                
+                if (inputMap["b"]) {
+                    isAction = true;
+                    if (currentAnimation !== animationGroups["Macarena"]) {
+                        if(currentAnimation) currentAnimation.stop();
+                        currentAnimation = animationGroups["Macarena"];
+                        currentAnimation.play(true);
+                        if (!window.macarenaAudio) {
+                            window.macarenaAudio = new Audio("../../MODELOS/macarena.mp3");
+                            window.macarenaAudio.loop = true;
+                        }
+                        window.macarenaAudio.play().catch(e => console.log("Esperando mp3 o interacción del usuario"));
+                    }
+                } else {
+                    if (currentAnimation === animationGroups["Macarena"]) {
+                        currentAnimation.stop();
+                        currentAnimation = null;
+                        if (window.macarenaAudio) {
+                            window.macarenaAudio.pause();
+                            window.macarenaAudio.currentTime = 0;
+                        }
+                    }
+                }
+                
+                if (inputMap[" "]) { // Barra Espaciadora = Salto
+                    isAction = true;
+                    if (currentAnimation !== animationGroups["JumpStart"] && currentAnimation !== animationGroups["JumpLoop"] && currentAnimation !== animationGroups["JumpEnd"]) {
+                        if(currentAnimation) currentAnimation.stop();
+                        currentAnimation = animationGroups["JumpStart"];
+                        currentAnimation.play(false);
+                        currentAnimation.onAnimationGroupEndObservable.addOnce(() => {
+                            currentAnimation = animationGroups["JumpLoop"];
+                            currentAnimation.play(false);
+                            currentAnimation.onAnimationGroupEndObservable.addOnce(() => {
+                                currentAnimation = animationGroups["JumpEnd"];
+                                currentAnimation.play(false);
+                                currentAnimation.onAnimationGroupEndObservable.addOnce(() => {
+                                    currentAnimation = null;
+                                });
+                            });
+                        });
+                    }
+                }
+
+                // --- SISTEMA DE MOVIMIENTO (PRIORIDAD) ---
+                if (isMoving && !isAction) {
+                    moveDirection.normalize();
+                    // Usamos addInPlace en lugar de moveWithCollisions para evitar el defecto del desvío en espiral contra el suelo
+                    mainCharacterMesh.position.addInPlace(moveDirection.scale(speed));
+                    
+                    // Rotar al personaje suavemente hacia la dirección del movimiento
+                    const targetAngle = Math.atan2(moveDirection.x, moveDirection.z);
+                    const currentRotation = mainCharacterMesh.rotationQuaternion;
+                    const targetRotation = BABYLON.Quaternion.RotationYawPitchRoll(targetAngle, 0, 0);
+                    mainCharacterMesh.rotationQuaternion = BABYLON.Quaternion.Slerp(currentRotation, targetRotation, 0.1);
+
+                    if (currentAnimation !== animationGroups["Walk"]) {
+                        if(currentAnimation) currentAnimation.stop();
+                        currentAnimation = animationGroups["Walk"];
+                        currentAnimation.play(true);
+                    }
+                } else if (!isAction) {
+                    if (currentAnimation && currentAnimation !== animationGroups["Macarena"]) {
+                        currentAnimation.stop();
+                        currentAnimation = null;
+                    }
+                }
+            });
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+        });
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

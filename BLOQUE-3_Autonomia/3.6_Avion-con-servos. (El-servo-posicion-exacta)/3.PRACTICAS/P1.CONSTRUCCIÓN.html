@@ -1,0 +1,939 @@
+<!-- MEJORAS:
+- [Fix Stuttering Chrome] Se ha solucionado el problema de los "saltitos" al arrastrar (stuttering) en Chrome. El problema ocurría porque el motor de Babylon.js intentaba hacer "raycasting" (detectar objetos 3D bajo el cursor) a 60fps simultáneamente con los eventos nativos de Drag & Drop del navegador, saturando el hilo principal en Chrome. La solución añade la clase `.is-dragging` al body durante el arrastre, lo que desactiva temporalmente los `pointer-events` del canvas, logrando que el arrastre sea 100% fluido.
+- [Fix Rendimiento Drag] Optimización en el evento `dragover` para evitar forzar recálculos de estilo innecesarios (layout thrashing) validando si la clase `drop-hover` ya existe antes de añadirla.
+- [Fix Layout Chrome] Añadido `min-height: 0` y `box-sizing: border-box` en contenedores Flexbox.
+- [Fix Terreno/Pista] Factor de aplanamiento procedural (smoothstep) bajo la pista.
+- [Motor WebGPU] Implementación asíncrona de initEngine() con fallback a WebGL.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1.CONSTRUCCION</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-panel: #111118;
+            --cyan: #00f2ff;
+            --text-main: #ffffff;
+            --text-dim: #aaaaaa;
+            --green: #00ff88;
+            --orange: #FF6F00;
+        }
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark); color: var(--text-main);
+            width: 100vw; height: 100vh;
+        }
+        
+        /* FIX CHROME: Detiene el raycasting 3D durante el drag para evitar saltitos */
+        body.is-dragging #renderCanvas {
+            pointer-events: none !important;
+        }
+
+        /* Header Obligatorio */
+        header {
+            height: 70px; background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid var(--cyan);
+            position: relative; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; padding: 0 30px;
+            box-sizing: border-box;
+        }
+        header h1 {
+            margin: 0; font-size: 26px; color: var(--cyan);
+            letter-spacing: 5px; text-transform: uppercase;
+        }
+        header p { margin: 2px 0 0 0; font-size: 16px; color: var(--text-dim); }
+
+        /* Layout Principal Flexbox */
+        #main-container {
+            display: flex; height: calc(100vh - 70px); width: 100%; overflow: hidden;
+        }
+
+        /* Panel Lateral Izquierdo */
+        #ui-panel {
+            width: 330px; flex-shrink: 0; background: var(--bg-panel);
+            border-right: 1px solid #333; display: flex; flex-direction: column;
+            padding: 20px; overflow-y: auto; box-sizing: border-box;
+        }
+        .panel-title { font-size: 22px; margin-bottom: 15px; color: var(--cyan); }
+        .counter { font-size: 20px; margin-bottom: 20px; font-weight: bold; }
+        
+        .servo-indicator {
+            background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+        }
+        .servo-title { font-size: 18px; margin-bottom: 10px; color: #B0BEC5; }
+        .dots-row { display: flex; gap: 8px; }
+        .dot {
+            width: 20px; height: 20px; border-radius: 50%; background: #444;
+            border: 2px solid #666; transition: all 0.3s;
+        }
+        .dot.active { background: var(--green); border-color: #fff; box-shadow: 0 0 10px var(--green); }
+
+        .piece-list { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .piece-item {
+            display: flex; align-items: center; gap: 12px; font-size: 18px;
+        }
+        .chk {
+            width: 24px; height: 24px; border: 2px solid var(--cyan);
+            border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .chk.done::after { content: '✓'; color: var(--green); font-weight: bold; font-size: 18px; }
+        .piece-item.done { color: var(--text-dim); }
+
+        .tooltip-box {
+            min-height: 80px; background: #222; padding: 15px;
+            border-radius: 8px; margin-top: 20px; font-size: 18px; border-left: 4px solid var(--cyan);
+        }
+
+        button {
+            background: #1565C0; color: white; border: none; flex-shrink: 0;
+            height: 70px; border-radius: 8px; font-size: 20px; cursor: pointer;
+            font-weight: bold; text-transform: uppercase; margin-top: 20px;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1E88E5; }
+
+        /* Área Central (Canvas + Bandeja) */
+        #right-col {
+            flex: 1; display: flex; flex-direction: column; 
+            min-width: 0; min-height: 0;
+        }
+        #canvas-container {
+            flex: 1; display: flex; 
+            min-width: 0; min-height: 0;
+            position: relative;
+        }
+        #renderCanvas {
+            flex: 1; width: 100%; height: 100%; display: block; outline: none;
+        }
+        #canvas-container.drop-hover::after {
+            content: ''; position: absolute; inset: 0;
+            border: 4px dashed var(--cyan); background: rgba(0,242,255,0.1); pointer-events: none;
+        }
+
+        /* Bandeja Estilo Taller */
+        #tray {
+            height: 140px; background: #111; border-top: 2px solid #333;
+            display: flex; align-items: center; padding: 0 20px; gap: 15px;
+            overflow-x: auto; flex-shrink: 0;
+        }
+        .tray-piece {
+            width: 120px; height: 100px; background: #2a2a35; border: 2px solid #555;
+            border-radius: 8px; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; cursor: grab; text-align: center; padding: 5px;
+            font-size: 15px; font-weight: bold; user-select: none; flex-shrink: 0;
+            transition: border-color 0.2s;
+        }
+        .tray-piece:active { cursor: grabbing; border-color: var(--cyan); }
+        .tray-piece.installed {
+            opacity: 0.3; cursor: default; border-color: #333; pointer-events: auto;
+        }
+        .tray-piece[data-type="fuselaje"] { border-bottom: 4px solid #F0F0F0; }
+        .tray-piece[data-type="ala"] { border-bottom: 4px solid #E8EAF6; }
+        .tray-piece[data-type="control"] { border-bottom: 4px solid #FF6F00; color: #ffbc70; }
+        .tray-piece[data-type="servo"] { border-bottom: 4px solid #B0BEC5; color: #00f2ff; }
+        .tray-piece[data-type="motor"] { border-bottom: 4px solid #37474F; }
+        .tray-piece[data-type="cabina"] { border-bottom: 4px solid #90CAF9; }
+
+        /* Modal Custom */
+        #modal {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200; justify-content: center; align-items: center;
+        }
+        #modal-content {
+            background: var(--bg-panel); border: 2px solid var(--cyan);
+            padding: 40px; border-radius: 12px; text-align: center; max-width: 600px;
+        }
+        #modal-title { color: var(--cyan); font-size: 32px; margin-top: 0; letter-spacing: 2px; }
+        #modal-text { color: #fff; font-size: 22px; margin-bottom: 30px; line-height: 1.4; }
+        #btn-demo { height: 70px; width: 100%; font-size: 22px; background: var(--green); color: #000; margin-top: 0;}
+        #btn-demo:hover { background: #33ffa6; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>P1. CONSTRUCCIÓN</h1>
+        <p>CLASE 3.6 — AVIÓN CON SERVOS</p>
+    </header>
+
+    <div id="main-container">
+        <!-- Panel UI Izquierdo -->
+        <div id="ui-panel">
+            <div class="panel-title">ESTADO DE MONTAJE</div>
+            <div class="counter" id="lbl-counter">0 / 17 piezas colocadas</div>
+
+            <div class="servo-indicator">
+                <div class="servo-title">5 SERVOS</div>
+                <div class="dots-row">
+                    <div class="dot" id="dot-s1"></div>
+                    <div class="dot" id="dot-s2"></div>
+                    <div class="dot" id="dot-s3"></div>
+                    <div class="dot" id="dot-s4"></div>
+                    <div class="dot" id="dot-s5"></div>
+                </div>
+            </div>
+
+            <div class="piece-list" id="checklist">
+                <!-- Se inyecta por JS -->
+            </div>
+
+            <div class="tooltip-box" id="tooltip">
+                Arrastra las piezas de la bandeja inferior hacia la silueta cian en la pista.
+            </div>
+
+            <button onclick="resetPuzzle()">REINICIAR</button>
+        </div>
+
+        <!-- Área Derecha -->
+        <div id="right-col">
+            <div id="canvas-container">
+                <canvas id="renderCanvas"></canvas>
+            </div>
+            <div id="tray">
+                <!-- Piezas arrastrables inyectadas por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Éxito -->
+    <div id="modal">
+        <div id="modal-content">
+            <h1 id="modal-title">¡AVIONETA ENSAMBLADA!</h1>
+            <p id="modal-text">Has colocado las 17 piezas correctamente. Los alerones y los 5 servos están listos para controlar el vuelo.</p>
+            <button id="btn-demo" onclick="startDemo()">INICIAR VUELO (DEMO)</button>
+        </div>
+    </div>
+
+<script>
+// ==========================================
+// CONFIGURACIÓN Y DATOS DE LAS PIEZAS (17 piezas)
+// ==========================================
+const PIECES_DATA = [
+    { id: 'p_fuse', name: 'Fuselaje', type: 'fuselaje', desc: 'Cuerpo cilíndrico suave del avión. Contiene el tren de aterrizaje.' },
+    { id: 'p_alai', name: 'Ala Izquierda', type: 'ala', desc: 'Genera sustentación. Incluye luz de navegación roja.' },
+    { id: 'p_alad', name: 'Ala Derecha', type: 'ala', desc: 'Genera sustentación. Incluye luz de navegación verde.' },
+    { id: 'p_aleron_i', name: 'Alerón Izq', type: 'control', desc: 'Superficie de vuelo rectangular para alabear el avión.' },
+    { id: 'p_aleron_d', name: 'Alerón Der', type: 'control', desc: 'Superficie de vuelo rectangular para alabear el avión.' },
+    { id: 'p_colah', name: 'Cola Horizont.', type: 'ala', desc: 'Estabilizador trasero plano y curvado.' },
+    { id: 'p_elev_i', name: 'Elevador Izq', type: 'control', desc: 'Control de cabeceo izquierdo.' },
+    { id: 'p_elev_d', name: 'Elevador Der', type: 'control', desc: 'Control de cabeceo derecho.' },
+    { id: 'p_colav', name: 'Cola Vertical', type: 'ala', desc: 'Estabilizador trasero vertical con luz blanca superior.' },
+    { id: 'p_timon', name: 'Timón Cola', type: 'control', desc: 'Superficie de dirección vertical.' },
+    { id: 's_alai', name: 'Servo Alerón I', type: 'servo', desc: 'Mueve el alerón del ala izquierda.' },
+    { id: 's_alad', name: 'Servo Alerón D', type: 'servo', desc: 'Mueve el alerón del ala derecha.' },
+    { id: 's_elevi', name: 'Servo Elev I', type: 'servo', desc: 'Controla el elevador izquierdo.' },
+    { id: 's_elevd', name: 'Servo Elev D', type: 'servo', desc: 'Controla el elevador derecho.' },
+    { id: 's_timon', name: 'Servo Timón', type: 'servo', desc: 'Mueve el timón de la cola vertical.' },
+    { id: 'p_motor', name: 'Motor y Hélice', type: 'motor', desc: 'Propulsa el avión hacia adelante.' },
+    { id: 'p_cabina', name: 'Cabina', type: 'cabina', desc: 'Cilindro principal y parabrisas cónico retrasado sobre el morro.' }
+];
+
+const TOTAL_PIECES = PIECES_DATA.length;
+
+let installedPieces = new Set();
+let isDemoRunning = false;
+let demoPhase = 0;
+let demoTime = 0;
+let planeSpeed = 0;
+let isOrbiting = true;
+let orbitAngle = -Math.PI / 2 + 0.5;
+
+let engine, scene, camera, planeRoot;
+let meshes = {};
+let ghosts = {};
+let servosInfo = {};
+let controlSurfaces = {};
+let propRoot;
+let hologram;
+
+// Referencias visuales para el efecto del disco de hélice
+let propBlades = [];
+let propDiscoMat = null;
+
+// Inicializar UI
+function initUI() {
+    const cl = document.getElementById('checklist');
+    const tray = document.getElementById('tray');
+    cl.innerHTML = '';
+    tray.innerHTML = '';
+
+    PIECES_DATA.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'piece-item';
+        item.id = `chk-${p.id}`;
+        item.innerHTML = `<div class="chk"></div><span>${p.name}</span>`;
+        cl.appendChild(item);
+
+        const btn = document.createElement('div');
+        btn.className = 'tray-piece';
+        btn.id = `tray-${p.id}`;
+        btn.draggable = true;
+        btn.dataset.type = p.type;
+        btn.innerText = p.name;
+        
+        btn.addEventListener('dragstart', e => { 
+            e.dataTransfer.setData('piece-id', p.id); 
+            e.dataTransfer.effectAllowed = 'copyMove';
+            document.body.classList.add('is-dragging'); // FIX: Libera carga de raycasting al arrastrar en Chrome
+        });
+        
+        btn.addEventListener('dragend', () => { 
+            document.body.classList.remove('is-dragging'); 
+        });
+
+        btn.addEventListener('mouseenter', () => { document.getElementById('tooltip').innerText = p.desc; });
+        btn.addEventListener('mouseleave', () => { document.getElementById('tooltip').innerText = "Arrastra las piezas de la bandeja inferior hacia la silueta cian en la pista."; });
+        
+        tray.appendChild(btn);
+    });
+
+    setupDragDrop();
+}
+
+function setupDragDrop() {
+    const container = document.getElementById('canvas-container');
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        // FIX: Evitar reflow/recalculos CSS excesivos verificando primero
+        if (!container.classList.contains('drop-hover')) {
+            container.classList.add('drop-hover');
+        }
+    });
+    container.addEventListener('dragleave', () => {
+        container.classList.remove('drop-hover');
+    });
+    container.addEventListener('drop', e => {
+        e.preventDefault();
+        container.classList.remove('drop-hover');
+        document.body.classList.remove('is-dragging');
+        
+        const id = e.dataTransfer.getData('piece-id');
+        if (id && !installedPieces.has(id)) {
+            installPiece(id);
+        }
+    });
+}
+
+// ==========================================
+// MOTOR BABYLON.JS — WebGPU + Fallback
+// ==========================================
+async function initEngine() {
+    const canvas = document.getElementById('renderCanvas');
+    if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+        engine = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+        await engine.initAsync();
+    } else {
+        engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    }
+    createScene();
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
+}
+
+function createScene() {
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = BABYLON.Color4.FromHexString("#87CEEBFF");
+    
+    // Fog atmosférico ligero para dar profundidad al horizonte
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
+    scene.fogDensity = 0.0018;
+    scene.fogColor = new BABYLON.Color3(0.75, 0.85, 0.95);
+    
+    camera = new BABYLON.ArcRotateCamera("cam", orbitAngle, Math.PI / 3.5, 18, new BABYLON.Vector3(0, 1, 0), scene);
+    camera.attachControl(document.getElementById('renderCanvas'), true);
+    camera.lowerRadiusLimit = 8; camera.upperRadiusLimit = 40;
+
+    const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.6;
+    hemi.groundColor = new BABYLON.Color3(0.2, 0.3, 0.2);
+
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -1.5, -1), scene);
+    dirLight.position = new BABYLON.Vector3(20, 30, 20);
+    dirLight.intensity = 2.5;
+
+    const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+    // Sombras cinematográficas
+    shadowGen.useContactHardeningShadow = true;
+    shadowGen.contactHardeningLightSizeUVRatio = 0.05;
+
+    // GlowLayer vital para las luces de navegación rojas/verdes/blancas y brillos de servos
+    const glow = new BABYLON.GlowLayer("glow", scene);
+    glow.intensity = 0.8;
+
+    // Post-procesado cinematográfico (v3)
+    const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+    pipeline.msaaSamples = 4;
+    pipeline.bloomEnabled = true;
+    pipeline.bloomThreshold = 0.85;
+    pipeline.fxaaEnabled = true;
+    pipeline.imageProcessingEnabled = true;
+    pipeline.imageProcessing.toneMappingEnabled = true;
+    pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    pipeline.imageProcessing.exposure = 1.2;
+    pipeline.imageProcessing.contrast = 1.1;
+    pipeline.sharpenEnabled = true;
+    pipeline.sharpen.edgeAmount = 0.3;
+    pipeline.sharpen.colorAmount = 1.0;
+
+    // IBL: Prefiltered Environment para reflejos realistas
+    const env = scene.createDefaultEnvironment({
+        createSkybox: true,
+        skyboxSize: 1000,
+        enableGroundMirror: false,
+        groundYBias: 0.01
+    });
+    scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(
+        "https://playground.babylonjs.com/textures/environment.env", scene);
+    scene.environmentIntensity = 0.6;
+
+    buildEnvironment(shadowGen);
+    buildPlane(shadowGen);
+    
+    hologram = BABYLON.MeshBuilder.CreateTorus("holo", {diameter: 2.5, thickness: 0.08, tessellation: 48}, scene);
+    hologram.position.y = 1.0;
+    const holoMat = new BABYLON.PBRMaterial("holoMat", scene);
+    holoMat.albedoColor = new BABYLON.Color3(0, 0.9, 1);
+    holoMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+    holoMat.alpha = 0.5;
+    holoMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    hologram.material = holoMat;
+
+    scene.onBeforeRenderObservable.add(() => {
+        const dt = engine.getDeltaTime() / 1000;
+        
+        if (isOrbiting && !isDemoRunning) {
+            orbitAngle += 0.002;
+            camera.alpha = orbitAngle;
+            if(hologram) hologram.rotation.y += 0.02;
+        }
+
+        if (isDemoRunning) {
+            updateDemoFlight(dt);
+        }
+    });
+}
+
+function buildEnvironment(shadowGen) {
+    // Terreno procedural con colinas suaves en sustitución del plano
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 400, height: 400, subdivisions: 60}, scene);
+    const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    
+    for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i], z = positions[i+2];
+        let y = (Math.sin(x * 0.05) * Math.cos(z * 0.05) * 4) 
+              + (Math.sin(x * 0.1 + 1.3) * Math.sin(z * 0.1) * 2) 
+              + (Math.random() * 0.2); // micro-ruido
+        
+        // Aplanar el terreno bajo la pista y en sus inmediaciones para que no se coma el asfalto.
+        // La pista tiene de ancho 14 (x de -7 a +7). Lo aplanamos desde x=9 hasta x=21 con smoothstep.
+        let flatten = BABYLON.Scalar.Clamp((Math.abs(x) - 9) / 12, 0, 1);
+        flatten = flatten * flatten * (3 - 2 * flatten); // smoothstep manual
+        
+        positions[i+1] = y * flatten;
+    }
+    ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+    ground.createNormals(true); // OBLIGATORIO tras alterar vértices
+
+    const gMat = new BABYLON.PBRMaterial("gMat", scene);
+    gMat.albedoColor = BABYLON.Color3.FromHexString("#3A6B35"); // Verde más realista
+    gMat.roughness = 0.92; gMat.metallic = 0.0;
+    ground.material = gMat;
+    ground.receiveShadows = true;
+
+    // Pista de asfalto ligeramente elevada
+    const runway = BABYLON.MeshBuilder.CreateBox("runway", {width: 14, height: 0.3, depth: 300}, scene);
+    runway.position.y = 0.2;
+    const rMat = new BABYLON.PBRMaterial("rMat", scene);
+    rMat.albedoColor = BABYLON.Color3.FromHexString("#455A64");
+    rMat.roughness = 0.9; rMat.metallic = 0.0;
+    runway.material = rMat;
+    runway.receiveShadows = true;
+
+    const lineMat = new BABYLON.PBRMaterial("lineMat", scene);
+    lineMat.albedoColor = new BABYLON.Color3(1,1,1);
+    lineMat.roughness = 0.8; lineMat.metallic = 0;
+    for(let z = -140; z < 140; z += 6) {
+        const line = BABYLON.MeshBuilder.CreateBox("line", {width: 0.4, height: 0.02, depth: 3}, scene);
+        line.position = new BABYLON.Vector3(0, 0.36, z);
+        line.material = lineMat;
+    }
+}
+
+// ==========================================
+// CONSTRUCCIÓN DEL AVIÓN PROCEDURAL
+// ==========================================
+// SISTEMA DE COORDENADAS: Z+ Frontal, Y+ Arriba, X- Izquierda, X+ Derecha
+function buildPlane(shadowGen) {
+    planeRoot = new BABYLON.TransformNode("planeRoot", scene);
+    planeRoot.position.y = 1.54; // Adaptado para la nueva altura de la pista
+
+    const matWhite = createPBR("matW", "#F0F0F0", 0.2, 0.1);
+    matWhite.clearCoat.isEnabled = true; matWhite.clearCoat.intensity = 1.0;
+    const matBlue = createPBR("matB", "#1565C0", 0.3, 0.1);
+    const matRed = createPBR("matR", "#C62828", 0.3, 0.1);
+    const matWing = createPBR("matWing", "#E8EAF6", 0.3, 0.1);
+    const matOrange = createPBR("matO", "#FF6F00", 0.3, 0.1);
+    const matDark = createPBR("matD", "#212121", 0.8, 0.1);
+    const matGear = createPBR("matG", "#455A64", 0.6, 0.8);
+    const matGlass = createPBR("matGlass", "#90CAF9", 0.1, 0);
+    matGlass.alpha = 0.55; matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+    const matGhost = createPBR("matGhost", "#00f2ff", 0.5, 0);
+    matGhost.alpha = 0.2;
+    matGhost.emissiveColor = new BABYLON.Color3(0, 0.4, 0.6);
+    matGhost.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+    const addPiece = (id, groupNode) => {
+        const ghost = groupNode.clone(id + "_ghost");
+        ghost.getChildMeshes(false).forEach(m => { m.material = matGhost; m.isPickable = false; });
+        ghosts[id] = ghost;
+
+        groupNode.scaling = new BABYLON.Vector3(0,0,0);
+        meshes[id] = groupNode;
+        
+        groupNode.getChildMeshes(false).forEach(m => {
+            shadowGen.addShadowCaster(m); m.receiveShadows = true;
+        });
+    };
+
+    // 1. FUSELAJE
+    const fuseGrp = new BABYLON.TransformNode("p_fuse", scene); fuseGrp.parent = planeRoot;
+    
+    const b1 = BABYLON.MeshBuilder.CreateCylinder("b1", {height:1.2, diameterTop:1.0, diameterBottom:1.2, tessellation:24}, scene);
+    b1.position.z = 1.4; b1.position.y = 0.1; b1.rotation.x = Math.PI/2;
+    const b2 = BABYLON.MeshBuilder.CreateCylinder("b2", {height:1.6, diameterTop:1.2, diameterBottom:1.2, tessellation:24}, scene);
+    b2.position.z = 0; b2.position.y = 0.1; b2.rotation.x = Math.PI/2;
+    const b3 = BABYLON.MeshBuilder.CreateCylinder("b3", {height:1.6, diameterTop:1.2, diameterBottom:0.8, tessellation:24}, scene);
+    b3.position.z = -1.6; b3.position.y = 0.1; b3.rotation.x = Math.PI/2;
+    const b4 = BABYLON.MeshBuilder.CreateCylinder("b4", {height:1.4, diameterTop:0.8, diameterBottom:0.4, tessellation:24}, scene);
+    b4.position.z = -3.1; b4.position.y = 0.15; b4.rotation.x = Math.PI/2;
+    const b5 = BABYLON.MeshBuilder.CreateCylinder("b5", {height:1.0, diameterTop:0.4, diameterBottom:0.1, tessellation:24}, scene);
+    b5.position.z = -4.3; b5.position.y = 0.2; b5.rotation.x = Math.PI/2;
+    
+    [b1,b2,b3,b4,b5].forEach(b => { b.parent = fuseGrp; b.material = matWhite; });
+
+    const s1L = BABYLON.MeshBuilder.CreateCylinder("s1L", {height:4.5, diameter:0.1}, scene);
+    s1L.rotation.x = Math.PI/2; s1L.position = new BABYLON.Vector3(-0.55, 0.1, -0.5); s1L.parent = fuseGrp; s1L.material = matBlue;
+    const s1R = s1L.clone("s1R"); s1R.position.x = 0.55;
+    const s2L = BABYLON.MeshBuilder.CreateCylinder("s2L", {height:4.5, diameter:0.06}, scene);
+    s2L.rotation.x = Math.PI/2; s2L.position = new BABYLON.Vector3(-0.52, 0.25, -0.5); s2L.parent = fuseGrp; s2L.material = matRed;
+    const s2R = s2L.clone("s2R"); s2R.position.x = 0.52;
+
+    const createLeg = (x, y, z, r, length) => {
+        const leg = BABYLON.MeshBuilder.CreateCylinder("leg", {diameter: 0.15, height: length}, scene);
+        leg.position = new BABYLON.Vector3(x, y, z); leg.parent = fuseGrp; leg.material = matGear;
+        const w = BABYLON.MeshBuilder.CreateCylinder("wh", {diameter: r*2, height: 0.3, tessellation: 24}, scene);
+        w.rotation.z = Math.PI/2; w.position = new BABYLON.Vector3(x, y - length/2, z); w.parent = fuseGrp; w.material = matDark;
+    };
+    createLeg(0, -0.6, 1.2, 0.35, 1.0);     
+    createLeg(-0.9, -0.6, 0.2, 0.45, 1.0);  
+    createLeg(0.9, -0.6, 0.2, 0.45, 1.0);   
+    addPiece('p_fuse', fuseGrp);
+
+    // 2. ALA IZQUIERDA (-X)
+    const alaIGrp = new BABYLON.TransformNode("p_alai", scene); alaIGrp.parent = planeRoot;
+    alaIGrp.position = new BABYLON.Vector3(-0.6, 0.3, 0); 
+    alaIGrp.rotation.z = -5 * Math.PI/180; 
+    const wL = BABYLON.MeshBuilder.CreateCapsule("wL", {height: 4.2, radius: 0.8, tessellation: 16}, scene);
+    wL.rotation.z = Math.PI/2; wL.scaling = new BABYLON.Vector3(0.08, 1, 1);
+    wL.position.x = -2.0; wL.parent = alaIGrp; wL.material = matWing;
+
+    const lightL = BABYLON.MeshBuilder.CreateSphere("lightL", {diameter: 0.15}, scene);
+    lightL.position = new BABYLON.Vector3(-4.0, 0, 0); lightL.parent = alaIGrp;
+    const matLightL = new BABYLON.PBRMaterial("matLightL", scene);
+    matLightL.emissiveColor = new BABYLON.Color3(1, 0, 0); matLightL.albedoColor = new BABYLON.Color3(0,0,0);
+    lightL.material = matLightL;
+    addPiece('p_alai', alaIGrp);
+
+    // 3. ALERÓN IZQUIERDO (-X) (Caja Rectangular)
+    const alerIGrp = new BABYLON.TransformNode("p_aleron_i", scene); alerIGrp.parent = planeRoot;
+    alerIGrp.position = alaIGrp.position.clone(); alerIGrp.rotation.z = alaIGrp.rotation.z;
+    const alerPivotI = new BABYLON.TransformNode("alerPivotI", scene); alerPivotI.parent = alerIGrp; alerPivotI.position = new BABYLON.Vector3(-2.5, 0, -0.8);
+    const aleronI = BABYLON.MeshBuilder.CreateBox("alI", {width: 0.4, height: 1.8, depth: 0.4}, scene);
+    aleronI.rotation.z = Math.PI/2; aleronI.scaling = new BABYLON.Vector3(0.15, 1, 1);
+    aleronI.position.z = -0.2; aleronI.parent = alerPivotI; aleronI.material = matOrange;
+    controlSurfaces.aleronIzq = alerPivotI;
+    addPiece('p_aleron_i', alerIGrp);
+
+    // 4. ALA DERECHA (+X)
+    const alaDGrp = new BABYLON.TransformNode("p_alad", scene); alaDGrp.parent = planeRoot;
+    alaDGrp.position = new BABYLON.Vector3(0.6, 0.3, 0); 
+    alaDGrp.rotation.z = 5 * Math.PI/180;  
+    const wR = BABYLON.MeshBuilder.CreateCapsule("wR", {height: 4.2, radius: 0.8, tessellation: 16}, scene);
+    wR.rotation.z = Math.PI/2; wR.scaling = new BABYLON.Vector3(0.08, 1, 1);
+    wR.position.x = 2.0; wR.parent = alaDGrp; wR.material = matWing;
+
+    const lightR = BABYLON.MeshBuilder.CreateSphere("lightR", {diameter: 0.15}, scene);
+    lightR.position = new BABYLON.Vector3(4.0, 0, 0); lightR.parent = alaDGrp;
+    const matLightR = new BABYLON.PBRMaterial("matLightR", scene);
+    matLightR.emissiveColor = new BABYLON.Color3(0, 1, 0); matLightR.albedoColor = new BABYLON.Color3(0,0,0);
+    lightR.material = matLightR;
+    addPiece('p_alad', alaDGrp);
+
+    // 5. ALERÓN DERECHO (+X) (Caja Rectangular)
+    const alerDGrp = new BABYLON.TransformNode("p_aleron_d", scene); alerDGrp.parent = planeRoot;
+    alerDGrp.position = alaDGrp.position.clone(); alerDGrp.rotation.z = alaDGrp.rotation.z;
+    const alerPivotD = new BABYLON.TransformNode("alerPivotD", scene); alerPivotD.parent = alerDGrp; alerPivotD.position = new BABYLON.Vector3(2.5, 0, -0.8);
+    const aleronD = BABYLON.MeshBuilder.CreateBox("alD", {width: 0.4, height: 1.8, depth: 0.4}, scene);
+    aleronD.rotation.z = Math.PI/2; aleronD.scaling = new BABYLON.Vector3(0.15, 1, 1);
+    aleronD.position.z = -0.2; aleronD.parent = alerPivotD; aleronD.material = matOrange;
+    controlSurfaces.aleronDer = alerPivotD;
+    addPiece('p_aleron_d', alerDGrp);
+
+    // 6. COLA HORIZONTAL
+    const cHGrp = new BABYLON.TransformNode("p_colah", scene); cHGrp.parent = planeRoot;
+    cHGrp.position = new BABYLON.Vector3(0, 0.45, -4.2);
+    const chBox = BABYLON.MeshBuilder.CreateCapsule("ch", {height: 3.4, radius: 0.4, tessellation: 16}, scene);
+    chBox.rotation.z = Math.PI/2; chBox.scaling = new BABYLON.Vector3(0.1, 1, 1);
+    chBox.parent = cHGrp; chBox.material = matWing;
+    addPiece('p_colah', cHGrp);
+
+    // 7. ELEVADOR IZQUIERDO (-X) (Caja Rectangular)
+    const elevIGrp = new BABYLON.TransformNode("p_elev_i", scene); elevIGrp.parent = planeRoot;
+    elevIGrp.position = cHGrp.position.clone();
+    const elevPivotI = new BABYLON.TransformNode("elevPivotI", scene); elevPivotI.parent = elevIGrp; elevPivotI.position = new BABYLON.Vector3(-0.8, 0, -0.4);
+    const elI = BABYLON.MeshBuilder.CreateBox("elI", {width: 0.5, height: 1.4, depth: 0.5}, scene);
+    elI.rotation.z = Math.PI/2; elI.scaling = new BABYLON.Vector3(0.1, 1, 1);
+    elI.position.z = -0.25; elI.parent = elevPivotI; elI.material = matOrange;
+    controlSurfaces.elevIzq = elevPivotI;
+    addPiece('p_elev_i', elevIGrp);
+
+    // 8. ELEVADOR DERECHO (+X) (Caja Rectangular)
+    const elevDGrp = new BABYLON.TransformNode("p_elev_d", scene); elevDGrp.parent = planeRoot;
+    elevDGrp.position = cHGrp.position.clone();
+    const elevPivotD = new BABYLON.TransformNode("elevPivotD", scene); elevPivotD.parent = elevDGrp; elevPivotD.position = new BABYLON.Vector3(0.8, 0, -0.4);
+    const elD = BABYLON.MeshBuilder.CreateBox("elD", {width: 0.5, height: 1.4, depth: 0.5}, scene);
+    elD.rotation.z = Math.PI/2; elD.scaling = new BABYLON.Vector3(0.1, 1, 1);
+    elD.position.z = -0.25; elD.parent = elevPivotD; elD.material = matOrange;
+    controlSurfaces.elevDer = elevPivotD;
+    addPiece('p_elev_d', elevDGrp);
+
+    // 9. COLA VERTICAL
+    const cVGrp = new BABYLON.TransformNode("p_colav", scene); cVGrp.parent = planeRoot;
+    cVGrp.position = new BABYLON.Vector3(0, 0.5, -4.0);
+    const cvBox = BABYLON.MeshBuilder.CreateCapsule("cv", {height: 1.6, radius: 0.5, tessellation: 16}, scene);
+    cvBox.scaling = new BABYLON.Vector3(0.1, 1, 1); 
+    cvBox.position.y = 0.7; cvBox.position.z = -0.2; cvBox.parent = cVGrp; cvBox.material = matWing;
+    
+    const lightT = BABYLON.MeshBuilder.CreateSphere("lightT", {diameter: 0.12}, scene);
+    lightT.position = new BABYLON.Vector3(0, 1.45, -0.65); lightT.parent = cVGrp;
+    const matLightT = new BABYLON.PBRMaterial("matLightT", scene);
+    matLightT.emissiveColor = new BABYLON.Color3(1, 1, 1); matLightT.albedoColor = new BABYLON.Color3(0,0,0);
+    lightT.material = matLightT;
+    addPiece('p_colav', cVGrp);
+
+    // 10. TIMÓN DE COLA (Caja Rectangular)
+    const timonGrp = new BABYLON.TransformNode("p_timon", scene); timonGrp.parent = planeRoot;
+    timonGrp.position = cVGrp.position.clone();
+    const timonPivot = new BABYLON.TransformNode("timonPivot", scene); timonPivot.parent = timonGrp; timonPivot.position = new BABYLON.Vector3(0, 0.7, -0.7);
+    const tBox = BABYLON.MeshBuilder.CreateBox("tB", {width: 0.6, height: 1.3, depth: 0.6}, scene);
+    tBox.scaling = new BABYLON.Vector3(0.1, 1, 1);
+    tBox.position.z = -0.3; tBox.parent = timonPivot; tBox.material = matOrange;
+    controlSurfaces.timon = timonPivot;
+    addPiece('p_timon', timonGrp);
+
+    // 11. MOTOR Y HÉLICE (Mejorado con disco semitransparente)
+    const motGrp = new BABYLON.TransformNode("p_motor", scene); motGrp.parent = planeRoot;
+    motGrp.position = new BABYLON.Vector3(0, 0.1, 2.0);
+    const motor = BABYLON.MeshBuilder.CreateCylinder("mot", {diameter: 1.1, height: 0.8}, scene); motor.rotation.x = Math.PI/2; motor.parent = motGrp; motor.material = matGear;
+    propRoot = new BABYLON.TransformNode("propRoot", scene); propRoot.parent = motGrp; propRoot.position.z = 0.45;
+    const propBuz = BABYLON.MeshBuilder.CreateCylinder("buz", {diameter: 0.3, height: 0.2}, scene); propBuz.rotation.x = Math.PI/2; propBuz.parent = propRoot; propBuz.material = matWhite;
+    
+    // Palas físicas
+    const prop1 = BABYLON.MeshBuilder.CreateCapsule("pr1", {height: 3.4, radius: 0.1, tessellation: 12}, scene);
+    prop1.scaling = new BABYLON.Vector3(1, 1, 0.2); prop1.parent = propRoot; prop1.material = matDark;
+    const prop2 = BABYLON.MeshBuilder.CreateCapsule("pr2", {height: 3.4, radius: 0.1, tessellation: 12}, scene);
+    prop2.rotation.z = Math.PI/2; prop2.scaling = new BABYLON.Vector3(1, 1, 0.2); prop2.parent = propRoot; prop2.material = matDark;
+    
+    // Disco de Hélice para alta velocidad
+    const propDisco = BABYLON.MeshBuilder.CreateCylinder("propDisco", {diameter: 3.6, height: 0.04, tessellation: 48}, scene);
+    propDisco.parent = propRoot;
+    propDisco.rotation.x = Math.PI / 2;
+    const matDisco = new BABYLON.PBRMaterial("matDisco", scene);
+    matDisco.albedoColor = new BABYLON.Color3(0.7, 0.7, 0.8);
+    matDisco.alpha = 0.0; // Inicia invisible
+    matDisco.metallic = 0.1; matDisco.roughness = 0.1;
+    matDisco.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    propDisco.material = matDisco;
+
+    propBlades = [prop1, prop2];
+    propDiscoMat = matDisco;
+
+    addPiece('p_motor', motGrp);
+
+    // 12. CABINA (MORRO LIBRE, CILINDRO PRINCIPAL Y CONO FRONTAL CORREGIDO)
+    const cabGrp = new BABYLON.TransformNode("p_cabina", scene); 
+    cabGrp.parent = planeRoot;
+    cabGrp.position = new BABYLON.Vector3(0, 0.7, -0.8); 
+
+    const seatBase1 = BABYLON.MeshBuilder.CreateBox("seatB1", {width:0.4, height:0.1, depth:0.3}, scene);
+    seatBase1.position = new BABYLON.Vector3(0, 0.06, 0.4); 
+    seatBase1.parent = cabGrp; seatBase1.material = matDark;
+
+    const seatBack1 = BABYLON.MeshBuilder.CreateBox("seatBk1", {width:0.4, height:0.35, depth:0.08}, scene);
+    seatBack1.position = new BABYLON.Vector3(0, 0.25, 0.25); 
+    seatBack1.rotation.x = 0.15; seatBack1.parent = cabGrp; seatBack1.material = matDark;
+
+    const seatBase2 = BABYLON.MeshBuilder.CreateBox("seatB2", {width:0.4, height:0.1, depth:0.3}, scene);
+    seatBase2.position = new BABYLON.Vector3(0, 0.06, -0.4); 
+    seatBase2.parent = cabGrp; seatBase2.material = matDark;
+
+    const seatBack2 = BABYLON.MeshBuilder.CreateBox("seatBk2", {width:0.4, height:0.35, depth:0.08}, scene);
+    seatBack2.position = new BABYLON.Vector3(0, 0.25, -0.55); 
+    seatBack2.rotation.x = 0.15; seatBack2.parent = cabGrp; seatBack2.material = matDark;
+
+    const panelInst = BABYLON.MeshBuilder.CreateBox("panel", {width:0.5, height:0.25, depth:0.05}, scene);
+    panelInst.position = new BABYLON.Vector3(0, 0.2, 0.9); 
+    panelInst.rotation.x = -0.3; panelInst.parent = cabGrp; panelInst.material = matDark;
+
+    const glassPivot = new BABYLON.TransformNode("glassPivot", scene);
+    glassPivot.parent = cabGrp;
+    glassPivot.position.y = 0.0; 
+    glassPivot.scaling = new BABYLON.Vector3(0.8, 0.9, 1.0); 
+
+    const cabGlassMain = BABYLON.MeshBuilder.CreateCylinder("cabGlassMain", {
+        height: 1.8, diameter: 1.0, arc: 0.5, enclose: true, tessellation: 24
+    }, scene);
+    cabGlassMain.parent = glassPivot;
+    cabGlassMain.position.z = 0.0;
+    cabGlassMain.rotation.x = Math.PI / 2; 
+    cabGlassMain.rotation.y = Math.PI;
+    cabGlassMain.material = matGlass;
+
+    // Se ha invertido el parabrisas cambiando diameterTop=1.0 y diameterBottom=0
+    // Para que el vértice apunte ahora a la parte frontal (+Z)
+    const cabGlassFront = BABYLON.MeshBuilder.CreateCylinder("cabGlassFront", {
+        height: 1.0, diameterTop: 1.0, diameterBottom: 0, arc: 0.5, enclose: true, tessellation: 24
+    }, scene);
+    cabGlassFront.parent = glassPivot;
+    cabGlassFront.position.z = 1.4; 
+    cabGlassFront.rotation.x = Math.PI / 2; 
+    cabGlassFront.rotation.y = Math.PI; 
+    cabGlassFront.material = matGlass;
+
+    addPiece('p_cabina', cabGrp);
+
+    // 13-17. SERVOS
+    const createServo = (id, parentPos, parentRotZ, posOffset, rotY) => {
+        const sGrp = new BABYLON.TransformNode(id, scene);
+        sGrp.parent = planeRoot; 
+        sGrp.position = parentPos.clone();
+        sGrp.rotation.z = parentRotZ;
+        
+        const sw = new BABYLON.TransformNode("sw", scene);
+        sw.parent = sGrp; sw.position = posOffset; sw.rotation.y = rotY;
+
+        const mBase = new BABYLON.PBRMaterial(id+"_base", scene); mBase.albedoColor = BABYLON.Color3.FromHexString("#B0BEC5"); mBase.metallic = 0.8; mBase.roughness = 0.4;
+        const mArm = new BABYLON.PBRMaterial(id+"_arm", scene); mArm.albedoColor = BABYLON.Color3.FromHexString("#00b0f0"); mArm.metallic = 0.2; mArm.roughness = 0.2;
+
+        const base = BABYLON.MeshBuilder.CreateBox("b", {width:0.25, height:0.2, depth:0.15}, scene); base.parent = sw; base.position.y = 0.1; base.material = mBase;
+        const aPivot = new BABYLON.TransformNode("ap", scene); aPivot.parent = sw; aPivot.position = new BABYLON.Vector3(0, 0.25, 0);
+        const arm = BABYLON.MeshBuilder.CreateBox("a", {width:0.06, height:0.25, depth:0.06}, scene); arm.parent = aPivot; arm.position.y = 0.1; arm.material = mArm;
+
+        const marker = BABYLON.MeshBuilder.CreateSphere("mark", {diameter: 0.25}, scene);
+        marker.parent = sw; marker.position = new BABYLON.Vector3(0,0.5,0); marker.material = matGhost;
+        
+        servosInfo[id] = { armPivot: aPivot, mBase: mBase, mArm: mArm, marker: marker };
+        addPiece(id, sGrp);
+    };
+
+    createServo('s_alai', alaIGrp.position, alaIGrp.rotation.z, new BABYLON.Vector3(-2.5, 0.1, -0.4), 0);
+    createServo('s_alad', alaDGrp.position, alaDGrp.rotation.z, new BABYLON.Vector3(2.5, 0.1, -0.4), 0);
+    createServo('s_elevi', cHGrp.position, 0, new BABYLON.Vector3(-0.8, 0.1, 0), 0);
+    createServo('s_elevd', cHGrp.position, 0, new BABYLON.Vector3(0.8, 0.1, 0), 0);
+    createServo('s_timon', cVGrp.position, 0, new BABYLON.Vector3(0.1, 1.0, -0.4), Math.PI/2);
+}
+
+function createPBR(name, hex, r, m) {
+    const mat = new BABYLON.PBRMaterial(name, scene);
+    mat.albedoColor = BABYLON.Color3.FromHexString(hex);
+    mat.roughness = r; mat.metallic = m;
+    return mat;
+}
+
+// ==========================================
+// LÓGICA DE PUZZLE
+// ==========================================
+function installPiece(id) {
+    if (installedPieces.size === 0 && hologram) {
+        hologram.dispose(); hologram = null;
+    }
+
+    installedPieces.add(id);
+    const mesh = meshes[id];
+    const ghost = ghosts[id];
+    
+    document.getElementById(`chk-${id}`).classList.add('done');
+    const trayBtn = document.getElementById(`tray-${id}`);
+    if(trayBtn) {
+        trayBtn.classList.add('installed');
+        trayBtn.draggable = false;
+    }
+    document.getElementById('lbl-counter').innerText = `${installedPieces.size} / ${TOTAL_PIECES} piezas colocadas`;
+
+    if(ghost) ghost.dispose();
+    
+    let t0 = performance.now();
+    const obs = scene.onBeforeRenderObservable.add(() => {
+        const p = Math.min((performance.now() - t0) / 500, 1);
+        const s = 0.01 + 0.99 * p;
+        mesh.scaling = new BABYLON.Vector3(s, s, s);
+        if (p >= 1) {
+            scene.onBeforeRenderObservable.remove(obs);
+            checkWin();
+        }
+    });
+
+    if (servosInfo[id]) {
+        const s = servosInfo[id];
+        if (s.marker) s.marker.dispose();
+        
+        s.mBase.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+        s.mArm.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+        
+        let st0 = performance.now();
+        const sobs = scene.onBeforeRenderObservable.add(() => {
+            const dt = (performance.now() - st0) / 1000;
+            if (dt < 0.5) s.armPivot.rotation.x = BABYLON.Scalar.Lerp(0, Math.PI/4, dt/0.5);
+            else if (dt < 1.0) s.armPivot.rotation.x = BABYLON.Scalar.Lerp(Math.PI/4, 0, (dt-0.5)/0.5);
+            else {
+                s.mBase.emissiveColor = new BABYLON.Color3(0,0,0);
+                s.mArm.emissiveColor = new BABYLON.Color3(0,0,0);
+                s.armPivot.rotation.x = 0;
+                scene.onBeforeRenderObservable.remove(sobs);
+            }
+        });
+
+        ['s_alai','s_alad','s_elevi','s_elevd','s_timon'].forEach((sid, idx) => {
+            if(installedPieces.has(sid)) document.getElementById(`dot-s${idx+1}`).classList.add('active');
+        });
+    }
+}
+
+function checkWin() {
+    if (installedPieces.size === TOTAL_PIECES) {
+        setTimeout(() => {
+            document.getElementById('modal').style.display = 'flex';
+        }, 800);
+    }
+}
+
+function resetPuzzle() {
+    installedPieces.clear();
+    isDemoRunning = false;
+    isOrbiting = true;
+    demoPhase = 0; demoTime = 0; planeSpeed = 0;
+    orbitAngle = -Math.PI / 2 + 0.5;
+
+    document.querySelectorAll('.chk').forEach(el => el.classList.remove('done'));
+    document.querySelectorAll('.piece-item').forEach(el => el.classList.remove('done'));
+    document.querySelectorAll('.tray-piece').forEach(el => {
+        el.classList.remove('installed'); el.draggable = true;
+    });
+    document.querySelectorAll('.dot').forEach(el => el.classList.remove('active'));
+    document.getElementById('lbl-counter').innerText = `0 / ${TOTAL_PIECES} piezas colocadas`;
+    document.getElementById('modal').style.display = 'none';
+
+    if(planeRoot) planeRoot.dispose();
+    if(hologram) hologram.dispose();
+    meshes = {}; ghosts = {}; servosInfo = {}; controlSurfaces = {};
+    propBlades = []; propDiscoMat = null;
+    buildPlane(scene.lights[1].getShadowGenerator());
+    
+    hologram = BABYLON.MeshBuilder.CreateTorus("holo", {diameter: 2.5, thickness: 0.08, tessellation: 48}, scene);
+    hologram.position.y = 1.0;
+    const holoMat = new BABYLON.PBRMaterial("holoMat", scene);
+    holoMat.albedoColor = new BABYLON.Color3(0, 0.9, 1);
+    holoMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+    holoMat.alpha = 0.5; holoMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    hologram.material = holoMat;
+}
+
+// ==========================================
+// DEMO DE VUELO CINEMÁTICA (ELÍPTICA)
+// ==========================================
+function startDemo() {
+    document.getElementById('modal').style.display = 'none';
+    isDemoRunning = true;
+    isOrbiting = false;
+    demoPhase = 0;
+    demoTime = 0;
+    
+    camera.target = planeRoot;
+    camera.alpha = -Math.PI/2 - 0.5;
+    camera.beta = Math.PI/3;
+    camera.radius = 24;
+}
+
+function updateDemoFlight(dt) {
+    demoTime += dt;
+    
+    // Gestión del giro de la hélice y efecto de disco
+    const propSpeed = 10 + planeSpeed * 2;
+    if(propRoot) propRoot.rotation.z += propSpeed * dt;
+
+    if (propDiscoMat && propBlades.length > 0) {
+        const PROP_BLUR_START = 15;
+        const PROP_BLUR_FULL  = 40;
+        const t = BABYLON.Scalar.Clamp((propSpeed - PROP_BLUR_START) / (PROP_BLUR_FULL - PROP_BLUR_START), 0, 1);
+        propDiscoMat.alpha = t * 0.45;
+        propBlades.forEach(p => { p.visibility = 1 - t; });
+    }
+
+    if (demoPhase === 0) {
+        planeSpeed += 4 * dt;
+        planeRoot.translate(BABYLON.Axis.Z, planeSpeed * dt, BABYLON.Space.LOCAL);
+        if (demoTime > 2.5) { demoPhase = 1; demoTime = 0; }
+    } 
+    else if (demoPhase === 1) {
+        planeSpeed = Math.min(18, planeSpeed + 2 * dt);
+        planeRoot.translate(BABYLON.Axis.Z, planeSpeed * dt, BABYLON.Space.LOCAL);
+        
+        planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, -0.25, 0.03);
+        planeRoot.position.y += planeSpeed * 0.4 * dt; 
+        
+        controlSurfaces.elevIzq.rotation.x = -25 * Math.PI/180;
+        controlSurfaces.elevDer.rotation.x = -25 * Math.PI/180;
+
+        if (demoTime > 3.0) { demoPhase = 2; demoTime = 0; }
+    }
+    else if (demoPhase === 2) {
+        planeRoot.translate(BABYLON.Axis.Z, planeSpeed * dt, BABYLON.Space.LOCAL);
+        planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.04);
+        
+        controlSurfaces.elevIzq.rotation.x = BABYLON.Scalar.Lerp(controlSurfaces.elevIzq.rotation.x, 0, 0.1);
+        controlSurfaces.elevDer.rotation.x = BABYLON.Scalar.Lerp(controlSurfaces.elevDer.rotation.x, 0, 0.1);
+
+        if (demoTime > 2.5) { demoPhase = 3; demoTime = 0; }
+    }
+    else if (demoPhase === 3) {
+        planeRoot.translate(BABYLON.Axis.Z, planeSpeed * dt, BABYLON.Space.LOCAL);
+        
+        const yawRate = 0.35 + 0.25 * Math.cos(planeRoot.rotation.y * 2);
+        planeRoot.rotation.y += yawRate * dt;
+        
+        const targetRoll = yawRate * 0.9;
+        planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, -targetRoll, 0.05);
+        
+        controlSurfaces.aleronIzq.rotation.x = targetRoll * 1.2;
+        controlSurfaces.aleronDer.rotation.x = -targetRoll * 1.2;
+        controlSurfaces.timon.rotation.y = targetRoll * 0.8;
+        
+        camera.alpha -= yawRate * dt; 
+    }
+}
+
+window.onload = () => {
+    initUI();
+    initEngine();
+};
+</script>
+</body>
+</html>

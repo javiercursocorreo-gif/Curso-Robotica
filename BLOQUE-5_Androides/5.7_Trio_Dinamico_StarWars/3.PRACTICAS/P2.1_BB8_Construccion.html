@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1: Visor Interno y Locomoción</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0d1117; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+        
+        #uiPanel {
+            position: absolute; top: 20px; right: 20px; width: 320px;
+            background: rgba(13, 17, 23, 0.85); border: 1px solid #30363d; border-radius: 12px;
+            padding: 20px; color: #c9d1d9; backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 10;
+        }
+        h2 { margin: 0 0 15px 0; color: #58a6ff; font-size: 1.3rem; }
+        p { font-size: 0.9rem; line-height: 1.5; color: #8b949e; margin-bottom: 20px; }
+        
+        .slider-container { margin-bottom: 25px; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; font-size: 0.9rem; }
+        input[type=range] { width: 100%; accent-color: #58a6ff; }
+        
+        .btn {
+            width: 100%; background: #238636; color: white; border: none; padding: 12px;
+            border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; margin-bottom: 10px;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn:active { transform: scale(0.98); }
+        .btn.mag { background: #1f6feb; }
+        .btn.mag:hover { background: #388bfd; }
+        
+        .title-sign {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            font-size: 10rem;
+            font-weight: 900;
+            color: #e67e22; /* Naranja BB-8 */
+            text-shadow: 5px 5px 0px #222, 10px 10px 20px rgba(0,0,0,0.9);
+            z-index: 5;
+            pointer-events: none;
+            font-family: 'Arial Black', Impact, sans-serif;
+            letter-spacing: 10px;
+            opacity: 0.85;
+        }
+    </style>
+</head>
+<body>
+
+<div class="title-sign">BB-8</div>
+
+<div id="uiPanel">
+    <h2>Mecanismo Holonómico</h2>
+    <p>La oscilación del péndulo inercial mueve el centro de gravedad y obliga a la esfera a rodar. Sube la opacidad al 100% para revelar a BB-8.</p>
+    
+    <div class="slider-container">
+        <div class="slider-label"><span>Carcasa (Esfera)</span> <span id="opVal">30%</span></div>
+        <input type="range" id="opacitySlider" min="0" max="100" value="30">
+    </div>
+
+    <button class="btn" id="btnPendulum">Destacar Péndulo Inercial</button>
+    <button class="btn mag" id="btnMagnet">Destacar Plato Magnético</button>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    
+    let scene, camera;
+    let robotRoot, bbBody, bbHead, mechPivot;
+    let outerSphere, outerSphereMat;
+    let pendulumBody, magnetPlate;
+    let mBodyNodes = [], mHeadNodes = [];
+    
+    const bbRadius = 1.5; // Tamaño del robot en P1
+
+    const createScene = async () => {
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.05, 0.07, 0.1, 1);
+
+        camera = new BABYLON.ArcRotateCamera("camera", Math.PI/2.5, Math.PI/2.5, 8, new BABYLON.Vector3(0, bbRadius, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 50; camera.lowerRadiusLimit = 2; camera.upperRadiusLimit = 25;
+
+        const light = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+        light.intensity = 0.5;
+        const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+        dirLight.intensity = 1.0;
+
+        // Entorno: Plataforma gigante
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 30, height: 10 }, scene);
+        const groundMat = new BABYLON.StandardMaterial("gMat", scene);
+        groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        
+        // Cuadrícula para ver el movimiento
+        const gridTex = new BABYLON.GridMaterial("grid", scene);
+        gridTex.majorUnitFrequency = 2;
+        gridTex.minorUnitVisibility = 0.5;
+        gridTex.gridRatio = 1.0;
+        gridTex.mainColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        gridTex.lineColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        ground.material = gridTex;
+
+        // --- JERARQUÍA ---
+        robotRoot = new BABYLON.TransformNode("robotRoot", scene);
+        bbBody = new BABYLON.TransformNode("bbBody", scene);
+        bbHead = new BABYLON.TransformNode("bbHead", scene);
+        mechPivot = new BABYLON.TransformNode("mechPivot", scene);
+
+        bbBody.parent = robotRoot;
+        bbHead.parent = robotRoot;
+        mechPivot.parent = robotRoot; // El péndulo viaja con el robot pero NO rota al rodar
+        
+        robotRoot.position.y = bbRadius;
+
+        // --- ESTRUCTURA INTERNA DIDÁCTICA ---
+        const coreMat = new BABYLON.StandardMaterial("coreMat", scene);
+        coreMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+        coreMat.specularColor = new BABYLON.Color3(1, 1, 1);
+
+        const mast = BABYLON.MeshBuilder.CreateCylinder("mast", { height: bbRadius*1.5, diameter: 0.1 }, scene);
+        mast.parent = mechPivot;
+        mast.material = coreMat;
+
+        pendulumBody = BABYLON.MeshBuilder.CreateBox("pendulum", { width: 1.2, height: 0.8, depth: 1.2 }, scene);
+        pendulumBody.position.y = -0.7; // Cuelga hacia abajo
+        pendulumBody.parent = mechPivot;
+        pendulumBody.material = coreMat.clone("pendulumMat");
+
+        const wheelMat = new BABYLON.StandardMaterial("wMat", scene);
+        wheelMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+        for(let i=0; i<4; i++){
+            const w = BABYLON.MeshBuilder.CreateCylinder("w"+i, {height:0.2, diameter:0.3}, scene);
+            w.rotation.z = Math.PI/2;
+            const angle = (Math.PI/2) * i;
+            w.rotation.y = -angle; // Alinear cada rueda con su posición en el círculo
+            w.position = new BABYLON.Vector3(Math.cos(angle)*0.8, pendulumBody.position.y - 0.4, Math.sin(angle)*0.8);
+            w.parent = mechPivot;
+            w.material = wheelMat;
+        }
+
+        magnetPlate = BABYLON.MeshBuilder.CreateCylinder("magnet", { height: 0.1, diameter: 0.8 }, scene);
+        magnetPlate.position.y = 1.1; // Sube por el mástil
+        magnetPlate.parent = mechPivot;
+        magnetPlate.material = new BABYLON.StandardMaterial("magMat", scene);
+        magnetPlate.material.diffuseColor = new BABYLON.Color3(0.2, 0.0, 0.0); // Rojo muy oscuro apagado
+        magnetPlate.material.emissiveColor = new BABYLON.Color3(0.0, 0, 0); // Sin brillo
+
+        // --- CARCASA PROCEDURAL (Modo Transparente) ---
+        outerSphere = BABYLON.MeshBuilder.CreateSphere("outerSphere", { diameter: bbRadius * 2, segments: 32 }, scene);
+        outerSphere.parent = bbBody; // Rueda con el cuerpo
+        outerSphereMat = new BABYLON.StandardMaterial("outerMat", scene);
+        outerSphereMat.diffuseColor = new BABYLON.Color3(1, 0.5, 0); 
+        outerSphereMat.alpha = 0.3; 
+        outerSphereMat.wireframe = true;
+        outerSphere.material = outerSphereMat;
+        
+        // Cabeza procedimental (oculta por defecto, usada si el modelo falla)
+        const procHead = BABYLON.MeshBuilder.CreateSphere("procHead", { diameter: 1.2, slice: 0.5 }, scene);
+        procHead.rotation.x = Math.PI; 
+        procHead.position.y = 0.02;
+        procHead.parent = bbHead;
+        const procHeadMat = new BABYLON.StandardMaterial("headMat", scene);
+        procHeadMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+        procHead.material = procHeadMat;
+        procHead.isVisible = true; // Se mostrará junto al wireframe
+        
+        // --- MODELO 3D REAL (BB-8) ---
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+            const root = result.meshes[0];
+            
+            const modelPivot = new BABYLON.TransformNode("modelPivot", scene);
+            root.parent = modelPivot;
+            
+            // Corregir coordenadas y poner de pie
+            modelPivot.rotation.z = Math.PI;
+            modelPivot.rotate(BABYLON.Axis.X, Math.PI/2, BABYLON.Space.LOCAL);
+            scene.render();
+            
+            // Función auxiliar
+            const getBoundingInfoTotal = (meshes, rootNode) => {
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                meshes.forEach(mesh => {
+                    if (mesh === rootNode || !mesh.getBoundingInfo) return;
+                    mesh.computeWorldMatrix(true);
+                    let boundingInfo = mesh.getBoundingInfo();
+                    min = BABYLON.Vector3.Minimize(min, boundingInfo.boundingBox.minimumWorld);
+                    max = BABYLON.Vector3.Maximize(max, boundingInfo.boundingBox.maximumWorld);
+                });
+                return {
+                    size: max.subtract(min),
+                    center: min.add(max).scale(0.5)
+                };
+            };
+
+            let bbox = getBoundingInfoTotal(result.meshes, root);
+            let diameter = Math.min(bbox.size.x, Math.min(bbox.size.y, bbox.size.z));
+            if (diameter > 0) {
+                modelPivot.scaling.scaleInPlace((bbRadius * 2.0) / diameter);
+            }
+            
+            modelPivot.position.y = -(643.0 / 632.0) * bbRadius;
+            
+            const headPivot = modelPivot.clone("headPivot", null);
+            modelPivot.parent = bbBody;
+            headPivot.parent = bbHead;
+            
+            // Separar cuerpo y cabeza por coordenadas
+            result.meshes.forEach(m => {
+                if(!m.geometry) return;
+                const positions = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+                if(!positions) return;
+                let localMinY = Number.MAX_VALUE;
+                let localMaxY = -Number.MAX_VALUE;
+                for (let j = 0; j < positions.length; j += 3) {
+                    if (positions[j+1] < localMinY) localMinY = positions[j+1];
+                    if (positions[j+1] > localMaxY) localMaxY = positions[j+1];
+                }
+                const centerY = (localMinY + localMaxY) / 2;
+                if (centerY < -1300) m.dispose(); // Era cabeza, la quitamos del cuerpo
+            });
+            
+            headPivot.getChildMeshes(false).forEach(m => {
+                if(!m.geometry) return;
+                const positions = m.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+                if(!positions) return;
+                let localMinY = Number.MAX_VALUE;
+                let localMaxY = -Number.MAX_VALUE;
+                for (let j = 0; j < positions.length; j += 3) {
+                    if (positions[j+1] < localMinY) localMinY = positions[j+1];
+                    if (positions[j+1] > localMaxY) localMaxY = positions[j+1];
+                }
+                const centerY = (localMinY + localMaxY) / 2;
+                if (centerY >= -1300) m.dispose(); // Era cuerpo, lo quitamos de la cabeza
+            });
+            
+            // Tapón blanco para el agujero
+            const innerShell = BABYLON.MeshBuilder.CreateSphere("innerShell", {diameter: bbRadius * 1.95}, scene);
+            const shellMat = new BABYLON.StandardMaterial("shellMat", scene);
+            shellMat.diffuseColor = new BABYLON.Color3(0.85, 0.85, 0.85);
+            innerShell.material = shellMat;
+            innerShell.parent = bbBody;
+            
+            // Registrar meshes para el slider
+            mBodyNodes = modelPivot.getChildMeshes(false);
+            mBodyNodes.push(innerShell); // El tapón también pertenece al modelo 3D
+            mHeadNodes = headPivot.getChildMeshes(false);
+            
+            // Ocultar el modelo 3D por defecto (empieza en transparente)
+            mBodyNodes.forEach(m => m.isVisible = false);
+            mHeadNodes.forEach(m => m.isVisible = false);
+            procHead.isVisible = true; // Mostramos la cabeza de prueba
+
+        } catch(e) {
+            console.error("Error cargando GLTF", e);
+        }
+
+        // --- ANIMACIÓN DIDÁCTICA ---
+        let time = 0;
+        let currentX = 0;
+        
+        scene.onBeforeRenderObservable.add(() => {
+            let dt = engine.getDeltaTime() / 1000;
+            if(dt > 0.1) dt = 0.1;
+            time += dt;
+            
+            // 1. El péndulo oscila (Causa)
+            const swingSpeed = 2.0; 
+            const swingAmplitude = Math.PI / 4; // 45 grados de inclinación
+            
+            // Calculamos el ángulo actual usando un seno
+            const angleZ = Math.sin(time * swingSpeed) * swingAmplitude;
+            mechPivot.rotation.z = angleZ;
+            
+            // 2. El cambio de masa hace que la bola se desplace (Consecuencia)
+            // Vinculamos la posición X directamente a la oscilación para que sea visual y estable
+            const travelDistance = Math.sin(time * swingSpeed) * 4.0; // Se mueve 4 metros a cada lado
+            const displacementX = travelDistance - currentX;
+            currentX = travelDistance;
+            
+            robotRoot.position.x = currentX;
+            
+            // 3. Al desplazarse, la carcasa rueda físicamente
+            const rollAngle = -displacementX / bbRadius;
+            bbBody.rotate(BABYLON.Axis.Z, rollAngle, BABYLON.Space.WORLD);
+            
+            // 4. Levitación sutil de la cabeza sobre el cuerpo
+            bbHead.position.y = Math.sin(time * 5.0) * 0.02;
+            
+            // 5. La cabeza se inclina un poquito con el movimiento para seguir al péndulo
+            bbHead.rotation.z = angleZ * 0.3; 
+        });
+
+        return scene;
+    };
+
+    createScene().then(s => {
+        engine.runRenderLoop(() => s.render());
+    });
+    
+    window.addEventListener("resize", () => engine.resize());
+
+    // --- LÓGICA DE UI ---
+    const slider = document.getElementById("opacitySlider");
+    const opVal = document.getElementById("opVal");
+    
+    slider.addEventListener("input", (e) => {
+        const val = parseInt(e.target.value);
+        opVal.innerText = val + "%";
+        
+        if (val === 100) {
+            // Mostrar BB-8 real, ocultar procedimentales
+            outerSphere.isVisible = false;
+            scene.getMeshByName("procHead").isVisible = false;
+            mBodyNodes.forEach(m => m.isVisible = true);
+            mHeadNodes.forEach(m => m.isVisible = true);
+        } else {
+            // Mostrar mecanismo transparente, ocultar BB-8 real
+            outerSphere.isVisible = true;
+            outerSphereMat.alpha = val / 100.0;
+            outerSphereMat.wireframe = val < 80;
+            scene.getMeshByName("procHead").isVisible = true;
+            mBodyNodes.forEach(m => m.isVisible = false);
+            mHeadNodes.forEach(m => m.isVisible = false);
+        }
+    });
+
+    let penGlow = false;
+    document.getElementById("btnPendulum").addEventListener("click", () => {
+        penGlow = !penGlow;
+        pendulumBody.material.emissiveColor = penGlow ? new BABYLON.Color3(0, 0.8, 0) : new BABYLON.Color3(0,0,0);
+    });
+
+    let magGlow = false;
+    document.getElementById("btnMagnet").addEventListener("click", () => {
+        magGlow = !magGlow;
+        magnetPlate.material.emissiveColor = magGlow ? new BABYLON.Color3(1, 0, 0) : new BABYLON.Color3(0.3, 0, 0);
+    });
+
+</script>
+</body>
+</html>

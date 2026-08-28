@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3: Programador de Coreografías</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0f141e; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+
+        /* Panel Superior: Personaje */
+        #topPanel { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; gap: 15px; background: rgba(15, 20, 25, 0.8); padding: 15px 30px; border-radius: 50px; border: 1px solid #333; backdrop-filter: blur(10px); }
+        .char-btn { background: #2c3e50; color: #bdc3c7; border: none; padding: 10px 20px; font-weight: bold; border-radius: 20px; cursor: pointer; transition: all 0.3s; text-transform: uppercase; }
+        .char-btn.active { background: #00d2ff; color: #000; box-shadow: 0 0 15px rgba(0, 210, 255, 0.6); }
+
+        /* Panel Inferior: Secuenciador */
+        #sequencerPanel { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 75%; max-width: 800px; background: rgba(20, 25, 35, 0.95); border: 2px solid #333; border-radius: 10px; padding: 10px 15px; box-shadow: 0 -10px 40px rgba(0,0,0,0.6); z-index: 100; backdrop-filter: blur(10px); display: flex; flex-direction: column; gap: 10px; }
+        
+        h3 { margin: 0; color: #00d2ff; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Inventario de Pasos */
+        .blocks-container { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 5px; }
+        .step-block { background: #34495e; color: white; border: 2px solid #4a6278; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: bold; transition: transform 0.1s, background 0.2s; white-space: nowrap; }
+        .step-block:hover { background: #3d566e; transform: translateY(-2px); }
+        .step-block:active { transform: scale(0.95); }
+
+        /* Línea de Tiempo (Cola) */
+        .timeline { min-height: 50px; background: rgba(0,0,0,0.5); border: 2px dashed #555; border-radius: 8px; display: flex; align-items: center; padding: 8px; gap: 8px; overflow-x: auto; }
+        .timeline-item { background: #e67e22; color: #000; border: 2px solid #d35400; padding: 6px 12px; font-size: 0.9rem; border-radius: 6px; font-weight: bold; animation: popIn 0.3s ease; position: relative; }
+        .timeline-item .delete-btn { position: absolute; top: -6px; right: -6px; background: red; color: white; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; border: 2px solid #222; }
+        .timeline-item.playing { background: #2ecc71; border-color: #27ae60; box-shadow: 0 0 15px #2ecc71; color: white; }
+
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Controles (Play/Borrar) */
+        .controls { display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-control { padding: 8px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        #btnPlay { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+        #btnPlay:hover { box-shadow: 0 0 15px rgba(46, 204, 113, 0.5); }
+        #btnClear { background: #e74c3c; color: white; }
+
+        #loadingScreen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; color: white; font-size: 1.5rem; }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.1); border-top-color: #00d2ff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div id="loadingScreen">
+    <div class="spinner"></div>
+    <div id="loadingText">Compilando Simulador...</div>
+</div>
+
+<div id="topPanel">
+    <button class="char-btn active" data-char="salsa">Salsa</button>
+    <button class="char-btn" data-char="capoeira">Capoeira</button>
+    <button class="char-btn" data-char="combate">Combate</button>
+</div>
+
+<div id="sequencerPanel">
+    <div>
+        <h3>1. BLOQUES DE CÓDIGO (Inventario de Pasos)</h3>
+        <div class="blocks-container" id="blocksContainer">
+            <!-- Botones dinámicos -->
+        </div>
+    </div>
+    
+    <div>
+        <h3>2. COLA DE EJECUCIÓN (Timeline)</h3>
+        <div class="timeline" id="timelineContainer">
+            <!-- Secuencia de pasos -->
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-control" id="btnClear">🧹 Limpiar Rutina</button>
+        <button class="btn-control" id="btnPlay">▶ EJECUTAR COREOGRAFÍA</button>
+    </div>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    
+    let scene = null;
+    let mainMeshes = [];
+    let animationGroups = [];
+    let choreographyQueue = []; // Array de índices de animación
+    let isPlaying = false;
+    let currentAnimObserver = null;
+    let currentChar = "salsa";
+    let currentAudio = null;
+    const audioPaths = {
+        salsa: "../1.FICHEROS-AUXILIARES/MP3/SALSA.mp3",
+        capoeira: "../1.FICHEROS-AUXILIARES/MP3/capoeira-251818.mp3",
+        combate: "../1.FICHEROS-AUXILIARES/MP3/EPICO.mp3"
+    };
+
+    const characters = {
+        salsa: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/",
+            files: ["Salsa Dancing.glb", "Salsa Dancing-2.glb", "Salsa Dancing-3.glb", "Salsa Dancing-4.glb", "Salsa Dancing-5.glb"],
+            names: ["Paso Base", "Cruce", "Giro", "Adorno", "Final"]
+        },
+        capoeira: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/",
+            files: ["Chapaeu De Couro.glb", "Esquiva 1.glb", "Macaco Side.glb", "Meia Lua De Compasso Back.glb", "Queshada 2.glb"],
+            names: ["Chapaeu", "Esquiva", "Macaco", "Meia Lua", "Queshada"]
+        },
+        combate: {
+            folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/",
+            files: ["Great Sword Walk.glb", "Great Sword Casting.glb", "Great Sword Impact.glb", "Great Sword Jump.glb", "Great Sword Kick.glb"],
+            names: ["Caminar", "Hechizo", "Impacto", "Salto", "Patada"]
+        }
+    };
+
+    const initEngine = () => {
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+
+        // Ajustamos el target de la cámara apuntando más abajo para que el personaje suba en la pantalla
+        const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2.2, 5.0, new BABYLON.Vector3(0, 0.6, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 100; camera.lowerRadiusLimit = 1; camera.upperRadiusLimit = 20;
+
+        const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+        hemiLight.intensity = 0.4;
+        
+        const spot1 = new BABYLON.SpotLight("spot1", new BABYLON.Vector3(10, 20, 10), new BABYLON.Vector3(-1, -2, -1), Math.PI / 3, 2, scene);
+        spot1.diffuse = new BABYLON.Color3(1, 0.2, 0.5); spot1.intensity = 2.5;
+
+        const spot2 = new BABYLON.SpotLight("spot2", new BABYLON.Vector3(-10, 20, -10), new BABYLON.Vector3(1, -2, 1), Math.PI / 3, 2, scene);
+        spot2.diffuse = new BABYLON.Color3(0.2, 0.8, 1); spot2.intensity = 2.5;
+
+        scene.createDefaultEnvironment({ createGround: false, createSkybox: false });
+
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+        const mat = new BABYLON.StandardMaterial("gmat", scene);
+        mat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05); mat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        ground.material = mat;
+    };
+
+    const loadCharacter = async (charKey) => {
+        currentChar = charKey;
+        const loadingScreen = document.getElementById("loadingScreen");
+        const loadText = document.getElementById("loadingText");
+        loadingScreen.style.display = "flex";
+        
+        const charData = characters[charKey];
+        
+        // Limpiar completamente el estado anterior
+        if (mainMeshes.length > 0) {
+            scene.meshes.slice().forEach(m => {
+                if (m.name !== "ground" && m.name !== "skyBox" && m.name.indexOf("BackgroundHelper") === -1) m.dispose();
+            });
+            scene.skeletons.slice().forEach(s => s.dispose());
+            scene.animationGroups.slice().forEach(ag => ag.dispose());
+            scene.transformNodes.slice().forEach(tn => tn.dispose());
+            mainMeshes = [];
+            animationGroups = [];
+            stopChoreography();
+            clearTimeline();
+        }
+
+        try {
+            loadText.innerText = `Cargando ${charKey} y sus movimientos...`;
+            
+            // 1. Cargar Malla Base
+            const baseResult = await BABYLON.SceneLoader.ImportMeshAsync("", charData.folder, charData.files[0], scene);
+            mainMeshes = baseResult.meshes;
+            
+            if(baseResult.animationGroups.length > 0) {
+                baseResult.animationGroups[0].name = charData.names[0];
+                animationGroups.push(baseResult.animationGroups[0]);
+            }
+
+            // 2. Extraer Animaciones en PARALELO usando ImportMeshAsync
+            const animPromises = charData.files.slice(1).map(file => 
+                BABYLON.SceneLoader.ImportMeshAsync("", charData.folder, file, scene)
+            );
+
+            const results = await Promise.all(animPromises);
+
+            // 3. Procesar y Vincular (Retargeting)
+            results.forEach((animResult, idx) => {
+                const realIndex = idx + 1;
+                const ag = animResult.animationGroups[0];
+                
+                if (ag) {
+                    ag.name = charData.names[realIndex];
+                    const newGroup = new BABYLON.AnimationGroup(ag.name);
+                    
+                    ag.targetedAnimations.forEach(ta => {
+                        const newTarget = scene.transformNodes.find(n => n.name === ta.target.name) || scene.getBoneByName(ta.target.name);
+                        if (newTarget) {
+                            newGroup.addTargetedAnimation(ta.animation, newTarget);
+                        }
+                    });
+                    
+                    animationGroups.push(newGroup);
+                }
+                
+                // Limpieza de las mallas extra para no saturar memoria
+                if (ag) ag.dispose();
+                animResult.meshes.forEach(m => m.dispose());
+                animResult.skeletons.forEach(s => s.dispose());
+            });
+            
+            scene.animationGroups.forEach(ag => ag.stop());
+            
+            // Parche: El archivo "Salsa Dancing.glb" dura 1292 fotogramas (la rutina completa).
+            // Lo recortamos a 120 fotogramas para que solo haga el "Paso Base".
+            if (charKey === "salsa" && animationGroups[0] && animationGroups[0].to > 300) {
+                animationGroups[0].to = 120;
+            }
+            
+            // 4. Crear UI
+            buildBlocksUI(charData.names);
+            
+            loadingScreen.style.display = "none";
+            
+            // Iniciar el personaje "quieto" (Idle/pausado en el primer fotograma)
+            if(animationGroups[0]) {
+                animationGroups[0].play(false);
+                animationGroups[0].goToFrame(0);
+                animationGroups[0].pause();
+            }
+
+        } catch (e) {
+            console.error(e);
+            loadText.innerHTML = "Error cargando. Revisa consola.<br>" + e.toString();
+            loadText.style.color = "red";
+        }
+    };
+
+    const buildBlocksUI = (names) => {
+        const container = document.getElementById("blocksContainer");
+        container.innerHTML = "";
+        names.forEach((name, idx) => {
+            const btn = document.createElement("div");
+            btn.className = "step-block";
+            btn.id = `inv-block-${idx}`;
+            btn.innerText = `+ ${name}`;
+            btn.onclick = () => addToTimeline(idx, name);
+            container.appendChild(btn);
+        });
+    };
+
+    const addToTimeline = (animIndex, animName) => {
+        if(isPlaying) return; // No modificar en ejecución
+        
+        const id = Date.now() + Math.random();
+        choreographyQueue.push({ id, index: animIndex, name: animName });
+        renderTimeline();
+    };
+
+    const removeFromTimeline = (id) => {
+        if(isPlaying) return;
+        choreographyQueue = choreographyQueue.filter(item => item.id !== id);
+        renderTimeline();
+    };
+
+    const clearTimeline = () => {
+        if(isPlaying) return;
+        choreographyQueue = [];
+        renderTimeline();
+    };
+
+    const renderTimeline = () => {
+        const container = document.getElementById("timelineContainer");
+        container.innerHTML = "";
+        
+        if (choreographyQueue.length === 0) {
+            container.innerHTML = "<span style='color:#777; padding: 10px;'>Arrastra pasos aquí o haz clic en ellos para crear una secuencia...</span>";
+            return;
+        }
+
+        choreographyQueue.forEach((item, arrIndex) => {
+            const div = document.createElement("div");
+            div.className = "timeline-item";
+            div.id = `tl-item-${arrIndex}`;
+            div.innerText = item.name;
+            
+            const del = document.createElement("div");
+            del.className = "delete-btn";
+            del.innerText = "X";
+            del.onclick = () => removeFromTimeline(item.id);
+            div.appendChild(del);
+            
+            container.appendChild(div);
+        });
+    };
+
+    const playChoreography = () => {
+        if (choreographyQueue.length === 0 || isPlaying) return;
+        
+        isPlaying = true;
+        
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        currentAudio = new Audio(audioPaths[currentChar]);
+        currentAudio.play().catch(e => console.error("Audio play failed:", e));
+
+        document.getElementById("btnPlay").innerText = "⏳ EJECUTANDO...";
+        scene.animationGroups.forEach(ag => ag.stop());
+        
+        let currentIndex = 0;
+        
+        const playNext = () => {
+            // Quitar clase playing a todos
+            document.querySelectorAll(".timeline-item").forEach(el => el.classList.remove("playing"));
+            document.querySelectorAll(".step-block").forEach(el => el.style.background = "");
+            
+            if (currentIndex >= choreographyQueue.length) {
+                // Terminado
+                stopChoreography();
+                // Volver a posición "quieta" (Idle)
+                animationGroups[0].play(false);
+                animationGroups[0].goToFrame(0);
+                animationGroups[0].pause();
+                return;
+            }
+            
+            // Marcar actual en la línea de tiempo y en el inventario
+            const uiItem = document.getElementById(`tl-item-${currentIndex}`);
+            if(uiItem) uiItem.classList.add("playing");
+            
+            const animObj = choreographyQueue[currentIndex];
+            const invItem = document.getElementById(`inv-block-${animObj.index}`);
+            if(invItem) invItem.style.background = "#2ecc71"; // Cambiar de color el bloque de origen
+            
+            // Ejecutar
+            const group = animationGroups[animObj.index];
+            
+            group.stop();
+            group.play(false);
+            
+            // Usamos el evento nativo de BabylonJS para encadenar animaciones
+            currentAnimObserver = group.onAnimationGroupEndObservable.addOnce(() => {
+                currentIndex++;
+                playNext();
+            });
+        };
+        
+        playNext();
+    };
+
+    const stopChoreography = () => {
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        isPlaying = false;
+        document.getElementById("btnPlay").innerText = "▶ EJECUTAR COREOGRAFÍA";
+        animationGroups.forEach(ag => ag.onAnimationGroupEndObservable.clear());
+        scene.animationGroups.forEach(ag => ag.stop());
+        document.querySelectorAll(".timeline-item").forEach(el => el.classList.remove("playing"));
+        document.querySelectorAll(".step-block").forEach(el => el.style.background = "");
+    };
+
+    initEngine();
+    loadCharacter("salsa");
+    
+    engine.runRenderLoop(() => { scene.render(); });
+    window.addEventListener("resize", () => { engine.resize(); });
+
+    document.getElementById("btnClear").addEventListener("click", clearTimeline);
+    document.getElementById("btnPlay").addEventListener("click", playChoreography);
+
+    document.querySelectorAll(".char-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            if(isPlaying) return;
+            document.querySelectorAll(".char-btn").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+            loadCharacter(e.target.dataset.char);
+        });
+    });
+
+</script>
+</body>
+</html>

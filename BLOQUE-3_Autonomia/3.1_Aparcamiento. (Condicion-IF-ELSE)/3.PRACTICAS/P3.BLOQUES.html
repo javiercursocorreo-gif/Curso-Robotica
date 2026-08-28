@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 3.1 — P3 Programación por Bloques (Gold V8)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        
+        /* PANEL LATERAL DE PROGRAMACIÓN (SIN SCROLL GLOBAL PARA EVITAR INCRUSTACIONES) */
+        #left-panel {
+            width: 450px; flex-shrink: 0; background: rgba(12, 16, 24, 0.96);
+            border-right: 2px solid #00f2ff; padding: 20px;
+            display: flex; flex-direction: column; gap: 12px; z-index: 10;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.8); height: 100vh; overflow: hidden;
+        }
+
+        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; flex-shrink: 0; }
+        .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: #00f2ff; font-weight: 700; }
+        h1 { font-size: 1.3rem; font-weight: 700; color: #fff; margin-top: 4px; }
+        
+        /* SELECTOR DE MISIONES */
+        #mission-selector { display: flex; gap: 6px; justify-content: space-between; flex-shrink: 0; }
+        .btn-mission {
+            flex: 1; padding: 8px 4px; font-size: 0.75rem; font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; cursor: pointer;
+            background: rgba(255,255,255,0.04); color: #8a9ba8; transition: all 0.2s; text-align: center;
+        }
+        .btn-mission:hover { background: rgba(0, 242, 255, 0.15); border-color: #00f2ff; color: #fff; }
+        .btn-mission.active { background: #00f2ff; color: #06090e; border-color: #00f2ff; box-shadow: 0 0 12px rgba(0,242,255,0.5); font-weight: 800; }
+        .btn-mission.completed { background: #00ff88; color: #06090e; border-color: #00ff88; }
+
+        /* TARJETA DE MISIÓN */
+        #mission-card { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+        #mission-title { color: #ffcc00; font-size: 0.9rem; margin-bottom: 4px; font-weight: 700; }
+        #mission-desc { font-size: 0.8rem; line-height: 1.35; color: #c5d2e0; margin-bottom: 4px; }
+        #mission-hint { font-size: 0.75rem; color: #ffaa00; font-style: italic; }
+
+        /* PALETA DE BLOQUES (FILA HORIZONTAL CON SCROLL PROPIO, NUNCA SE INCRUSTA) */
+        .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1.5px; color: #00f2ff; font-weight: 700; flex-shrink: 0; }
+        #palette {
+            display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 10px;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+            flex-shrink: 0; min-height: 58px; max-height: 62px; align-items: center;
+        }
+        #palette::-webkit-scrollbar { height: 4px; }
+        #palette::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 2px; }
+
+        /* ZONA DE SECUENCIA (SCROLL VERTICAL INDEPENDIENTE CON FLEX-GROW) */
+        #sequence-zone {
+            display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-height: 0;
+            padding: 14px; border: 2px dashed rgba(0, 242, 255, 0.4); border-radius: 12px;
+            background: rgba(0,0,0,0.25); overflow-y: auto;
+        }
+        #sequence-zone::-webkit-scrollbar { width: 6px; }
+        #sequence-zone::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 3px; }
+
+        /* CONTROLES */
+        #controls { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-control {
+            padding: 10px; font-size: 0.82rem; font-weight: 700; border: none; border-radius: 10px;
+            cursor: pointer; color: #fff; text-transform: uppercase; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        #btn-run { flex: 2; background: #00ff88; color: #06090e; font-size: 0.9rem; box-shadow: 0 0 15px rgba(0,255,136,0.4); }
+        #btn-run:hover { background: #fff; transform: translateY(-2px); }
+        #btn-run:disabled { background: #44554a; color: #888; cursor: not-allowed; box-shadow: none; transform: none; }
+        #btn-clear { flex: 1; background: rgba(255, 68, 68, 0.2); border: 1px solid #ff4444; color: #ff4444; }
+        #btn-clear:hover { background: #ff4444; color: #fff; }
+        #btn-solution { flex: 1.2; background: rgba(0, 120, 215, 0.3); border: 1px solid #00aaff; color: #00aaff; }
+        #btn-solution:hover { background: #00aaff; color: #06090e; }
+        #btn-solution:disabled { background: #222; border-color: #444; color: #666; cursor: not-allowed; }
+
+        /* FEEDBACK */
+        #feedback {
+            font-size: 0.82rem; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1); text-align: center; font-weight: 700; color: #fff; flex-shrink: 0;
+        }
+        .fb-ok { background: rgba(0, 255, 136, 0.15) !important; border-color: #00ff88 !important; color: #00ff88 !important; }
+        .fb-err { background: rgba(255, 68, 68, 0.15) !important; border-color: #ff4444 !important; color: #ff4444 !important; }
+
+        /* ESTILOS DE BLOQUES CON MARGIN Y SHRINK SEGURAS */
+        .block {
+            padding: 8px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px; color: #fff;
+            cursor: grab; display: flex; align-items: center; justify-content: space-between;
+            user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.15s;
+            flex-shrink: 0; margin: 3px 0; white-space: nowrap;
+        }
+        .block:active { cursor: grabbing; }
+        .block.locked { cursor: not-allowed; opacity: 0.85; }
+        .block.locked .btn-delete { display: none; }
+        .block.active-exec { border: 2px solid #ffcc00; box-shadow: 0 0 15px #ffcc00; transform: scale(1.03); }
+
+        .b-avanzar { background: #0078D7; }
+        .b-retroceder { background: #D83B01; }
+        .b-esperar { background: #7A7574; }
+        .b-girard { background: #107C10; }
+        .b-girari { background: #107C10; }
+        .b-repetir { background: #5C2D91; flex-direction: column; align-items: stretch; white-space: normal; }
+        .b-if { background: rgba(0,183,195,0.15); border: 2px solid #00B7C3; flex-direction: column; align-items: stretch; padding: 0; white-space: normal; }
+
+        .btn-delete {
+            background: rgba(0,0,0,0.3); border: none; color: #ff4444; border-radius: 50%;
+            width: 18px; height: 18px; font-size: 0.7rem; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; margin-left: 8px; font-weight: 800;
+        }
+        .btn-delete:hover { background: #ff4444; color: #fff; }
+
+        .container-header { padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+        .b-repetir .container-header { background: #5C2D91; }
+        .b-if .container-header { background: #00B7C3; color: #06090e; }
+
+        .drop-zone { min-height: 38px; margin: 4px; padding: 6px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; }
+        .b-repetir .drop-zone { background: rgba(0,0,0,0.25); border: 1px dashed rgba(255,255,255,0.3); }
+        
+        .branch-yes { background: rgba(0, 255, 136, 0.08); border-left: 3px solid #00ff88; margin: 4px; border-radius: 4px; }
+        .branch-no { background: rgba(255, 68, 68, 0.08); border-left: 3px solid #ff4444; margin: 4px; border-radius: 4px; }
+        .branch-label { padding: 4px 8px; font-size: 0.72rem; font-weight: 700; }
+        .branch-yes .drop-zone { border: 1px dashed #00ff88; }
+        .branch-no .drop-zone { border: 1px dashed #ff4444; }
+
+        #right-panel { flex: 1; position: relative; }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+        
+        .sensor-hud {
+            position: absolute; top: 20px; left: 20px; background: rgba(12, 18, 28, 0.9);
+            border: 1px solid rgba(0, 242, 255, 0.4); border-radius: 12px; padding: 12px 18px;
+            font-size: 0.85rem; font-weight: 700; color: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            pointer-events: none; display: flex; flex-direction: column; gap: 4px;
+        }
+        .hud-val { color: #00ff88; font-size: 1.1rem; font-weight: 800; }
+    </style>
+</head>
+<body>
+    <div id="left-panel">
+        <div class="header">
+            <div class="tag">Clase 3.1 · Práctica 3</div>
+            <h1>Programación por Bloques</h1>
+        </div>
+
+        <div id="mission-selector">
+            <button class="btn-mission active" onclick="loadMission(1)">M1</button>
+            <button class="btn-mission" onclick="loadMission(2)">M2</button>
+            <button class="btn-mission" onclick="loadMission(3)">M3</button>
+            <button class="btn-mission" onclick="loadMission(4)">M4</button>
+        </div>
+
+        <div id="mission-card">
+            <div id="mission-title">MISIÓN 1 — OBSERVACIÓN</div>
+            <div id="mission-desc">Cargando misión...</div>
+            <div id="mission-hint"></div>
+        </div>
+
+        <div class="section-title">Paleta de Bloques (Arrastrar)</div>
+        <div id="palette"></div>
+
+        <div class="section-title">Programa del Vehículo</div>
+        <div id="sequence-zone" class="drop-zone"></div>
+
+        <div id="controls">
+            <button id="btn-run" class="btn-control" onclick="ejecutarPrograma()">▶ Ejecutar</button>
+            <button id="btn-solution" class="btn-control" onclick="verSolucion()">💡 Solución</button>
+            <button id="btn-clear" class="btn-control" onclick="limpiarPrograma()">🗑️ Limpiar</button>
+        </div>
+
+        <div id="feedback">¡Prepárate para programar tu vehículo ELEGOO!</div>
+    </div>
+
+    <div id="right-panel">
+        <canvas id="renderCanvas"></canvas>
+        <div class="sensor-hud">
+            <div>📡 Sensor Lateral: <span id="sensor-dist" class="hud-val">0.0 m</span></div>
+            <div>📏 Hueco Evaluado: <span id="sensor-gap" class="hud-val" style="color:#00f2ff">0.0 m</span></div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN EXACTA Y ROBUSTA DE LAS 5 MISIONES
+        // El coche siempre avanza hacia adelante (+Z) desde Z = -26
+        const MISSIONS = {
+            1: {
+                title: "MISIÓN 1 — SOLO OBSERVACIÓN",
+                desc: "Demo interactiva: El coche avanza hacia adelante (+Z) escaneando la calle. Observa cómo discrimina los dos primeros huecos pequeños y se detiene en la plaza libre de 5.2m.",
+                hint: "Pista: El botón Solución está desactivado porque la misión ya está construida para observación.",
+                palette: [],
+                preloaded: [
+                    { type: 'REPETIR', locked: true, children: [
+                        { type: 'IF', locked: true, 
+                          yes: [{ type: 'ESPERAR', locked: true }], 
+                          no: [{ type: 'AVANZAR', locked: true }] 
+                        }
+                    ]}
+                ],
+                noSolution: true,
+                startZ: -35.0, startX: 1.5, rotY: 0,
+                gapsData: [
+                    { start: -28.1, end: -26.3, len: 1.8, valid: false }, // Hueco pequeño 1
+                    { start: -21.3, end: -19.3, len: 2.0, valid: false }, // Hueco pequeño 2
+                    { start: -14.3, end: -12.3, len: 2.0, valid: false }, // Hueco pequeño 3
+                    { start: -4.5, end: -2.0, len: 7.5, valid: true }     // Hueco VÁLIDO REALISTA (7.5m)
+                ],
+                checkWin: (posZ, waiting, posX) => waiting && posZ >= -4.5 && posZ <= -2.0
+            },
+            2: {
+                title: "MISIÓN 2 — DILE QUÉ HACER",
+                desc: "Ahora decides tú. El coche avanza buscando plaza pero las ramas SI y SI NO están vacías. Arrastra ESPERAR a la rama ✅ SI CUMPLE, y AVANZAR a la rama ⛔ SI NO CUMPLE.",
+                hint: "Pista: SI el hueco es suficiente (≥ 5.0m) → ESPERAR. SI NO → AVANZAR para seguir buscando.",
+                palette: ['AVANZAR', 'ESPERAR'],
+                preloaded: [
+                    { type: 'REPETIR', locked: true, children: [
+                        { type: 'IF', locked: true, yes: [], no: [] }
+                    ]}
+                ],
+                solutionIF: { yes: ['ESPERAR'], no: ['AVANZAR'] },
+                startZ: -35.0, startX: 1.5, rotY: 0,
+                gapsData: [
+                    { start: -28.1, end: -26.3, len: 1.8, valid: false },
+                    { start: -21.3, end: -19.3, len: 2.0, valid: false },
+                    { start: -14.3, end: -12.3, len: 2.0, valid: false },
+                    { start: -4.5, end: -2.0, len: 7.5, valid: true }
+                ],
+                checkWin: (posZ, waiting, posX) => waiting && posZ >= -4.5 && posZ <= -2.0
+            },
+            3: {
+                title: "MISIÓN 3 — ENTRA EN LA PLAZA",
+                desc: "Sin búsqueda: el coche empieza ya parado y emparejado junto a la plaza libre (hueco de 7.5 metros). Arrastra los 4 pasos en orden para aparcar marcha atrás sin rozar nada.",
+                hint: "Pista: GIRAR DERECHA (45°) → RETROCEDER → GIRAR IZQUIERDA (contravolante) → RETROCEDER.",
+                palette: ['AVANZAR', 'RETROCEDER', 'GIRAR_D', 'GIRAR_I'],
+                preloaded: [],
+                solution: ['GIRAR_D', 'RETROCEDER', 'GIRAR_I', 'RETROCEDER'],
+                startZ: -3.5, startX: 1.5, rotY: 0, // Emparejado perfectamente paralelo y con holgura limpia para girar sin rozar
+                gapsData: [
+                    { start: -4.5, end: -2.0, len: 7.5, valid: true }
+                ],
+                checkWin: (posZ, waiting, posX) => Math.abs(posX - 4.5) < 0.5 && posZ >= -8.0 && posZ <= -5.5
+            },
+            4: {
+                title: "MISIÓN 4 — BÚSQUEDA Y APARCAMIENTO",
+                desc: "Combina búsqueda y maniobra. En la rama '✅ SI CUMPLE' pon los 4 bloques de aparcamiento. En '⛔ SI NO': AVANZAR para descartar los huecos pequeños.",
+                hint: "Pista: En '✅ SI CUMPLE': GIRAR DERECHA → RETROCEDER → GIRAR IZQUIERDA → RETROCEDER. En '⛔ SI NO': AVANZAR.",
+                palette: ['AVANZAR', 'RETROCEDER', 'GIRAR_D', 'GIRAR_I', 'ESPERAR'],
+                preloaded: [
+                    { type: 'REPETIR', locked: true, children: [
+                        { type: 'IF', locked: true, yes: [], no: [{ type: 'AVANZAR', locked: true }] }
+                    ]}
+                ],
+                solutionIF: { yes: ['GIRAR_D', 'RETROCEDER', 'GIRAR_I', 'RETROCEDER'], no: ['AVANZAR'] },
+                startZ: -35.0, startX: 1.5, rotY: 0,
+                gapsData: [
+                    { start: -28.1, end: -26.3, len: 1.8, valid: false },
+                    { start: -21.3, end: -19.3, len: 2.0, valid: false },
+                    { start: -14.3, end: -12.3, len: 2.0, valid: false },
+                    { start: -4.5, end: -2.0, len: 7.5, valid: true }
+                ],
+                checkWin: (posZ, waiting, posX) => Math.abs(posX - 4.5) < 0.5 && posZ >= -8.0 && posZ <= -5.5
+            }
+        };
+
+        const BLOCK_DEFS = {
+            'AVANZAR': { text: '⬆️ AVANZAR', class: 'b-avanzar' },
+            'RETROCEDER': { text: '⬇️ RETROCEDER', class: 'b-retroceder' },
+            'ESPERAR': { text: '⏱️ ESPERAR / DETENER', class: 'b-esperar' },
+            'GIRAR_D': { text: '↪️ GIRAR DERECHA (45°)', class: 'b-girard' },
+            'GIRAR_I': { text: '↩️ GIRAR IZQUIERDA (45°)', class: 'b-girari' },
+            'REPETIR': { text: '🔄 REPETIR SIEMPRE', class: 'b-repetir', isContainer: true },
+            'IF': { text: '⚡ SI SENSOR LATERAL / SI NO', class: 'b-if', isIf: true }
+        };
+
+        let currentMission = 1;
+        let isRunning = false;
+        let draggedElement = null;
+        let scene, camera, cocheGroup, sensorLine, shadowGen;
+        let isWaiting = false;
+        let parkingStep = 0; // Máquina de estados para maniobra impecable
+        let aparcadoConExito = false; // Detiene el bucle de inmediato tras aparcar
+
+        function setFeedback(txt, tipo) {
+            const fb = document.getElementById('feedback');
+            fb.innerText = txt; fb.className = '';
+            if (tipo === 'ok') fb.classList.add('fb-ok');
+            if (tipo === 'err') fb.classList.add('fb-err');
+        }
+
+        // DRAG & DROP DOM
+        function createBlockDOM(type, locked = false) {
+            const def = BLOCK_DEFS[type];
+            const el = document.createElement('div');
+            el.className = `block ${def.class}`;
+            el.dataset.type = type;
+            if (locked) el.classList.add('locked');
+            else {
+                el.draggable = true;
+                el.addEventListener('dragstart', function(e) { if(isRunning) return e.preventDefault(); draggedElement = this; });
+                el.addEventListener('dragend', function() { draggedElement = null; });
+            }
+
+            if (def.isIf) {
+                el.innerHTML = `
+                    <div class="container-header">⚡ SI HUECO ≥ 5.0m ${locked?'🔒':'<button class="btn-delete">❌</button>'}</div>
+                    <div class="branch-yes"><div class="branch-label">✅ SI CUMPLE (Hueco ≥ 5.0m):</div><div class="drop-zone" data-branch="yes"></div></div>
+                    <div class="branch-no"><div class="branch-label">⛔ SI NO CUMPLE (< 5.0m):</div><div class="drop-zone" data-branch="no"></div></div>
+                `;
+            } else if (def.isContainer) {
+                el.innerHTML = `<div class="container-header">${def.text} ${locked?'🔒':'<button class="btn-delete">❌</button>'}</div><div class="drop-zone"></div>`;
+            } else {
+                el.innerHTML = `<span>${def.text}</span> ${locked?'🔒':'<button class="btn-delete">❌</button>'}</div>`;
+            }
+
+            if (!locked) {
+                const del = el.querySelector('.btn-delete');
+                if (del) del.onclick = (e) => { e.stopPropagation(); el.remove(); };
+            }
+
+            el.querySelectorAll('.drop-zone').forEach(z => {
+                z.addEventListener('dragover', e => { e.preventDefault(); z.style.background = 'rgba(255,255,255,0.1)'; });
+                z.addEventListener('dragleave', () => z.style.background = '');
+                z.addEventListener('drop', e => {
+                    e.preventDefault(); e.stopPropagation(); z.style.background = '';
+                    if (isRunning || !draggedElement) return;
+                    let toIns = draggedElement.dataset.source === 'palette' ? createBlockDOM(draggedElement.dataset.type) : draggedElement;
+                    if (toIns.contains(z)) return;
+                    z.appendChild(toIns);
+                });
+            });
+            return el;
+        }
+
+        function buildPreloadedDOM(data) {
+            const el = createBlockDOM(data.type, data.locked);
+            if (data.type === 'IF') {
+                const yesZ = el.querySelector('.branch-yes .drop-zone');
+                const noZ = el.querySelector('.branch-no .drop-zone');
+                if (data.yes) data.yes.forEach(c => yesZ.appendChild(buildPreloadedDOM(c)));
+                if (data.no) data.no.forEach(c => noZ.appendChild(buildPreloadedDOM(c)));
+            } else if (data.children) {
+                const z = el.querySelector('.drop-zone');
+                if (data.children) data.children.forEach(c => z.appendChild(buildPreloadedDOM(c)));
+            }
+            return el;
+        }
+
+        window.loadMission = function(mId) {
+            currentMission = mId;
+            const cfg = MISSIONS[mId];
+            document.querySelectorAll('.btn-mission').forEach((b, i) => {
+                const isActive = (i + 1 === mId);
+                b.classList.toggle('active', isActive);
+                if (isActive) b.classList.remove('completed');
+            });
+            document.getElementById('mission-title').innerText = cfg.title;
+            document.getElementById('mission-desc').innerText = cfg.desc;
+            document.getElementById('mission-hint').innerText = cfg.hint;
+            
+            const btnSol = document.getElementById('btn-solution');
+            if (cfg.noSolution) {
+                btnSol.disabled = true;
+                setFeedback("Misión 1 de Observación. Pulsa ▶ EJECUTAR para ver cómo avanza hacia adelante.", "");
+            } else {
+                btnSol.disabled = false;
+                setFeedback("Misión cargada. ¡Construye y ejecuta tu programa!", "");
+            }
+
+            const pal = document.getElementById('palette'); pal.innerHTML = '';
+            cfg.palette.forEach(t => {
+                const b = createBlockDOM(t); b.dataset.source = 'palette'; pal.appendChild(b);
+            });
+
+            const seq = document.getElementById('sequence-zone'); seq.innerHTML = '';
+            if (cfg.preloaded) cfg.preloaded.forEach(n => seq.appendChild(buildPreloadedDOM(n)));
+
+            build3DSceneForMission(mId);
+            isRunning = false; document.getElementById('btn-run').disabled = false;
+        };
+
+        window.limpiarPrograma = function() {
+            if (isRunning) return;
+            loadMission(currentMission);
+        };
+
+        window.verSolucion = function() {
+            if (isRunning) return;
+            const cfg = MISSIONS[currentMission];
+            const seq = document.getElementById('sequence-zone');
+            
+            if (cfg.solution) {
+                seq.innerHTML = '';
+                cfg.solution.forEach(t => seq.appendChild(createBlockDOM(t)));
+                setFeedback("💡 Solución cargada. ¡Pulsa Ejecutar!", "ok");
+            } else if (cfg.solutionIF) {
+                const yesZ = document.querySelector('.branch-yes .drop-zone');
+                const noZ = document.querySelector('.branch-no .drop-zone');
+                if (yesZ && cfg.solutionIF.yes) {
+                    yesZ.innerHTML = '';
+                    cfg.solutionIF.yes.forEach(t => yesZ.appendChild(createBlockDOM(t)));
+                }
+                if (noZ && cfg.solutionIF.no) {
+                    noZ.innerHTML = '';
+                    cfg.solutionIF.no.forEach(t => noZ.appendChild(createBlockDOM(t)));
+                }
+                setFeedback("💡 Solución insertada en la condición SI/SI NO. ¡Pulsa Ejecutar!", "ok");
+            } else if (cfg.solutionMaster) {
+                seq.innerHTML = '';
+                cfg.solutionMaster.forEach(n => {
+                    const el = createBlockDOM('REPETIR');
+                    const z = el.querySelector('.drop-zone');
+                    n.children.forEach(c => {
+                        const ifEl = createBlockDOM('IF');
+                        const yesZ = ifEl.querySelector('.branch-yes .drop-zone');
+                        const noZ = ifEl.querySelector('.branch-no .drop-zone');
+                        c.yes.forEach(t => yesZ.appendChild(createBlockDOM(t)));
+                        c.no.forEach(t => noZ.appendChild(createBlockDOM(t)));
+                        z.appendChild(ifEl);
+                    });
+                    seq.appendChild(el);
+                });
+                setFeedback("💡 Programa Maestro cargado. ¡Pulsa Ejecutar!", "ok");
+            }
+        };
+
+        // PARSER DE SECUENCIA
+        function parseDOM(zone) {
+            const arr = [];
+            [...zone.children].forEach(el => {
+                if (!el.classList.contains('block')) return;
+                const t = el.dataset.type;
+                if (t === 'IF') {
+                    arr.push({
+                        type: 'IF', dom: el,
+                        yes: parseDOM(el.querySelector('.branch-yes .drop-zone')),
+                        no: parseDOM(el.querySelector('.branch-no .drop-zone'))
+                    });
+                } else if (t === 'REPETIR') {
+                    arr.push({ type: 'REPETIR', dom: el, children: parseDOM(el.querySelector('.drop-zone')) });
+                } else {
+                    arr.push({ type: t, dom: el });
+                }
+            });
+            return arr;
+        }
+
+        // MOTOR BABYLON.JS CON ILUMINACIÓN VIBRANTE Y COCHES DETALLADOS P1
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('renderCanvas');
+            const engine = new BABYLON.Engine(canvas, true);
+
+            const createScene = function() {
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.06, 0.08, 0.12, 1.0);
+                new BABYLON.GlowLayer("glow", scene).intensity = 0.75;
+
+                camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2.3, Math.PI / 2.8, 28, new BABYLON.Vector3(0, 1, 0), scene);
+                camera.attachControl(canvas, true);
+                camera.lowerRadiusLimit = 5; camera.upperRadiusLimit = 50;
+
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 1.0; hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.35);
+
+                const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(10, 20, 10); dirLight.intensity = 2.5;
+
+                shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                const ground = BABYLON.MeshBuilder.CreateGround("g", {width: 60, height: 80}, scene);
+                const matG = new BABYLON.PBRMaterial("mg", scene);
+                matG.albedoColor = new BABYLON.Color3(0.12, 0.15, 0.20);
+                matG.roughness = 0.8; matG.metallic = 0.1;
+                ground.material = matG; ground.receiveShadows = true;
+
+                const acera = BABYLON.MeshBuilder.CreateBox("acera", {width: 10, height: 0.3, depth: 80}, scene);
+                acera.position = new BABYLON.Vector3(11.5, 0.15, 0);
+                const matA = new BABYLON.PBRMaterial("ma", scene);
+                matA.albedoColor = new BABYLON.Color3(0.35, 0.38, 0.42); matA.roughness = 0.9;
+                acera.material = matA; acera.receiveShadows = true;
+
+                scene.parkedGroup = new BABYLON.TransformNode("pg", scene);
+                return scene;
+            };
+
+            scene = createScene();
+            engine.runRenderLoop(() => scene.render());
+            window.addEventListener('resize', () => engine.resize());
+            loadMission(1);
+        });
+
+        function build3DSceneForMission(mId) {
+            const cfg = MISSIONS[mId];
+            if (scene.parkedGroup) {
+                scene.parkedGroup.dispose(false, true);
+            }
+            scene.parkedGroup = new BABYLON.TransformNode("pg", scene);
+            
+            if (cocheGroup) {
+                cocheGroup.dispose(false, true);
+            }
+
+            // PALETA DE 6 COLORES PREMIUM PARA COCHES APARCADOS
+            const matPaintElegoo = new BABYLON.PBRMaterial("matPElegoo", scene);
+            matPaintElegoo.albedoColor = BABYLON.Color3.FromHexString("#00f2ff"); // Cian brillante ELEGOO
+            matPaintElegoo.metallic = 0.4; matPaintElegoo.roughness = 0.1;
+            matPaintElegoo.clearCoat.isEnabled = true; matPaintElegoo.clearCoat.intensity = 1.0;
+            matPaintElegoo.emissiveColor = new BABYLON.Color3(0.0, 0.15, 0.25);
+
+            const matRed = new BABYLON.PBRMaterial("matRed", scene);
+            matRed.albedoColor = BABYLON.Color3.FromHexString("#ff3333"); matRed.metallic = 0.3; matRed.roughness = 0.2;
+
+            const matPurple = new BABYLON.PBRMaterial("matPurple", scene);
+            matPurple.albedoColor = BABYLON.Color3.FromHexString("#8844ff"); matPurple.metallic = 0.3; matPurple.roughness = 0.2;
+
+            const matSilver = new BABYLON.PBRMaterial("matSilver", scene);
+            matSilver.albedoColor = BABYLON.Color3.FromHexString("#b0b8c0"); matSilver.metallic = 0.7; matSilver.roughness = 0.15;
+
+            const matOrange = new BABYLON.PBRMaterial("matOrange", scene);
+            matOrange.albedoColor = BABYLON.Color3.FromHexString("#ff7700"); matOrange.metallic = 0.3; matOrange.roughness = 0.2;
+
+            const matGreen = new BABYLON.PBRMaterial("matGreen", scene);
+            matGreen.albedoColor = BABYLON.Color3.FromHexString("#00cc66"); matGreen.metallic = 0.3; matGreen.roughness = 0.2;
+
+            const matYellow = new BABYLON.PBRMaterial("matYellow", scene);
+            matYellow.albedoColor = BABYLON.Color3.FromHexString("#ffcc00"); matYellow.metallic = 0.4; matYellow.roughness = 0.2;
+
+            const carColors = [matRed, matOrange, matSilver, matPurple, matGreen, matYellow];
+
+            const matGlass = new BABYLON.PBRMaterial("matGlass", scene);
+            matGlass.albedoColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+            matGlass.metallic = 0.8; matGlass.roughness = 0.05; matGlass.alpha = 0.85;
+            matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+            const matDarkPlastic = new BABYLON.PBRMaterial("matDarkPlastic", scene);
+            matDarkPlastic.albedoColor = BABYLON.Color3.FromHexString("#111111");
+            matDarkPlastic.metallic = 0.1; matDarkPlastic.roughness = 0.8;
+
+            const matTire = new BABYLON.PBRMaterial("matTire", scene);
+            matTire.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); matTire.roughness = 0.95;
+
+            const matRim = new BABYLON.PBRMaterial("matRim", scene);
+            matRim.albedoColor = BABYLON.Color3.FromHexString("#cccccc"); matRim.metallic = 0.8; matRim.roughness = 0.2;
+
+            const matTail = new BABYLON.PBRMaterial("matTail", scene);
+            matTail.emissiveColor = new BABYLON.Color3(0.9, 0.05, 0.05); matTail.roughness = 0.2;
+
+            // CONSTRUCTOR DE PEATÓN HUMANOIDE EN 3D
+            function buildHumanoidPedestrian(name, position) {
+                const root = new BABYLON.TransformNode(name, scene);
+                root.position = position;
+
+                const matJeans = new BABYLON.PBRMaterial("matJ", scene);
+                matJeans.albedoColor = BABYLON.Color3.FromHexString("#1f3a60"); matJeans.roughness = 0.8;
+                const matJacket = new BABYLON.PBRMaterial("matJk", scene);
+                matJacket.albedoColor = BABYLON.Color3.FromHexString("#ff6600"); matJacket.roughness = 0.5; // Sudadera naranja brillante
+                const matSkin = new BABYLON.PBRMaterial("matSk", scene);
+                matSkin.albedoColor = BABYLON.Color3.FromHexString("#ffcc99"); matSkin.roughness = 0.6;
+                const matHair = new BABYLON.PBRMaterial("matH", scene);
+                matHair.albedoColor = BABYLON.Color3.FromHexString("#2a1a0a"); matHair.roughness = 0.9;
+                const matShoes = new BABYLON.PBRMaterial("matSh", scene);
+                matShoes.albedoColor = BABYLON.Color3.FromHexString("#111111"); matShoes.roughness = 0.5;
+
+                // Zapatos
+                const shoeL = BABYLON.MeshBuilder.CreateBox("shoeL", {width:0.22, height:0.1, depth:0.32}, scene);
+                shoeL.position = new BABYLON.Vector3(-0.16, 0.05, 0.05); shoeL.material = matShoes; shoeL.parent = root; shadowGen.addShadowCaster(shoeL);
+                const shoeR = BABYLON.MeshBuilder.CreateBox("shoeR", {width:0.22, height:0.1, depth:0.32}, scene);
+                shoeR.position = new BABYLON.Vector3(0.16, 0.05, 0.05); shoeR.material = matShoes; shoeR.parent = root; shadowGen.addShadowCaster(shoeR);
+
+                // Piernas
+                const legL = BABYLON.MeshBuilder.CreateBox("legL", {width:0.22, height:0.7, depth:0.22}, scene);
+                legL.position = new BABYLON.Vector3(-0.16, 0.45, 0); legL.material = matJeans; legL.parent = root; shadowGen.addShadowCaster(legL);
+                const legR = BABYLON.MeshBuilder.CreateBox("legR", {width:0.22, height:0.7, depth:0.22}, scene);
+                legR.position = new BABYLON.Vector3(0.16, 0.45, 0); legR.material = matJeans; legR.parent = root; shadowGen.addShadowCaster(legR);
+
+                // Torso
+                const torso = BABYLON.MeshBuilder.CreateBox("torso", {width:0.65, height:0.7, depth:0.32}, scene);
+                torso.position = new BABYLON.Vector3(0, 1.15, 0); torso.material = matJacket; torso.parent = root; shadowGen.addShadowCaster(torso);
+
+                // Brazos
+                const armL = BABYLON.MeshBuilder.CreateBox("armL", {width:0.18, height:0.65, depth:0.18}, scene);
+                armL.position = new BABYLON.Vector3(-0.42, 1.12, 0); armL.material = matJacket; armL.parent = root; shadowGen.addShadowCaster(armL);
+                const armR = BABYLON.MeshBuilder.CreateBox("armR", {width:0.18, height:0.65, depth:0.18}, scene);
+                armR.position = new BABYLON.Vector3(0.42, 1.12, 0); armR.material = matJacket; armR.parent = root; shadowGen.addShadowCaster(armR);
+
+                // Manos
+                const handL = BABYLON.MeshBuilder.CreateBox("handL", {width:0.16, height:0.16, depth:0.16}, scene);
+                handL.position = new BABYLON.Vector3(-0.42, 0.72, 0); handL.material = matSkin; handL.parent = root;
+                const handR = BABYLON.MeshBuilder.CreateBox("handR", {width:0.16, height:0.16, depth:0.16}, scene);
+                handR.position = new BABYLON.Vector3(0.42, 0.72, 0); handR.material = matSkin; handR.parent = root;
+
+                // Cuello y Cabeza
+                const neck = BABYLON.MeshBuilder.CreateCylinder("neck", {diameter:0.18, height:0.15}, scene);
+                neck.position = new BABYLON.Vector3(0, 1.55, 0); neck.material = matSkin; neck.parent = root;
+                const head = BABYLON.MeshBuilder.CreateSphere("head", {diameter:0.42, segments:16}, scene);
+                head.position = new BABYLON.Vector3(0, 1.80, 0); head.material = matSkin; head.parent = root; shadowGen.addShadowCaster(head);
+
+                // Pelo
+                const hair = BABYLON.MeshBuilder.CreateBox("hair", {width:0.46, height:0.15, depth:0.46}, scene);
+                hair.position = new BABYLON.Vector3(0, 1.98, 0); hair.material = matHair; hair.parent = root;
+
+                root.parent = scene.parkedGroup;
+                return root;
+            }
+
+            // CONSTRUCTOR DE COCHE DETALLADO IDENTICO A P1
+            function buildDetailedCar(name, paintMat, isElegoo = false) {
+                const root = new BABYLON.TransformNode(name, scene);
+
+                const skirt = BABYLON.MeshBuilder.CreateBox("skirt", {width:2.2, height:0.12, depth:4.0}, scene);
+                skirt.position.y = 0.30; skirt.material = matDarkPlastic; skirt.parent = root; shadowGen.addShadowCaster(skirt);
+                
+                const cabin = BABYLON.MeshBuilder.CreateBox("cabin", {width:2.0, height:0.45, depth:1.8}, scene);
+                cabin.position = new BABYLON.Vector3(0, 0.80, -0.2); cabin.material = paintMat; cabin.parent = root;
+                
+                const capot = BABYLON.MeshBuilder.CreateBox("capot", {width:2.0, height:0.35, depth:1.2}, scene);
+                capot.position = new BABYLON.Vector3(0, 0.55, 1.3); capot.rotation.x = 0.05; capot.material = paintMat; capot.parent = root;
+                
+                const maletero = BABYLON.MeshBuilder.CreateBox("maletero", {width:2.0, height:0.35, depth:1.1}, scene);
+                maletero.position = new BABYLON.Vector3(0, 0.55, -1.35); maletero.rotation.x = -0.05; maletero.material = paintMat; maletero.parent = root;
+
+                const winF = BABYLON.MeshBuilder.CreateBox("winF", {width:1.8, height:0.1, depth:0.7}, scene);
+                winF.rotation.x = 0.5; winF.position = new BABYLON.Vector3(0, 0.93, 0.45); winF.material = matGlass; winF.parent = root;
+                const winR = BABYLON.MeshBuilder.CreateBox("winR", {width:1.8, height:0.1, depth:0.6}, scene);
+                winR.rotation.x = -0.5; winR.position = new BABYLON.Vector3(0, 0.93, -0.85); winR.material = matGlass; winR.parent = root;
+
+                const bumperF = BABYLON.MeshBuilder.CreateBox("bumperF", {width:2.1, height:0.2, depth:0.3}, scene);
+                bumperF.position = new BABYLON.Vector3(0, 0.35, 1.95); bumperF.material = matDarkPlastic; bumperF.parent = root;
+                const bumperR = BABYLON.MeshBuilder.CreateBox("bumperR", {width:2.1, height:0.2, depth:0.3}, scene);
+                bumperR.position = new BABYLON.Vector3(0, 0.35, -1.95); bumperR.material = matDarkPlastic; bumperR.parent = root;
+
+                const tailL = BABYLON.MeshBuilder.CreateBox("tailL", {width:0.4, height:0.12, depth:0.05}, scene);
+                tailL.position = new BABYLON.Vector3(-0.7, 0.50, -2.08); tailL.material = matTail; tailL.parent = root;
+                const tailR = BABYLON.MeshBuilder.CreateBox("tailR", {width:0.4, height:0.12, depth:0.05}, scene);
+                tailR.position = new BABYLON.Vector3(0.7, 0.50, -2.08); tailR.material = matTail; tailR.parent = root;
+
+                // 4 Ruedas con llantas
+                [[-1.15, 1.2], [1.15, 1.2], [-1.15, -1.2], [1.15, -1.2]].forEach((pos, idx) => {
+                    const wGroup = new BABYLON.TransformNode("w_"+idx, scene);
+                    wGroup.parent = root; wGroup.position = new BABYLON.Vector3(pos[0], 0.40, pos[1]);
+                    const tire = BABYLON.MeshBuilder.CreateCylinder("tire", {diameter:0.7, height:0.28, tessellation:24}, scene);
+                    tire.rotation.z = Math.PI / 2; tire.material = matTire; tire.parent = wGroup; shadowGen.addShadowCaster(tire);
+                    const rim = BABYLON.MeshBuilder.CreateCylinder("rim", {diameter:0.48, height:0.3, tessellation:16}, scene);
+                    rim.rotation.z = Math.PI / 2; rim.material = matRim; rim.parent = wGroup;
+                });
+
+                if (isElegoo) {
+                    // Sensor ultrasónico frontal realista, compacto y pegado al morro
+                    const sPlate = BABYLON.MeshBuilder.CreateBox("sPlate", {width: 0.35, height: 0.15, depth: 0.05}, scene);
+                    sPlate.position = new BABYLON.Vector3(0, 0.43, 2.05);
+                    const matS = new BABYLON.PBRMaterial("matS", scene); matS.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.6);
+                    sPlate.material = matS; sPlate.parent = root;
+
+                    const ojoI = BABYLON.MeshBuilder.CreateCylinder("ojoI", {diameter: 0.08, height: 0.06}, scene);
+                    ojoI.rotation.x = Math.PI/2; ojoI.position = new BABYLON.Vector3(-0.08, 0.43, 2.07);
+                    const matOjo = new BABYLON.PBRMaterial("matO", scene); matOjo.metallic = 1.0; matOjo.roughness = 0.1;
+                    ojoI.material = matOjo; ojoI.parent = root;
+                    const ojoD = ojoI.clone("ojoD"); ojoD.position.x = 0.08; ojoD.parent = root;
+
+                    const ledMat = new BABYLON.PBRMaterial("ledMat", scene);
+                    ledMat.albedoColor = new BABYLON.Color3(0, 0.8, 1); ledMat.emissiveColor = new BABYLON.Color3(0, 0.8, 1);
+                    const led = BABYLON.MeshBuilder.CreateSphere("led", {diameter: 0.2}, scene);
+                    led.position = new BABYLON.Vector3(0, 0.85, 1.5); led.material = ledMat; led.parent = root;
+                }
+
+                return root;
+            }
+
+            // CONSTRUIR CALLE A LO LARGO DE +Z CON COCHES Y HUECOS EXACTOS SIN SOLAPAMIENTOS NI INCRUSTACIONES
+            const p1 = buildDetailedCar("p1", carColors[0]); p1.position = new BABYLON.Vector3(4.5, 0, -34.0); p1.parent = scene.parkedGroup;
+            const p2 = buildDetailedCar("p2", carColors[1]); p2.position = new BABYLON.Vector3(4.5, 0, -27.2); p2.parent = scene.parkedGroup;
+            const p3 = buildDetailedCar("p3", carColors[2]); p3.position = new BABYLON.Vector3(4.5, 0, -20.3); p3.parent = scene.parkedGroup;
+            const p4 = buildDetailedCar("p4", carColors[3]); p4.position = new BABYLON.Vector3(4.5, 0, -13.5); p4.parent = scene.parkedGroup;
+            const p5 = buildDetailedCar("p5", carColors[4]); p5.position = new BABYLON.Vector3(4.5, 0, -0.5); p5.parent = scene.parkedGroup;
+            const p6 = buildDetailedCar("p6", carColors[5]); p6.position = new BABYLON.Vector3(4.5, 0, +6.5); p6.parent = scene.parkedGroup;
+
+            // Añadimos nuestro peatón humanoide en 3D en la acera en todas las misiones para hacer la calle viva y realista
+            buildHumanoidPedestrian("peaton", new BABYLON.Vector3(10.5, 0.30, -3.0));
+
+            cocheGroup = buildDetailedCar("elegoo", matPaintElegoo, true);
+            cocheGroup.position = new BABYLON.Vector3(cfg.startX, 0, cfg.startZ);
+            cocheGroup.rotation.y = cfg.rotY;
+
+            const pts = [new BABYLON.Vector3(0, 0.6, 0), new BABYLON.Vector3(3.0, 0.6, 0)];
+            sensorLine = BABYLON.MeshBuilder.CreateLines("sl", {points: pts}, scene);
+            sensorLine.color = new BABYLON.Color3(0, 1, 0); sensorLine.parent = cocheGroup;
+
+            camera.target = cocheGroup.position.clone();
+            isWaiting = false;
+            parkingStep = 0;
+            aparcadoConExito = false;
+            document.getElementById('sensor-dist').innerText = "1.0 m";
+            document.getElementById('sensor-gap').innerText = "0.0 m";
+        }
+
+        // EVALUACIÓN DE HUECOS DETERMINÍSTICA Y EXACTA
+        function evaluarSensorActual() {
+            const z = cocheGroup.position.z;
+            const cfg = MISSIONS[currentMission];
+            let enHueco = false;
+            let lenHueco = 0;
+
+            for (let g of cfg.gapsData) {
+                if (z >= g.start && z <= g.end) {
+                    enHueco = true;
+                    lenHueco = g.len;
+                    break;
+                }
+            }
+
+            if (enHueco) {
+                document.getElementById('sensor-dist').innerText = "> 5.0 m (Libre)";
+                document.getElementById('sensor-gap').innerText = lenHueco.toFixed(1) + " m";
+                return lenHueco;
+            } else {
+                document.getElementById('sensor-dist').innerText = "1.0 m (Obstáculo)";
+                document.getElementById('sensor-gap').innerText = "0.0 m";
+                return 0;
+            }
+        }
+
+        // EJECUTOR DE PROGRAMA CON CINEMÁTICA IMPECABLE (Sin desplazamiento lateral ni bucles infinitos)
+        window.ejecutarPrograma = async function() {
+            if (isRunning) return;
+            isRunning = true; document.getElementById('btn-run').disabled = true;
+            build3DSceneForMission(currentMission);
+            setFeedback("▶ Ejecutando programa...", "");
+
+            const prog = parseDOM(document.getElementById('sequence-zone'));
+            let pasos = 0;
+            const maxPasos = 100;
+
+            async function evalNode(node) {
+                if (!isRunning || aparcadoConExito || pasos++ > maxPasos) return;
+                document.querySelectorAll('.block').forEach(b => b.classList.remove('active-exec'));
+                if (node.dom) node.dom.classList.add('active-exec');
+
+                if (node.type === 'AVANZAR') {
+                    await animMove(0, +2.5); // Avanza HACIA ADELANTE (+Z) por el carril derecho
+                    evaluarSensorActual();
+                } else if (node.type === 'GIRAR_D') {
+                    parkingStep = 1; // Prepara entrada en plaza (Fase 1)
+                    setFeedback("↪️ Volante girado 45° a la derecha (preparado para iniciar marcha atrás en curva S)", "ok");
+                    await sleep(400);
+                } else if (node.type === 'RETROCEDER') {
+                    if (parkingStep === 1) {
+                        // Fase 1 del aparcamiento: retroceder curvando suavemente en S de 0° a -45°, entrando hasta X=3.0
+                        await animParkingPhase1();
+                        parkingStep = 2;
+                    } else if (parkingStep === 3 || parkingStep === 2) {
+                        // Fase 2 del aparcamiento: contravolante curvando suavemente en S de -45° a 0°, centrando en X=4.5
+                        await animParkingPhase2();
+                        parkingStep = 0;
+                        aparcadoConExito = true;
+                    } else {
+                        await animMove(0, -2.0);
+                    }
+                    evaluarSensorActual();
+                } else if (node.type === 'GIRAR_I') {
+                    if (parkingStep === 2) parkingStep = 3; // Contravolante para alinear morro
+                    setFeedback("↩️ Contravolante girado 45° a la izquierda (preparado para enderezar en marcha atrás)", "ok");
+                    await sleep(400);
+                } else if (node.type === 'ESPERAR') {
+                    isWaiting = true; await sleep(800);
+                } else if (node.type === 'IF') {
+                    let gapLen = evaluarSensorActual();
+                    if (gapLen >= 5.0) {
+                        setFeedback("🟢 Hueco VÁLIDO (" + gapLen.toFixed(1) + "m) ≥ 5.0m -> Ejecutando rama SI...", "ok");
+                        if (node.yes) for (let c of node.yes) await evalNode(c);
+                    } else {
+                        if (gapLen > 0) {
+                            setFeedback("📡 Hueco pequeño (" + gapLen.toFixed(1) + "m) < 5.0m -> Ejecutando rama SI NO...", "");
+                        }
+                        if (node.no) for (let c of node.no) await evalNode(c);
+                    }
+                } else if (node.type === 'REPETIR') {
+                    for (let i = 0; i < 30; i++) {
+                        if (!isRunning || aparcadoConExito) break;
+                        if (node.children) for (let c of node.children) await evalNode(c);
+                        const cfg = MISSIONS[currentMission];
+                        if (cfg.checkWin(cocheGroup.position.z, isWaiting, cocheGroup.position.x)) break;
+                    }
+                }
+            }
+
+            for (let n of prog) await evalNode(n);
+
+            document.querySelectorAll('.block').forEach(b => b.classList.remove('active-exec'));
+            const cfg = MISSIONS[currentMission];
+            if (cfg.checkWin(cocheGroup.position.z, isWaiting, cocheGroup.position.x) || aparcadoConExito) {
+                setFeedback("✨ ¡Misión Completada con Éxito! Aparcamiento milimétrico perfecto y sin rozar nada.", "ok");
+                document.querySelector(`.btn-mission[onclick="loadMission(${currentMission})"]`).classList.add('completed');
+            } else {
+                setFeedback("❌ El coche no logró el objetivo de la misión. Revisa los bloques o pulsa 'Solución'.", "err");
+            }
+            isRunning = false; document.getElementById('btn-run').disabled = false;
+        };
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function animMove(dx, dz) {
+            return new Promise(resolve => {
+                let steps = 20; let count = 0;
+                const stepZ = (Math.cos(cocheGroup.rotation.y) * dz + Math.sin(cocheGroup.rotation.y) * dx) / steps;
+                const stepX = (-Math.sin(cocheGroup.rotation.y) * dz + Math.cos(cocheGroup.rotation.y) * dx) / steps;
+                const iv = setInterval(() => {
+                    cocheGroup.position.z += stepZ; cocheGroup.position.x += stepX;
+                    camera.target = cocheGroup.position.clone();
+                    if (++count >= steps || !isRunning || aparcadoConExito) { clearInterval(iv); resolve(); }
+                }, 25);
+            });
+        }
+
+        function animTurn(rad) {
+            return new Promise(resolve => {
+                let steps = 15; let count = 0; const stepR = rad / steps;
+                const iv = setInterval(() => {
+                    cocheGroup.rotation.y += stepR;
+                    if (++count >= steps || !isRunning || aparcadoConExito) { clearInterval(iv); resolve(); }
+                }, 25);
+            });
+        }
+
+        // Cinemática Fase 1: Retroceso en curva S natural entrando hasta mitad de plaza (X=3.0, Z=-5.2) y rotY=-45° sin incrustarse
+        function animParkingPhase1() {
+            return new Promise(resolve => {
+                let steps = 35; let count = 0;
+                const targetRot = -Math.PI / 4; // -45 grados
+                const stepR = (targetRot - cocheGroup.rotation.y) / steps;
+                const velZ = -1.7 / steps; // Retroceso suave en curva (-1.7m) hacia el interior del hueco
+                const velX = 1.5 / steps;  // Desplazamiento lateral armónico (1.5m) de forma fluida y continua
+                const iv = setInterval(() => {
+                    cocheGroup.rotation.y += stepR;
+                    cocheGroup.position.z += velZ;
+                    cocheGroup.position.x += velX;
+                    camera.target = cocheGroup.position.clone();
+                    if (++count >= steps || !isRunning) {
+                        cocheGroup.rotation.y = targetRot;
+                        cocheGroup.position.x = 3.0;
+                        cocheGroup.position.z = -5.2;
+                        clearInterval(iv); resolve();
+                    }
+                }, 25);
+            });
+        }
+
+        // Cinemática Fase 2: Contravolante en curva S natural enderezando a rotY=0 y centrando perfectamente en X=4.5, Z=-7.0 sin roces
+        function animParkingPhase2() {
+            return new Promise(resolve => {
+                let steps = 35; let count = 0;
+                const targetRot = 0; // 0 grados (recto y paralelo al bordillo)
+                const stepR = (targetRot - cocheGroup.rotation.y) / steps;
+                const velZ = -1.8 / steps; // Retroceso final (-1.8m) para quedar en el centro exacto de la plaza (Z=-7.0)
+                const velX = 1.5 / steps;  // Desplazamiento lateral final (1.5m) centrando en X=4.5
+                const iv = setInterval(() => {
+                    cocheGroup.rotation.y += stepR;
+                    cocheGroup.position.z += velZ;
+                    cocheGroup.position.x += velX;
+                    camera.target = cocheGroup.position.clone();
+                    if (++count >= steps || !isRunning) {
+                        cocheGroup.rotation.y = 0;
+                        cocheGroup.position.x = 4.5;
+                        cocheGroup.position.z = -7.0;
+                        clearInterval(iv); resolve();
+                    }
+                }, 25);
+            });
+        }
+    </script>
+</body>
+</html>

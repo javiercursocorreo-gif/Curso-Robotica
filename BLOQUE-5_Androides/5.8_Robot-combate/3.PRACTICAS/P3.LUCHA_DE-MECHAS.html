@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Clase 5.5 - Robot Combate (1vs1)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;}
+        #renderCanvas { width: 100%; height: 100vh; touch-action: none; }
+        
+        #uiOverlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        
+        #scoreboard {
+            background: rgba(0,0,0,0.8); color: white; padding: 20px;
+            display: flex; justify-content: space-around; align-items: center;
+            font-size: 2rem; border-bottom: 3px solid #444; font-weight: bold;
+        }
+        .player-red { color: #ff4444; }
+        .player-green { color: #44ff44; }
+        
+        #controlsHelp {
+            background: rgba(0,0,0,0.8); color: #ddd; padding: 20px;
+            display: flex; justify-content: space-around; font-size: 1.1rem;
+            border-top: 3px solid #444;
+        }
+        .key { display: inline-block; background: #333; padding: 5px 12px; border-radius: 5px; border: 1px solid #666; color: white; font-weight: bold;}
+        .logic { color: #aaa; font-size: 0.9rem; margin-left: 5px; }
+        
+        #statusMessage {
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, 0);
+            font-size: 3.5rem; color: #fff; text-shadow: 0 0 20px #000; font-weight: bold;
+            opacity: 0; transition: opacity 0.3s; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="uiOverlay">
+    <div id="scoreboard">
+        <div class="player-red">
+            P1 (ROJO): <span id="score1">0</span><br>
+            <span id="state1" style="font-size: 1.2rem; font-weight: normal; color: #ffaaaa;">ESPERA</span>
+        </div>
+        <div style="font-size: 1.5rem; color: #888;">BATALLA DE MECHAS</div>
+        <div class="player-green" style="text-align: right;">
+            P2 (VERDE): <span id="score2">0</span><br>
+            <span id="state2" style="font-size: 1.2rem; font-weight: normal; color: #aaffaa;">ESPERA</span>
+        </div>
+    </div>
+    
+    <div id="statusMessage">¡LUCHA!</div>
+    <button id="btnNextRound" style="display:none; position: absolute; bottom: 30px; left: 50%; transform: translate(-50%, 0); padding: 15px 40px; font-size: 2rem; font-weight: bold; cursor: pointer; background: #e94560; color: white; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 0 20px rgba(233, 69, 96, 0.8); pointer-events: auto;">NUEVA RONDA</button>
+    
+    <div id="controlsHelp">
+        <div>
+            <b class="player-red">JUGADOR 1 (Izquierda)</b><br><br>
+            <span class="key">S</span> Salto Aéreo <span class="logic">(Esquiva el choque)</span><br>
+            <span class="key">E</span> Embestida Frontal <span class="logic">(Ataque directo)</span><br>
+        </div>
+        <div style="text-align: right;">
+            <b class="player-green">JUGADOR 2 (Derecha)</b><br><br>
+            <span class="logic">(Esquiva el choque)</span> Salto Aéreo <span class="key">↑</span><br>
+            <span class="logic">(Ataque directo)</span> Embestida Frontal <span class="key">←</span><br>
+        </div>
+    </div>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    
+    let p1Score = 0;
+    let p2Score = 0;
+    let nextFallIsBack = true; // Controla la alternancia estricta de caídas
+    let gameState = "WAITING"; // WAITING, FIGHTING, RESOLVING
+    
+    const showMessage = (msg, ms = 2000) => {
+        const el = document.getElementById("statusMessage");
+        el.innerText = msg;
+        el.style.opacity = 1;
+        if(ms > 0) setTimeout(() => el.style.opacity = 0, ms);
+    };
+    const updateScore = () => {
+        document.getElementById("score1").innerText = p1Score;
+        document.getElementById("score2").innerText = p2Score;
+    };
+
+    class Fighter {
+        constructor(name, rootMesh, animationGroups, isPlayer1, scene) {
+            this.name = name;
+            this.mesh = rootMesh;
+            this.animGroups = animationGroups;
+            this.isP1 = isPlayer1;
+            this.scene = scene;
+            
+            // Posicion inicial en los extremos
+            this.spawnX = isPlayer1 ? -17 : 17;
+            this.direction = isPlayer1 ? 1 : -1;
+            
+            this.mesh.position = new BABYLON.Vector3(this.spawnX, 0, 0);
+            this.mesh.rotationQuaternion = null;
+            this.faceCenter();
+            // Hacerlos más pequeños para tener más espacio de carrera
+            this.mesh.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+            
+            // Teñir el material usando PBR/Standard logic segun el glb
+            this.mesh.getChildMeshes().forEach(m => {
+                if(m.material) {
+                    let newMat = m.material.clone(name + "_mat");
+                    // Dar un tinte claro PBR o Standard
+                    if(newMat.albedoColor) {
+                        newMat.albedoColor = isPlayer1 ? new BABYLON.Color3(1, 0.3, 0.3) : new BABYLON.Color3(0.3, 1.0, 0.3);
+                    } else if (newMat.diffuseColor) {
+                        newMat.diffuseColor = isPlayer1 ? new BABYLON.Color3(1, 0.3, 0.3) : new BABYLON.Color3(0.3, 1.0, 0.3);
+                    }
+                    m.material = newMat;
+                }
+            });
+
+            this.state = "IDLE";
+            this.action = null; 
+            this.currentAnim = null;
+            this.knockback = 0;
+            // reset() se llamará desde fuera para pasar el estado de la ronda
+        }
+        
+        playAnim(start, end, loop = true, speed = 1.0, name = "") {
+            this.currentAnimName = name;
+            this.animGroups[0].stop();
+            this.animGroups[0].start(loop, speed, start, end);
+        }
+        
+        faceCenter() {
+            this.mesh.rotation = new BABYLON.Vector3(0, this.isP1 ? 0 : Math.PI, 0);
+        }
+        
+        faceSpawn() {
+            let dirX = this.spawnX > this.mesh.position.x ? 1 : -1;
+            this.mesh.rotation = new BABYLON.Vector3(0, dirX === 1 ? 0 : Math.PI, 0);
+        }
+        
+        walkBack() {
+            this.state = "RETURNING";
+            this.faceSpawn();
+            
+            // Forzar reseteo de huesos al frame 0
+            this.animGroups[0].stop();
+            this.animGroups[0].start(false, 1.0, 0, 0);
+            
+            // Iniciar animación en el siguiente frame (limpia interpolaciones rotas)
+            this.scene.onBeforeRenderObservable.addOnce(() => {
+                this.playAnim(555, 1181, true, 1.5, "VOLVIENDO A POSICIÓN");
+            });
+            
+            // Moverlos a carriles separados en el eje Z pero de forma nativa para evitar cualquier crash de Babylon
+            this.targetZ = this.isP1 ? -3 : 3;
+        }
+        
+        reset(isProvoking) {
+            this.state = "IDLE";
+            this.action = null;
+            this.knockback = 0;
+            this.mesh.position.x = this.spawnX;
+            // Devolver al centro de forma instantánea al iniciar ronda
+            this.mesh.position.z = 0;
+            this.targetZ = 0;
+            
+            // 1. Cuando estan en espera: uno en 1 y el otro en 2
+            if (isProvoking) {
+                this.playAnim(4575, 5889, true, 1.0, "PROVOCACIÓN"); // 2. Provocación
+            } else {
+                this.playAnim(0, 554, true, 1.0, "ESPERA INICIO"); // 1. Espera inicio
+            }
+        }
+        
+        act(actionType) {
+            // Si estamos quietos, podemos embestir o saltar
+            if(this.state === "IDLE") {
+                this.action = actionType;
+                this.state = "ATTACKING";
+                
+                if(actionType === "CHARGE") this.playAnim(555, 1181, true, 2.0, "TROTE HASTA GALOPE"); 
+                if(actionType === "JUMP") this.playAnim(1407, 1631, false, 1.2, "SALTO VERTICAL"); 
+            }
+            // Si ya estamos embistiendo, permitir transición a salto en el último segundo
+            else if (this.state === "ATTACKING" && this.action === "CHARGE" && actionType === "JUMP") {
+                this.action = "JUMP";
+                this.playAnim(1407, 1631, false, 1.2, "SALTO VERTICAL"); 
+            }
+        }
+        
+        update(dt) {
+            // Efecto de rebote/recoil tras un choque
+            if (this.knockback > 0) {
+                let amt = 12.0 * (dt / 1000); // retroceso rápido
+                if (amt > this.knockback) amt = this.knockback;
+                this.mesh.position.x -= this.direction * amt;
+                this.knockback -= amt;
+            }
+
+            if(this.state === "ATTACKING") {
+                let speed = this.action === "CHARGE" ? 3.5 : (this.action === "JUMP" ? 3.5 : 1.0);
+                this.mesh.position.x += this.direction * speed * (dt / 1000);
+            }
+            else if (this.state === "DODGING") {
+                // Velocidad controlada (8.0) para que se crucen rápido pero SIN salirse de la pantalla
+                this.mesh.position.x += this.direction * 8.0 * (dt / 1000);
+            }
+            else if (this.state === "RETURNING") {
+                let dir = this.spawnX > this.mesh.position.x ? 1 : -1;
+                this.mesh.position.x += dir * 2.5 * (dt / 1000); 
+                
+                // Suavizado Z nativo para no usar el motor de animaciones de Babylon (evita bloqueos)
+                if (this.targetZ !== undefined) {
+                    let dirZ = this.targetZ > this.mesh.position.z ? 1 : -1;
+                    if (Math.abs(this.mesh.position.z - this.targetZ) > 0.1) {
+                        this.mesh.position.z += dirZ * 4.0 * (dt / 1000);
+                    } else {
+                        this.mesh.position.z = this.targetZ;
+                    }
+                }
+                
+                // Límite matemático estricto
+                if ((dir === 1 && this.mesh.position.x >= this.spawnX) || 
+                    (dir === -1 && this.mesh.position.x <= this.spawnX)) {
+                    this.mesh.position.x = this.spawnX;
+                    this.state = "READY_TO_START";
+                }
+            }
+        }
+        
+        die(winnerAction, myAction) {
+            this.state = "DEAD";
+            // Recortamos el fotograma final para que no reproduzcan la parte donde se levantan solos
+            if (winnerAction === "JUMP" && myAction === "CHARGE") {
+                this.playAnim(2326, 2430, false, 1.0, "PASA POR DEBAJO"); // 6. Pasar por debajo (se queda agachado)
+            } 
+            else {
+                // En choques frontales (CHARGE vs CHARGE) o aéreos, alternamos ESTRICTAMENTE una vez cada una
+                if (nextFallIsBack) {
+                    this.playAnim(1182, 1250, false, 1.0, "CAÍDA HACIA ATRÁS"); // 4. Caida atras (se queda en el suelo)
+                } else {
+                    this.playAnim(1632, 1720, false, 1.0, "CAÍDA FLANCO DERECHO"); // 7. Caida flanco derecho (se queda en el suelo)
+                }
+                nextFallIsBack = !nextFallIsBack; // Invertir obligatoriamente para la próxima derrota
+            }
+        }
+        
+        win(myAction) {
+            this.state = "VICTORY";
+            let s = 1.5; // Acelerar la secuencia para dar dinamismo
+            
+            // Si gana saltando, darle tiempo a aterrizar antes de iniciar la pose de victoria (aprox 600ms)
+            let delay = (myAction === "JUMP") ? 600 : 0;
+            
+            setTimeout(() => {
+                if(this.state !== "VICTORY") return;
+                this.playAnim(2865, 2936, false, s, "VICTORIA SE LEVANTA"); // 8. Victoria se levanta
+            
+            setTimeout(() => {
+                if(this.state !== "VICTORY") return;
+                this.playAnim(3722, 4574, false, s, "VICTORIA BAILE"); // 9. Baile
+                
+                setTimeout(() => {
+                    if(this.state !== "VICTORY") return;
+                    this.playAnim(5882, 6362, true, s, "HUSMEANDO AL PERDEDOR"); // 10. Husmeando
+                }, ((4574 - 3722) / (60 * s)) * 1000);
+                
+            }, ((2936 - 2865) / (60 * s)) * 1000);
+            
+            }, delay);
+        }
+        
+        draw() {
+            this.state = "DRAW";
+            this.playAnim(2881, 2923, false, 1.0, "EMPATE"); // Impacto_Leve real
+        }
+    }
+
+    // Resolucion Piedra Papel Tijera
+    function resolveClash(p1, p2) {
+        if(p1.state === "IDLE" && p2.state === "IDLE") return 0; // Nadie hace nada
+        if(p1.state === "IDLE") return 2; // Gana P2 porque P1 se quedó quieto
+        if(p2.state === "IDLE") return 1; // Gana P1 porque P2 se quedó quieto
+        
+        if(p1.action === "JUMP" && p2.action === "CHARGE") return 1;
+        if(p1.action === "CHARGE" && p2.action === "JUMP") return 2;
+        
+        // Si ambos hacen lo mismo (Choque Frontal o Choque en el Aire)
+        // Ya no hay empates: la victoria se decide por fuerza (aleatorio)
+        if(p1.action === p2.action) {
+            return Math.random() > 0.5 ? 1 : 2;
+        }
+        
+        return 0; // Fallback
+    }
+
+    const createScene = async function () {
+        const scene = new BABYLON.Scene(engine);
+        // Fondo oscuro original
+        scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
+
+        // Camara de tipo Fighting Game (Lateral plana)
+        const camera = new BABYLON.FreeCamera("cam", new BABYLON.Vector3(0, 4, -30), scene);
+        camera.setTarget(new BABYLON.Vector3(0, 4, 0));
+
+        const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0, -1, 1), scene);
+        light.intensity = 1.5;
+        const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+        hemi.intensity = 2.5; // Ajuste a 2.5 a petición del usuario
+        
+        // Ring Base
+        const ground = BABYLON.MeshBuilder.CreateCylinder("ring", {diameter: 40, height: 1, tessellation: 64}, scene);
+        ground.position.y = -0.5;
+        const mat = new BABYLON.StandardMaterial("ringMat", scene);
+        mat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+        ground.material = mat;
+
+        // Cargar Modelo usando AssetContainer para instanciar eficientemente
+        const modelPath = "../1.FICHEROS-AUXILIARES/mech_neck_walker_-_bge_free_download.glb";
+        const container = await BABYLON.SceneLoader.LoadAssetContainerAsync("", modelPath, scene);
+        
+        let inst1 = container.instantiateModelsToScene(name => "P1_" + name);
+        let inst2 = container.instantiateModelsToScene(name => "P2_" + name);
+        
+        let p1Provoking = false;
+        let lastClashWasJump = false; // Rastrea si se cruzaron para saber si deben volver caminando
+        
+        const p1 = new Fighter("P1", inst1.rootNodes[0], inst1.animationGroups, true, scene);
+        const p2 = new Fighter("P2", inst2.rootNodes[0], inst2.animationGroups, false, scene);
+        
+        p1.reset(p1Provoking);
+        p2.reset(!p1Provoking);
+
+        // Sistema de Combate en Tiempo Real (Teclado)
+        window.addEventListener("keydown", (e) => {
+            if(gameState === "RESOLVING") return;
+            let key = e.key.toLowerCase();
+            
+            // JUGADOR 1 (Izquierda) - Controles por inicial (E=Embestida, S=Salto)
+            if(key === "e") p1.act("CHARGE");
+            if(key === "s") p1.act("JUMP");
+            
+            // JUGADOR 2 (Derecha)
+            if(e.key === "ArrowUp") p2.act("JUMP");
+            if(e.key === "ArrowLeft") p2.act("CHARGE");
+        });
+        
+        // Función auxiliar para traducir estados internos a texto para los alumnos
+        function getReadableState(p) {
+            return p.currentAnimName ? p.currentAnimName : "";
+        }
+
+        // Game Loop (Motor de físicas simuladas)
+        scene.onBeforeRenderObservable.add(() => {
+            let dt = engine.getDeltaTime();
+            
+            document.getElementById("state1").innerText = getReadableState(p1);
+            document.getElementById("state2").innerText = getReadableState(p2);
+
+            if(gameState === "WAITING" || gameState === "FIGHTING" || gameState === "RETURNING" || gameState === "RESOLVING") {
+                // UPDATE se ejecuta siempre, para que puedan moverse en todos los estados (excepto cuando caen)
+                p1.update(dt);
+                p2.update(dt);
+                
+                if (gameState === "RESOLVING" && lastClashWasJump) {
+                    // Terminar la esquiva basándose en posición X segura, no en timeout
+                    if (p1.mesh.position.x > p2.mesh.position.x + 15) {
+                        gameState = "RETURNING";
+                        p1.walkBack();
+                        p2.walkBack();
+                    }
+                }
+                
+                if (gameState === "RETURNING" && p1.state === "READY_TO_START" && p2.state === "READY_TO_START") {
+                    gameState = "WAITING";
+                    p1Provoking = !p1Provoking; // Intercambiar posturas
+                    p1.faceCenter();
+                    p2.faceCenter();
+                    p1.reset(p1Provoking);
+                    p2.reset(!p1Provoking);
+                    showMessage("¡LUCHA!", 1000);
+                }
+                
+                if (gameState === "WAITING" || gameState === "FIGHTING") {
+                    // Comprobar Colisión: aumentamos a 6.5 metros para que las cabezas dejen de entrelazarse
+                    let dist = Math.abs(p1.mesh.position.x - p2.mesh.position.x);
+                    // Si alguien se mueve y están cerca
+                    if((p1.state === "ATTACKING" || p2.state === "ATTACKING") && dist < 6.5) {
+                        gameState = "RESOLVING";
+                        let winner = resolveClash(p1, p2);
+                        
+                        if(winner === 1) {
+                            if (p1.action === "JUMP" && p2.action === "CHARGE") { 
+                                p1.state = "DODGING"; p2.state = "DODGING";
+                                if (p1.currentAnimName !== "SALTO VERTICAL") p1.playAnim(1407, 1631, false, 1.2, "SALTO VERTICAL");
+                                p2.playAnim(2326, 2430, false, 1.0, "PASA POR DEBAJO");
+                                lastClashWasJump = true; 
+                                p1Score++; updateScore(); showMessage("¡ESQUIVA ROJO!");
+                            } else {
+                                p2.die(p1.action, p2.action); p1.win(p1.action);
+                                p1.knockback = 1.2; p2.knockback = 1.2;
+                                lastClashWasJump = false;
+                                p1Score++; updateScore(); showMessage("¡GANA ROJO!");
+                            }
+                        } else if(winner === 2) {
+                            if (p2.action === "JUMP" && p1.action === "CHARGE") { 
+                                p2.state = "DODGING"; p1.state = "DODGING";
+                                if (p2.currentAnimName !== "SALTO VERTICAL") p2.playAnim(1407, 1631, false, 1.2, "SALTO VERTICAL");
+                                p1.playAnim(2326, 2430, false, 1.0, "PASA POR DEBAJO");
+                                lastClashWasJump = true; 
+                                p2Score++; updateScore(); showMessage("¡ESQUIVA VERDE!");
+                            } else {
+                                p1.die(p2.action, p1.action); p2.win(p2.action);
+                                p1.knockback = 1.2; p2.knockback = 1.2;
+                                lastClashWasJump = false;
+                                p2Score++; updateScore(); showMessage("¡GANA VERDE!");
+                            }
+                        } else {
+                            p1.draw(); p2.draw(); 
+                            p1.knockback = 1.2; p2.knockback = 1.2;
+                            showMessage("¡EMPATE!");
+                            lastClashWasJump = false;
+                        }
+                        
+                        if (!lastClashWasJump) {
+                            // Mostrar botón para pasar de ronda manualmente y no cortar el baile de victoria
+                            setTimeout(() => {
+                                document.getElementById("btnNextRound").style.display = "block";
+                            }, 2000);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Configurar Botón de Nueva Ronda (solo aparece en choques)
+        document.getElementById("btnNextRound").onclick = () => {
+            document.getElementById("btnNextRound").style.display = "none";
+            p1Provoking = !p1Provoking; // Intercambiar posturas
+            
+            // Se teletransportan y listos para luchar
+            p1.faceCenter(); p2.faceCenter();
+            p1.reset(p1Provoking);
+            p2.reset(!p1Provoking);
+            gameState = "WAITING";
+            showMessage("¡LUCHA!", 1000);
+        };
+
+        showMessage("¡LUCHA!", 2000);
+        return scene;
+    };
+
+    createScene().then(scene => {
+        engine.runRenderLoop(() => { scene.render(); });
+    });
+    window.addEventListener("resize", () => { engine.resize(); });
+</script>
+</body>
+</html>

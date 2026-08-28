@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P4.JUEGO — Gran Reto de Autonomía Óptica (Babylon.js V8 Gold)</title>
+    <!-- Babylon.js V8 Gold CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --bg: #0d0d1a;
+            --glass: rgba(10, 15, 30, 0.9);
+            --text: #ffffff;
+            --sub: #aaaaaa;
+            --success: #00e676;
+            --danger: #ff4444;
+            --warning: #ffcc00;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+        /* HEADER OBLIGATORIO */
+        #header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.94);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+        #header h1 {
+            font-size: 24px;
+            color: var(--primary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        #nav-tabs {
+            display: flex;
+            gap: 8px;
+        }
+        .tab-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { background: rgba(0, 242, 255, 0.15); border-color: var(--primary); }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+
+        /* CONTENEDOR DE PESTAÑAS */
+        #content-area {
+            flex: 1;
+            position: relative;
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .tab-content {
+            display: none;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--glass);
+            border: 1px solid rgba(0, 242, 255, 0.25);
+            border-radius: 16px;
+            padding: 30px;
+            backdrop-filter: blur(12px);
+        }
+        .tab-content.active { display: block; }
+
+        /* ESTILOS TRIVIAL (PESTAÑA 1) */
+        .q-box {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .q-text { font-size: 18px; font-weight: bold; color: var(--warning); margin-bottom: 14px; }
+        .opt-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .opt-btn {
+            background: #1f1f33;
+            border: 1px solid #444;
+            color: white;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .opt-btn:hover { border-color: var(--primary); background: #282844; }
+        .opt-btn.correct { background: var(--success); color: black; font-weight: bold; }
+        .opt-btn.wrong { background: var(--danger); color: white; opacity: 0.7; }
+
+        /* ESTILOS ORDENAR SECUENCIA (PESTAÑA 2) */
+        .dnd-list { display: flex; flex-direction: column; gap: 12px; max-width: 600px; margin: 20px auto; }
+        .dnd-item {
+            background: #22223a;
+            border: 2px solid var(--primary);
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .dnd-item:active { cursor: grabbing; }
+        .dnd-item.drag-over { border-style: dashed; border-color: var(--warning); }
+
+        /* ESTILOS EMPAREJAR CONCEPTOS (PESTAÑA 3) */
+        .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+        .match-card {
+            background: #1d1d33;
+            border: 2px solid #444;
+            padding: 18px;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .match-card:hover { border-color: var(--primary); }
+        .match-card.selected { border-color: var(--warning); background: #3a3200; }
+        .match-card.matched { border-color: var(--success); background: rgba(0,230,118,0.15); cursor: default; }
+
+        /* ESTILOS RETO FINAL 3D (PESTAÑA 4) */
+        #tab-4-layout {
+            display: flex;
+            height: calc(100vh - 120px);
+            max-width: 1400px;
+            margin: 0 auto;
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        #tab-4-left {
+            width: 380px;
+            background: rgba(10, 15, 30, 0.95);
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border-right: 1px solid rgba(0, 242, 255, 0.25);
+        }
+        #tab-4-right {
+            flex: 1;
+            position: relative;
+            background: #070710;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+        .color-selector-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 14px;
+        }
+        .color-selector-card label { font-size: 14px; color: var(--warning); font-weight: bold; display: block; margin-bottom: 8px; }
+        .color-selector-card select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a2e;
+            border: 1px solid var(--primary);
+            color: white;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .btn-action {
+            background: var(--success);
+            color: #000;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: #1eff8e; transform: scale(1.02); }
+
+        /* BANNER DE ÉXITO EN PANEL IZQUIERDO DE PESTAÑA 4 (REGLA ANTI-OCLUSIÓN) */
+        #final-banner {
+            display: none;
+            background: rgba(0, 230, 118, 0.15);
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            animation: pulseBanner 1.5s infinite alternate;
+        }
+        @keyframes pulseBanner {
+            from { box-shadow: 0 0 10px rgba(0,230,118,0.2); }
+            to { box-shadow: 0 0 25px rgba(0,230,118,0.6); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div>
+            <h1>P4.JUEGO — Gran Reto de Autonomía Óptica</h1>
+            <div class="subtitle">Evaluación interactiva y simulación 3D sobre la lectura del color</div>
+        </div>
+        <div id="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab(1)">1. Trivial Técnico</button>
+            <button class="tab-btn" onclick="switchTab(2)">2. Ordenar Ciclo</button>
+            <button class="tab-btn" onclick="switchTab(3)">3. Emparejar Códigos</button>
+            <button class="tab-btn" onclick="switchTab(4)">4. Reto Final 3D</button>
+        </div>
+    </div>
+
+    <div id="content-area">
+        <!-- ════ PESTAÑA 1: TRIVIAL TÉCNICO ════ -->
+        <div id="tab-1" class="tab-content active">
+            <h2 style="color:var(--primary); margin-bottom: 20px;">Trivial Técnico: La Física del Color y el Ozobot</h2>
+            
+            <div class="q-box">
+                <div class="q-text">1. ¿Por qué el sensor del robot detecta color ROJO al iluminar una línea roja en el papel?</div>
+                <div class="opt-list">
+                    <button class="opt-btn" onclick="checkQ(this, false)">Porque el papel absorbe la luz roja y refleja la azul y la verde.</button>
+                    <button class="opt-btn" onclick="checkQ(this, true)">Porque el pigmento rojo absorbe la luz verde y azul, pero refleja la luz roja hacia la lente.</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">Porque el fototransistor calienta el papel para medir su temperatura.</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">Porque el robot emite únicamente luz negra desde sus diodos.</button>
+                </div>
+            </div>
+
+            <div class="q-box">
+                <div class="q-text">2. ¿Qué ocurre en el interior del robot durante la fase 'DECIDIR'?</div>
+                <div class="opt-list">
+                    <button class="opt-btn" onclick="checkQ(this, false)">Las ruedas giran libremente sin control lógico.</button>
+                    <button class="opt-btn" onclick="checkQ(this, true)">El chip microcontrolador compara la lectura cromática con su tabla preestablecida y selecciona la orden.</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">El robot apaga todos sus sensores y entra en modo de reposo.</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">La batería se descarga al instante.</button>
+                </div>
+            </div>
+
+            <div class="q-box">
+                <div class="q-text">3. ¿Qué código visual debe detectar el robot en una bifurcación si queremos que gire 90 grados a la derecha?</div>
+                <div class="opt-list">
+                    <button class="opt-btn" onclick="checkQ(this, false)">Negro - Verde - Negro</button>
+                    <button class="opt-btn" onclick="checkQ(this, true)">Negro - Rojo - Negro</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">Negro - Azul - Negro</button>
+                    <button class="opt-btn" onclick="checkQ(this, false)">Blanco - Naranja - Blanco</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════ PESTAÑA 2: ORDENAR SECUENCIA D&D ════ -->
+        <div id="tab-2" class="tab-content">
+            <h2 style="color:var(--primary); margin-bottom: 12px;">El Ciclo Lógico Universal del Ozobot</h2>
+            <p style="color:#ddd; margin-bottom: 24px;">Arrastra y suelta las tarjetas para ordenarlas correctamente en orden cronológico (de la Fase 1 a la Fase 3):</p>
+
+            <div class="dnd-list" id="cycle-dnd">
+                <div class="dnd-item" draggable="true" data-order="3">
+                    <span>🔴 FASE 3: ACTUAR (Motores en giro diferencial y respuesta luminosa LED)</span>
+                    <span>☰</span>
+                </div>
+                <div class="dnd-item" draggable="true" data-order="1">
+                    <span>🟢 FASE 1: SENTIR (Lectura óptica del reflejo de color en el suelo)</span>
+                    <span>☰</span>
+                </div>
+                <div class="dnd-item" draggable="true" data-order="2">
+                    <span>🔵 FASE 2: DECIDIR (Microprocesador compara con tabla de órdenes)</span>
+                    <span>☰</span>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 24px;">
+                <button class="btn-action" style="max-width: 300px; margin: 0 auto;" onclick="checkCycleOrder()">✔ Verificar Orden del Ciclo</button>
+            </div>
+            <div id="cycle-result" style="text-align:center; font-size:18px; font-weight:bold; margin-top:16px;"></div>
+        </div>
+
+        <!-- ════ PESTAÑA 3: EMPAREJAR CONCEPTOS ════ -->
+        <div id="tab-3" class="tab-content">
+            <h2 style="color:var(--primary); margin-bottom: 12px;">Empareja el Código con su Acción Físic</h2>
+            <p style="color:#ddd;">Haz clic en una tarjeta de la izquierda (Código de Color) y después en su pareja de la derecha (Efecto Motriz):</p>
+
+            <div class="match-grid" id="match-grid">
+                <!-- Se genera por JS -->
+            </div>
+            <div id="match-result" style="text-align:center; font-size:18px; font-weight:bold; margin-top:24px;"></div>
+        </div>
+
+        <!-- ════ PESTAÑA 4: RETO FINAL 3D ════ -->
+        <div id="tab-4" class="tab-content" style="padding: 0; border: none; background: transparent;">
+            <div id="tab-4-layout">
+                <div id="tab-4-left">
+                    <h3 style="color:var(--primary); letter-spacing: 2px;">RETO EVALUADOR 3D</h3>
+                    <p style="font-size: 14px; color: #ccc;">Selecciona los 3 códigos de color para que el Ozobot supere el circuito: debe girar en la curva (1), acelerar en la recta (2) y dar un bucle en la meta (3).</p>
+
+                    <div class="color-selector-card">
+                        <label>1. Código para la Curva de 90°:</label>
+                        <select id="sel-1">
+                            <option value="">-- Seleccionar --</option>
+                            <option value="ROJO">Negro - ROJO - Negro (Giro)</option>
+                            <option value="AZUL">Negro - AZUL - Negro (Acelerar)</option>
+                            <option value="VERDE">Negro - VERDE - Negro (Bucle)</option>
+                        </select>
+                    </div>
+
+                    <div class="color-selector-card">
+                        <label>2. Código para la Recta Larga:</label>
+                        <select id="sel-2">
+                            <option value="">-- Seleccionar --</option>
+                            <option value="ROJO">Negro - ROJO - Negro (Giro)</option>
+                            <option value="AZUL">Negro - AZUL - Negro (Acelerar)</option>
+                            <option value="VERDE">Negro - VERDE - Negro (Bucle)</option>
+                        </select>
+                    </div>
+
+                    <div class="color-selector-card">
+                        <label>3. Código para la Meta Final:</label>
+                        <select id="sel-3">
+                            <option value="">-- Seleccionar --</option>
+                            <option value="ROJO">Negro - ROJO - Negro (Giro)</option>
+                            <option value="AZUL">Negro - AZUL - Negro (Acelerar)</option>
+                            <option value="VERDE">Negro - VERDE - Negro (Bucle)</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-action" id="btn-run-3d" onclick="runFinal3D()">▶ INICIAR SIMULACIÓN DE PRUEBA</button>
+
+                    <!-- BANNER ANTI-OCLUSIÓN EN COLUMNA -->
+                    <div id="final-banner">
+                        <div style="font-size: 19px; font-weight: bold; color: var(--success); margin-bottom: 6px;">🏆 ¡GRADUACIÓN SUPREMA!</div>
+                        <div style="font-size: 14px; color: #eee;">Has configurado la telemetría cromática perfecta. El Ozobot ha completado el circuito al 100%.</div>
+                    </div>
+                </div>
+
+                <div id="tab-4-right">
+                    <canvas id="renderCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── NAVEGACIÓN ENTRE PESTAÑAS ───
+        function switchTab(id) {
+            document.querySelectorAll(".tab-btn").forEach((btn, idx) => {
+                btn.className = "tab-btn" + (idx + 1 === id ? " active" : "");
+            });
+            document.querySelectorAll(".tab-content").forEach((c, idx) => {
+                c.className = "tab-content" + (idx + 1 === id ? " active" : "");
+            });
+            if (id === 4 && engine) engine.resize();
+        }
+
+        // ─── PESTAÑA 1: TRIVIAL ───
+        function checkQ(btn, isCorrect) {
+            const parent = btn.parentElement;
+            parent.querySelectorAll(".opt-btn").forEach(b => b.classList.remove("correct", "wrong"));
+            if (isCorrect) btn.classList.add("correct");
+            else btn.classList.add("wrong");
+        }
+
+        // ─── PESTAÑA 2: DRAG & DROP NATURALEZA HTML5 ───
+        const dndContainer = document.getElementById("cycle-dnd");
+        let draggedItem = null;
+
+        document.querySelectorAll(".dnd-item").forEach(item => {
+            item.addEventListener("dragstart", (e) => {
+                draggedItem = item;
+                setTimeout(() => item.style.opacity = "0.5", 0);
+            });
+            item.addEventListener("dragend", () => {
+                draggedItem = null;
+                item.style.opacity = "1";
+            });
+            item.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                item.classList.add("drag-over");
+            });
+            item.addEventListener("dragleave", () => {
+                item.classList.remove("drag-over");
+            });
+            item.addEventListener("drop", (e) => {
+                e.preventDefault();
+                item.classList.remove("drag-over");
+                if (draggedItem && draggedItem !== item) {
+                    const all = Array.from(dndContainer.children);
+                    const draggedIdx = all.indexOf(draggedItem);
+                    const targetIdx = all.indexOf(item);
+                    if (draggedIdx < targetIdx) dndContainer.insertBefore(draggedItem, item.nextSibling);
+                    else dndContainer.insertBefore(draggedItem, item);
+                }
+            });
+        });
+
+        function checkCycleOrder() {
+            const items = Array.from(dndContainer.children);
+            const orders = items.map(i => i.dataset.order);
+            const res = document.getElementById("cycle-result");
+            if (orders[0] === "1" && orders[1] === "2" && orders[2] === "3") {
+                res.style.color = varToHex("--success");
+                res.innerText = "✨ ¡ORDEN PERFECTO! El ciclo del robot fluye de forma natural e ininterrumpida.";
+            } else {
+                res.style.color = varToHex("--danger");
+                res.innerText = "❌ Orden incorrecto. Recuerda: Primero SENTIR (1), luego DECIDIR (2) y finalmente ACTUAR (3).";
+            }
+        }
+        function varToHex(v) { return getComputedStyle(document.documentElement).getPropertyValue(v) || "#00e676"; }
+
+        // ─── PESTAÑA 3: EMPAREJAR CONCEPTOS ───
+        const MATCH_DATA = [
+            { id: "c1", type: "code", text: "🎨 Negro - Rojo - Negro", pair: "a1" },
+            { id: "c2", type: "code", text: "🎨 Negro - Azul - Negro", pair: "a2" },
+            { id: "c3", type: "code", text: "🎨 Negro - Verde - Negro", pair: "a3" },
+            { id: "a1", type: "action", text: "⚙️ Gira 90 grados a la derecha", pair: "c1" },
+            { id: "a2", type: "action", text: "⚡ Acelera al máximo de velocidad (x2)", pair: "c2" },
+            { id: "a3", type: "action", text: "🔄 Describe un bucle o parada de lectura", pair: "c3" }
+        ];
+        let selectedMatch = null;
+        let matchedCount = 0;
+
+        function initMatchGame() {
+            const grid = document.getElementById("match-grid");
+            grid.innerHTML = "";
+            // Barajar items
+            const shuffled = [...MATCH_DATA].sort(() => Math.random() - 0.5);
+            shuffled.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "match-card";
+                card.innerText = item.text;
+                card.dataset.id = item.id;
+                card.dataset.pair = item.pair;
+                card.addEventListener("click", () => handleCardClick(card));
+                grid.appendChild(card);
+            });
+        }
+
+        function handleCardClick(card) {
+            if (card.classList.contains("matched")) return;
+            if (!selectedMatch) {
+                selectedMatch = card;
+                card.classList.add("selected");
+            } else if (selectedMatch === card) {
+                card.classList.remove("selected");
+                selectedMatch = null;
+            } else {
+                if (selectedMatch.dataset.pair === card.dataset.id) {
+                    selectedMatch.classList.remove("selected");
+                    selectedMatch.classList.add("matched");
+                    card.classList.add("matched");
+                    matchedCount++;
+                    if (matchedCount === 3) {
+                        const r = document.getElementById("match-result");
+                        r.style.color = "#00e676";
+                        r.innerText = "🎉 ¡TODO EMPAREJADO! Dominas la relación entre código de color y acción motriz.";
+                    }
+                } else {
+                    selectedMatch.classList.remove("selected");
+                    card.style.borderColor = "#ff4444";
+                    setTimeout(() => card.style.borderColor = "#444", 500);
+                }
+                selectedMatch = null;
+            }
+        }
+        initMatchGame();
+
+        // ─── PESTAÑA 4: RETO FINAL 3D EN BABYLON.JS ───
+        let is3DRunning = false;
+        let t3D = 0;
+        let speed3D = 0.25;
+
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene3D = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.12, 1);
+
+            const camera = new BABYLON.ArcRotateCamera("Cam3D", -Math.PI / 2, Math.PI / 3, 16, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 5;
+            camera.upperRadiusLimit = 30;
+
+            const hemi = new BABYLON.HemisphericLight("Hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 0.9;
+            hemi.diffuse = new BABYLON.Color3(1, 1, 0.95);
+
+            const dir = new BABYLON.DirectionalLight("Dir", new BABYLON.Vector3(3, -5, 3), scene);
+            dir.intensity = 0.5;
+
+            // PAPEL
+            const paper = BABYLON.MeshBuilder.CreateGround("p3D", { width: 28, height: 18 }, scene);
+            const pMat = new BABYLON.StandardMaterial("pMat", scene);
+            pMat.diffuseColor = new BABYLON.Color3(0.96, 0.96, 0.93);
+            paper.material = pMat;
+            paper.position.y = 0;
+
+            // CIRCUITO OVAL DE EVALUACIÓN
+            const trackPoints = [];
+            for (let a = 0; a <= Math.PI * 2; a += 0.04) {
+                trackPoints.push(new BABYLON.Vector3(10 * Math.cos(a), 0.03, 5 * Math.sin(a)));
+            }
+            const trackTube = BABYLON.MeshBuilder.CreateTube("track3D", { path: trackPoints, radius: 0.15, tessellation: 16 }, scene);
+            const tMat = new BABYLON.StandardMaterial("tMat3D", scene);
+            tMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+            trackTube.material = tMat;
+
+            // 3 ZONAS DE MARCAS DINÁMICAS
+            const markers = {};
+            const addMarker = (num, angleRad) => {
+                const pos = new BABYLON.Vector3(10 * Math.cos(angleRad), 0.04, 5 * Math.sin(angleRad));
+                const box = BABYLON.MeshBuilder.CreateBox("m3D_" + num, { width: 0.8, height: 0.02, depth: 0.5 }, scene);
+                box.position = pos;
+                box.rotation.y = -angleRad;
+                const mat = new BABYLON.StandardMaterial("matM_" + num, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+                box.material = mat;
+                markers[num] = { mesh: box, mat: mat, angle: angleRad };
+            };
+            addMarker(1, 0);               // Curva
+            addMarker(2, Math.PI * 0.6);   // Recta
+            addMarker(3, Math.PI * 1.3);   // Meta
+            scene.markers3D = markers;
+
+            // ROBOT 3D
+            const robotGroup = new BABYLON.TransformNode("r3D", scene);
+            const body = BABYLON.MeshBuilder.CreateCylinder("rB", { diameter: 0.8, height: 0.5 }, scene);
+            body.position.y = 0.26;
+            const bMat = new BABYLON.StandardMaterial("bM", scene);
+            bMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.14);
+            body.material = bMat;
+            body.parent = robotGroup;
+
+            const dome = BABYLON.MeshBuilder.CreateSphere("rD", { diameter: 0.8, slice: 0.5 }, scene);
+            dome.position.y = 0.51;
+            const dMat = new BABYLON.StandardMaterial("dM", scene);
+            dMat.diffuseColor = new BABYLON.Color3(0.95, 0.98, 1);
+            dMat.alpha = 0.65;
+            dome.material = dMat;
+            dome.parent = robotGroup;
+
+            const led = BABYLON.MeshBuilder.CreateSphere("rL", { diameter: 0.45 }, scene);
+            led.position.y = 0.54;
+            const lMat = new BABYLON.StandardMaterial("lM", scene);
+            lMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+            lMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            led.material = lMat;
+            led.parent = robotGroup;
+            scene.robotLedMat3D = lMat;
+
+            const visor = BABYLON.MeshBuilder.CreateBox("vis", { width: 0.25, height: 0.12, depth: 0.15 }, scene);
+            visor.position = new BABYLON.Vector3(0, 0.45, -0.38);
+            const vMat = new BABYLON.StandardMaterial("vM", scene);
+            vMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            visor.material = vMat;
+            visor.parent = robotGroup;
+
+            scene.robotGroup3D = robotGroup;
+            robotGroup.position.set(10, 0, 0);
+
+            // BUCLE SIMULADOR
+            scene.registerBeforeRender(() => {
+                if (!is3DRunning) return;
+
+                const dt = engine.getDeltaTime() / 1000;
+                t3D += speed3D * dt;
+                if (t3D >= Math.PI * 2) {
+                    is3DRunning = false;
+                    document.getElementById("btn-run-3d").innerText = "▶ INICIAR SIMULACIÓN DE PRUEBA";
+                    checkFinalGraduation();
+                }
+
+                const rx = 10;
+                const rz = 5;
+                const px = rx * Math.cos(t3D);
+                const pz = rz * Math.sin(t3D);
+                robotGroup.position.set(px, 0, pz);
+                robotGroup.rotation.y = -t3D + Math.PI / 2;
+
+                // Destellos según sensor
+                const normAngle = (t3D % (Math.PI * 2));
+                if (Math.abs(normAngle - 0) < 0.25) scene.robotLedMat3D.emissiveColor = scene.markers3D[1].mat.diffuseColor;
+                else if (Math.abs(normAngle - Math.PI * 0.6) < 0.25) scene.robotLedMat3D.emissiveColor = scene.markers3D[2].mat.diffuseColor;
+                else if (Math.abs(normAngle - Math.PI * 1.3) < 0.25) scene.robotLedMat3D.emissiveColor = scene.markers3D[3].mat.diffuseColor;
+                else scene.robotLedMat3D.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            });
+
+            return scene;
+        };
+
+        const scene3D = createScene3D();
+        engine.runRenderLoop(() => { if (document.getElementById("tab-4").classList.contains("active")) scene3D.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+
+        function update3DMarkersColors() {
+            const v1 = document.getElementById("sel-1").value;
+            const v2 = document.getElementById("sel-2").value;
+            const v3 = document.getElementById("sel-3").value;
+
+            const setCol = (num, val) => {
+                let hex = "#444444";
+                if (val === "ROJO") hex = "#ff2222";
+                if (val === "AZUL") hex = "#00aaff";
+                if (val === "VERDE") hex = "#00ff44";
+                scene3D.markers3D[num].mat.diffuseColor = BABYLON.Color3.FromHexString(hex);
+            };
+            setCol(1, v1);
+            setCol(2, v2);
+            setCol(3, v3);
+        }
+
+        document.querySelectorAll("select").forEach(sel => {
+            sel.addEventListener("change", update3DMarkersColors);
+        });
+
+        function runFinal3D() {
+            update3DMarkersColors();
+            t3D = 0;
+            is3DRunning = true;
+            document.getElementById("final-banner").style.display = "none";
+            document.getElementById("btn-run-3d").innerText = "⏳ SIMULANDO RECORRIDO EN VIVO...";
+        }
+
+        function checkFinalGraduation() {
+            const v1 = document.getElementById("sel-1").value;
+            const v2 = document.getElementById("sel-2").value;
+            const v3 = document.getElementById("sel-3").value;
+
+            if (v1 === "ROJO" && v2 === "AZUL" && v3 === "VERDE") {
+                document.getElementById("final-banner").style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>

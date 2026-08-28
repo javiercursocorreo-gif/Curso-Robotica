@@ -1,0 +1,759 @@
+<!-- MEJORAS:
+- Colores distintivos (Rojo, Verde, Azul, Amarillo): Se han redefinido los colores de los paquetes para que sean diametralmente opuestos entre sí, eliminando cualquier confusión visual. Además, la ropa de cada vecino (torso) coincide exactamente con el color de su paquete, mejorando la correlación pedagógica.
+- Sistema de Puertas Dinámicas en las casas: Se han modelado puertas corredizas (estilo persiana vertical) y un interior hueco (caja negra) en cada edificio. 
+- Lógica de sincronización de puertas: Cuando el robot llega y entra en estado NOTIFICANDO, la puerta del vecino comienza a abrirse antes de que éste salga. Al regresar y entrar en su casa, la puerta se cierra suavemente tras él, proporcionando un ciclo de vida de animación completo y realista.
+- Eliminación total de z-fighting en fachadas usando márgenes de precisión matemática entre el marco, el interior oscuro y la propia puerta.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            display: block;
+            outline: none;
+        }
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid #00f2ff;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding-left: 30px;
+            box-sizing: border-box;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #00f2ff;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        header p {
+            margin: 4px 0 0 0;
+            font-size: 16px;
+            color: #aaaaaa;
+        }
+        #ui-panel {
+            position: absolute;
+            top: 100px;
+            right: 25px;
+            width: 420px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #00f2ff;
+            border-radius: 12px;
+            padding: 25px;
+            z-index: 10;
+            box-sizing: border-box;
+            backdrop-filter: blur(5px);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+        #ui-panel h2 {
+            margin: 0 0 20px 0;
+            font-size: 22px;
+            text-align: center;
+            color: white;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+            letter-spacing: 1px;
+        }
+        .ui-row {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .ui-label {
+            font-weight: bold;
+            color: #aaaaaa;
+            display: block;
+            font-size: 18px;
+            margin-bottom: 6px;
+        }
+        .ui-value {
+            font-size: 20px;
+            color: white;
+        }
+        #task-value {
+            color: #00f2ff;
+            font-weight: bold;
+            font-size: 26px;
+            display: block;
+            margin-top: 5px;
+        }
+        .param-section {
+            margin-top: 25px;
+            border-top: 2px dashed #444;
+            padding-top: 20px;
+        }
+        .param-section h3 {
+            margin: 0 0 15px 0;
+            color: #00f2ff;
+            font-size: 18px;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 24px;
+            cursor: pointer;
+        }
+        button {
+            margin-top: 25px;
+            width: 100%;
+            height: 70px;
+            background: #00f2ff;
+            color: #000;
+            font-size: 22px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            text-transform: uppercase;
+        }
+        button:hover {
+            background: #00c8d4;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>ROBOT REPARTIDOR</h1>
+        <p>Entregas autónomas — tarea guardada IR A PUNTO</p>
+    </header>
+
+    <div id="ui-panel">
+        <h2>TAREA GUARDADA ACTIVA</h2>
+        <div class="ui-row">
+            <span class="ui-label">TAREA:</span>
+            <span id="task-value">ABRIR PUERTA</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">DESTINO ACTUAL:</span>
+            <span class="ui-value" id="ui-dest">Almacén</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">DISTANCIA:</span>
+            <span class="ui-value" id="ui-dist">0.0 metros</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">ENTREGAS REALIZADAS:</span>
+            <span class="ui-value" id="ui-deliv">0 / 4</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">ESTADO:</span>
+            <span class="ui-value" id="ui-state">Preparando salida</span>
+        </div>
+
+        <div class="param-section">
+            <h3>INTERACCIÓN: PARÁMETROS</h3>
+            <div class="ui-row">
+                <span class="ui-label">VELOCIDAD ROBOT: <span id="lbl-speed" style="color:white">4.5 m/s</span></span>
+                <input type="range" id="param-speed" min="2" max="10" step="0.5" value="4.5">
+            </div>
+            <div class="ui-row">
+                <span class="ui-label">TIEMPO DE RESPUESTA VECINO: <span id="lbl-delay" style="color:white">2.0 s</span></span>
+                <input type="range" id="param-delay" min="0" max="6" step="0.5" value="2.0">
+            </div>
+        </div>
+
+        <button id="btn-ronda">Nueva Ronda</button>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('renderCanvas');
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+
+            // CÁMARA
+            const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3.5, 36, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 10; 
+            camera.upperRadiusLimit = 45;
+
+            // ILUMINACIÓN CINEMATOGRÁFICA
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 0.6;
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(10, 20, 10);
+            dirLight.intensity = 3.0;
+
+            const whLight = new BABYLON.PointLight("whLight", new BABYLON.Vector3(0, 2.5, 0), scene);
+            whLight.intensity = 15.0;
+            whLight.diffuse = new BABYLON.Color3(1.0, 0.9, 0.7);
+
+            const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+
+            const glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.8;
+
+            const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+            pipeline.msaaSamples = 4;
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.8;
+            pipeline.bloomWeight = 0.4;
+            pipeline.bloomKernel = 64;
+            pipeline.bloomScale = 0.5;
+            pipeline.vignetteEnabled = true;
+            pipeline.vignetteWeight = 1.5;
+
+            function createPBR(name, colorHex, roughness = 0.8, metallic = 0) {
+                const mat = new BABYLON.PBRMaterial(name, scene);
+                mat.albedoColor = BABYLON.Color3.FromHexString(colorHex);
+                mat.roughness = roughness;
+                mat.metallic = metallic;
+                return mat;
+            }
+
+            // COLORES DEFINITIVOS Y TOTALMENTE DIFERENTES PARA CADA VECINO
+            const packageColors = ["#FF2222", "#22FF22", "#2222FF", "#FFFF22"]; // Rojo, Verde, Azul, Amarillo
+            const packageMats = packageColors.map((hex, i) => createPBR("packMat" + i, hex, 0.7, 0.1));
+
+            // ENTORNO
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 45, height: 45}, scene);
+            ground.material = createPBR("groundMat", "#1a1a1a", 0.9, 0);
+            ground.receiveShadows = true;
+
+            const aceras = BABYLON.MeshBuilder.CreateBox("aceras", {width: 32, height: 0.2, depth: 32}, scene);
+            aceras.position.y = 0.1;
+            aceras.material = createPBR("acerasMat", "#3a3a4a", 0.9, 0);
+            aceras.receiveShadows = true;
+
+            // EDIFICIOS Y PUERTAS INDIVIDUALES
+            const bColors = ["#4a6fa5", "#6b8e6b", "#8e6b6b", "#8e8b6b"];
+            const bPos = [[13, -13], [13, 13], [-13, 13], [-13, -13]]; 
+            
+            const nDoors = []; // Posiciones donde caminan los vecinos
+            const houseDoors = []; // Meshes de las puertas corredizas
+
+            for (let i = 0; i < 4; i++) {
+                // Edificio
+                const b = BABYLON.MeshBuilder.CreateBox("b" + i, {width: 4, height: 16, depth: 4}, scene);
+                b.position.set(bPos[i][0], 8, bPos[i][1]);
+                b.material = createPBR("bMat" + i, bColors[i], 0.7, 0.1);
+                shadowGen.addShadowCaster(b);
+                b.receiveShadows = true;
+
+                // Coordenadas para evitar z-fighting con la pared (x = 11 o x = -11)
+                const isRightSide = bPos[i][0] > 0;
+                const doorX = isRightSide ? 10.8 : -10.8;  // Superficie exterior para la puerta
+                const holeX = isRightSide ? 10.95 : -10.95; // Interior hueco de la casa
+                
+                nDoors.push({x: doorX, z: bPos[i][1]});
+
+                // Interior oscuro (ilusión óptica de estar hueco)
+                const hole = BABYLON.MeshBuilder.CreateBox("hole"+i, {width: 0.1, height: 2.2, depth: 1.2}, scene);
+                hole.position.set(holeX, 1.1, bPos[i][1]);
+                hole.material = createPBR("holeMat", "#000000", 1.0, 0);
+
+                // Puerta Corrediza Vertical
+                const hDoor = BABYLON.MeshBuilder.CreateBox("hDoor"+i, {width: 0.15, height: 2.2, depth: 1.3}, scene);
+                hDoor.position.set(doorX, 1.1, bPos[i][1]);
+                hDoor.material = createPBR("hDoorMat"+i, "#eeeeee", 0.6, 0.2);
+                shadowGen.addShadowCaster(hDoor);
+                
+                houseDoors.push(hDoor);
+            }
+
+            // ALMACÉN CENTRAL
+            const whMat = createPBR("whMat", "#FF6B35", 0.5, 0.2);
+            const buildWall = (name, w, h, d, x, y, z) => {
+                const wall = BABYLON.MeshBuilder.CreateBox(name, {width: w, height: h, depth: d}, scene);
+                wall.position.set(x, y, z);
+                wall.material = whMat;
+                shadowGen.addShadowCaster(wall);
+                wall.receiveShadows = true;
+            };
+            buildWall("wallL", 0.4, 3, 4, -1.8, 1.5, 0);
+            buildWall("wallR", 0.4, 3, 4, 1.8, 1.5, 0);
+            buildWall("wallB", 4.0, 3, 0.4, 0, 1.5, 1.8);
+            buildWall("wallFL", 1.2, 3, 0.4, -1.4, 1.5, -1.8);
+            buildWall("wallFR", 1.2, 3, 0.4, 1.4, 1.5, -1.8);
+            buildWall("roof", 4.0, 0.4, 4.0, 0, 3.2, 0);
+
+            const door = BABYLON.MeshBuilder.CreateBox("door", {width: 1.6, height: 3, depth: 0.15}, scene);
+            door.position.set(0, 1.5, -1.8);
+            door.material = createPBR("doorMat", "#aaaaaa", 0.6, 0.5);
+            shadowGen.addShadowCaster(door);
+
+            const plane = BABYLON.MeshBuilder.CreatePlane("whLabel", {width: 3.8, height: 1.2}, scene);
+            plane.position.set(0, 3.8, -2.01);
+            const dtTex = new BABYLON.DynamicTexture("dtTex", {width: 512, height: 256}, scene);
+            dtTex.drawText("ALMACÉN", null, 160, "bold 80px Arial", "white", "#FF6B35", true);
+            const dtMat = new BABYLON.PBRMaterial("dtMat", scene);
+            dtMat.albedoTexture = dtTex;
+            dtMat.roughness = 0.8;
+            plane.material = dtMat;
+
+            // PUNTOS DE ENTREGA
+            const deliveryDiscs = [];
+            const dPos = [[8, -13], [8, 13], [-8, 13], [-8, -13]]; // Alineados con las puertas en Z
+            for (let i = 0; i < 4; i++) {
+                const disc = BABYLON.MeshBuilder.CreateCylinder("d" + i, {diameter: 2.5, height: 0.05}, scene);
+                disc.position.set(dPos[i][0], 0.22, dPos[i][1]);
+                const dMat = createPBR("dMat" + i, "#00f2ff", 0.5, 0.2);
+                dMat.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff").scale(0.15);
+                disc.material = dMat;
+                deliveryDiscs.push(disc);
+                disc.receiveShadows = true;
+            }
+
+            // CREACIÓN DE LOS VECINOS
+            const neighbors = [];
+            const skinMat = createPBR("skin", "#FFDCB1", 0.7, 0.0);
+            const pantsMat = createPBR("pants", "#333333", 0.9, 0.0);
+
+            for(let i = 0; i < 4; i++) {
+                const nGroup = new BABYLON.TransformNode("neighbor"+i, scene);
+                
+                // El torso comparte el color del paquete asignado
+                const torso = BABYLON.MeshBuilder.CreateBox("torso", {width: 0.5, height: 0.7, depth: 0.3}, scene);
+                torso.parent = nGroup;
+                torso.position.y = 1.05;
+                torso.material = packageMats[i]; // Conexión visual directa
+                shadowGen.addShadowCaster(torso);
+
+                const head = BABYLON.MeshBuilder.CreateSphere("nHead", {diameter: 0.4}, scene);
+                head.parent = nGroup;
+                head.position.y = 1.6;
+                head.material = skinMat;
+                shadowGen.addShadowCaster(head);
+
+                const buildLimb = (name, w, h, d, px, py, pz, mat) => {
+                    const pivot = new BABYLON.TransformNode(name+"Pivot", scene);
+                    pivot.parent = nGroup;
+                    pivot.position.set(px, py, pz);
+                    const mesh = BABYLON.MeshBuilder.CreateBox(name, {width: w, height: h, depth: d}, scene);
+                    mesh.parent = pivot;
+                    mesh.position.y = -h / 2 + 0.05; 
+                    mesh.material = mat;
+                    shadowGen.addShadowCaster(mesh);
+                    return pivot;
+                };
+
+                const armL = buildLimb("armL", 0.15, 0.6, 0.15, -0.35, 1.35, 0, skinMat);
+                const armR = buildLimb("armR", 0.15, 0.6, 0.15,  0.35, 1.35, 0, skinMat);
+                const legL = buildLimb("legL", 0.2,  0.7, 0.2,  -0.15, 0.7,  0, pantsMat);
+                const legR = buildLimb("legR", 0.2,  0.7, 0.2,   0.15, 0.7,  0, pantsMat);
+
+                // Paquete que lleva el vecino en sus manos
+                const heldPack = BABYLON.MeshBuilder.CreateBox("heldPack"+i, {width: 0.4, height: 0.3, depth: 0.4}, scene);
+                heldPack.parent = nGroup;
+                heldPack.position.set(0, 1.15, 0.35);
+                heldPack.material = packageMats[i];
+                heldPack.isVisible = false;
+                shadowGen.addShadowCaster(heldPack);
+
+                nGroup.limbs = { armL, armR, legL, legR };
+                nGroup.heldPackage = heldPack;
+                nGroup.hasPackage = false;
+                nGroup.doorOpen = false; // Control de su puerta personal
+                
+                nGroup.position.set(nDoors[i].x, 0, nDoors[i].z);
+                nGroup.setEnabled(false); 
+                nGroup.isReturning = false;
+                neighbors.push(nGroup);
+            }
+
+            // ROBOT REPARTIDOR
+            const robot = new BABYLON.TransformNode("robot", scene);
+            robot.position.set(0, 0.4, 0); 
+            robot.rotation.y = Math.PI;
+
+            const chassis = BABYLON.MeshBuilder.CreateBox("chassis", {width: 1.2, height: 0.25, depth: 1.8}, scene);
+            chassis.parent = robot;
+            chassis.position.y = 0.3;
+            chassis.material = createPBR("chassisMat", "#FF6B35", 0.2, 0.3);
+            chassis.material.clearCoat.isEnabled = true;
+            chassis.material.clearCoat.intensity = 1.0;
+            shadowGen.addShadowCaster(chassis);
+            chassis.receiveShadows = true;
+
+            const boxBase = BABYLON.MeshBuilder.CreateBox("boxBase", {width: 1.0, height: 0.6, depth: 1.2}, scene);
+            boxBase.parent = robot;
+            boxBase.position.set(0, 0.725, 0);
+            boxBase.material = createPBR("boxMat", "#00BFA5", 0.3, 0.1);
+            shadowGen.addShadowCaster(boxBase);
+            boxBase.receiveShadows = true;
+
+            const boxLidPivot = new BABYLON.TransformNode("boxLidPivot", scene);
+            boxLidPivot.parent = boxBase;
+            boxLidPivot.position.set(0, 0.3, -0.6);
+
+            const boxLid = BABYLON.MeshBuilder.CreateBox("boxLid", {width: 1.0, height: 0.15, depth: 1.2}, scene);
+            boxLid.parent = boxLidPivot;
+            boxLid.position.set(0, 0.075, 0.6);
+            boxLid.material = boxBase.material;
+            shadowGen.addShadowCaster(boxLid);
+            boxLid.receiveShadows = true;
+
+            // Paquete interno del robot (El material se actualiza dinámicamente según el destino)
+            const robotPackage = BABYLON.MeshBuilder.CreateBox("robotPackage", {width: 0.6, height: 0.35, depth: 0.6}, scene);
+            robotPackage.parent = boxBase;
+            robotPackage.position.set(0, 0.15, 0);
+            robotPackage.material = packageMats[0]; 
+            robotPackage.isVisible = false;
+            shadowGen.addShadowCaster(robotPackage);
+
+            const sensor = BABYLON.MeshBuilder.CreateBox("sensor", {width: 0.5, height: 0.15, depth: 0.15}, scene);
+            sensor.parent = robot;
+            sensor.position.set(0, 0.5, 0.95);
+            const sensorMat = createPBR("sensorMat", "#FFD700", 0.3, 0.8);
+            sensorMat.emissiveColor = BABYLON.Color3.FromHexString("#FFD700");
+            sensor.material = sensorMat;
+            shadowGen.addShadowCaster(sensor);
+
+            const antenna = BABYLON.MeshBuilder.CreateCylinder("antenna", {diameter: 0.04, height: 0.7}, scene);
+            antenna.parent = robot;
+            antenna.position.set(0.4, 1.2, -0.6);
+            antenna.material = createPBR("antMat", "#8A2BE2", 0.4, 0.5);
+            shadowGen.addShadowCaster(antenna);
+
+            const wheels = [];
+            const wPos = [[-0.65, 0.2, 0.6], [0.65, 0.2, 0.6], [-0.65, 0.2, -0.6], [0.65, 0.2, -0.6]];
+            const wMat = createPBR("wMat", "#222222", 0.9, 0.0);
+            
+            wPos.forEach(p => {
+                const pivot = new BABYLON.TransformNode("wPivot", scene);
+                pivot.parent = robot;
+                pivot.position.set(p[0], p[1], p[2]);
+                const w = BABYLON.MeshBuilder.CreateCylinder("w", {diameter: 0.4, height: 0.15}, scene);
+                w.parent = pivot;
+                w.rotation.z = Math.PI / 2;
+                w.material = wMat;
+                shadowGen.addShadowCaster(w);
+                w.receiveShadows = true;
+                wheels.push(pivot);
+            });
+
+            // LÓGICA DE RUTA
+            const route = [
+                { x: 8, z: -6, action: 'nav', desc: 'Aproximación P1' },
+                { x: 8, z: -13, action: 'deliver', desc: 'Punto 1', pointIdx: 0 },
+                { x: 8, z: 13, action: 'deliver', desc: 'Punto 2', pointIdx: 1 },
+                { x: -8, z: 13, action: 'deliver', desc: 'Punto 3', pointIdx: 2 },
+                { x: -8, z: -13, action: 'deliver', desc: 'Punto 4', pointIdx: 3 },
+                { x: -8, z: -6, action: 'nav', desc: 'Regresando por calle' },
+                { x: 0, z: -6, action: 'finish', desc: 'Entrada almacén' }
+            ];
+
+            // VARIABLES DE ESTADO Y PARÁMETROS
+            let currentState = "ABRIENDO_S";
+            let wpIndex = 0;
+            let deliveriesCount = 0;
+            let actionTimer = 0;
+            
+            let robotSpeed = 4.5;
+            let neighborDelay = 2.0;
+
+            const uiTask = document.getElementById("task-value");
+            const uiDest = document.getElementById("ui-dest");
+            const uiDist = document.getElementById("ui-dist");
+            const uiDeliv = document.getElementById("ui-deliv");
+            const uiState = document.getElementById("ui-state");
+
+            const inSpeed = document.getElementById("param-speed");
+            const lblSpeed = document.getElementById("lbl-speed");
+            inSpeed.addEventListener("input", (e) => {
+                robotSpeed = parseFloat(e.target.value);
+                lblSpeed.innerText = robotSpeed.toFixed(1) + " m/s";
+            });
+
+            const inDelay = document.getElementById("param-delay");
+            const lblDelay = document.getElementById("lbl-delay");
+            inDelay.addEventListener("input", (e) => {
+                neighborDelay = parseFloat(e.target.value);
+                lblDelay.innerText = neighborDelay.toFixed(1) + " s";
+            });
+
+            window.resetRonda = function() {
+                wpIndex = 0;
+                deliveriesCount = 0;
+                actionTimer = 0;
+                
+                robot.position.set(0, 0.4, 0);
+                robot.rotation.y = Math.PI;
+                door.position.y = 1.5;
+                boxLidPivot.rotation.x = 0;
+                robotPackage.isVisible = false;
+
+                deliveryDiscs.forEach(d => {
+                    d.material.emissiveColor = BABYLON.Color3.FromHexString("#00f2ff").scale(0.15);
+                });
+
+                neighbors.forEach((n, i) => {
+                    n.setEnabled(false);
+                    n.position.set(nDoors[i].x, 0, nDoors[i].z);
+                    n.isReturning = false;
+                    n.hasPackage = false;
+                    n.doorOpen = false;
+                    n.heldPackage.isVisible = false;
+                });
+
+                houseDoors.forEach(d => d.position.y = 1.1);
+
+                currentState = "ABRIENDO_S";
+                updateUI("ABRIR PUERTA", "Almacén", 0, "Preparando salida");
+                uiDeliv.innerText = "0 / 4";
+            };
+
+            document.getElementById("btn-ronda").addEventListener("click", resetRonda);
+
+            function updateUI(task, dest, dist, stateTxt) {
+                uiTask.innerText = task;
+                uiDest.innerText = dest;
+                uiDist.innerText = (typeof dist === 'number') ? dist.toFixed(1) + " metros" : dist;
+                uiState.innerText = stateTxt;
+            }
+
+            // FUNCIÓN DE MOVIMIENTO Y ANIMACIÓN CINEMÁTICA
+            function moveEntityTowards(entity, tx, tz, speed, deltaTime, isRobot = false, stopDist = 0.05) {
+                const targetPos = new BABYLON.Vector3(tx, entity.position.y, tz);
+                const dist = BABYLON.Vector3.Distance(entity.position, targetPos);
+                
+                if (dist > stopDist) {
+                    const dir = targetPos.subtract(entity.position).normalize();
+                    entity.position.addInPlace(dir.scale(speed * deltaTime));
+
+                    const targetAngle = Math.atan2(dir.x, dir.z);
+                    let currentAngle = entity.rotation.y;
+                    let diff = targetAngle - currentAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    entity.rotation.y += diff * 12 * deltaTime;
+
+                    if (isRobot) {
+                        wheels.forEach(w => w.rotation.x += speed * deltaTime * 2.2);
+                    } else if (entity.limbs) {
+                        const t = performance.now() * 0.012;
+                        if (entity.hasPackage) {
+                            entity.limbs.armL.rotation.x = -1.2;
+                            entity.limbs.armR.rotation.x = -1.2;
+                        } else {
+                            entity.limbs.armL.rotation.x = Math.sin(t) * 0.8;
+                            entity.limbs.armR.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                        }
+                        entity.limbs.legL.rotation.x = Math.sin(t + Math.PI) * 0.8;
+                        entity.limbs.legR.rotation.x = Math.sin(t) * 0.8;
+                    }
+                    return { reached: false, dist: dist };
+                }
+                
+                if (!isRobot && entity.limbs) {
+                    if (entity.hasPackage) {
+                        entity.limbs.armL.rotation.x = -1.2;
+                        entity.limbs.armR.rotation.x = -1.2;
+                    } else {
+                        entity.limbs.armL.rotation.x = 0;
+                        entity.limbs.armR.rotation.x = 0;
+                    }
+                    entity.limbs.legL.rotation.x = 0;
+                    entity.limbs.legR.rotation.x = 0;
+                }
+                return { reached: true, dist: Math.max(0, dist - stopDist) };
+            }
+
+            scene.onBeforeRenderObservable.add(() => {
+                const dt = engine.getDeltaTime() / 1000;
+                const target = route[wpIndex];
+
+                // --- ANIMACIÓN DE PUERTAS DE LAS CASAS ---
+                neighbors.forEach((n, idx) => {
+                    // La puerta se abre a 3.3m de altura si doorOpen es true, si no baja a 1.1m
+                    const targetY = n.doorOpen ? 3.3 : 1.1;
+                    houseDoors[idx].position.y += (targetY - houseDoors[idx].position.y) * 4 * dt;
+                });
+
+                // --- LÓGICA PARALELA: Retorno de Vecinos a sus casas ---
+                neighbors.forEach((n, idx) => {
+                    if (n.isReturning) {
+                        const doorPos = nDoors[idx];
+                        const moveN = moveEntityTowards(n, doorPos.x, doorPos.z, 3.5, dt, false, 0.1);
+                        if (moveN.reached) {
+                            n.isReturning = false;
+                            n.setEnabled(false);
+                            n.hasPackage = false; 
+                            n.doorOpen = false; // La puerta de la casa comienza a cerrarse
+                        }
+                    }
+                });
+
+                // --- MÁQUINA DE ESTADOS PRINCIPAL DEL ROBOT ---
+                switch (currentState) {
+                    case "ABRIENDO_S":
+                        updateUI("ABRIR PUERTA", "Calle", 6.0, "Preparando salida");
+                        door.position.y += 2.5 * dt;
+                        if (door.position.y >= 4.5) {
+                            door.position.y = 4.5;
+                            currentState = "SALIENDO";
+                        }
+                        break;
+
+                    case "SALIENDO":
+                        const moveS = moveEntityTowards(robot, 0, -6, robotSpeed, dt, true);
+                        updateUI("IR A PUNTO", "Calle", moveS.dist, "Saliendo del almacén");
+                        if (moveS.reached) currentState = "CERRANDO_S";
+                        break;
+
+                    case "CERRANDO_S":
+                        updateUI("CERRAR PUERTA", target.desc, 0.0, "Cerrando puerta");
+                        door.position.y -= 2.5 * dt;
+                        if (door.position.y <= 1.5) {
+                            door.position.y = 1.5;
+                            currentState = "EN_RUTA";
+                        }
+                        break;
+
+                    case "EN_RUTA":
+                        const moveR = moveEntityTowards(robot, target.x, target.z, robotSpeed, dt, true);
+                        updateUI("IR A PUNTO", target.desc, moveR.dist, "En ruta hacia destino");
+
+                        if (moveR.reached) {
+                            if (target.action === 'deliver') {
+                                currentState = "NOTIFICANDO";
+                                actionTimer = 0;
+                                // Iniciar la apertura de la puerta de este vecino
+                                neighbors[target.pointIdx].doorOpen = true; 
+                            } else if (target.action === 'finish') {
+                                currentState = "ABRIENDO_E";
+                            } else {
+                                wpIndex++;
+                            }
+                        }
+                        break;
+
+                    case "NOTIFICANDO":
+                        actionTimer += dt;
+                        updateUI("NOTIFICAR CLIENTE", target.desc, "Esperando...", "Llamando al móvil del vecino");
+                        if (actionTimer >= neighborDelay) {
+                            currentState = "VECINO_ACERCANDO";
+                            const n = neighbors[target.pointIdx];
+                            n.position.set(nDoors[target.pointIdx].x, 0, nDoors[target.pointIdx].z);
+                            n.setEnabled(true);
+                        }
+                        break;
+
+                    case "VECINO_ACERCANDO":
+                        updateUI("ESPERAR CLIENTE", target.desc, "0.0 metros", "Vecino acercándose a recoger");
+                        const activeNeighbor = neighbors[target.pointIdx];
+                        
+                        const moveN = moveEntityTowards(activeNeighbor, robot.position.x, robot.position.z, 3.5, dt, false, 1.4);
+                        if (moveN.reached) {
+                            currentState = "VECINO_RECOGIENDO";
+                            actionTimer = 0;
+                            // Asignar el material correcto al paquete dentro del robot
+                            robotPackage.material = packageMats[target.pointIdx];
+                            robotPackage.isVisible = true; 
+                        }
+                        break;
+
+                    case "VECINO_RECOGIENDO":
+                        updateUI("ENTREGAR PAQUETE", target.desc, "0.0 metros", "El vecino recoge la caja");
+                        actionTimer += dt;
+                        const currentNeighbor = neighbors[target.pointIdx];
+                        
+                        if (actionTimer < 1) {
+                            boxLidPivot.rotation.x = -(Math.PI / 2.2) * actionTimer;
+                        } else if (actionTimer < 2) {
+                            boxLidPivot.rotation.x = -(Math.PI / 2.2) * (2 - actionTimer);
+                            
+                            // Transferencia física del objeto
+                            if (robotPackage.isVisible) {
+                                robotPackage.isVisible = false;
+                                currentNeighbor.hasPackage = true;
+                                currentNeighbor.heldPackage.isVisible = true;
+                            }
+                        }
+
+                        if (actionTimer >= 2.0) {
+                            boxLidPivot.rotation.x = 0;
+                            const disc = deliveryDiscs[target.pointIdx];
+                            disc.material.emissiveColor = BABYLON.Color3.FromHexString("#00ff00").scale(0.25);
+                            
+                            deliveriesCount++;
+                            uiDeliv.innerText = deliveriesCount + " / 4";
+                            
+                            currentNeighbor.isReturning = true;
+                            
+                            currentState = "EN_RUTA";
+                            wpIndex++;
+                        }
+                        break;
+
+                    case "ABRIENDO_E":
+                        updateUI("ABRIR PUERTA", "Interior Almacén", 6.0, "Preparando entrada");
+                        door.position.y += 2.5 * dt;
+                        if (door.position.y >= 4.5) {
+                            door.position.y = 4.5;
+                            currentState = "ENTRANDO";
+                        }
+                        break;
+
+                    case "ENTRANDO":
+                        const moveE = moveEntityTowards(robot, 0, 0, robotSpeed, dt, true);
+                        updateUI("VOLVER AL ALMACÉN", "Interior", moveE.dist, "Entrando al almacén");
+                        if (moveE.reached) {
+                            robot.rotation.y = Math.PI; 
+                            currentState = "CERRANDO_E";
+                        }
+                        break;
+
+                    case "CERRANDO_E":
+                        updateUI("CERRAR PUERTA", "Completado", 0.0, "Cerrando almacén");
+                        door.position.y -= 2.5 * dt;
+                        if (door.position.y <= 1.5) {
+                            door.position.y = 1.5;
+                            currentState = "TERMINADO";
+                        }
+                        break;
+
+                    case "TERMINADO":
+                        updateUI("ESPERANDO", "En origen", 0.0, "Ronda finalizada");
+                        break;
+                }
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

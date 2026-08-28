@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — Hombro (Coordinar acciones)</title>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #0d0d1a;
+  --bg2: #13132a;
+  --glass: rgba(0,20,40,0.85);
+  --text: #ffffff;
+  --sub: #aaaaaa;
+  --success: #00e676;
+  --danger: #ff4444;
+  --warning: #ffcc00;
+  --orange: #FF6B35;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 2px solid var(--primary);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+#header h1 { font-size: 22px; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; }
+#header .subtitle { font-size: 14px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: bold; }
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 1px solid #333;
+  display: flex; z-index: 99; padding: 6px 12px; gap: 8px;
+}
+.prog-btn {
+  flex: 1; height: 44px; border: 2px solid #444; background: transparent;
+  color: var(--sub); font-size: 14px; cursor: pointer;
+  border-radius: 8px; transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+  outline: none;
+}
+.prog-btn:focus { outline: none; }
+.prog-btn.active { border-color: var(--warning); color: var(--warning); background: rgba(255,204,0,0.1); }
+.prog-btn.done { border-color: var(--primary); color: var(--primary); background: rgba(0,242,255,0.1); }
+#main {
+  margin-top: 130px;
+  min-height: calc(100vh - 130px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pantalla {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 800px; width: 100%;
+}
+.pantalla.activa { display: flex; }
+.portada-emojis { font-size: 80px; margin-bottom: 20px; }
+.portada-titulo { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 12px; }
+.portada-desc { font-size: 18px; color: var(--sub); margin-bottom: 30px; max-width: 520px; line-height: 1.6; }
+.badges-container { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 14px 22px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+.btn-empezar {
+  background: var(--primary); color: #000; border: none; padding: 18px 48px;
+  font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer;
+  min-height: 70px; transition: all 0.2s; letter-spacing: 2px;
+}
+.btn-empezar:hover { background: #00d4e0; transform: scale(1.03); }
+
+.game-card {
+  background: var(--glass);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 800px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,242,255,0.08);
+}
+.game-title { font-size: 13px; letter-spacing: 4px; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+.game-question { font-size: 22px; line-height: 1.4; margin-bottom: 28px; color: var(--text); font-weight: 600; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.opt-btn {
+  min-height: 75px; padding: 16px 20px;
+  border: 2px solid #444; background: rgba(255,255,255,0.04);
+  color: var(--text); font-size: 18px; cursor: pointer;
+  border-radius: 12px; transition: all 0.25s;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,68,68,0.1); color: var(--danger); }
+.opt-btn:disabled { cursor: default; }
+
+.feedback {
+  min-height: 60px; padding: 14px 20px;
+  border-radius: 10px; font-size: 18px; margin-bottom: 18px;
+  display: none; line-height: 1.4;
+}
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,230,118,0.15); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+.btn-siguiente {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-siguiente.show { display: block; }
+.btn-siguiente:hover { background: #00d4e0; transform: translateY(-2px); }
+
+.btn-solucion {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--warning); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-solucion.show { display: block; }
+.btn-solucion:hover { background: #e6b800; transform: translateY(-2px); }
+
+.btn-reiniciar {
+  min-height: 55px; padding: 0 24px;
+  background: transparent; border: 2px solid #555; color: var(--sub);
+  border-radius: 10px; font-size: 16px; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-top: 14px;
+}
+.btn-reiniciar:hover { border-color: var(--warning); color: var(--warning); }
+
+/* Dual Arm HUD (Base giratoria + Elevación de Hombro) */
+.dual-hud {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+.hud-panel {
+  background: #050515;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.hud-title {
+  position: absolute;
+  top: 8px;
+  font-size: 14px;
+  color: var(--primary);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+.hud-canvas {
+  width: 100%;
+  height: 100%;
+}
+.hud-value {
+  position: absolute;
+  bottom: 8px;
+  font-family: monospace;
+  font-size: 16px;
+  color: var(--warning);
+  background: rgba(0,0,0,0.6);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Animations */
+@keyframes sweep-base-alarm {
+  0%, 100% { transform: rotate(45deg); }
+  50% { transform: rotate(-45deg); }
+}
+@keyframes sweep-shoulder-alarm {
+  0%, 100% { transform: rotate(30deg); }
+  50% { transform: rotate(75deg); }
+}
+
+/* Sortable items */
+.sortable-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.sort-item {
+  min-height: 70px; padding: 14px 20px;
+  background: rgba(0,191,165,0.08); border: 2px solid var(--teal);
+  border-radius: 12px; font-size: 18px; cursor: grab;
+  display: flex; align-items: center; gap: 14px;
+  user-select: none; transition: all 0.2s;
+  text-align: left;
+}
+.sort-item:active { cursor: grabbing; }
+.sort-item.dragging { opacity: 0.4; }
+.sort-item.over { border: 2px dashed var(--warning) !important; background: rgba(255,204,0,0.08) !important; }
+.sort-num {
+  width: 36px; height: 36px; background: var(--teal);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 16px; color: #000; flex-shrink: 0;
+}
+.btn-verificar {
+  min-height: 75px; width: 100%;
+  background: var(--orange); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-bottom: 12px;
+}
+.btn-verificar:hover { background: #e55c28; }
+
+/* Match grid */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-item {
+  min-height: 70px; padding: 14px 16px;
+  border: 2px solid #444; border-radius: 10px;
+  font-size: 17px; cursor: pointer; transition: all 0.25s;
+  display: flex; align-items: center; line-height: 1.3;
+  text-align: left;
+}
+.match-item.left { background: rgba(255,107,53,0.1); border-color: var(--orange); }
+.match-item.right { background: rgba(0,191,165,0.1); border-color: var(--teal); }
+.match-item.selected { transform: scale(1.03); box-shadow: 0 0 20px rgba(0,242,255,0.4); border-color: var(--primary); }
+.match-item.matched { opacity: 0.5; cursor: default; border-style: dashed; }
+.match-item.match-ok { border-color: var(--success); background: rgba(0,230,118,0.12); color: var(--success); }
+.match-item.match-ko { border-color: var(--danger); background: rgba(255,68,68,0.1); animation: shake 0.4s; }
+.match-pair-0 { border-color: #00e676 !important; background: rgba(0, 230, 118, 0.15) !important; color: #00e676 !important; }
+.match-pair-1 { border-color: #29b6f6 !important; background: rgba(41, 182, 246, 0.15) !important; color: #29b6f6 !important; }
+.match-pair-2 { border-color: #ab47bc !important; background: rgba(171, 71, 188, 0.15) !important; color: #ab47bc !important; }
+.match-pair-3 { border-color: #ffa726 !important; background: rgba(255, 167, 38, 0.15) !important; color: #ffa726 !important; }
+.match-pair-4 { border-color: #ffee58 !important; background: rgba(255, 238, 88, 0.15) !important; color: #ffee58 !important; }
+.match-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+/* Reto Final flights scenario styles */
+.sc-meta-box { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 20px; margin-bottom: 18px; }
+.sc-emoji { font-size: 50px; }
+.sc-desc { font-size: 17px; line-height: 1.5; color: #fff; text-align: left; }
+
+#final-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px;
+}
+.trophy { font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite alternate; }
+@keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+.final-title { font-size: 32px; color: var(--primary); letter-spacing: 4px; margin-bottom: 12px; }
+.final-score { font-size: 22px; color: var(--warning); margin-bottom: 30px; }
+.btn-replay {
+  min-height: 75px; padding: 0 48px;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 16px;
+  font-size: 22px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; letter-spacing: 2px;
+}
+.btn-replay:hover { background: #00d4e0; }
+
+.trivial-svg-container {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto 20px auto;
+  background: #050515;
+  border: 1px solid rgba(0,242,255,0.2);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+@media (max-width: 768px) {
+  #header { height: auto; padding: 10px; flex-direction: column; gap: 5px; align-items: flex-start; }
+  #score-display { text-align: left !important; font-size: 18px; }
+  #progress-bar { top: 105px; }
+  #main { margin-top: 165px; min-height: calc(100vh - 165px); }
+  .options-grid { grid-template-columns: 1fr; }
+  .dual-hud { grid-template-columns: 1fr; }
+  .hud-panel { height: 160px; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Coordinar Acciones</h1>
+    <div class="subtitle">Repaso · La base y el hombro simultáneos</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Ordenar</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar</button>
+  <button class="prog-btn" onclick="goGame(3)">🎯 Reto Final</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">🦾⚖️⚡</div>
+    <div class="portada-titulo">El Arte de la Sincronización</div>
+    <div class="portada-desc">Aprende cómo el cerebro de nuestro robot coordina dos servomotores a la vez (base giratoria y hombro) para realizar tareas de forma rápida y fluida.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial</div>
+      <div class="badge-card">📦 Ordenar</div>
+      <div class="badge-card">🔗 Emparejar</div>
+      <div class="badge-card">🎯 Reto Final</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡EMPEZAR!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 800px;"></div>
+</div>
+
+<script>
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0;
+  currentGame = 0;
+  completedGames.fill(false);
+  updateScore(0);
+  updateProgressBar();
+  game1();
+}
+
+function goGame(n) {
+  currentGame = n;
+  updateProgressBar();
+  games[n]();
+}
+
+function nextGame() {
+  completedGames[currentGame] = true;
+  updateProgressBar();
+  if (currentGame < 3) {
+    currentGame++;
+    updateProgressBar();
+    games[currentGame]();
+  } else {
+    showFinal();
+  }
+}
+
+// ─── JUEGO 1: TRIVIAL (5 Preguntas) ──────────────────────────────────────────
+const trivia = [
+  {
+    q: "¿Qué significa coordinar movimientos en un brazo robótico?",
+    opts: [
+      "Que el robot apague todos los servomotores a la vez para descansar",
+      "Accionar dos o más servomotores al mismo tiempo para realizar una trayectoria directa",
+      "Mover primero un motor por completo, detenerse, y luego arrancar el siguiente",
+      "Cambiar la placa controladora por una de mayor tamaño"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! Coordinar es hacer que varios motores (como la base y el hombro) se muevan simultáneamente para trazar una diagonal directa sin paradas intermedias."
+  },
+  {
+    q: "Si queremos ir de A (Base -45°, Hombro 15°) a B (Base 45°, Hombro 75°), ¿cómo actúa un brazo coordinado?",
+    opts: [
+      "Gira la base a 45° y, cuando se detiene, sube el hombro a 75°",
+      "Sube el hombro a 75° y, cuando se detiene, gira la base a 45°",
+      "Ambos servomotores arrancan a la vez y ajustan sus velocidades para terminar su recorrido en el mismo instante",
+      "Los dos servos giran siempre a máxima potencia sin importar cuándo termina cada uno"
+    ],
+    ok: 2,
+    exp: "✅ ¡Perfecto! La coordinación implica sincronizar los tiempos de inicio y fin, adaptando la velocidad de cada motor para que el movimiento sea fluido."
+  },
+  {
+    q: "Si la base del brazo debe recorrer 60° en el mismo tiempo en que el hombro recorre 30°, ¿qué debe ocurrir?",
+    opts: [
+      "El servomotor del hombro debe girar al doble de velocidad que la base",
+      "El servomotor del hombro debe girar a la mitad de velocidad que la base para acabar a la vez",
+      "Ambos motores deben girar a la misma velocidad angular exacta",
+      "La base debe esperar a mitad de camino a que el hombro la alcance"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! Para terminar juntos, el motor que recorre menos distancia (el hombro, con 30°) reduce su velocidad a la mitad respecto al que recorre más (la base, con 60°)."
+  },
+  {
+    q: "¿Cuál es la principal ventaja de coordinar los motores en lugar de moverlos uno a uno?",
+    opts: [
+      "El robot realiza movimientos en escuadra mucho más llamativos",
+      "Ahorra tiempo, consume menos energía y reduce el desgaste mecánico del brazo",
+      "Evita que tengamos que usar cables en los servomotores",
+      "Permite que el sensor de distancia funcione sin alimentación"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! Al evitar las frenadas y arranques sucesivos, el movimiento es continuo, directo, eficiente y consume menos energía eléctrica."
+  },
+  {
+    q: "En nuestro brazo de la clase 4.2, ¿qué piezas mecánicas movemos cuando controlamos la articulación del hombro?",
+    opts: [
+      "Los dedos curvos y las gomas blancas de la pinza",
+      "El primer gran tramo del brazo (las barras de soporte y travesaños acoplados al servo del hombro)",
+      "Únicamente el disco de plástico de la base de madera",
+      "La placa controladora que simula el cerebro del robot"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! El hombro es el encargado de inclinar y elevar el primer eslabón móvil del brazo robótico, controlando la altura y alcance vertical."
+  }
+];
+
+let triviaIdx = 0;
+let triviaAnswered = false;
+let triviaAttempts = 0;
+
+function game1() {
+  triviaIdx = 0;
+  renderTrivia();
+}
+
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx];
+  triviaAnswered = false;
+  triviaAttempts = 0;
+  
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(q.ok);
+
+  // SVG representation of base (top-down dial) and shoulder (side angle) to represent coordinate changes
+  const baseAngleDeg = 90; 
+  let shoulderAngleDeg = 45;
+  if (triviaIdx === 1) { shoulderAngleDeg = 75; }
+  if (triviaIdx === 2) { shoulderAngleDeg = 30; }
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial · Pregunta ${triviaIdx+1} de ${trivia.length}</div>
+      
+      <div class="trivial-svg-container">
+        <svg viewBox="0 0 200 120" style="width:100%; height:100%; display:block;">
+          <!-- Suelo -->
+          <line x1="20" y1="105" x2="180" y2="105" stroke="#444" stroke-width="3" />
+          <!-- Base fija -->
+          <rect x="85" y="85" width="30" height="20" fill="#1b1b1b" rx="2" />
+          <!-- Eje de giro base -->
+          <circle cx="100" cy="85" r="8" fill="#ff5500" />
+          <!-- Brazo primer eslabón (Hombro) -->
+          <g transform="translate(100, 85) rotate(${-shoulderAngleDeg})">
+            <line x1="0" y1="0" x2="50" y2="0" stroke="#ff5500" stroke-width="8" stroke-linecap="round" />
+            <!-- Codo articulacion -->
+            <circle cx="50" cy="0" r="5" fill="#1b1b1b" />
+            <!-- Antebrazo holograma cian -->
+            <line x1="50" y1="0" x2="90" y2="0" stroke="#00f2ff" stroke-width="4" stroke-dasharray="2,2" />
+          </g>
+          <!-- Texto informativo -->
+          <text x="10" y="20" fill="#00f2ff" font-family="sans-serif" font-size="10">Eje Hombro activo (X)</text>
+          <text x="10" y="35" fill="#aaa" font-family="sans-serif" font-size="10">Ángulo actual: ${shoulderAngleDeg}°</text>
+        </svg>
+      </div>
+
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE →</button>
+      <button class="btn-reiniciar" onclick="game1()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = q.exp;
+    if (triviaAttempts === 0) {
+      updateScore(20);
+    } else {
+      updateScore(10);
+    }
+    document.getElementById('btn-sol').classList.remove('show');
+    document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show');
+  document.getElementById('btn-sig').classList.add('show');
+}
+
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR (6 pasos Drag & Drop nativo) ────────────────────────────
+const sortItems = [
+  { id: 'a', text: '🔍 Detectamos la caja en la cinta transportadora y leemos su posición.' },
+  { id: 'b', text: '🧠 El cerebro del robot calcula los ángulos necesarios de la base y el hombro.' },
+  { id: 'c', text: '📏 Se ajustan las velocidades de ambos servomotores para sincronizar sus tiempos.' },
+  { id: 'd', text: '🔌 Se envían las señales eléctricas de control (PWM) a ambos motores a la vez.' },
+  { id: 'e', text: '🔄 La base y el hombro giran simultáneamente trazando una diagonal directa.' },
+  { id: 'f', text: '📥 El brazo llega a su destino y la pinza deposita la caja suavemente.' }
+];
+const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f'];
+let sortCurrentOrder = [];
+let sortDone = false;
+let sortAttempts = 0;
+
+function game2() {
+  sortCurrentOrder = shuffleArray([...sortItems]);
+  sortDone = false;
+  sortAttempts = 0;
+  renderSort();
+}
+
+function renderSort() {
+  const html = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Flujo Coordinado</div>
+      <div class="game-question">Arrastra y ordena de principio a fin los pasos lógicos y físicos que realiza el brazo para efectuar un movimiento coordinado y seguro.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div>
+            <span>${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  initDragSort();
+}
+
+function initDragSort() {
+  const list = document.getElementById('sort-list');
+  let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => { item.classList.remove('dragging'); dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); if (dragEl && dragEl !== item) item.classList.add('over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault(); item.classList.remove('over');
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        const fromIdx = items.indexOf(dragEl);
+        const toIdx = items.indexOf(item);
+        if (fromIdx < toIdx) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+
+function renumberSort() {
+  document.querySelectorAll('.sort-item').forEach((el, i) => {
+    el.querySelector('.sort-num').textContent = i + 1;
+  });
+}
+
+function disableDrag() {
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.removeAttribute('draggable');
+    el.style.cursor = 'default';
+  });
+}
+
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Excelente orden! Has trazado correctamente el camino completo: detección, cálculo, sincronización, envío de señales, movimiento simultáneo y depósito final.';
+    if (sortAttempts === 0) {
+      updateScore(30);
+    } else {
+      updateScore(15);
+    }
+    sortDone = true;
+    disableDrag();
+    document.getElementById('btn-sol2').classList.remove('show');
+    document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ El orden no es el adecuado. Recuerda que primero se detecta el problema, luego el procesador calcula los parámetros de ambos motores, ajusta sus velocidades y finalmente los mueve al mismo tiempo.';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+
+function showSortSolution() {
+  sortDone = true;
+  const list = document.getElementById('sort-list');
+  list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `<div class="sort-num">${i+1}</div><span>${item.text}</span>`;
+    list.appendChild(div);
+  });
+  const fb = document.getElementById('fb-sort');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes la secuencia lógica e interactiva ordenada correctamente.';
+  disableDrag();
+  document.getElementById('btn-sol2').classList.remove('show');
+  document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR (5 Conceptos) ─────────────────────────────────────────
+const matchPairs = [
+  { left: 'Base = 0°', right: 'El brazo apunta al frente (centro de la mesa)' },
+  { left: 'Base = 90°', right: 'El brazo gira completamente a la izquierda' },
+  { left: 'Base = -90°', right: 'El brazo gira completamente a la derecha' },
+  { left: 'Hombro = 15°', right: 'El hombro se inclina hacia abajo (baja altura)' },
+  { left: 'Hombro = 75°', right: 'El hombro se eleva hacia arriba (gran altura)' }
+];
+let matchSelected = null;
+let matchDone = 0;
+let matchAutoCount = 0;
+
+function game3() {
+  matchSelected = null;
+  matchDone = 0;
+  matchAutoCount = 0;
+  
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Base y Hombro en Acción</div>
+      <div class="game-question">Pulsa un valor de ángulo de la izquierda y luego asócialo con su posición física correspondiente en la derecha.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">
+          ${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+        <div class="match-col" id="right-col">
+          ${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function selectMatch(el) {
+  if (el.classList.contains('matched') || el.classList.contains('match-ok')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) {
+    if (side !== 'left') return;
+    matchSelected = el;
+    el.classList.add('selected');
+  } else {
+    if (side !== 'right') {
+      matchSelected.classList.remove('selected');
+      el.classList.add('selected');
+      matchSelected = el;
+      return;
+    }
+    const idxA = parseInt(matchSelected.dataset.idx);
+    const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('matched', 'match-pair-' + idxA);
+      el.classList.add('matched', 'match-pair-' + idxA);
+      
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][idxA];
+      matchSelected.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      el.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        const ownMatches = matchPairs.length - matchAutoCount;
+        updateScore(ownMatches * 6);
+        const fb = document.getElementById('fb-match');
+        fb.className = 'feedback show ok';
+        fb.textContent = '✅ ¡Fantástico! Relacionas perfectamente cada valor de ángulo con la posición física de la base y el hombro del robot.';
+        document.getElementById('btn-sol3').classList.remove('show');
+        document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('match-ko');
+      el.classList.add('match-ko');
+      const prev = matchSelected;
+      setTimeout(() => { prev.classList.remove('match-ko'); el.classList.remove('match-ko'); }, 600);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+
+function showMatchSolution() {
+  const lefts = document.querySelectorAll('#left-col .match-item');
+  const rights = document.querySelectorAll('#right-col .match-item');
+  
+  for (let i = 0; i < matchPairs.length; i++) {
+    const l = Array.from(lefts).find(el => parseInt(el.dataset.idx) === i);
+    const r = Array.from(rights).find(el => parseInt(el.dataset.idx) === i);
+    
+    if (l && r && !l.classList.contains('matched')) {
+      l.classList.add('matched', 'match-pair-' + i);
+      r.classList.add('matched', 'match-pair-' + i);
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][i];
+      l.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      r.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+    }
+  }
+  
+  matchAutoCount = matchPairs.length - matchDone;
+  matchDone = matchPairs.length;
+  
+  const fb = document.getElementById('fb-match');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes los conceptos emparejados.';
+  document.getElementById('btn-sol3').classList.remove('show');
+  document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL (4 Escenarios de Decisión) ──────────────────────────
+const scenarios = [
+  {
+    emoji: "📦",
+    title: "Caja baja y lejana",
+    desc: "La cinta transportadora baja nos presenta una caja lejana a la derecha. Debemos orientar el brazo.",
+    baseAngle: -45,
+    shoulderAngle: 15,
+    q: "¿Qué combinación de parámetros coordinados de base y hombro posiciona el brazo en ese punto de la derecha y a baja altura?",
+    opts: [
+      "Base a -45° y Hombro a 15° simultáneamente",
+      "Base a 45° y Hombro a 75°",
+      "Mover Hombro a 90° primero, parar, y luego Base a 90°",
+      "Apagar el servomotor de la base dejando el hombro suelto"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! El parámetro de Base -45° orienta el brazo a la derecha y el de Hombro 15° lo inclina hacia abajo para recoger la pieza baja."
+  },
+  {
+    emoji: "⚡",
+    title: "Esquivar un obstáculo central",
+    desc: "Un poste alto de mantenimiento obstaculiza el camino directo en el centro (Base = 0°). El robot debe trasladar una caja desde la derecha (-45°, 15°) hasta la izquierda (45°, 75°).",
+    baseAngle: 0,
+    shoulderAngle: 10,
+    q: "¿Cómo coordinamos los servomotores para realizar la trayectoria eludiendo el choque con el poste central?",
+    opts: [
+      "Girar la base de -45° a 45° manteniendo el hombro bajo a 10° para pasar por debajo del obstáculo",
+      "Girar la base en línea recta a 45° con el hombro alto a 75°",
+      "Subir el hombro al máximo a 90° justo cuando la base pasa por 0°",
+      "Apagar el sistema de sensores y arrastrar el brazo con la mano"
+    ],
+    ok: 0,
+    exp: "✅ ¡Perfecto! Para pasar de forma segura por debajo de la barrera central (0°), debemos girar la base manteniendo el hombro bajo, y solo elevarlo una vez hayamos cruzado el obstáculo."
+  },
+  {
+    emoji: "🎯",
+    title: "Zona Alta Izquierda",
+    desc: "Debemos depositar un objeto en la plataforma roja elevada situada a la izquierda de la mesa de trabajo.",
+    baseAngle: 45,
+    shoulderAngle: 75,
+    q: "¿Qué parámetros de ángulo coordinados nos permiten alcanzar la Zona Alta Izquierda partiendo de la posición central?",
+    opts: [
+      "Base a 45° y Hombro a 75° de forma coordinada",
+      "Base a -45° y Hombro a 15°",
+      "Base a 0° y Hombro a 45°",
+      "Mover Hombro a 90° y Base a -90°"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! El valor de Base 45° gira el robot a la izquierda y el del Hombro a 75° lo levanta para colocar la pieza en la plataforma alta."
+  },
+  {
+    emoji: "🔄",
+    title: "Movimiento de Autolimpieza",
+    desc: "Para eliminar el polvo de sus articulaciones, programamos un movimiento continuo de oscilación del brazo.",
+    baseAngle: 0,
+    shoulderAngle: 45,
+    q: "¿Qué lógica y parámetros definen un movimiento de balanceo coordinado y automático de lado a lado y de arriba a abajo?",
+    opts: [
+      "Bucle 'Repetir siempre' que mueva la Base entre -45° y 45° coordinada con el Hombro oscilando entre 15° y 75°",
+      "Un comando estático de Mover Hombro a 45°",
+      "Una espera eterna de 60 segundos sin mover ningún motor",
+      "Mover la Base a 0° y dejar el hombro apagado"
+    ],
+    ok: 0,
+    exp: "✅ ¡Excelente! El bucle infinito coordinando la oscilación simultánea de la base y el hombro mantiene el robot barriendo el espacio de forma segura."
+  }
+];
+
+let scIdx = 0;
+let scAnswered = false;
+let scAttempts = 0;
+
+function game4() {
+  scIdx = 0;
+  renderScenario();
+}
+
+function renderScenario() {
+  if (scIdx >= scenarios.length) { nextGame(); return; }
+  const s = scenarios[scIdx];
+  scAnswered = false;
+  scAttempts = 0;
+
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(s.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Reto Final · Escenario ${scIdx+1} de ${scenarios.length}</div>
+      
+      <div class="sc-meta-box">
+        <div class="sc-emoji">${s.emoji}</div>
+        <div class="sc-desc"><strong>${s.title}</strong><br>${s.desc}</div>
+      </div>
+
+      <div class="dual-hud">
+        <!-- HUD Base (Rotación Horizontal) -->
+        <div class="hud-panel">
+          <div class="hud-title">Eje Base (Y)</div>
+          <canvas class="hud-canvas" id="canvas-base"></canvas>
+          <div class="hud-value" id="val-base">${s.baseAngle}°</div>
+        </div>
+
+        <!-- HUD Hombro (Inclinación Vertical) -->
+        <div class="hud-panel">
+          <div class="hud-title">Eje Hombro (X)</div>
+          <canvas class="hud-canvas" id="canvas-shoulder"></canvas>
+          <div class="hud-value" id="val-shoulder">${s.shoulderAngle}°</div>
+        </div>
+      </div>
+
+      <div class="game-question">${s.q}</div>
+      <div class="options-grid" id="ifops">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerScenario(this, ${pos}, ${correctShuffled})">${s.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-f"></div>
+      <button class="btn-solucion" id="btn-solf" onclick="showScenarioSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sigf" onclick="scenarioNext()">${scIdx < scenarios.length - 1 ? 'SIGUIENTE ▶' : 'VER RESULTADO FINAL ▶'}</button>
+      <button class="btn-reiniciar" onclick="game4()">REINICIAR RETO</button>
+    </div>`;
+
+  document.getElementById('game-area').innerHTML = html;
+  
+  // Render HUD dials
+  drawBaseDial(s.baseAngle);
+  drawShoulderDial(s.shoulderAngle);
+}
+
+function drawBaseDial(angle) {
+  const canvas = document.getElementById('canvas-base');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.clientWidth;
+  const h = canvas.height = canvas.clientHeight;
+  
+  ctx.clearRect(0,0,w,h);
+  
+  // Dial semicircular
+  const cx = w / 2;
+  const cy = h / 2 + 10;
+  const r = Math.min(w, h) / 2.8;
+  
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  
+  // Graduaciones
+  const ticks = [-90, -45, 0, 45, 90];
+  ticks.forEach(t => {
+    const rad = Math.PI + ((90 - t) / 180) * Math.PI;
+    const x1 = cx + (r - 8) * Math.cos(rad);
+    const y1 = cy + (r - 8) * Math.sin(rad);
+    const x2 = cx + r * Math.cos(rad);
+    const y2 = cy + r * Math.sin(rad);
+    
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = t === angle ? '#00f2ff' : '#666';
+    ctx.lineWidth = t === angle ? 3 : 2;
+    ctx.stroke();
+    
+    // Texto tick
+    ctx.fillStyle = t === angle ? '#00f2ff' : '#888';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    const tx = cx + (r + 14) * Math.cos(rad);
+    const ty = cy + (r + 14) * Math.sin(rad);
+    ctx.fillText(t + '°', tx, ty + 3);
+  });
+  
+  // Aguja base
+  const armRad = Math.PI + ((90 - angle) / 180) * Math.PI;
+  const ax = cx + (r - 4) * Math.cos(armRad);
+  const ay = cy + (r - 4) * Math.sin(armRad);
+  
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ax, ay);
+  ctx.strokeStyle = '#FF6B35';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = '#FF6B35';
+  ctx.shadowBlur = 10;
+  ctx.stroke();
+  ctx.shadowBlur = 0; // reset
+  
+  // Centro
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, 2*Math.PI);
+  ctx.fillStyle = '#00f2ff';
+  ctx.fill();
+}
+
+function drawShoulderDial(angle) {
+  const canvas = document.getElementById('canvas-shoulder');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.clientWidth;
+  const h = canvas.height = canvas.clientHeight;
+  
+  ctx.clearRect(0,0,w,h);
+  
+  const cx = w / 2 - 20;
+  const cy = h / 2 + 20;
+  const len = Math.min(w, h) / 2.5;
+  
+  // Transportador de ángulos lateral (eje X)
+  ctx.beginPath();
+  ctx.arc(cx, cy, len, -Math.PI/2, 0);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  
+  // Graduación hombro (0°, 15°, 30°, 45°, 60°, 75°, 90°)
+  const ticks = [0, 15, 30, 45, 60, 75, 90];
+  ticks.forEach(t => {
+    // 90° es vertical (arriba), 0° es horizontal (frente)
+    const rad = - (t / 180) * Math.PI;
+    const x1 = cx + (len - 8) * Math.cos(rad);
+    const y1 = cy + (len - 8) * Math.sin(rad);
+    const x2 = cx + len * Math.cos(rad);
+    const y2 = cy + len * Math.sin(rad);
+    
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = t === angle ? '#00f2ff' : '#666';
+    ctx.lineWidth = t === angle ? 3 : 2;
+    ctx.stroke();
+    
+    ctx.fillStyle = t === angle ? '#00f2ff' : '#888';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    const tx = cx + (len + 8) * Math.cos(rad);
+    const ty = cy + (len + 8) * Math.sin(rad);
+    ctx.fillText(t + '°', tx, ty + 3);
+  });
+  
+  // Dibuja el chasis base
+  ctx.fillStyle = '#222';
+  ctx.fillRect(cx - 15, cy, 30, 20);
+  
+  // Eslabón del hombro (naranja)
+  const armRad = - (angle / 180) * Math.PI;
+  const ax = cx + len * Math.cos(armRad);
+  const ay = cy + len * Math.sin(armRad);
+  
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ax, ay);
+  ctx.strokeStyle = '#FF6B35';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = '#FF6B35';
+  ctx.shadowBlur = 10;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Articulación del codo al final
+  ctx.beginPath();
+  ctx.arc(ax, ay, 4, 0, 2*Math.PI);
+  ctx.fillStyle = '#00f2ff';
+  ctx.fill();
+  
+  // Articulación del hombro en el pivot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, 2*Math.PI);
+  ctx.fillStyle = '#1b1b1b';
+  ctx.fill();
+}
+
+function answerScenario(btn, pos, correctPos) {
+  if (scAnswered) return;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  const fb = document.getElementById('fb-f');
+  if (pos === correctPos) {
+    scAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = s.exp;
+    if (scAttempts === 0) {
+      updateScore(25);
+    } else {
+      updateScore(12);
+    }
+    document.getElementById('btn-solf').classList.remove('show');
+    document.getElementById('btn-sigf').classList.add('show');
+  } else {
+    scAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-solf').classList.add('show');
+  }
+}
+
+function showScenarioSolution(correctPos) {
+  scAnswered = true;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb-f');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + s.exp;
+  document.getElementById('btn-solf').classList.remove('show');
+  document.getElementById('btn-sigf').classList.add('show');
+}
+
+function scenarioNext() { scIdx++; renderScenario(); }
+
+// ─── FINAL ───────────────────────────────────────────────────────────────────
+function showFinal() {
+  document.getElementById('progress-bar').style.display = 'none';
+  const trofeo = score >= 230 ? '🏆' : score >= 180 ? '🥈' : '🎖️';
+  const msg = score >= 230
+    ? '¡Excelente! Eres un experto absoluto coordinando el movimiento de la base y el hombro.'
+    : score >= 180
+    ? '¡Muy bien! Sabes coordinar perfectamente los motores para trazar diagonales directas.'
+    : '¡Buen trabajo! Repasa cómo sincronizar velocidades y trayectorias para obtener el oro.';
+    
+  document.getElementById('game-area').innerHTML = `
+    <div id="final-screen" style="display:flex">
+      <div class="trophy">${trofeo}</div>
+      <div class="final-title">¡REPASO COMPLETADO!</div>
+      <div class="final-score">⭐ ${score} puntos · ${msg}</div>
+      <button class="btn-replay" onclick="iniciar()">JUGAR OTRA VEZ</button>
+    </div>`;
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

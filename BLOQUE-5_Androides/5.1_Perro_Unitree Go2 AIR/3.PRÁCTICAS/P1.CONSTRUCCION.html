@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 6.12 — Construcción del Unitree Go2 AIR (V5 Oficial)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        
+        /* PANEL LATERAL DE PIEZAS (Estilo idéntico a Clase 4.1 P1) */
+        #ui-panel {
+            width: 390px;
+            flex-shrink: 0;
+            background: rgba(12, 16, 24, 0.96);
+            border-right: 2px solid #00f2ff;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 10;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+        }
+
+        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 4px; }
+        .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: #00f2ff; font-weight: 700; }
+        h1 { font-size: 1.35rem; font-weight: 700; color: #fff; margin-top: 4px; }
+        .subtitle { font-size: 0.82rem; color: #8a9ba8; margin-top: 4px; line-height: 1.3; }
+
+        .progress-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; margin-bottom: 6px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00f2ff, #0066ff); transition: width 0.4s ease; box-shadow: 0 0 12px rgba(0,242,255,0.5); }
+
+        .panel-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: #00f2ff; font-weight: 700; margin-top: 4px; }
+
+        .piece-btn {
+            background: rgba(255,255,255,0.03);
+            border: 2px dashed rgba(0, 242, 255, 0.4);
+            border-radius: 12px;
+            color: #fff;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: grab;
+            transition: all 0.25s ease;
+            text-align: left;
+        }
+        .piece-btn:hover {
+            border-color: #00f2ff;
+            background: rgba(0, 242, 255, 0.12);
+            transform: translateX(4px);
+            box-shadow: 0 4px 15px rgba(0,242,255,0.2);
+        }
+        .piece-btn:active { cursor: grabbing; }
+        
+        .piece-btn.installed {
+            background: rgba(0, 255, 136, 0.08);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            color: #6a7b8c;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .piece-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; }
+        .piece-desc { font-size: 0.78rem; color: #8a9ba8; line-height: 1.3; }
+        
+        .installed .piece-title { color: #00ff88; }
+        .badge-status { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #fff; }
+        .installed .badge-status { background: #00ff88; color: #06090e; font-weight: 700; }
+
+        /* CONTENEDOR PRINCIPAL */
+        #canvas-container { flex: 1; position: relative; transition: box-shadow 0.3s ease; }
+        #canvas-container.drop-hover { box-shadow: inset 0 0 60px rgba(0, 242, 255, 0.6); }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        .instruction-banner {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(12, 18, 28, 0.95); border: 1px solid #00f2ff; border-radius: 30px;
+            padding: 14px 28px; font-weight: 600; font-size: 0.95rem; color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,242,255,0.3); z-index: 20;
+            display: flex; align-items: center; gap: 16px; transition: all 0.4s ease;
+        }
+        .instruction-banner.completed {
+            background: linear-gradient(135deg, rgba(12, 28, 22, 0.96), rgba(8, 18, 28, 0.96));
+            border-color: #00ff88; box-shadow: 0 10px 35px rgba(0,0,0,0.9), 0 0 25px rgba(0,255,136,0.4);
+        }
+        .btn-restart {
+            background: #00ff88; color: #06090e; border: none; padding: 8px 18px;
+            border-radius: 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            transition: all 0.25s ease; box-shadow: 0 0 12px rgba(0,255,136,0.5); pointer-events: auto;
+        }
+        .btn-restart:hover { transform: scale(1.06); background: #fff; }
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <div class="header">
+            <div class="tag">Clase 6.12 · Paso 1</div>
+            <h1>Ensamblaje Go2 AIR</h1>
+            <div class="subtitle">Arrastra las piezas al escenario para construir la anatomía V5 del robot.</div>
+        </div>
+        
+        <div class="progress-box">
+            <div class="progress-label">
+                <span>Progreso de Montaje</span>
+                <span id="progress-txt">0 / 6</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+
+        <div class="panel-title">Piezas Biomiméticas (Arrastrar)</div>
+        
+        <button class="piece-btn" id="btn-chassis" draggable="true" title="Chasis central de aluminio y cabeza V5 con sensores.">
+            <div class="piece-title"><span>1. Chasis + Cabeza V5</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Cápsula central con rótulos y cabeza inclinada -15º</div>
+        </button>
+        <button class="piece-btn" id="btn-legFL" draggable="true" title="Extremidad biomimética delantera izquierda.">
+            <div class="piece-title"><span>2. Pata Delant. Izq. (FL)</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Hombro cilíndrico, fémur curvo y pie de caucho</div>
+        </button>
+        <button class="piece-btn" id="btn-legFR" draggable="true" title="Extremidad biomimética delantera derecha.">
+            <div class="piece-title"><span>3. Pata Delant. Der. (FR)</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Hombro cilíndrico, fémur curvo y pie de caucho</div>
+        </button>
+        <button class="piece-btn" id="btn-legRL" draggable="true" title="Extremidad biomimética trasera izquierda.">
+            <div class="piece-title"><span>4. Pata Trasera Izq. (RL)</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Estructura articulada trasera con rodilla mecánica</div>
+        </button>
+        <button class="piece-btn" id="btn-legRR" draggable="true" title="Extremidad biomimética trasera derecha.">
+            <div class="piece-title"><span>5. Pata Trasera Der. (RR)</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Estructura articulada trasera con rodilla mecánica</div>
+        </button>
+        <button class="piece-btn" id="btn-lidar" draggable="true" title="Sensor de escaneo láser giratorio 4D.">
+            <div class="piece-title"><span>6. Sensor LiDAR 4D</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Cilindro cian emisor con jaula metálica protectora</div>
+        </button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div class="instruction-banner" id="banner">👉 Arrastra el <b>Chasis + Cabeza V5</b> desde el panel lateral hacia el escenario</div>
+    </div>
+
+
+    <script>
+        window.addEventListener("DOMContentLoaded", function() {
+            const canvas = document.getElementById("renderCanvas");
+            const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+            
+            let scene, camera, shadowGen;
+            let robotRoot;
+            let camAngle = -Math.PI / 3;
+            let completado = false;
+
+            const instaladas = { chassis: false, legFL: false, legFR: false, legRL: false, legRR: false, lidar: false };
+
+            const createScene = function() {
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.05, 0.07, 0.11, 1.0);
+                new BABYLON.GlowLayer("glow", scene).intensity = 0.75;
+
+                // 1. Cámara Orbital (Gira suavemente mientras construyes)
+                camera = new BABYLON.ArcRotateCamera("cam", camAngle, Math.PI / 2.6, 2.3, new BABYLON.Vector3(0, 0.25, 0), scene);
+                camera.attachControl(canvas, true);
+                camera.lowerRadiusLimit = 1.0; camera.upperRadiusLimit = 4.5;
+                camera.wheelPrecision = 40;
+
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 0.8; hemiLight.groundColor = new BABYLON.Color3(0.08, 0.08, 0.12);
+
+                const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(5, 10, 5); dirLight.intensity = 2.2;
+
+                shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                // Suelo PBR con cuadrícula
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 15, height: 15}, scene);
+                const matGround = new BABYLON.PBRMaterial("matG", scene);
+                matGround.albedoColor = new BABYLON.Color3(0.09, 0.11, 0.15);
+                matGround.roughness = 0.6; matGround.metallic = 0.1;
+                ground.material = matGround; ground.receiveShadows = true;
+
+                for (let i = -6; i <= 6; i++) {
+                    const lX = BABYLON.MeshBuilder.CreateLines("gx_" + i, {points: [new BABYLON.Vector3(-6, 0.001, i), new BABYLON.Vector3(6, 0.001, i)]}, scene);
+                    lX.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+                    const lZ = BABYLON.MeshBuilder.CreateLines("gz_" + i, {points: [new BABYLON.Vector3(i, 0.001, -6), new BABYLON.Vector3(i, 0.001, 6)]}, scene);
+                    lZ.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+                }
+
+                // Indicador central de ensamblaje (Anillo sutil en el suelo)
+                const centerRing = BABYLON.MeshBuilder.CreateTorus("cRing", {diameter: 0.55, thickness: 0.006, tessellation: 32}, scene);
+                centerRing.position.y = 0.005;
+                const matRing = new BABYLON.PBRMaterial("matRing", scene);
+                matRing.emissiveColor = new BABYLON.Color3(0.0, 0.8, 1.0);
+                centerRing.material = matRing;
+
+                robotRoot = new BABYLON.TransformNode("robotRoot", scene);
+                robotRoot.position.y = 0.36;
+
+                // GIRO SUAVE CONTINUO DEL ESCENARIO (Como en Clase 4.1)
+                scene.onBeforeRenderObservable.add(() => {
+                    if (!completado) {
+                        camAngle += 0.003;
+                        camera.alpha = camAngle;
+                    } else {
+                        const lidar = scene.getMeshByName("lidarC");
+                        if (lidar) lidar.rotation.y += 0.08;
+                    }
+                });
+
+                return scene;
+            };
+
+            const sceneObj = createScene();
+
+            // 2. Materiales PBR Oficiales V5
+            const matShell = new BABYLON.PBRMaterial("matShell", sceneObj);
+            matShell.albedoColor = BABYLON.Color3.FromHexString("#98a4b0");
+            matShell.metallic = 0.25; matShell.roughness = 0.45;
+
+            const matBlack = new BABYLON.PBRMaterial("matBlack", sceneObj);
+            matBlack.albedoColor = BABYLON.Color3.FromHexString("#181b1f");
+            matBlack.metallic = 0.15; matBlack.roughness = 0.75;
+
+            const matLens = new BABYLON.PBRMaterial("matLens", sceneObj);
+            matLens.albedoColor = new BABYLON.Color3(0.01, 0.01, 0.01);
+            matLens.metallic = 1.0; matLens.roughness = 0.05;
+
+            const matLidar = new BABYLON.PBRMaterial("matLidar", sceneObj);
+            matLidar.albedoColor = BABYLON.Color3.FromHexString("#111822");
+            matLidar.metallic = 0.8; matLidar.roughness = 0.3;
+            matLidar.emissiveColor = new BABYLON.Color3(0.0, 0.5, 0.6);
+
+            const makeTextPlane = (text, w, h, fontSize) => {
+                const plane = BABYLON.MeshBuilder.CreatePlane("t", {width: w, height: h}, sceneObj);
+                const dt = new BABYLON.DynamicTexture("dt", {width: 512, height: 256}, sceneObj, false);
+                dt.hasAlpha = true; dt.getContext().clearRect(0, 0, 512, 256);
+                dt.drawText(text, null, null, `bold ${fontSize}px Arial, sans-serif`, "#ffffff", "transparent", true);
+                const mat = new BABYLON.PBRMaterial("mt", sceneObj);
+                mat.albedoTexture = dt; mat.useAlphaFromAlbedoTexture = true;
+                mat.metallic = 0.0; mat.roughness = 0.8; mat.backFaceCulling = true; 
+                plane.material = mat;
+                return plane;
+            };
+
+            // 3. CONSTRUCTORES DE PIEZAS (Exactos a P2)
+            function buildChassis() {
+                const root = new BABYLON.TransformNode("chassisNode", sceneObj);
+                root.parent = robotRoot;
+
+                const torsoBody = BABYLON.MeshBuilder.CreateCapsule("torsoBody", {height: 0.58, radius: 0.09}, sceneObj);
+                torsoBody.parent = root; torsoBody.rotation.x = Math.PI / 2; torsoBody.material = matShell;
+                
+                const torsoFront = BABYLON.MeshBuilder.CreateBox("torsoF", {width: 0.17, height: 0.13, depth: 0.15}, sceneObj);
+                torsoFront.parent = root; torsoFront.position.z = 0.18; torsoFront.material = matShell;
+                const torsoRear = BABYLON.MeshBuilder.CreateBox("torsoR", {width: 0.17, height: 0.13, depth: 0.15}, sceneObj);
+                torsoRear.parent = root; torsoRear.position.z = -0.18; torsoRear.material = matShell;
+
+                const logoR = makeTextPlane("UNITREE", 0.16, 0.05, 100);
+                logoR.parent = root; logoR.position = new BABYLON.Vector3(0.092, 0.04, 0.02); logoR.rotation.y = -Math.PI/2; 
+                const logoL = makeTextPlane("UNITREE", 0.16, 0.05, 100);
+                logoL.parent = root; logoL.position = new BABYLON.Vector3(-0.092, 0.04, 0.02); logoL.rotation.y = Math.PI/2; 
+
+                // Cabeza V5 inclinada -15º
+                const headNode = new BABYLON.TransformNode("headNode", sceneObj);
+                headNode.parent = root; headNode.position = new BABYLON.Vector3(0, 0.03, 0.28);
+                headNode.rotation.x = -15 * Math.PI / 180;
+
+                const headMain = BABYLON.MeshBuilder.CreateCapsule("headMain", {height: 0.22, radius: 0.065}, sceneObj);
+                headMain.parent = headNode; headMain.position.y = -0.04; headMain.material = matShell;
+
+                const badgeR = makeTextPlane("02", 0.05, 0.035, 120);
+                badgeR.parent = headNode; badgeR.position = new BABYLON.Vector3(0.066, -0.04, 0.0); badgeR.rotation.y = -Math.PI/2;
+                const badgeL = makeTextPlane("02", 0.05, 0.035, 120);
+                badgeL.parent = headNode; badgeL.position = new BABYLON.Vector3(-0.066, -0.04, 0.0); badgeL.rotation.y = Math.PI/2; 
+
+                const facePanel = BABYLON.MeshBuilder.CreateBox("facePanel", {width: 0.076, height: 0.12, depth: 0.015}, sceneObj);
+                facePanel.parent = headNode; facePanel.position = new BABYLON.Vector3(0, -0.03, 0.056);
+                facePanel.material = matBlack;
+                
+                const sensorTop = BABYLON.MeshBuilder.CreateCylinder("sTop", {height: 0.002, diameter: 0.022}, sceneObj);
+                sensorTop.parent = facePanel; sensorTop.rotation.x = Math.PI/2; sensorTop.position = new BABYLON.Vector3(0, 0.032, 0.0075);
+                sensorTop.material = matLens;
+                
+                const sensorBot = BABYLON.MeshBuilder.CreateCylinder("sBot", {height: 0.002, diameter: 0.022}, sceneObj);
+                sensorBot.parent = facePanel; sensorBot.rotation.x = Math.PI/2; sensorBot.position = new BABYLON.Vector3(0, -0.032, 0.0075);
+                sensorBot.material = matLens;
+
+                const greenRing = BABYLON.MeshBuilder.CreateTorus("gRing", {diameter: 0.026, thickness: 0.0025, tessellation: 24}, sceneObj);
+                greenRing.parent = facePanel; greenRing.rotation.x = Math.PI/2; greenRing.position = new BABYLON.Vector3(0, -0.032, 0.0075);
+                const matGreen = new BABYLON.PBRMaterial("matGr", sceneObj);
+                matGreen.emissiveColor = new BABYLON.Color3(0.1, 0.8, 0.3);
+                greenRing.material = matGreen;
+
+                [torsoBody, torsoFront, torsoRear, headMain, facePanel].forEach(m => shadowGen.addShadowCaster(m));
+                return root;
+            }
+
+            const L1 = 0.22, L2 = 0.22;
+            function buildLeg(isLeft, isFront) {
+                const root = new BABYLON.TransformNode("legNode", sceneObj);
+                root.parent = robotRoot;
+                const signX = isLeft ? 1 : -1;
+                const signZ = isFront ? 1 : -1;
+                root.position = new BABYLON.Vector3(signX * 0.13, 0, signZ * 0.24);
+
+                const drum = BABYLON.MeshBuilder.CreateCylinder("drum", {height: 0.075, diameter: 0.11}, sceneObj);
+                drum.rotation.z = Math.PI / 2; drum.material = matShell; drum.parent = root;
+                
+                const thighJoint = new BABYLON.TransformNode("thighJ", sceneObj);
+                thighJoint.parent = root; thighJoint.position = new BABYLON.Vector3(signX * 0.042, 0, 0);
+                
+                const thighTop = BABYLON.MeshBuilder.CreateSphere("tt", {diameterX: 0.055, diameterY: 0.085, diameterZ: 0.085}, sceneObj);
+                thighTop.parent = thighJoint; thighTop.material = matShell;
+                
+                const thighPath = [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -L1 * 0.5, 0.005), new BABYLON.Vector3(0, -L1, 0)];
+                const thighBone = BABYLON.MeshBuilder.CreateTube("tb", {path: thighPath, radiusFunction: (i,d)=>0.026*(1-d*0.35), cap: BABYLON.Mesh.CAP_ALL}, sceneObj);
+                thighBone.parent = thighJoint; thighBone.material = matShell;
+                
+                const kneeJoint = new BABYLON.TransformNode("kneeJ", sceneObj);
+                kneeJoint.parent = thighJoint; kneeJoint.position.y = -L1;
+                
+                const kneeMotor = BABYLON.MeshBuilder.CreateCylinder("km", {height: 0.052, diameter: 0.046}, sceneObj);
+                kneeMotor.parent = kneeJoint; kneeMotor.rotation.z = Math.PI/2; kneeMotor.material = matShell;
+                
+                const calfPath = [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -L2 * 0.4, 0.015), new BABYLON.Vector3(0, -L2 * 0.8, 0.005), new BABYLON.Vector3(0, -L2, 0)];
+                const calfBone = BABYLON.MeshBuilder.CreateTube("cb", {path: calfPath, radiusFunction: (i,d)=>0.018*(1-d*0.45), cap: BABYLON.Mesh.CAP_ALL}, sceneObj);
+                calfBone.parent = kneeJoint; calfBone.material = matShell;
+                
+                const foot = BABYLON.MeshBuilder.CreateSphere("foot", {diameter: 0.042}, sceneObj);
+                foot.parent = kneeJoint; foot.position.y = -L2; foot.material = matBlack;
+                
+                // Postura biomimética V5 (IK en reposo): apoya el pie exactamente en Y=0.0 sin penetrar el suelo
+                thighJoint.rotation.x = 0.691;
+                kneeJoint.rotation.x = -1.383;
+
+                [drum, thighTop, thighBone, calfBone, foot].forEach(m => shadowGen.addShadowCaster(m));
+                return root;
+            }
+
+            function buildLidar() {
+                // Coordenada exacta en morro de cabeza
+                const headRoot = sceneObj.getTransformNodeByName("headNode");
+                const root = new BABYLON.TransformNode("lidarNode", sceneObj);
+                root.parent = headRoot ? headRoot : robotRoot;
+                root.position = new BABYLON.Vector3(0, -0.15, 0.015);
+
+                const lidarCyl = BABYLON.MeshBuilder.CreateCylinder("lidarC", {height: 0.038, diameter: 0.048}, sceneObj);
+                lidarCyl.parent = root; lidarCyl.material = matLidar;
+
+                const lidarSlot = BABYLON.MeshBuilder.CreateBox("lSlot", {width: 0.01, height: 0.04, depth: 0.05}, sceneObj);
+                lidarSlot.parent = lidarCyl; lidarSlot.material = matBlack;
+
+                const cageRing = BABYLON.MeshBuilder.CreateTorus("cage1", {diameter: 0.062, thickness: 0.005, tessellation: 32}, sceneObj);
+                cageRing.parent = root; cageRing.position.y = -0.015; cageRing.material = matBlack;
+                [ {x:0.028,z:0}, {x:-0.028,z:0}, {x:0,z:0.028}, {x:0,z:-0.028} ].forEach(pos => {
+                    const b = BABYLON.MeshBuilder.CreateBox("bar", {width:0.005, height:0.035, depth:0.005}, sceneObj);
+                    b.parent = root; b.position = new BABYLON.Vector3(pos.x, 0, pos.z); b.material = matBlack;
+                });
+
+                shadowGen.addShadowCaster(lidarCyl);
+                return root;
+            }
+
+            const createSnapSparkles = function(pos) {
+                const ps = new BABYLON.ParticleSystem("sparkles", 50, sceneObj);
+                ps.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/environments/flare.png", sceneObj);
+                ps.emitter = pos;
+                ps.minEmitBox = new BABYLON.Vector3(-0.05, -0.05, -0.05); ps.maxEmitBox = new BABYLON.Vector3(0.05, 0.05, 0.05);
+                ps.color1 = new BABYLON.Color4(0, 0.95, 1, 1); ps.color2 = new BABYLON.Color4(0, 0.5, 1, 1); ps.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
+                ps.minSize = 0.03; ps.maxSize = 0.08; ps.minLifeTime = 0.3; ps.maxLifeTime = 0.5;
+                ps.emitRate = 200; ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+                ps.gravity = new BABYLON.Vector3(0, -0.5, 0);
+                ps.targetStopDuration = 0.35;
+                ps.disposeOnStop = true;
+                ps.start();
+            };
+
+            // 4. LÓGICA DRAG & DROP HTML5 AL CANVAS 3D (Exacta a Clase 4.1)
+            const canvasContainer = document.getElementById("canvas-container");
+            document.querySelectorAll(".piece-btn").forEach(btn => {
+                btn.addEventListener("dragstart", (e) => {
+                    e.dataTransfer.setData("pieza-id", btn.id.replace("btn-", ""));
+                });
+            });
+
+            canvasContainer.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                canvasContainer.classList.add("drop-hover");
+            });
+
+            canvasContainer.addEventListener("dragleave", () => {
+                canvasContainer.classList.remove("drop-hover");
+            });
+
+            canvasContainer.addEventListener("drop", (e) => {
+                e.preventDefault();
+                canvasContainer.classList.remove("drop-hover");
+                const id = e.dataTransfer.getData("pieza-id");
+                if (id) installPiece(id);
+            });
+
+            function installPiece(id) {
+                if (instaladas[id]) return;
+                instaladas[id] = true;
+
+                const btn = document.getElementById("btn-" + id);
+                btn.classList.add("installed");
+                btn.setAttribute("draggable", "false");
+                btn.querySelector(".badge-status").innerText = "Ensamblado";
+
+                let node = null;
+                switch(id) {
+                    case "chassis": node = buildChassis(); break;
+                    case "legFL":   node = buildLeg(true, true); break;
+                    case "legFR":   node = buildLeg(false, true); break;
+                    case "legRL":   node = buildLeg(true, false); break;
+                    case "legRR":   node = buildLeg(false, false); break;
+                    case "lidar":   node = buildLidar(); break;
+                }
+
+                if (node) {
+                    createSnapSparkles(new BABYLON.Vector3(0, 0.36, 0));
+
+                    // Animación de escala Pop-In (Exacta a Clase 4.1)
+                    node.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+                    let t0 = performance.now();
+                    const popAnim = () => {
+                        const p = Math.min((performance.now() - t0) / 450, 1);
+                        const ease = Math.sin(p * Math.PI / 2);
+                        node.scaling = new BABYLON.Vector3(ease, ease, ease);
+                        if (p >= 1) {
+                            node.scaling = new BABYLON.Vector3(1, 1, 1);
+                            sceneObj.onBeforeRenderObservable.removeCallback(popAnim);
+                        }
+                    };
+                    sceneObj.onBeforeRenderObservable.add(popAnim);
+                }
+
+                // Actualizar progreso
+                const completadas = Object.values(instaladas).filter(Boolean).length;
+                const pct = Math.round((completadas / 6) * 100);
+                document.getElementById("progress-fill").style.width = pct + "%";
+                document.getElementById("progress-txt").innerText = `${completadas} / 6`;
+
+                if (completadas < 6) {
+                    const pendientes = ["chassis", "legFL", "legFR", "legRL", "legRR", "lidar"].filter(k => !instaladas[k]);
+                    const nombres = { chassis: "Chasis + Cabeza V5", legFL: "Pata Delant. Izq.", legFR: "Pata Delant. Der.", legRL: "Pata Tras. Izq.", legRR: "Pata Tras. Der.", lidar: "Sensor LiDAR 4D" };
+                    if (pendientes[0]) document.getElementById("banner").innerHTML = `👉 Arrastra al escenario: <b>${nombres[pendientes[0]]}</b>`;
+                } else {
+                    completado = true;
+                    const cRing = sceneObj.getMeshByName("cRing");
+                    if (cRing) cRing.dispose();
+                    const banner = document.getElementById("banner");
+                    banner.classList.add("completed");
+                    banner.innerHTML = `<span>✨ <b>¡Unitree Go2 AIR Ensamblado y Operativo!</b> Listo para inspección.</span> <button class="btn-restart" onclick="location.reload()">🔄 Reiniciar Montaje</button>`;
+                }
+            }
+
+            engine.runRenderLoop(function() { sceneObj.render(); });
+            window.addEventListener("resize", function() { engine.resize(); });
+        });
+    </script>
+</body>
+</html>

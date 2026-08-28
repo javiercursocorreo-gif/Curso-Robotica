@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- REVISION DIALES NEGROS Y ORIENTACION 270 -->
+    <title>P1.CONSTRUCCION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #10101a;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        /* HEADER */
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #ffaa44;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 100;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #ffaa44;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0 0 0 20px;
+            font-size: 18px;
+            color: #aaaaaa;
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-layout {
+            display: flex;
+            height: calc(100vh - 70px);
+            width: 100%;
+        }
+
+        /* CONTENEDOR DEL CANVAS */
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            transition: box-shadow 0.3s ease;
+            min-width: 0;
+        }
+
+        #canvas-container.drop-hover {
+            box-shadow: inset 0 0 50px rgba(255, 170, 68, 0.5);
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* CONFETI Y BANNER FINAL */
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        #banner-completado {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(11, 17, 30, 0.90);
+            border: 2px solid #ffaa44;
+            box-shadow: 0 0 20px rgba(255, 170, 68, 0.5);
+            color: #ffaa44;
+            padding: 20px 40px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 60;
+        }
+
+        #banner-completado h2 {
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #banner-completado p {
+            margin: 10px 0 0 0;
+            font-size: 20px;
+            color: #ffffff;
+        }
+
+        /* PANEL LATERAL DE PIEZAS */
+        #ui-panel {
+            width: 400px;
+            flex-shrink: 0;
+            background: rgba(10, 10, 20, 0.95);
+            border-left: 2px solid #ffaa44;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        .panel-title {
+            font-size: 22px;
+            color: #ffaa44;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .piece-btn {
+            background: #202030;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            color: #fff;
+            min-height: 65px;
+            padding: 8px 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: grab;
+            transition: all 0.2s;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .piece-btn:hover {
+            border-color: #ffaa44;
+            background: #2a2a45;
+        }
+
+        .piece-btn:active {
+            cursor: grabbing;
+        }
+
+        .piece-btn.installed {
+            background: #11111a;
+            border-color: #00ffaa;
+            border-style: solid;
+            color: #777;
+            cursor: default;
+        }
+
+        .piece-title {
+            font-size: 19px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .piece-desc {
+            font-size: 15px;
+            color: #aaa;
+        }
+
+        .installed .piece-title {
+            color: #00ffaa;
+            opacity: 0.6;
+        }
+        .installed .piece-desc {
+            color: #777;
+        }
+    </style>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>P1.CONSTRUCCION</h1>
+        <p>Arrastra las piezas de la muñeca para conectar la articulación de flexión (Muñeca Vertical) y rotación (Muñeca Horizontal).</p>
+    </header>
+
+    <div id="main-layout">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            <canvas id="confettiCanvas"></canvas>
+            <div id="banner-completado">
+                <h2>¡MUÑECA COMPLETADA!</h2>
+                <p>La muñeca se ha ensamblado y realiza una secuencia libre de movimiento horizontal y vertical.</p>
+            </div>
+        </div>
+
+        <div id="ui-panel">
+            <div class="panel-title">Articulación de la Muñeca (Arrastrar)</div>
+            
+            <button class="piece-btn" id="btn-wrist_pin" draggable="true" title="Eje conector metálico que actúa como pasador de giro para la flexión vertical.">
+                <div class="piece-title">Pasador de Muñeca</div>
+                <div class="piece-desc">Pasador metálico cilíndrico de flexión</div>
+            </button>
+            <button class="piece-btn" id="btn-wrist_dial" draggable="true" title="Disco de soporte naranja y esfera graduada para calibrar el ángulo de la muñeca.">
+                <div class="piece-title">Soporte y Dial</div>
+                <div class="piece-desc">Disco de calibración graduado compacto (0.25)</div>
+            </button>
+            <button class="piece-btn" id="btn-wrist_roll" draggable="true" title="Placa plana naranja y servo de roll negro que giran longitudinalmente a 360°.">
+                <div class="piece-title">Soporte y Servo de M.Horizontal</div>
+                <div class="piece-desc">Placa giratoria y motor longitudinal de la pinza</div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('renderCanvas');
+        let engine;
+        let scene;
+        let camera;
+        let shadowGen;
+        let glow;
+        
+        let armRoot, baseRotator, shoulderNode, codoNode, link2Node;
+        let munecaNode, munecaRollNode;
+        let codoPointerPivot, munecaPointerPivot;
+        
+        let completado = false;
+        
+        let orangeMat, blackMat, whiteMat, metalMat, redMat, woodMat, holoMat, lightOrangeMat;
+        let munecaDialMat;
+
+        function initEngine() {
+            engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            createScene();
+            window.scene = scene;
+            engine.runRenderLoop(() => {
+                try { if(scene) scene.render(); } catch(err) { console.error(err); }
+            });
+            window.addEventListener('resize', () => engine.resize());
+        }
+
+        function createDialTexture(name, isShoulder, isRoll = false) {
+            const size = 512;
+            const dynamicTexture = new BABYLON.DynamicTexture(name, size, scene, true);
+            const ctx = dynamicTexture.getContext();
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size * 0.4;
+            
+            ctx.fillStyle = "#ffaa44";
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 20, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.strokeStyle = "#000000"; // Trazos negros
+            ctx.lineWidth = 14;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            const mainAngles = [0, 90, 180, 270];
+            mainAngles.forEach(ang => {
+                const rad = ang * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.moveTo(cx - r * cos, cy + r * sin);
+                ctx.lineTo(cx - (r - 25) * cos, cy + (r - 25) * sin);
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.font = "bold 52px Arial, Helvetica, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#000000"; // Texto del dial negro puro
+                
+                ctx.translate(cx - (r - 65) * cos, cy + (r - 65) * sin);
+                ctx.rotate(rad + Math.PI / 2);
+                
+                let displayAng = ang;
+                if (isRoll) {
+                    if (ang === 90) displayAng = 270;
+                    else if (ang === 270) displayAng = 90;
+                }
+
+                ctx.fillText(displayAng + "°", 0, 0);
+                ctx.restore();
+            });
+            
+            const subAngles = [30, 60, 120, 150, 210, 240, 300, 330];
+            subAngles.forEach(ang => {
+                const rad = ang * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000"; // Negro
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(cx - r * cos, cy + r * sin);
+                ctx.lineTo(cx - (r - 15) * cos, cy + (r - 15) * sin);
+                ctx.stroke();
+            });
+            
+            dynamicTexture.update();
+            return dynamicTexture;
+        }
+
+
+        function createFloorDial() {
+            const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+            angles.forEach(ang => {
+                const rad = - (ang * Math.PI / 180);
+                const dist = 2.15;
+                const px = dist * Math.sin(rad);
+                const pz = dist * Math.cos(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.04, height: 0.02, depth: 0.15}, scene);
+                tick.position.set(px * 0.92, 0.06, pz * 0.92);
+                tick.rotation.y = -rad;
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene);
+                tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                tick.material = tickMat;
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 0.8, height: 0.4, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+                label.position.set(px, 0.055, pz);
+                label.rotation.x = Math.PI / 2;
+                label.rotation.y = -rad + Math.PI;
+
+                const labelText = ang + "°";
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 256, height: 128}, scene);
+                dynTex.hasAlpha = true;
+                const ctx = dynTex.getContext();
+                
+                ctx.fillStyle = "rgba(0,0,0,0)";
+                ctx.fillRect(0, 0, 256, 128);
+                
+                ctx.font = "bold 44px 'Outfit', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                
+                // Letra negra pura, eliminando el contorno blanco
+                ctx.fillStyle = "#000000"; 
+                ctx.fillText(labelText, 128, 64);
+                
+                dynTex.update();
+
+                const labelMat = new BABYLON.StandardMaterial("floorLabelMat_" + ang, scene);
+                labelMat.diffuseTexture = dynTex;
+                labelMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                labelMat.disableLighting = true;
+                labelMat.backFaceCulling = false;
+                label.material = labelMat;
+            });
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+            
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.035;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            camera = new BABYLON.ArcRotateCamera("cam", Math.PI/4, Math.PI/3.5, 11, new BABYLON.Vector3(0, 1.75, 0), scene);
+            camera.lowerRadiusLimit = 4.0;
+            camera.upperRadiusLimit = 16.0;
+            camera.attachControl(canvas, true);
+
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.7;
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-1), scene);
+            dirLight.position = new BABYLON.Vector3(3,6,3);
+            dirLight.intensity = 1.2;
+
+            shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            shadowGen.blurKernel = 32;
+
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.6;
+
+            orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            orangeMat.specularPower = 32;
+
+            lightOrangeMat = new BABYLON.StandardMaterial("lightOrangeMat", scene);
+            lightOrangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ffaa44");
+            lightOrangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            lightOrangeMat.specularPower = 32;
+
+            blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+
+            whiteMat = new BABYLON.StandardMaterial("whiteMat", scene);
+            whiteMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+            metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            metalMat.diffuseColor = BABYLON.Color3.FromHexString("#cbd5e1");
+            metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+            redMat = new BABYLON.StandardMaterial("redMat", scene);
+            redMat.diffuseColor = BABYLON.Color3.FromHexString("#ff2222");
+            redMat.emissiveColor = BABYLON.Color3.FromHexString("#880000");
+
+            woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+
+            holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+            holoMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            holoMat.emissiveColor = new BABYLON.Color3(0, 0.5, 0.7);
+            holoMat.alpha = 0.5;
+            holoMat.backFaceCulling = false;
+
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 5.5, height: 0.05, depth: 5.5}, scene);
+            basePlate.position.y = 0.025;
+            basePlate.material = woodMat;
+            basePlate.receiveShadows = true;
+
+            createFloorDial();
+
+            const gradCircle = BABYLON.MeshBuilder.CreateTorus("gradCircle", {diameter: 3.8, thickness: 0.03, tessellation: 64}, scene);
+            gradCircle.position.y = 0.051;
+            const gradMat = new BABYLON.StandardMaterial("gradMat", scene);
+            gradMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+            gradCircle.material = gradMat;
+
+            // Base Rotator
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+            // Orientado hacia 270º desde el inicio
+            baseRotator.rotation.y = 270 * Math.PI / 180; 
+            
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3, tessellation: 32}, scene);
+            domeBase.position.y = 0.2;
+            domeBase.material = orangeMat; domeBase.parent = baseRotator;
+            shadowGen.addShadowCaster(domeBase);
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35;
+            domeSphere.scaling.y = 0.5;
+            domeSphere.material = orangeMat; domeSphere.parent = baseRotator;
+            shadowGen.addShadowCaster(domeSphere);
+
+            const baseMark = BABYLON.MeshBuilder.CreateBox("baseMark", {width: 0.25, height: 0.08, depth: 0.12}, scene);
+            baseMark.position.set(-1.45, 0.15, 0);
+            baseMark.material = redMat;
+            baseMark.parent = baseRotator;
+            shadowGen.addShadowCaster(baseMark);
+            
+            armRoot = new BABYLON.TransformNode("armRoot", scene);
+            armRoot.parent = baseRotator;
+            armRoot.rotation.y = 0;
+
+            // ================= PILARES Y HOMBRO =================
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.7, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.2, 0);
+            pillarL.material = orangeMat; pillarL.parent = armRoot;
+            shadowGen.addShadowCaster(pillarL);
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.7, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.2, 0);
+            pillarR.material = orangeMat; pillarR.parent = armRoot;
+            shadowGen.addShadowCaster(pillarR);
+
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.4}, scene);
+            shoulderPin.rotation.z = Math.PI / 2;
+            shoulderPin.position.set(0, 1.8, 0);
+            shoulderPin.material = metalMat; shoulderPin.parent = armRoot;
+            shadowGen.addShadowCaster(shoulderPin);
+
+            // DIAL HOMBRO LADO DERECHO (-X LOCAL)
+            const dialL = BABYLON.MeshBuilder.CreateDisc("shoulderDialL", {radius: 0.42, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+            dialL.parent = armRoot;
+            dialL.position.set(-0.75, 1.8, 0);
+            dialL.rotation.y = -Math.PI / 2;
+            const shoulderDialMatL = new BABYLON.StandardMaterial("shoulderDialMatL", scene);
+            shoulderDialMatL.diffuseTexture = createDialTexture("shoulderDialTexL", true);
+            shoulderDialMatL.emissiveTexture = shoulderDialMatL.diffuseTexture;
+            shoulderDialMatL.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            shoulderDialMatL.disableLighting = true;
+            shoulderDialMatL.backFaceCulling = false;
+            dialL.material = shoulderDialMatL;
+
+            const pointerL = BABYLON.MeshBuilder.CreateBox("pointerL", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            pointerL.position.set(-0.75, 2.26, 0);
+            pointerL.material = redMat;
+            pointerL.parent = armRoot;
+
+            // ================= BRAZO CENTRADO =================
+            shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.parent = armRoot;
+            shoulderNode.position.set(0, 1.8, 0);
+            shoulderNode.rotation.x = -Math.PI / 4; 
+
+            const armBox = BABYLON.MeshBuilder.CreateBox("armBox", {width: 0.20, height: 1.7, depth: 0.34}, scene);
+            armBox.position.set(0, 0.85, 0);
+            armBox.parent = shoulderNode;
+            armBox.material = orangeMat;
+            shadowGen.addShadowCaster(armBox);
+
+            const armFrontCurver = BABYLON.MeshBuilder.CreateCylinder("armFrontCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armFrontCurver.position.set(0, 0.85, 0.17);
+            armFrontCurver.parent = shoulderNode;
+            armFrontCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armFrontCurver);
+
+            const armBackCurver = BABYLON.MeshBuilder.CreateCylinder("armBackCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armBackCurver.position.set(0, 0.85, -0.17);
+            armBackCurver.parent = shoulderNode;
+            armBackCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armBackCurver);
+
+            // ================= CODO CENTRADO =================
+            codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.parent = shoulderNode;
+            codoNode.position.set(0, 1.7, 0);
+            codoNode.rotation.x = Math.PI / 2;
+
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.14, height: 0.80}, scene);
+            codoPin.rotation.z = Math.PI / 2;
+            codoPin.position.set(0, 0, 0);
+            codoPin.parent = codoNode;
+            codoPin.material = metalMat;
+            
+            codoPointerPivot = new BABYLON.TransformNode("codoPointerPivot", scene);
+            codoPointerPivot.parent = shoulderNode;
+            codoPointerPivot.position.set(0, 1.7, 0);
+
+            // DIAL CODO LADO DERECHO (-X LOCAL)
+            const codoDial = BABYLON.MeshBuilder.CreateDisc("codoDial", {radius: 0.33, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+            codoDial.position.set(-0.35, 0, 0);
+            codoDial.rotation.y = -Math.PI / 2;
+            codoDial.parent = codoPointerPivot;
+            const codoDialMat = new BABYLON.StandardMaterial("codoDialMat", scene);
+            codoDialMat.diffuseTexture = createDialTexture("codoDialTex", false);
+            codoDialMat.emissiveTexture = codoDialMat.diffuseTexture;
+            codoDialMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            codoDialMat.disableLighting = true;
+            codoDialMat.backFaceCulling = false;
+            codoDial.material = codoDialMat;
+
+            const codoPointer = BABYLON.MeshBuilder.CreateBox("codoPointer", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            codoPointer.position.set(-0.34, 0.35, 0);
+            codoPointer.material = redMat;
+            codoPointer.parent = codoNode;
+
+            // ================= ANTEBRAZO CENTRADO =================
+            link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBox = BABYLON.MeshBuilder.CreateBox("forearmBox", {width: 0.30, height: 1.30, depth: 0.23}, scene);
+            forearmBox.position.set(0, 0.65, 0);
+            forearmBox.parent = link2Node;
+            forearmBox.material = orangeMat;
+            shadowGen.addShadowCaster(forearmBox);
+
+            const forearmFrontCurver = BABYLON.MeshBuilder.CreateCylinder("forearmFrontCurver", {diameter: 0.30, height: 1.30, tessellation: 32}, scene);
+            forearmFrontCurver.position.set(0, 0.65, 0.115);
+            forearmFrontCurver.parent = link2Node;
+            forearmFrontCurver.material = orangeMat;
+            shadowGen.addShadowCaster(forearmFrontCurver);
+
+            const forearmBackCurver = BABYLON.MeshBuilder.CreateCylinder("forearmBackCurver", {diameter: 0.30, height: 1.30, tessellation: 32}, scene);
+            forearmBackCurver.position.set(0, 0.65, -0.115);
+            forearmBackCurver.parent = link2Node;
+            forearmBackCurver.material = orangeMat;
+            shadowGen.addShadowCaster(forearmBackCurver);
+
+            // ================= MUÑECA =================
+            munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.parent = link2Node;
+            munecaNode.position.set(0, 1.30, 0);
+            
+            const wristJointOuter = BABYLON.MeshBuilder.CreateCylinder("wristJointOuter", {diameter: 0.50, height: 0.20, tessellation: 32}, scene);
+            wristJointOuter.rotation.z = Math.PI / 2;
+            wristJointOuter.position.set(0, 0, 0);
+            wristJointOuter.material = holoMat; wristJointOuter.parent = munecaNode;
+            wristJointOuter.isPickable = false;
+
+            const wristJointInner = BABYLON.MeshBuilder.CreateCylinder("wristJointInner", {diameter: 0.30, height: 0.22, tessellation: 32}, scene);
+            wristJointInner.rotation.z = Math.PI / 2;
+            wristJointInner.position.set(0, 0, 0);
+            wristJointInner.material = holoMat; wristJointInner.parent = munecaNode;
+            wristJointInner.isPickable = false;
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.24, height: 0.24, depth: 0.24}, scene);
+            wristServo.position.set(0, 0.12, 0);
+            wristServo.material = holoMat; wristServo.parent = munecaNode;
+            wristServo.isPickable = false;
+
+            const wristConnector = BABYLON.MeshBuilder.CreateCylinder("wristConnector", {diameter: 0.20, height: 0.16, tessellation: 32}, scene);
+            wristConnector.rotation.z = Math.PI/2;
+            wristConnector.position.set(0, 0.24, 0);
+            wristConnector.material = holoMat; wristConnector.parent = munecaNode;
+            wristConnector.isPickable = false;
+
+            munecaPointerPivot = new BABYLON.TransformNode("munecaPointerPivot", scene);
+            munecaPointerPivot.parent = link2Node;
+            munecaPointerPivot.position.set(0, 1.30, 0);
+
+            // DIAL MUÑECA LADO DERECHO (-X LOCAL)
+            const wristDialShaft = BABYLON.MeshBuilder.CreateCylinder("wristDialShaft", {diameter: 0.10, height: 0.24}, scene);
+            wristDialShaft.rotation.z = Math.PI / 2;
+            wristDialShaft.position.set(-0.12, 0, 0);
+            wristDialShaft.material = holoMat;
+            wristDialShaft.parent = munecaPointerPivot;
+            wristDialShaft.isPickable = false;
+
+            const wristDialBack = BABYLON.MeshBuilder.CreateCylinder("wristDialBack", {diameter: 0.50, height: 0.03, tessellation: 48}, scene);
+            wristDialBack.rotation.z = Math.PI / 2;
+            wristDialBack.position.set(-0.25, 0, 0);
+            wristDialBack.material = holoMat;
+            wristDialBack.parent = munecaPointerPivot;
+            wristDialBack.isPickable = false;
+
+            const munecaDial = BABYLON.MeshBuilder.CreateDisc("munecaDial", {radius: 0.25, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+            munecaDial.position.set(-0.266, 0, 0);
+            munecaDial.rotation.y = -Math.PI / 2;
+            munecaDial.parent = munecaPointerPivot;
+            munecaDial.material = holoMat;
+            munecaDial.isPickable = false;
+
+            const pointerM = BABYLON.MeshBuilder.CreateBox("pointerM", {width: 0.02, height: 0.06, depth: 0.03}, scene);
+            pointerM.position.set(-0.26, 0.26, 0);
+            pointerM.material = redMat;
+            pointerM.parent = munecaNode;
+
+            // Eje de Roll y Servo
+            munecaRollNode = new BABYLON.TransformNode("munecaRollNode", scene);
+            munecaRollNode.parent = munecaNode;
+            munecaRollNode.position.set(0, 0.24, 0);
+            munecaRollNode.rotation.x = -Math.PI / 2;
+
+
+
+            const rollConnector = BABYLON.MeshBuilder.CreateCylinder("rollConnector", {diameter: 0.12, height: 0.08}, scene);
+            rollConnector.rotation.x = Math.PI / 2;
+            rollConnector.parent = munecaRollNode;
+            rollConnector.position.set(0, 0, -0.02);
+            rollConnector.material = holoMat;
+            rollConnector.isPickable = false;
+
+            const wristPlate = BABYLON.MeshBuilder.CreateBox("wristPlate", {width: 0.32, height: 0.04, depth: 0.14}, scene);
+            wristPlate.parent = munecaRollNode;
+            wristPlate.position.set(0, 0, 0.02);
+            wristPlate.material = holoMat;
+            wristPlate.isPickable = false;
+
+            const rollServoBody = BABYLON.MeshBuilder.CreateBox("rollServoBody", {width: 0.16, height: 0.16, depth: 0.16}, scene);
+            rollServoBody.parent = munecaRollNode;
+            rollServoBody.position.set(0, 0, 0.08);
+            rollServoBody.material = holoMat;
+            rollServoBody.isPickable = false;
+
+            // ================= EFECTOR FINAL =================
+            const pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.parent = munecaRollNode;
+            pinzaNode.position.set(0, 0, 0.16);
+
+            const gripperBase = BABYLON.MeshBuilder.CreateBox("gripperBase", {width: 0.42, height: 0.08, depth: 0.22}, scene);
+            gripperBase.material = holoMat; gripperBase.parent = pinzaNode;
+            gripperBase.isPickable = false;
+
+            const fingerL = BABYLON.MeshBuilder.CreateBox("fingerL", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerL.position.set(0.12, 0.04, 0.13);
+            fingerL.rotation.y = 0.22;
+            fingerL.material = holoMat; fingerL.parent = pinzaNode;
+            fingerL.isPickable = false;
+
+            const tipL = BABYLON.MeshBuilder.CreateBox("tipL", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipL.position.set(0.08, 0.04, 0.28);
+            tipL.material = holoMat; tipL.parent = pinzaNode;
+            tipL.isPickable = false;
+
+            const fingerR = BABYLON.MeshBuilder.CreateBox("fingerR", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerR.position.set(-0.12, 0.04, 0.13);
+            fingerR.rotation.y = -0.22;
+            fingerR.material = holoMat; fingerR.parent = pinzaNode;
+            fingerR.isPickable = false;
+
+            const tipR = BABYLON.MeshBuilder.CreateBox("tipR", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipR.position.set(-0.08, 0.04, 0.28);
+            tipR.material = holoMat; tipR.parent = pinzaNode;
+            tipR.isPickable = false;
+
+            const indicator = BABYLON.MeshBuilder.CreateTorus("indicator", {diameter: 0.8, thickness: 0.03, tessellation: 32}, scene);
+            indicator.position.set(0, 1.2 + 1.7 + 1.3, 0);
+            const iMat = new BABYLON.StandardMaterial("iMat", scene);
+            iMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            iMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+            iMat.alpha = 0.5;
+            indicator.material = iMat;
+
+            munecaDialMat = new BABYLON.StandardMaterial("munecaDialMat", scene);
+            munecaDialMat.diffuseTexture = createDialTexture("munecaDialTex", false);
+            munecaDialMat.emissiveTexture = munecaDialMat.diffuseTexture;
+            munecaDialMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            munecaDialMat.disableLighting = true;
+            munecaDialMat.backFaceCulling = false;
+
+            scene.onBeforeRenderObservable.add(() => {
+                if (!completado) {
+                    camera.alpha += 0.003;
+                    if (indicator && !indicator.isDisposed()) {
+                        indicator.rotation.y += 0.02;
+                    }
+                } else {
+                    let diffAlpha = (Math.PI / 4 - camera.alpha) % (2 * Math.PI);
+                    if (diffAlpha > Math.PI) diffAlpha -= 2 * Math.PI;
+                    if (diffAlpha < -Math.PI) diffAlpha += 2 * Math.PI;
+                    camera.alpha += diffAlpha * 0.08;
+
+                    const time = performance.now() / 1000;
+                    
+                    // Oscila alrededor de 270º. Los diales situados en -X local permanecen estables visualmente en +X
+                    baseRotator.rotation.y = (270 * Math.PI / 180) + Math.sin(time * 0.7) * 0.5;
+                    
+                    const shoulderAngle = 45 + Math.cos(time * 0.7) * 20;
+                    shoulderNode.rotation.x = -(90 - shoulderAngle) * Math.PI / 180;
+                    
+                    const codoAngle = 90 + Math.sin(time * 1.0) * 30;
+                    codoNode.rotation.x = (shoulderAngle - codoAngle) * Math.PI / 180;
+
+                    const wristAngle = 90 + Math.cos(time * 1.3) * 60;
+                    munecaNode.rotation.x = (codoAngle - wristAngle) * Math.PI / 180;
+
+                    if (codoPointerPivot) {
+                        codoPointerPivot.rotation.x = - shoulderNode.rotation.x;
+                    }
+                    if (munecaPointerPivot) {
+                        munecaPointerPivot.rotation.x = - (shoulderNode.rotation.x + codoNode.rotation.x);
+                    }
+
+                    const rollAngle = Math.sin(time * 1.5) * 120;
+                    munecaRollNode.rotation.z = rollAngle * Math.PI / 180;
+
+                    if (codoPointerPivot) {
+                        codoPointerPivot.rotation.x = - shoulderNode.rotation.x;
+                    }
+                    if (munecaPointerPivot) {
+                        munecaPointerPivot.rotation.x = - (shoulderNode.rotation.x + codoNode.rotation.x);
+                    }
+                }
+            });
+        }
+
+        // CONTROL DE MONTAJE
+        const instaladasReal = { wrist_pin: false, wrist_dial: false, wrist_roll: false };
+
+        const canvasContainer = document.getElementById('canvas-container');
+        document.querySelectorAll('.piece-btn').forEach(btn => {
+            btn.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('pieza-id', btn.id.replace('btn-', ''));
+            });
+        });
+
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.add('drop-hover');
+        });
+
+        canvasContainer.addEventListener('dragleave', () => {
+            canvasContainer.classList.remove('drop-hover');
+        });
+
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.remove('drop-hover');
+            const id = e.dataTransfer.getData('pieza-id');
+            if (id) installPiece(id);
+        });
+
+        function installPiece(id) {
+            if (instaladasReal[id]) return;
+            instaladasReal[id] = true;
+
+            const btn = document.getElementById('btn-' + id);
+            btn.classList.add('installed');
+            btn.setAttribute('draggable', 'false');
+
+            let meshesToSolid = [];
+            if (id === 'wrist_pin') {
+                meshesToSolid.push(scene.getMeshByName("wristJointOuter"));
+                meshesToSolid.push(scene.getMeshByName("wristJointInner"));
+                meshesToSolid.push(scene.getMeshByName("wristServo"));
+                meshesToSolid.push(scene.getMeshByName("wristConnector"));
+            } else if (id === 'wrist_dial') {
+                meshesToSolid.push(scene.getMeshByName("wristDialShaft"));
+                meshesToSolid.push(scene.getMeshByName("wristDialBack"));
+                meshesToSolid.push(scene.getMeshByName("munecaDial"));
+            } else if (id === 'wrist_roll') {
+                meshesToSolid.push(scene.getMeshByName("rollConnector"));
+                meshesToSolid.push(scene.getMeshByName("wristPlate"));
+                meshesToSolid.push(scene.getMeshByName("rollServoBody"));
+            }
+
+            meshesToSolid.forEach(mesh => {
+                if (mesh) {
+                    if (mesh.name === "wristConnector" || mesh.name === "rollConnector") {
+                        mesh.material = metalMat;
+                    } else if (mesh.name === "munecaDial") {
+                        mesh.material = munecaDialMat;
+                    } else if (mesh.name === "wristJointInner" || mesh.name === "wristDialShaft" || mesh.name === "rollServoBody") {
+                        mesh.material = blackMat;
+                    } else if (mesh.name === "wristJointOuter") {
+                        mesh.material = lightOrangeMat;
+                    } else {
+                        mesh.material = orangeMat;
+                    }
+                    shadowGen.addShadowCaster(mesh);
+
+                    // Animación pop-in
+                    mesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+                    let t0 = performance.now();
+                    const popAnim = () => {
+                        const p = Math.min((performance.now() - t0) / 500, 1);
+                        const s = 0.01 + 0.99 * p;
+                        mesh.scaling = new BABYLON.Vector3(s, s, s);
+                        if (p >= 1) {
+                            mesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                            scene.onBeforeRenderObservable.removeCallback(popAnim);
+                            checkCompletion();
+                        }
+                    };
+                    scene.onBeforeRenderObservable.add(popAnim);
+                }
+            });
+        }
+
+        function checkCompletion() {
+            const allInstalled = Object.values(instaladasReal).every(val => val === true);
+            if (allInstalled && !completado) {
+                completado = true;
+                camera.alpha = camera.alpha % (2 * Math.PI);
+                
+                const indicator = scene.getMeshByName("indicator");
+                if (indicator && !indicator.isDisposed()) indicator.dispose();
+
+                document.getElementById('banner-completado').style.display = 'block';
+                startConfetti();
+            }
+        }
+
+        // CONFETI
+        function startConfetti() {
+            const ctx = document.getElementById('confettiCanvas').getContext('2d');
+            const cCanvas = document.getElementById('confettiCanvas');
+            let width = cCanvas.width = cCanvas.offsetWidth;
+            let height = cCanvas.height = cCanvas.offsetHeight;
+
+            const particles = [];
+            const colors = ['#ffaa44', '#ff5500', '#ffffff', '#00ffaa', '#00e5ff'];
+
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height - height,
+                    r: Math.random() * 6 + 4,
+                    dx: Math.random() * 4 - 2,
+                    dy: Math.random() * 5 + 2,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.random() * 10
+                });
+            }
+
+            let lastTime = performance.now();
+            const draw = () => {
+                if (!completado) return;
+                const now = performance.now();
+                if (now - lastTime > 30) {
+                    ctx.clearRect(0,0,width,height);
+                    particles.forEach(p => {
+                        p.y += p.dy;
+                        p.x += p.dx;
+                        ctx.beginPath();
+                        ctx.lineWidth = p.r/2;
+                        ctx.strokeStyle = p.color;
+                        ctx.moveTo(p.x + p.tilt + p.r/2, p.y);
+                        ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r/2);
+                        ctx.stroke();
+                        if (p.y > height) {
+                            p.y = -20;
+                            p.x = Math.random() * width;
+                        }
+                    });
+                    lastTime = now;
+                }
+                requestAnimationFrame(draw);
+            };
+            draw();
+        }
+
+        initEngine();
+    </script>
+</body>
+</html>

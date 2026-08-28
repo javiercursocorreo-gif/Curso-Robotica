@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Trek TNG Intro</title>
+    <!-- Babylon.js core -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css?v=18">
+</head>
+<body>
+    
+    <!-- UI Overlay -->
+    <div id="ui-container">
+        <!-- Botón de Inicio -->
+        <button id="startButton">INICIAR SECUENCIA</button>
+        
+        <!-- Título que aparecerá luego -->
+        <div id="tng-title" class="hidden">
+            <h1>STAR TREK</h1>
+            <h2>THE NEXT GENERATION</h2>
+        </div>
+    </div>
+
+    <!-- Canvas para Babylon.js -->
+    <canvas id="renderCanvas"></canvas>
+
+    <script src="app.js?v=18"></script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Visor de Animaciones y Medidor de Intervalos</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #222; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: white;}
+        #renderCanvas { width: 100%; height: 100vh; touch-action: none; }
+        
+        #uiPanel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px 30px;
+            border-radius: 12px;
+            border: 2px solid #555;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 500px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        #frameSlider {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            background-color: #3498db;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        #btnPlay.playing {
+            background-color: #e74c3c;
+        }
+        
+        #btnPlay.playing:hover {
+            background-color: #c0392b;
+        }
+
+        #frameDisplay {
+            font-size: 1.5rem;
+            font-family: monospace;
+            font-weight: bold;
+            color: #f1c40f;
+            min-width: 120px;
+            text-align: right;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 1rem;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="uiPanel">
+    <div class="row">
+        <label for="animSelect">Animación:</label>
+        <select id="animSelect"></select>
+    </div>
+    
+    <div class="row">
+        <button id="btnPlay">REPRODUCIR</button>
+        <input type="range" id="frameSlider" min="0" max="100" value="0" step="1">
+        <div id="frameDisplay">Frame: 0</div>
+    </div>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    
+    let currentAnimGroup = null;
+    let isPlaying = false;
+    let totalFrames = 0;
+    
+    const btnPlay = document.getElementById("btnPlay");
+    const slider = document.getElementById("frameSlider");
+    const frameDisplay = document.getElementById("frameDisplay");
+    const animSelect = document.getElementById("animSelect");
+
+    const createScene = async function () {
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.1, 0.1, 0.15, 1);
+
+        const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 15, new BABYLON.Vector3(0, 3, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 50;
+        camera.lowerRadiusLimit = 2;
+        camera.upperRadiusLimit = 30;
+
+        const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+        light.intensity = 1.5;
+        const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+        hemi.intensity = 1.5;
+        
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+        const mat = new BABYLON.StandardMaterial("groundMat", scene);
+        mat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        mat.wireframe = true;
+        ground.material = mat;
+
+        // Cargar Modelo Mecha
+        const modelPath = "mech_neck_walker_-_bge_free_download.glb";
+        const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelPath, "", scene);
+        
+        const rootNode = result.meshes[0];
+        rootNode.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+        
+        // Cargar Animaciones en el Selector
+        if (result.animationGroups && result.animationGroups.length > 0) {
+            result.animationGroups.forEach((ag, idx) => {
+                let opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerHTML = ag.name + " (" + Math.floor(ag.to) + " frames)";
+                animSelect.appendChild(opt);
+                ag.stop(); // Parar todas
+            });
+            
+            // Seleccionar la primera
+            currentAnimGroup = result.animationGroups[0];
+            totalFrames = Math.floor(currentAnimGroup.to);
+            slider.max = totalFrames;
+            
+            // Actualizar UI en cada frame de renderizado
+            scene.onBeforeRenderObservable.add(() => {
+                if (currentAnimGroup && isPlaying) {
+                    // Obtener el frame actual a partir de la animación activa
+                    let currFrame = Math.floor(currentAnimGroup.animatables[0].masterFrame);
+                    slider.value = currFrame;
+                    frameDisplay.innerText = "Frame: " + currFrame;
+                }
+            });
+        }
+        
+        return scene;
+    };
+
+    createScene().then(scene => {
+        engine.runRenderLoop(() => { scene.render(); });
+        
+        // Cambio de Animación
+        animSelect.addEventListener("change", (e) => {
+            if(currentAnimGroup) currentAnimGroup.stop();
+            
+            let idx = e.target.value;
+            currentAnimGroup = scene.animationGroups[idx];
+            totalFrames = Math.floor(currentAnimGroup.to);
+            slider.max = totalFrames;
+            slider.value = 0;
+            frameDisplay.innerText = "Frame: 0";
+            
+            if(isPlaying) {
+                currentAnimGroup.start(true, 1.0, 0, totalFrames);
+            } else {
+                currentAnimGroup.start(false, 1.0, 0, totalFrames);
+                currentAnimGroup.goToFrame(0);
+                currentAnimGroup.pause();
+            }
+        });
+
+        // Botón Play/Pause
+        btnPlay.addEventListener("click", () => {
+            if (!currentAnimGroup) return;
+            if (isPlaying) {
+                currentAnimGroup.pause();
+                btnPlay.innerText = "REPRODUCIR";
+                btnPlay.classList.remove("playing");
+            } else {
+                currentAnimGroup.play(true);
+                btnPlay.innerText = "PAUSAR";
+                btnPlay.classList.add("playing");
+            }
+            isPlaying = !isPlaying;
+        });
+        
+        // Slider de fotogramas manual (Scrubbing)
+        slider.addEventListener("input", (e) => {
+            if(currentAnimGroup) {
+                let frame = parseFloat(e.target.value);
+                frameDisplay.innerText = "Frame: " + Math.floor(frame);
+                
+                if (isPlaying) {
+                    currentAnimGroup.pause();
+                    btnPlay.innerText = "REPRODUCIR";
+                    btnPlay.classList.remove("playing");
+                    isPlaying = false;
+                }
+                
+                // Forzar animación a ir al frame exacto
+                currentAnimGroup.start(false, 1.0, frame, frame);
+                currentAnimGroup.goToFrame(frame);
+                currentAnimGroup.pause();
+            }
+        });
+    });
+    
+    window.addEventListener("resize", () => { engine.resize(); });
+</script>
+</body>
+</html>

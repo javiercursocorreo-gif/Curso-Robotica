@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1.CONSTRUCCION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #10101a;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+        }
+
+        /* HEADER */
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #ffaa44;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 100;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #ffaa44;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0 0 0 20px;
+            font-size: 18px;
+            color: #aaaaaa;
+        }
+
+        /* LAYOUT PRINCIPAL - FLEXBOX */
+        #main-layout {
+            display: flex;
+            height: calc(100vh - 70px);
+            width: 100%;
+        }
+
+        /* CONTENEDOR DEL CANVAS */
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            transition: box-shadow 0.3s ease;
+            min-width: 0;
+        }
+
+        #canvas-container.drop-hover {
+            box-shadow: inset 0 0 50px rgba(255, 170, 68, 0.5);
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* CONFETI Y BANNER FINAL */
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        #banner-completado {
+            display: none;
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(11, 17, 30, 0.90);
+            border: 2px solid #ffaa44;
+            box-shadow: 0 0 20px rgba(255, 170, 68, 0.5);
+            color: #ffaa44;
+            padding: 20px 40px;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 60;
+        }
+
+        #banner-completado h2 {
+            margin: 0;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #banner-completado p {
+            margin: 10px 0 0 0;
+            font-size: 20px;
+            color: #ffffff;
+        }
+
+        /* PANEL LATERAL DE PIEZAS */
+        #ui-panel {
+            width: 400px;
+            flex-shrink: 0;
+            background: rgba(10, 10, 20, 0.95);
+            border-left: 2px solid #ffaa44;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        .panel-title {
+            font-size: 22px;
+            color: #ffaa44;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .piece-btn {
+            background: #202030;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            color: #fff;
+            min-height: 65px; 
+            padding: 8px 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: grab;
+            transition: all 0.2s;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .piece-btn:hover {
+            border-color: #ffaa44;
+            background: #2a2a45;
+        }
+
+        .piece-btn:active {
+            cursor: grabbing;
+        }
+
+        .piece-btn.installed {
+            background: #11111a;
+            border-color: #00ffaa;
+            border-style: solid;
+            color: #777;
+            cursor: default;
+        }
+
+        .piece-title {
+            font-size: 19px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .piece-desc {
+            font-size: 15px;
+            color: #aaa;
+        }
+
+        .installed .piece-title {
+            color: #00ffaa;
+            opacity: 0.6;
+        }
+        .installed .piece-desc {
+            color: #777;
+        }
+    </style>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>P1.CONSTRUCCION</h1>
+        <p>Arrastra las piezas del codo y antebrazo para conectar la articulación de flexión.</p>
+    </header>
+
+    <div id="main-layout">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            <canvas id="confettiCanvas"></canvas>
+            <div id="banner-completado">
+                <h2>¡CODO COMPLETADO!</h2>
+                <p>El codo se ha ensamblado y realiza una secuencia libre de movimiento.</p>
+            </div>
+        </div>
+
+        <div id="ui-panel">
+            <div class="panel-title">Articulación del Codo (Arrastrar)</div>
+            
+            <button class="piece-btn" id="btn-codo_pin" draggable="true" title="Pasador metálico cilíndrico central que actúa como eje de rotación.">
+                <div class="piece-title">Pasador de codo</div>
+                <div class="piece-desc">Pasador metálico cilíndrico central</div>
+            </button>
+            <button class="piece-btn" id="btn-codo_joint" draggable="true" title="Articulación circular plana graduada que alberga la escala angular del codo.">
+                <div class="piece-title">Disco de articulación</div>
+                <div class="piece-desc">Disco lateral graduado del codo</div>
+            </button>
+            <button class="piece-btn" id="btn-forearm" draggable="true" title="Viga principal del antebrazo, de forma rectangular con bordes redondeados.">
+                <div class="piece-title">Viga del antebrazo</div>
+                <div class="piece-desc">Eslabón rectangular naranja redondeado</div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN BABYLON.JS
+        const canvas = document.getElementById('renderCanvas');
+        let engine;
+        let scene;
+        let camera;
+        let shadowGen;
+        let glow;
+        
+        let baseRotator; // Nodo giratorio de la base (sólido)
+        let shoulderNode; // Articulación del hombro (sólido)
+        let codoNode; // Articulación del codo (montaje por el alumno)
+        let link2Node; // Nodo del antebrazo
+        let codoPointerPivot;
+        
+        let angle = Math.PI / 4;
+        let completado = false;
+        
+        // Materiales Estándar
+        let orangeMat, blackMat, whiteMat, metalMat, redMat, woodMat, holoMat;
+        let codoDialMat;
+
+        function initEngine() {
+            engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            createScene();
+            window.scene = scene;
+            engine.runRenderLoop(() => {
+                try { if(scene) scene.render(); } catch(err) { console.error(err); }
+            });
+            window.addEventListener('resize', () => engine.resize());
+        }
+
+        // Generar textura dinámica graduada para las marcas de ángulos
+        function createDialTexture(name, isShoulder) {
+            const size = 512;
+            const dynamicTexture = new BABYLON.DynamicTexture(name, size, scene, true);
+            const ctx = dynamicTexture.getContext();
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size * 0.4;
+            
+            // Fondo disco naranja claro
+            ctx.fillStyle = "#ffaa44";
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 20, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Borde negro
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 14;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Grados cada 10 y números cada 30
+            const mainAngles = [0, 90, 180, 270];
+            mainAngles.forEach(ang => {
+                const rad = (180 - ang) * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.moveTo(cx + r * cos, cy + r * sin);
+                ctx.lineTo(cx + (r - 40) * cos, cy + (r - 40) * sin);
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.font = "bold 44px Arial, Helvetica, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#000000";
+                ctx.translate(cx + (r - 85) * cos, cy + (r - 85) * sin);
+                ctx.rotate(rad + Math.PI / 2);
+                ctx.fillText(ang + "°", 0, 0);
+                ctx.restore();
+            });
+            
+            // Subdivisiones secundarias
+            const subAngles = [30, 60, 120, 150, 210, 240, 300, 330];
+            subAngles.forEach(ang => {
+                const rad = (180 - ang) * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(cx + r * cos, cy + r * sin);
+                ctx.lineTo(cx + (r - 25) * cos, cy + (r - 25) * sin);
+                ctx.stroke();
+            });
+            
+            dynamicTexture.update();
+            return dynamicTexture;
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+
+            // Niebla Exponencial Obligatoria
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.035;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            // Cámara
+            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2.2, Math.PI/3.2, 7.5, new BABYLON.Vector3(0, 1.25, 0), scene);
+            camera.lowerRadiusLimit = 4.0;
+            camera.upperRadiusLimit = 16.0;
+
+            // Luces Directas Fuertes
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.7;
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-1), scene);
+            dirLight.position = new BABYLON.Vector3(3,6,3);
+            dirLight.intensity = 1.2;
+
+            // Sombras
+            shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            shadowGen.blurKernel = 32;
+
+            // Glow para Hologramas
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.6;
+
+            // Suelo (Mesa de trabajo oscura)
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:40, height:40}, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+            groundMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            ground.material = groundMat;
+            ground.receiveShadows = true;
+
+            // DEFINICIÓN DE MATERIALES ESTÁNDAR
+            orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            orangeMat.specularPower = 32;
+
+            lightOrangeMat = new BABYLON.StandardMaterial("lightOrangeMat", scene);
+            lightOrangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ffaa44");
+            lightOrangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            lightOrangeMat.specularPower = 32;
+
+            blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+
+            whiteMat = new BABYLON.StandardMaterial("whiteMat", scene);
+            whiteMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+            metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            metalMat.diffuseColor = BABYLON.Color3.FromHexString("#cbd5e1");
+            metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+            redMat = new BABYLON.StandardMaterial("redMat", scene);
+            redMat.diffuseColor = BABYLON.Color3.FromHexString("#ff2222");
+            redMat.emissiveColor = BABYLON.Color3.FromHexString("#880000");
+
+            woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+
+            holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+            holoMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            holoMat.emissiveColor = new BABYLON.Color3(0, 0.5, 0.7);
+            holoMat.alpha = 0.22;
+            holoMat.backFaceCulling = false;
+
+            // 1. BASE DE MADERA FIJA
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 5.5, height: 0.05, depth: 5.5}, scene);
+            basePlate.position.y = 0.025;
+            basePlate.material = woodMat;
+            basePlate.receiveShadows = true;
+
+            const gradCircle = BABYLON.MeshBuilder.CreateTorus("gradCircle", {diameter: 3.8, thickness: 0.03, tessellation: 64}, scene);
+            gradCircle.position.y = 0.051;
+            const gradMat = new BABYLON.StandardMaterial("gradMat", scene);
+            gradMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+            gradCircle.material = gradMat;
+
+            // 2. NODO ROTATORIO DE LA BASE
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+
+            // Torreta de base (Cúpula y Pilares en U) - Sólido
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3, tessellation: 32}, scene);
+            domeBase.position.y = 0.2;
+            domeBase.material = orangeMat; domeBase.parent = baseRotator;
+            shadowGen.addShadowCaster(domeBase);
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35;
+            domeSphere.scaling.y = 0.5;
+            domeSphere.material = orangeMat; domeSphere.parent = baseRotator;
+            shadowGen.addShadowCaster(domeSphere);
+
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.0, 0);
+            pillarL.material = orangeMat; pillarL.parent = baseRotator;
+            shadowGen.addShadowCaster(pillarL);
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.0, 0);
+            pillarR.material = orangeMat; pillarR.parent = baseRotator;
+            shadowGen.addShadowCaster(pillarR);
+
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.25}, scene);
+            shoulderPin.rotation.z = Math.PI / 2;
+            shoulderPin.position.set(0, 1.2, 0);
+            shoulderPin.material = metalMat; shoulderPin.parent = baseRotator;
+            shadowGen.addShadowCaster(shoulderPin);
+
+            // Cables decorativos
+            for (let zOffset = -0.2; zOffset <= 0.2; zOffset += 0.2) {
+                const wireMat = zOffset < -0.05 ? blackMat : (zOffset > 0.05 ? orangeMat : whiteMat);
+                const wire = BABYLON.MeshBuilder.CreateCylinder("wire_" + zOffset, {diameter: 0.03, height: 1.2, tessellation: 8}, scene);
+                wire.position.set(0.75, 0.5, zOffset - 0.35);
+                wire.rotation.x = 0.5;
+                wire.material = wireMat; wire.parent = baseRotator;
+            }
+
+            // Puntero de base
+            const basePointer = BABYLON.MeshBuilder.CreateCylinder("basePointer", {diameterTop: 0.0, diameterBottom: 0.10, height: 0.20, tessellation: 4}, scene);
+            basePointer.position.set(0, 0.18, 1.95);
+            basePointer.rotation.x = Math.PI;
+            basePointer.parent = baseRotator;
+            basePointer.material = redMat;
+
+            createFloorDial();
+
+            // 3. ARTICULACIÓN DEL HOMBRO (SÓLIDO)
+            shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.parent = baseRotator;
+            shoulderNode.position.set(0, 1.2, 0);
+            shoulderNode.rotation.x = -Math.PI / 4; // Reposo
+
+            // Servo Hombro Lado Derecho (X = 0.75) solamente (Reducido de 1.3 a 0.86 de diámetro)
+            const shoulderServo = BABYLON.MeshBuilder.CreateCylinder("shoulderServo", {diameter: 0.86, height: 0.3, tessellation: 32}, scene);
+            shoulderServo.rotation.z = Math.PI / 2;
+            shoulderServo.position.set(0.75, 0, 0);
+            shoulderServo.material = lightOrangeMat; shoulderServo.parent = shoulderNode;
+            shadowGen.addShadowCaster(shoulderServo);
+
+            // Dial del Hombro al costado exterior derecho (radius reducido de 0.64 a 0.42) parentado a la base para que quede fijo
+            const dialL = BABYLON.MeshBuilder.CreateDisc("shoulderDialL", {radius: 0.42, tessellation: 64}, scene);
+            dialL.parent = baseRotator;
+            dialL.position.set(0.915, 1.2, 0);
+            dialL.rotation.y = Math.PI / 2; // Cara derecha exterior (mirando a +X)
+            const shoulderDialMatL = new BABYLON.StandardMaterial("shoulderDialMatL", scene);
+            shoulderDialMatL.diffuseTexture = createDialTexture("shoulderDialTexL", true); // Calibración de hombro
+            shoulderDialMatL.emissiveTexture = shoulderDialMatL.diffuseTexture;
+            shoulderDialMatL.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            shoulderDialMatL.disableLighting = true;
+            shoulderDialMatL.backFaceCulling = false;
+            dialL.material = shoulderDialMatL;
+
+            // Puntero rojo del hombro parentado a shoulderNode para que gire con el brazo
+            const pointerL = BABYLON.MeshBuilder.CreateBox("pointerL", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            pointerL.position.set(0.935, 0.46, 0);
+            pointerL.material = redMat;
+            pointerL.parent = shoulderNode;
+
+            // VIGA DEL BRAZO MONOVIGA (SÓLIDO - al costado, X=0.35)
+            const armBox = BABYLON.MeshBuilder.CreateBox("armBox", {width: 0.20, height: 1.7, depth: 0.34}, scene);
+            armBox.position.set(0.35, 0.85, 0);
+            armBox.parent = shoulderNode;
+            armBox.material = orangeMat;
+            shadowGen.addShadowCaster(armBox);
+            armBox.receiveShadows = true;
+
+            const armFrontCurver = BABYLON.MeshBuilder.CreateCylinder("armFrontCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armFrontCurver.position.set(0.35, 0.85, 0.17);
+            armFrontCurver.parent = shoulderNode;
+            armFrontCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armFrontCurver);
+
+            const armBackCurver = BABYLON.MeshBuilder.CreateCylinder("armBackCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armBackCurver.position.set(0.35, 0.85, -0.17);
+            armBackCurver.parent = shoulderNode;
+            armBackCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armBackCurver);
+
+            // 4. ARTICULACIÓN DEL CODO
+            codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.parent = shoulderNode;
+            codoNode.position.set(0, 1.7, 0);
+            codoNode.rotation.x = Math.PI / 2; // Reposo (90 grados flexión)
+
+            // PIEZAS DEL CODO PARA INSTALAR (Hologramas al inicio)
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.14, height: 0.90}, scene);
+            codoPin.rotation.z = Math.PI / 2;
+            codoPin.position.set(0.20, 0, 0);
+            codoPin.parent = codoNode;
+            codoPin.material = holoMat;
+            codoPin.isPickable = false;
+
+            // Servo del Codo (diámetro reducido de 1.0 a 0.66)
+            const codoServo = BABYLON.MeshBuilder.CreateCylinder("codoServo", {diameter: 0.66, height: 0.22, tessellation: 32}, scene);
+            codoServo.rotation.z = Math.PI / 2;
+            codoServo.position.set(0.35, 0, 0);
+            codoServo.material = holoMat; codoServo.parent = codoNode;
+            codoServo.isPickable = false;
+
+            // DISCO DE JUNTA DEL CODO AL COSTADO EXTERIOR (diámetro reducido de 1.0 a 0.66)
+            const codoJointDisc = BABYLON.MeshBuilder.CreateCylinder("codoJointDisc", {diameter: 0.66, height: 0.10, tessellation: 48}, scene);
+            codoJointDisc.rotation.z = Math.PI / 2;
+            codoJointDisc.position.set(0.50, 0, 0);
+            codoJointDisc.parent = codoNode;
+            codoJointDisc.material = holoMat;
+            codoJointDisc.isPickable = false;
+
+            // Pivot de calibración para mantener el dial del codo alineado verticalmente
+            codoPointerPivot = new BABYLON.TransformNode("codoPointerPivot", scene);
+            codoPointerPivot.parent = shoulderNode;
+            codoPointerPivot.position.set(0, 1.7, 0);
+
+            // Dial graduado plano en la cara derecha exterior (radius reducido de 0.50 a 0.33) parentado al pivot para que no rote
+            const codoDial = BABYLON.MeshBuilder.CreateDisc("codoDial", {radius: 0.33, tessellation: 64}, scene);
+            codoDial.position.set(0.565, 0, 0);
+            codoDial.rotation.y = Math.PI / 2;
+            codoDial.parent = codoPointerPivot;
+            codoDial.material = holoMat;
+            codoDial.isPickable = false;
+
+            // Puntero rojo del codo parentado a codoNode para que rote con el antebrazo
+            const codoPointer = BABYLON.MeshBuilder.CreateBox("codoPointer", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            codoPointer.position.set(0.56, 0.35, 0);
+            codoPointer.material = redMat;
+            codoPointer.parent = codoNode;
+
+            // Link 2 (Antebrazo centrado en X = 0)
+            link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBox = BABYLON.MeshBuilder.CreateBox("forearmBox", {width: 0.30, height: 0.95, depth: 0.23}, scene);
+            forearmBox.position.set(0, 0.55, 0);
+            forearmBox.parent = link2Node;
+            forearmBox.material = holoMat;
+            forearmBox.isPickable = false;
+
+            const forearmFrontCurver = BABYLON.MeshBuilder.CreateCylinder("forearmFrontCurver", {diameter: 0.30, height: 0.95, tessellation: 32}, scene);
+            forearmFrontCurver.position.set(0, 0.55, 0.115);
+            forearmFrontCurver.parent = link2Node;
+            forearmFrontCurver.material = holoMat;
+            forearmFrontCurver.isPickable = false;
+
+            const forearmBackCurver = BABYLON.MeshBuilder.CreateCylinder("forearmBackCurver", {diameter: 0.30, height: 0.95, tessellation: 32}, scene);
+            forearmBackCurver.position.set(0, 0.55, -0.115);
+            forearmBackCurver.parent = link2Node;
+            forearmBackCurver.material = holoMat;
+            forearmBackCurver.isPickable = false;
+
+            // Separador interior codo (entre antebrazo y viga)
+            const codoInnerSpacer = BABYLON.MeshBuilder.CreateCylinder("codoInnerSpacer", {diameter: 0.70, height: 0.10}, scene);
+            codoInnerSpacer.rotation.z = Math.PI / 2;
+            codoInnerSpacer.position.set(0.20, 0, 0);
+            codoInnerSpacer.parent = codoNode;
+            codoInnerSpacer.material = blackMat;
+
+            // 5. RESTO DEL BRAZO (Hologramas inactivos fijos)
+            const munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.parent = link2Node;
+            munecaNode.position.set(0, 1.3, 0);
+            munecaNode.rotation.x = Math.PI / 2;
+
+            const wristJointOuter = BABYLON.MeshBuilder.CreateCylinder("wristJointOuter", {diameter: 0.45, height: 0.20, tessellation: 32}, scene);
+            wristJointOuter.rotation.z = Math.PI / 2;
+            wristJointOuter.material = holoMat; wristJointOuter.parent = munecaNode;
+            wristJointOuter.isPickable = false;
+
+            const wristJointInner = BABYLON.MeshBuilder.CreateCylinder("wristJointInner", {diameter: 0.28, height: 0.22, tessellation: 32}, scene);
+            wristJointInner.rotation.z = Math.PI / 2;
+            wristJointInner.material = holoMat; wristJointInner.parent = munecaNode;
+            wristJointInner.isPickable = false;
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.24, height: 0.24, depth: 0.24}, scene);
+            wristServo.position.set(0, 0.12, 0);
+            wristServo.material = holoMat; wristServo.parent = munecaNode;
+            wristServo.isPickable = false;
+
+            const wristConnector = BABYLON.MeshBuilder.CreateCylinder("wristConnector", {diameter: 0.20, height: 0.16, tessellation: 32}, scene);
+            wristConnector.rotation.z = Math.PI/2;
+            wristConnector.position.set(0, 0.24, 0);
+            wristConnector.material = holoMat; wristConnector.parent = munecaNode;
+            wristConnector.isPickable = false;
+
+            const pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.parent = munecaNode;
+            pinzaNode.position.set(0, 0.24, 0);
+            pinzaNode.rotation.x = -Math.PI / 2;
+
+            const gripperBase = BABYLON.MeshBuilder.CreateBox("gripperBase", {width: 0.42, height: 0.08, depth: 0.22}, scene);
+            gripperBase.material = holoMat; gripperBase.parent = pinzaNode;
+            gripperBase.isPickable = false;
+
+            const fingerL = BABYLON.MeshBuilder.CreateBox("fingerL", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerL.position.set(0.12, 0.04, 0.13);
+            fingerL.rotation.y = 0.22;
+            fingerL.material = holoMat; fingerL.parent = pinzaNode;
+            fingerL.isPickable = false;
+
+            const tipL = BABYLON.MeshBuilder.CreateBox("tipL", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipL.position.set(0.08, 0.04, 0.28);
+            tipL.material = holoMat; tipL.parent = pinzaNode;
+            tipL.isPickable = false;
+
+            const fingerR = BABYLON.MeshBuilder.CreateBox("fingerR", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerR.position.set(-0.12, 0.04, 0.13);
+            fingerR.rotation.y = -0.22;
+            fingerR.material = holoMat; fingerR.parent = pinzaNode;
+            fingerR.isPickable = false;
+
+            const tipR = BABYLON.MeshBuilder.CreateBox("tipR", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipR.position.set(-0.08, 0.04, 0.28);
+            tipR.material = holoMat; tipR.parent = pinzaNode;
+            tipR.isPickable = false;
+
+            // Indicador Holográfico Inicial (Toro cian en el codo)
+            const indicator = BABYLON.MeshBuilder.CreateTorus("indicator", {diameter: 1.0, thickness: 0.04, tessellation: 32}, scene);
+            indicator.position.set(0, 1.25 + 1.2, 0); 
+            const iMat = new BABYLON.StandardMaterial("iMat", scene);
+            iMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            iMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+            iMat.alpha = 0.5;
+            indicator.material = iMat;
+
+            // Material para el dial del codo una vez montado
+            codoDialMat = new BABYLON.StandardMaterial("codoDialMat", scene);
+            codoDialMat.diffuseTexture = createDialTexture("codoDialTex", false);
+            codoDialMat.emissiveTexture = codoDialMat.diffuseTexture;
+            codoDialMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            codoDialMat.disableLighting = true;
+            codoDialMat.backFaceCulling = false;
+
+            // Bucle de renderizado
+            scene.onBeforeRenderObservable.add(() => {
+                if (!completado) {
+                    angle += 0.004;
+                    camera.alpha = angle;
+                    if (indicator && !indicator.isDisposed()) {
+                        indicator.rotation.y += 0.02;
+                    }
+                } else {
+                    // Demo Secuencial Libre
+                    const time = performance.now() / 1000;
+                    
+                    // 1. Giro horizontal de base (Y)
+                    baseRotator.rotation.y = - Math.sin(time * 0.8) * 0.6;
+
+                    // 2. Elevación de hombro (X)
+                    const shoulderAngle = 45 + Math.cos(time * 0.8) * 20;
+                    shoulderNode.rotation.x = (90 - shoulderAngle) * Math.PI / 180;
+
+                    // 3. Flexión de codo (X)
+                    const codoAngle = 90 + Math.sin(time * 1.2) * 35;
+                    codoNode.rotation.x = (shoulderAngle - codoAngle) * Math.PI / 180;
+
+                    // Align codo pointer to point vertically UP in world coordinates
+                    if (codoPointerPivot) {
+                        codoPointerPivot.rotation.x = - shoulderNode.rotation.x;
+                    }
+                }
+            });
+        }
+
+        // CONTROL DE CONSTRUCCIÓN
+        const instaladasReal = { codo_pin: false, codo_joint: false, forearm: false };
+
+        const canvasContainer = document.getElementById('canvas-container');
+        document.querySelectorAll('.piece-btn').forEach(btn => {
+            btn.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('pieza-id', btn.id.replace('btn-', ''));
+            });
+        });
+
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.add('drop-hover');
+        });
+
+        canvasContainer.addEventListener('dragleave', () => {
+            canvasContainer.classList.remove('drop-hover');
+        });
+
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvasContainer.classList.remove('drop-hover');
+            const id = e.dataTransfer.getData('pieza-id');
+            if (id) installPiece(id);
+        });
+
+        function installPiece(id) {
+            if (instaladasReal[id]) return;
+            instaladasReal[id] = true;
+
+            // Eliminar indicador inicial
+            const indicator = scene.getMeshByName("indicator");
+            if (indicator && !indicator.isDisposed()) indicator.dispose();
+
+            const btn = document.getElementById('btn-' + id);
+            btn.classList.add('installed');
+            btn.setAttribute('draggable', 'false');
+
+            // Identificar y activar mallas
+            let meshesToSolid = [];
+            if (id === 'codo_pin') {
+                meshesToSolid.push(scene.getMeshByName("codoPin"));
+            } else if (id === 'codo_joint') {
+                meshesToSolid.push(scene.getMeshByName("codoServo"));
+                meshesToSolid.push(scene.getMeshByName("codoJointDisc"));
+                meshesToSolid.push(scene.getMeshByName("codoDial"));
+            } else if (id === 'forearm') {
+                meshesToSolid.push(scene.getMeshByName("forearmBox"));
+                meshesToSolid.push(scene.getMeshByName("forearmFrontCurver"));
+                meshesToSolid.push(scene.getMeshByName("forearmBackCurver"));
+            }
+
+            meshesToSolid.forEach(mesh => {
+                if (mesh) {
+                    // Sólidas
+                    if (mesh.name === "codoPin") {
+                        mesh.material = metalMat;
+                    } else if (mesh.name === "codoDial") {
+                        mesh.material = codoDialMat;
+                    } else if (mesh.name === "codoServo" || mesh.name === "codoJointDisc") {
+                        mesh.material = lightOrangeMat;
+                    } else {
+                        mesh.material = orangeMat;
+                    }
+                    shadowGen.addShadowCaster(mesh);
+
+                    // Animación pop-in
+                    mesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+                    let t0 = performance.now();
+                    const popAnim = () => {
+                        const p = Math.min((performance.now() - t0) / 500, 1);
+                        const s = 0.01 + 0.99 * p;
+                        mesh.scaling = new BABYLON.Vector3(s, s, s);
+                        if (p >= 1) {
+                            mesh.scaling = new BABYLON.Vector3(1, 1, 1);
+                            scene.onBeforeRenderObservable.removeCallback(popAnim);
+                            checkCompletion();
+                        }
+                    };
+                    scene.onBeforeRenderObservable.add(popAnim);
+                }
+            });
+        }
+
+        
+        function createFloorDial() {
+            const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+            angles.forEach(ang => {
+                const rad = ang * Math.PI / 180;
+                const dist = 2.15;
+                const px = dist * Math.cos(rad);
+                const pz = dist * Math.sin(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.04, height: 0.02, depth: 0.15}, scene);
+                tick.position.set(px * 0.92, 0.06, pz * 0.92);
+                tick.rotation.y = -rad + Math.PI/2;
+                
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene);
+                tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                tickMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                tick.material = tickMat;
+                if (typeof glow !== 'undefined' && glow) glow.addIncludedOnlyMesh(tick);
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 0.8, height: 0.4}, scene);
+                label.position.set(px, 0.055, pz);
+                label.rotation.x = Math.PI / 2;
+                label.rotation.y = -rad - Math.PI/2;
+
+                const labelText = ang + "°";
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 256, height: 128}, scene);
+                dynTex.hasAlpha = true;
+                const ctx = dynTex.getContext();
+                ctx.fillStyle = "rgba(0,0,0,0)";
+                ctx.fillRect(0, 0, 256, 128);
+                
+                ctx.font = "bold 38px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 8;
+                ctx.strokeText(labelText, 128, 64);
+                ctx.fillStyle = "#000000";
+                ctx.fillText(labelText, 128, 64);
+                dynTex.update();
+
+                const labelMat = new BABYLON.StandardMaterial("floorLabelMat_" + ang, scene);
+                labelMat.diffuseTexture = dynTex;
+                labelMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                labelMat.disableLighting = true;
+                labelMat.backFaceCulling = false;
+                label.material = labelMat;
+                if (typeof glow !== 'undefined' && glow) glow.addExcludedMesh(label);
+            });
+        }
+
+        function checkCompletion() {
+            const allInstalled = Object.values(instaladasReal).every(val => val === true);
+            if (allInstalled && !completado) {
+                completado = true;
+                
+                document.getElementById('banner-completado').style.display = 'block';
+                camera.attachControl(canvas, true);
+                startConfetti();
+            }
+        }
+
+        // CONFETI
+        function startConfetti() {
+            const ctx = document.getElementById('confettiCanvas').getContext('2d');
+            const cCanvas = document.getElementById('confettiCanvas');
+            let width = cCanvas.width = cCanvas.offsetWidth;
+            let height = cCanvas.height = cCanvas.offsetHeight;
+
+            const particles = [];
+            const colors = ['#ffaa44', '#ff5500', '#ffffff', '#00ffaa', '#00e5ff'];
+
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height - height,
+                    r: Math.random() * 6 + 4,
+                    dx: Math.random() * 4 - 2,
+                    dy: Math.random() * 5 + 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.random() * 10
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, width, height);
+                particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.lineWidth = p.r;
+                    ctx.strokeStyle = p.color;
+                    ctx.moveTo(p.x + p.tilt + p.r, p.y);
+                    ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+                    ctx.stroke();
+
+                    p.y += p.dy;
+                    p.x += Math.sin(p.y / 50) + p.dx;
+                    
+                    if (p.y > height) {
+                        p.y = -20;
+                        p.x = Math.random() * width;
+                    }
+                });
+                requestAnimationFrame(draw);
+            }
+            draw();
+        }
+
+        // Inicializar
+        initEngine();
+    </script>
+</body>
+</html>

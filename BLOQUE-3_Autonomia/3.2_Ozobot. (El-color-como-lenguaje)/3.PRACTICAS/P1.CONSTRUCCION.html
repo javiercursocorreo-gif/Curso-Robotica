@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P1.CONSTRUCCION — Ozobot Bit (Babylon.js V8 Gold)</title>
+    <!-- Babylon.js V8 Gold CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        :root {
+            --primary: #00f2ff;
+            --bg: #0d0d1a;
+            --bg2: #16162d;
+            --glass: rgba(10, 15, 30, 0.85);
+            --text: #ffffff;
+            --sub: #aaaaaa;
+            --success: #00e676;
+            --warning: #ffcc00;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+        /* HEADER OBLIGATORIO */
+        #header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+        #header h1 {
+            font-size: 24px;
+            color: var(--primary);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+        #header .subtitle {
+            font-size: 15px;
+            color: var(--sub);
+        }
+        #prog-badge {
+            background: rgba(0, 242, 255, 0.15);
+            border: 1px solid var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* LAYOUT PRINCIPAL (3 COLUMNAS) */
+        #main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            height: calc(100vh - 70px);
+        }
+        #panel-izq {
+            width: 320px;
+            background: var(--glass);
+            border-right: 1px solid rgba(0, 242, 255, 0.2);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        #panel-der {
+            width: 320px;
+            background: var(--glass);
+            border-left: 1px solid rgba(0, 242, 255, 0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 10;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #080811;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* PANEL IZQUIERDO CONTENT */
+        .section-title {
+            font-size: 14px;
+            color: var(--primary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(0, 242, 255, 0.3);
+            padding-bottom: 6px;
+        }
+        #piece-info-box {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #piece-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--warning);
+            margin-bottom: 8px;
+        }
+        #piece-desc {
+            font-size: 16px;
+            color: #ddd;
+            line-height: 1.5;
+        }
+        .prog-bar-wrap {
+            width: 100%;
+            height: 12px;
+            background: #222;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+        #prog-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            transition: width 0.4s ease;
+        }
+
+        /* BANDEJA DE PIEZAS (DERECHA) */
+        .piece-card {
+            background: rgba(0, 242, 255, 0.06);
+            border: 2px solid rgba(0, 242, 255, 0.3);
+            border-radius: 12px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        .piece-card:hover {
+            background: rgba(0, 242, 255, 0.15);
+            border-color: var(--primary);
+            transform: translateX(-4px);
+        }
+        .piece-card:active { cursor: grabbing; }
+        .piece-card.installed {
+            opacity: 0.45;
+            cursor: default;
+            border-style: dashed;
+            border-color: var(--success);
+            background: rgba(0, 230, 118, 0.05);
+        }
+        .piece-icon {
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .piece-label {
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            flex: 1;
+        }
+        .installed-badge {
+            font-size: 18px;
+            color: var(--success);
+            display: none;
+        }
+        .piece-card.installed .installed-badge { display: inline; }
+        .btn-install {
+            margin-top: 8px;
+            width: 100%;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 2px 6px rgba(0, 242, 255, 0.3);
+        }
+        .btn-install:hover {
+            background: #4de6ff;
+            transform: scale(1.02);
+        }
+        .piece-card.installed .btn-install { display: none; }
+
+        /* BANNER Y BOTÓN DE DEMONSTRACIÓN (ANTI-OCLUSIÓN: EN PANEL IZQUIERDO) */
+        #demo-box {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(0, 230, 118, 0.1);
+            border: 2px solid var(--success);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            animation: pulseBox 2s infinite alternate;
+        }
+        @keyframes pulseBox {
+            from { box-shadow: 0 0 10px rgba(0, 230, 118, 0.2); }
+            to { box-shadow: 0 0 25px rgba(0, 230, 118, 0.5); }
+        }
+        .btn-action {
+            background: var(--success);
+            color: #000;
+            border: none;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn-action:hover { background: #1eff8e; transform: scale(1.02); }
+        .btn-reset {
+            background: transparent;
+            color: var(--sub);
+            border: 1px solid #555;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: auto;
+        }
+        .btn-reset:hover { border-color: var(--warning); color: var(--warning); }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div>
+            <h1>Monta tu Ozobot Bit</h1>
+            <div class="subtitle">Ensamblaje 3D interactivo · El cerebro que lee los colores</div>
+        </div>
+        <div id="prog-badge">0 / 8 Piezas</div>
+    </div>
+
+    <div id="main-container">
+        <!-- PANEL IZQUIERDO: INSTRUCCIONES Y TELEMETRÍA -->
+        <div id="panel-izq">
+            <div class="section-title">Guía de Montaje</div>
+            <div id="piece-info-box">
+                <div id="piece-name">¡Bienvenido al Taller!</div>
+                <div id="piece-desc">Arrastra las piezas desde la bandeja derecha hacia el centro de la pantalla 3D para construir tu Ozobot paso a paso.</div>
+            </div>
+
+            <div class="section-title">Progreso del Robot</div>
+            <div class="prog-bar-wrap">
+                <div id="prog-bar"></div>
+            </div>
+
+            <div id="demo-box">
+                <div style="font-size: 18px; font-weight: bold; color: var(--success);">🎉 ¡ROBOT COMPLETADO!</div>
+                <div style="font-size: 14px; color: #ddd;">El Ozobot está listo para leer colores en el papel.</div>
+                <button class="btn-action" id="btn-demo" onclick="toggleDemo()">▶ ACTIVAR DEMONSTRACIÓN</button>
+            </div>
+
+            <button class="btn-reset" onclick="resetMontaje()">🔄 Reiniciar Montaje</button>
+        </div>
+
+        <!-- CANVAS CENTRAL 3D BABYLON.JS -->
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+
+        <!-- PANEL DERECHO: BANDEJA DE PIEZAS DRAG & DROP -->
+        <div id="panel-der">
+            <div class="section-title">Bandeja de Piezas</div>
+            <div id="pieces-list">
+                <!-- Se rellena por JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── DATOS Y DEFINICIÓN DE LAS 8 PIEZAS DEL OZOBOT ───
+        const PIECES_DATA = [
+            {
+                id: 'base_sensor',
+                name: 'Sensor Óptico de Base',
+                icon: '👁️',
+                desc: 'Módulo inferior provisto de 5 fototransistores infrarrojos orientados directamente al suelo para detectar y leer los códigos de color del papel.'
+            },
+            {
+                id: 'cuerpo_central',
+                name: 'Cuerpo Central con Morro',
+                icon: '🛢️',
+                desc: 'Chasis translúcido de policarbonato con una raya blanca frontal en el morro como marca orientativa de referencia para apreciar giros de 360° sobre el eje central.'
+            },
+            {
+                id: 'placa_logica',
+                name: 'Placa Lógica de Control',
+                icon: '🧩',
+                desc: 'El verdadero cerebro del robot: procesa en microsegundos las combinaciones cromáticas detectadas por los sensores para decidir la acción de giro o velocidad.'
+            },
+            {
+                id: 'bateria',
+                name: 'Batería de Litio USB',
+                icon: '🔋',
+                desc: 'Acumulador recargable de alta densidad energética que suministra corriente estable a los motores y a la matriz lumínica interna.'
+            },
+            {
+                id: 'rueda_izq',
+                name: 'Rueda Izquierda',
+                icon: '⚙️',
+                desc: 'Rueda de caucho de alta adherencia impulsada por su propio micro-motor independiente para permitir giros diferenciales sobre el propio eje.'
+            },
+            {
+                id: 'rueda_der',
+                name: 'Rueda Derecha',
+                icon: '⚙️',
+                desc: 'Rueda gemela derecha; al girar a diferente velocidad que la rueda izquierda, el robot logra describir curvas exactas y giros de 90 grados.'
+            },
+            {
+                id: 'leds_rgb',
+                name: 'Matriz de LEDs RGB',
+                icon: '💡',
+                desc: 'Anillo de diodos emisores de luz multicolores situado en la parte superior para mostrar al alumno qué instrucción ha interpretado el robot en cada instante.'
+            },
+            {
+                id: 'cupula',
+                name: 'Cúpula Translúcida',
+                icon: '🔮',
+                desc: 'Cubierta superior semitransparente de color blanco perla que protege la matriz LED mientras difunde de forma homogénea los colores de respuesta.'
+            }
+        ];
+
+        let installedCount = 0;
+        const installedPieces = {};
+        let isDemoRunning = false;
+        let demoAngle = 0;
+
+        // ─── CONFIGURACIÓN DE BABYLON.JS V8 GOLD ───
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene = function() {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.06, 0.06, 0.12, 1);
+
+            // CÁMARA ORBITAL CINEMÁTICA
+            const camera = new BABYLON.ArcRotateCamera("Camera", -Math.PI / 4, Math.PI / 3, 10, new BABYLON.Vector3(0, 1.2, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 4;
+            camera.upperRadiusLimit = 20;
+            camera.wheelPrecision = 40;
+
+            // ILUMINACIÓN SUAVE
+            const hemiLight = new BABYLON.HemisphericLight("Hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.8;
+            hemiLight.diffuse = new BABYLON.Color3(1, 1, 1);
+            hemiLight.groundColor = new BABYLON.Color3(0.15, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("Dir", new BABYLON.Vector3(2, -4, 3), scene);
+            dirLight.intensity = 0.6;
+
+            // SUELO DE TALLER (Y = 0)
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 40, height: 40 }, scene);
+            const groundMat = new BABYLON.StandardMaterial("gMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.15);
+            groundMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            ground.material = groundMat;
+            ground.position.y = 0;
+
+            // GRID DE REFERENCIA SOBRE EL SUELO (SISTEMA NATIVO BABYLON.JS V8 GOLD)
+            const gridLines = [];
+            for (let i = -15; i <= 15; i += 1) {
+                gridLines.push([new BABYLON.Vector3(i, 0.01, -15), new BABYLON.Vector3(i, 0.01, 15)]);
+                gridLines.push([new BABYLON.Vector3(-15, 0.01, i), new BABYLON.Vector3(15, 0.01, i)]);
+            }
+            const grid = BABYLON.MeshBuilder.CreateLineSystem("grid", { lines: gridLines }, scene);
+            grid.color = new BABYLON.Color3(0.18, 0.25, 0.4);
+
+            // GRUPO RAÍZ DEL ROBOT OZOBOT
+            const robotGroup = new BABYLON.TransformNode("robotRoot", scene);
+            robotGroup.position = new BABYLON.Vector3(0, 0, 0);
+
+            // PISTA DE DEMO (INVISIBLE AL INICIO)
+            const demoTrackGroup = new BABYLON.TransformNode("demoTrack", scene);
+            const trackMesh = BABYLON.MeshBuilder.CreateGround("trackMesh", { width: 14, height: 14 }, scene);
+            const trackMat = new BABYLON.StandardMaterial("tMat", scene);
+            trackMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.92);
+            trackMesh.material = trackMat;
+            trackMesh.position.y = 0.02;
+            trackMesh.parent = demoTrackGroup;
+
+            // LÍNEA NEGRA CIRCULAR DE DEMO
+            const pathPoints = [];
+            for (let a = 0; a <= Math.PI * 2; a += 0.1) {
+                pathPoints.push(new BABYLON.Vector3(4 * Math.cos(a), 0.04, 4 * Math.sin(a)));
+            }
+            const demoLine = BABYLON.MeshBuilder.CreateTube("demoLine", { path: pathPoints, radius: 0.12, tessellation: 16 }, scene);
+            const lineMat = new BABYLON.StandardMaterial("lMat", scene);
+            lineMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            demoLine.material = lineMat;
+            demoLine.parent = demoTrackGroup;
+
+            // CÓDIGOS DE COLOR EN LA PISTA DE DEMO
+            const addDemoCode = (angle, colorHex) => {
+                const pos = new BABYLON.Vector3(4 * Math.cos(angle), 0.05, 4 * Math.sin(angle));
+                const codeMesh = BABYLON.MeshBuilder.CreateBox("code", { width: 0.6, height: 0.02, depth: 0.5 }, scene);
+                codeMesh.position = pos;
+                codeMesh.rotation.y = -angle;
+                const cMat = new BABYLON.StandardMaterial("cMat_" + angle, scene);
+                cMat.diffuseColor = BABYLON.Color3.FromHexString(colorHex);
+                cMat.emissiveColor = BABYLON.Color3.FromHexString(colorHex).scale(0.4);
+                codeMesh.material = cMat;
+                codeMesh.parent = demoTrackGroup;
+            };
+            addDemoCode(0, "#ff2222");          // Rojo: Giro/Respuesta
+            addDemoCode(Math.PI * 0.6, "#00aaff"); // Azul: Acelerar
+            addDemoCode(Math.PI * 1.3, "#00ff44"); // Verde: Bucle/Sentir
+            demoTrackGroup.setEnabled(false);
+
+            // ROTACIÓN CONTINUA ORBITAL DEL TALLER Y DEMO
+            scene.registerBeforeRender(() => {
+                if (!isDemoRunning) {
+                    // ROTACIÓN DEL ESCENARIO / CÁMARA DURANTE CONSTRUCCIÓN (REGLA DE ORO)
+                    camera.alpha += 0.003;
+                } else {
+                    // MOVIMIENTO AUTÓNOMO EN DEMO
+                    demoAngle += 0.02;
+                    const r = 4;
+                    const x = r * Math.cos(demoAngle);
+                    const z = r * Math.sin(demoAngle);
+                    robotGroup.position.x = x;
+                    robotGroup.position.z = z;
+                    // Orientación vectorial exacta en el sentido de la marcha
+                    const vx = -r * Math.sin(demoAngle);
+                    const vz = r * Math.cos(demoAngle);
+                    robotGroup.rotation.y = Math.atan2(vx, vz);
+
+                    // CHECK COLOR DETECTADO E INTERACCIÓN LED RGB
+                    const normAngle = (demoAngle % (Math.PI * 2));
+                    const ledMesh = scene.getMeshByName("mesh_leds_rgb");
+                    if (ledMesh && ledMesh.material) {
+                        if (Math.abs(normAngle - 0) < 0.2 || Math.abs(normAngle - Math.PI * 2) < 0.2) {
+                            ledMesh.material.emissiveColor = BABYLON.Color3.FromHexString("#ff2222");
+                            document.getElementById("piece-name").innerText = "Código ROJO detectado";
+                            document.getElementById("piece-desc").innerText = "→ ¡Giro a la derecha y respuesta luminosa inmediata!";
+                        } else if (Math.abs(normAngle - Math.PI * 0.6) < 0.2) {
+                            ledMesh.material.emissiveColor = BABYLON.Color3.FromHexString("#00aaff");
+                            document.getElementById("piece-name").innerText = "Código AZUL detectado";
+                            document.getElementById("piece-desc").innerText = "→ ¡Aceleración activada en la recta del circuito!";
+                        } else if (Math.abs(normAngle - Math.PI * 1.3) < 0.2) {
+                            ledMesh.material.emissiveColor = BABYLON.Color3.FromHexString("#00ff44");
+                            document.getElementById("piece-name").innerText = "Código VERDE detectado";
+                            document.getElementById("piece-desc").innerText = "→ ¡Lectura óptica de parada o bucle especial!";
+                        } else {
+                            ledMesh.material.emissiveColor = new BABYLON.Color3(0.8, 0.9, 1);
+                        }
+                    }
+                }
+            });
+
+            scene.robotGroup = robotGroup;
+            scene.demoTrackGroup = demoTrackGroup;
+            return scene;
+        };
+
+        const scene = createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+
+        // ─── GENERACIÓN VISUAL DE LAS GEOMETRÍAS EN BABYLON.JS ───
+        function buildPieceGeometry(id) {
+            let mesh;
+            if (id === 'base_sensor') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 2.2, height: 0.15 }, scene);
+                mesh.position.y = 0.08;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                mesh.material = mat;
+
+                // 5 LEDs IR en la parte inferior
+                for (let i = 0; i < 5; i++) {
+                    const ir = BABYLON.MeshBuilder.CreateSphere("ir_" + i, { diameter: 0.12 }, scene);
+                    ir.position = new BABYLON.Vector3((i - 2) * 0.35, -0.08, 0);
+                    const irMat = new BABYLON.StandardMaterial("irMat", scene);
+                    irMat.emissiveColor = new BABYLON.Color3(0.8, 0, 0);
+                    ir.material = irMat;
+                    ir.parent = mesh;
+                }
+            }
+            else if (id === 'cuerpo_central') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 2.1, height: 1.1 }, scene);
+                mesh.position.y = 0.7;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.15, 0.18, 0.22);
+                mat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+                mat.alpha = 0.38; // Transparencia cutaway para ver componentes internos
+                mesh.material = mat;
+
+                // Marca frontal de referencia: Raya blanca vertical en el morro para ver giros 360° y sentido frontal
+                const stripe = BABYLON.MeshBuilder.CreateBox("morro_stripe", { width: 0.12, height: 0.75, depth: 0.06 }, scene);
+                stripe.position = new BABYLON.Vector3(0, 0.05, 1.03);
+                const stripeMat = new BABYLON.StandardMaterial("stripeMat", scene);
+                stripeMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                stripeMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                stripe.material = stripeMat;
+                stripe.parent = mesh;
+            }
+            else if (id === 'placa_logica') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 1.8, height: 0.08 }, scene);
+                mesh.position.y = 1.1;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.1, 0.65, 0.25);
+                mesh.material = mat;
+
+                // Microprocesador central
+                const chip = BABYLON.MeshBuilder.CreateBox("chip", { width: 0.5, height: 0.09, depth: 0.5 }, scene);
+                chip.position.y = 0.04;
+                const chipMat = new BABYLON.StandardMaterial("chipMat", scene);
+                chipMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+                chip.material = chipMat;
+                chip.parent = mesh;
+            }
+            else if (id === 'bateria') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 1.2, height: 0.35 }, scene);
+                mesh.position.y = 0.55;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.7, 0.75, 0.8);
+                mat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+                mesh.material = mat;
+            }
+            else if (id === 'rueda_izq') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 0.9, height: 0.26 }, scene);
+                mesh.rotation.z = Math.PI / 2;
+                mesh.position = new BABYLON.Vector3(-1.15, 0.45, 0);
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+                mesh.material = mat;
+            }
+            else if (id === 'rueda_der') {
+                mesh = BABYLON.MeshBuilder.CreateCylinder("mesh_" + id, { diameter: 0.9, height: 0.26 }, scene);
+                mesh.rotation.z = Math.PI / 2;
+                mesh.position = new BABYLON.Vector3(1.15, 0.45, 0);
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+                mesh.material = mat;
+            }
+            else if (id === 'leds_rgb') {
+                mesh = BABYLON.MeshBuilder.CreateTorus("mesh_" + id, { diameter: 1.4, thickness: 0.18, tessellation: 32 }, scene);
+                mesh.position.y = 1.3;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.1, 0.9, 1);
+                mat.emissiveColor = new BABYLON.Color3(0.2, 0.8, 1);
+                mesh.material = mat;
+            }
+            else if (id === 'cupula') {
+                mesh = BABYLON.MeshBuilder.CreateSphere("mesh_" + id, { diameter: 2.1, slice: 0.5 }, scene);
+                mesh.position.y = 1.25;
+                const mat = new BABYLON.StandardMaterial("m_" + id, scene);
+                mat.diffuseColor = new BABYLON.Color3(0.95, 0.98, 1);
+                mat.alpha = 0.55; // Transparencia para ver el interior
+                mat.specularColor = new BABYLON.Color3(1, 1, 1);
+                mesh.material = mat;
+            }
+
+            mesh.parent = scene.robotGroup;
+            mesh.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+
+            // ANIMACIÓN DE INSTALACIÓN ("POP IN")
+            BABYLON.Animation.CreateAndStartAnimation("pop", mesh, "scaling", 60, 25,
+                new BABYLON.Vector3(0.01, 0.01, 0.01),
+                new BABYLON.Vector3(1, 1, 1),
+                BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+            );
+            return mesh;
+        }
+
+        // ─── INSTALACIÓN DE PIEZAS (D&D + CLIC ACCESIBLE) ───
+        function installPiece(pieceId) {
+            if (!pieceId || installedPieces[pieceId]) return;
+            installedPieces[pieceId] = true;
+            installedCount++;
+            buildPieceGeometry(pieceId);
+            showPieceTelemetry(pieceId);
+            renderPiecesTray();
+            updateProgressUI();
+        }
+
+        // ─── RENDERIZAR LA BANDEJA DE PIEZAS (PANEL DERECHO) ───
+        function renderPiecesTray() {
+            const listEl = document.getElementById("pieces-list");
+            listEl.innerHTML = "";
+            PIECES_DATA.forEach(p => {
+                const isInst = installedPieces[p.id];
+                const card = document.createElement("div");
+                card.className = "piece-card" + (isInst ? " installed" : "");
+                card.draggable = !isInst;
+                card.dataset.id = p.id;
+                card.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:14px; width:100%;">
+                        <div class="piece-icon">${p.icon}</div>
+                        <div class="piece-label">${p.name}</div>
+                        <span class="installed-badge">✔</span>
+                    </div>
+                    ${!isInst ? `<button class="btn-install" onclick="installPiece('${p.id}'); event.stopPropagation();">➕ MONTAR EN ROBOT</button>` : ''}
+                `;
+                if (!isInst) {
+                    card.addEventListener("dragstart", (e) => {
+                        e.dataTransfer.setData("text/plain", p.id);
+                        showPieceTelemetry(p.id);
+                    });
+                    card.addEventListener("click", () => { showPieceTelemetry(p.id); });
+                    card.addEventListener("dblclick", () => { installPiece(p.id); });
+                }
+                listEl.appendChild(card);
+            });
+        }
+
+        function showPieceTelemetry(id) {
+            const p = PIECES_DATA.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById("piece-name").innerText = p.icon + " " + p.name;
+            document.getElementById("piece-desc").innerText = p.desc;
+        }
+
+        function updateProgressUI() {
+            const bar = document.getElementById("prog-bar");
+            const badge = document.getElementById("prog-badge");
+            const pct = Math.round((installedCount / PIECES_DATA.length) * 100);
+            bar.style.width = pct + "%";
+            badge.innerText = `${installedCount} / ${PIECES_DATA.length} Piezas`;
+
+            if (installedCount === PIECES_DATA.length) {
+                document.getElementById("demo-box").style.display = "flex";
+                document.getElementById("piece-name").innerText = "¡Enhorabuena, Ingeniero!";
+                document.getElementById("piece-desc").innerText = "Has ensamblado correctamente el 100% de los subsistemas del Ozobot Bit. Activa la demostración para comprobar su cinemática.";
+            }
+        }
+
+        // ─── DRAG & DROP HTML5 EVENTOS EN EL LIENZO 3D (BLINDAJE DUAL) ───
+        const dropZones = [document.getElementById("canvas-container"), document.getElementById("renderCanvas")];
+        dropZones.forEach(dropZone => {
+            if (!dropZone) return;
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+            });
+
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                const pieceId = e.dataTransfer.getData("text/plain");
+                if (!pieceId || installedPieces[pieceId]) return;
+                installPiece(pieceId);
+            });
+        });
+
+        // ─── CONTROL DE LA DEMOSTRACIÓN EN VIVO ───
+        function toggleDemo() {
+            isDemoRunning = !isDemoRunning;
+            const btn = document.getElementById("btn-demo");
+            if (isDemoRunning) {
+                btn.innerText = "⏸ DETENER DEMONSTRACIÓN";
+                scene.demoTrackGroup.setEnabled(true);
+                scene.activeCamera.radius = 14;
+                scene.activeCamera.beta = Math.PI / 3.2;
+            } else {
+                btn.innerText = "▶ ACTIVAR DEMONSTRACIÓN";
+                scene.demoTrackGroup.setEnabled(false);
+                scene.robotGroup.position = new BABYLON.Vector3(0, 0, 0);
+            }
+        }
+
+        function resetMontaje() {
+            isDemoRunning = false;
+            scene.demoTrackGroup.setEnabled(false);
+            scene.robotGroup.position = new BABYLON.Vector3(0, 0, 0);
+            document.getElementById("btn-demo").innerText = "▶ ACTIVAR DEMONSTRACIÓN";
+            document.getElementById("demo-box").style.display = "none";
+
+            // Eliminar mallas de piezas instaladas
+            PIECES_DATA.forEach(p => {
+                const mesh = scene.getMeshByName("mesh_" + p.id);
+                if (mesh) mesh.dispose();
+                // Eliminar hijos si existen (ej. LEDs IR o chip)
+                scene.meshes.forEach(m => {
+                    if (m.name.startsWith("ir_") || m.name === "chip") m.dispose();
+                });
+            });
+
+            installedCount = 0;
+            for (const key in installedPieces) delete installedPieces[key];
+            renderPiecesTray();
+            updateProgressUI();
+            document.getElementById("piece-name").innerText = "¡Taller de Reinicio!";
+            document.getElementById("piece-desc").innerText = "El robot ha sido desensamblado. Arrastra las piezas de nuevo desde la bandeja derecha.";
+        }
+
+        // Inicializar interfaz al cargar
+        renderPiecesTray();
+    </script>
+</body>
+</html>

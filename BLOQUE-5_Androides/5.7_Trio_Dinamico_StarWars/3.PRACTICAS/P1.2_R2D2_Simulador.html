@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3 - Simulador Interactivo R2-D2 (V3 FINAL)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylon.colladaFileLoader.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; color: white;}
+        #canvas { width: 100vw; height: 100vh; touch-action: none; outline: none; }
+        
+        #ui { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(10,20,30,0.85); padding: 20px; border-radius: 12px; border: 1px solid #00E5FF; box-shadow: 0 0 20px rgba(0,229,255,0.2); backdrop-filter: blur(10px); }
+        h2 { margin-top: 0; color: #00E5FF; text-align: center; font-size: 20px; text-transform: uppercase; letter-spacing: 2px;}
+        .info { font-size: 13px; color: #aaa; text-align: center; margin-bottom: 10px;}
+        .instrucciones-box { font-size: 14px; line-height: 1.5; color: #eeeeee; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border-left: 4px solid #00f2ff; margin-bottom: 20px; }
+        
+        .btn { display: block; width: 100%; padding: 12px; margin-top: 12px; background: transparent; color: #00E5FF; border: 2px solid #00E5FF; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px;}
+        .btn:hover { background: #00E5FF; color: #000; box-shadow: 0 0 15px #00E5FF; transform: scale(1.02); }
+        .btn:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2>Simulador HMI R2-D2</h2>
+        <div class="instrucciones-box">
+            <b>Haz clic y mantén presionado</b> sobre el suelo para conducir a R2-D2.
+        </div>
+        <p class="info">Panel de Control de Actuadores</p>
+        <button class="btn" onclick="triggerAction('head')">⟳ Rotar Cúpula</button>
+        <button class="btn" onclick="triggerAction('speak')">🔊 Emular Habla</button>
+        <button class="btn" onclick="triggerAction('holo')">📽️ HOLOGRAMA OBI-WAN</button>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+    
+    <script>
+        window.onerror = function(msg, url, line) {
+            document.getElementById('ui').innerHTML += `<p style="color:red;font-size:12px; font-weight:bold;">Error: ${msg} (Línea ${line})</p>`;
+        };
+
+        const canvas = document.getElementById("canvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        let wrapper, rootMesh, headNode;
+        let holoNode, ledMat;
+        let isMoving = false;
+        let targetPosition = null;
+        let sfxAudio = new Audio("../../MODELOS/r2_d2.mp3");
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.05, 0.08, 0.12, 1);
+            
+            const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3, 15, new BABYLON.Vector3(0, 0.5, 0), scene);
+            camera.setPosition(new BABYLON.Vector3(0, 6, -12)); // Cámara estática alejada para ver todo el suelo
+            camera.attachControl(canvas, true);
+            
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 1.2;
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+
+            // LOSETAS 3D REALES (Con profundidad física y sombras) para evitar el parpadeo óptico de las líneas
+            let tileMaster = BABYLON.MeshBuilder.CreateBox("tile", {width: 1.98, height: 0.1, depth: 1.98}, scene);
+            let tileMat = new BABYLON.StandardMaterial("tileMat", scene);
+            tileMat.diffuseColor = new BABYLON.Color3(0.35, 0.35, 0.35); // Gris medio
+            tileMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1); 
+            tileMaster.material = tileMat;
+            tileMaster.position.y = 0.05; 
+            tileMaster.isPickable = true; // Habilitar clics en las losetas
+
+            // Instanciar cuadrícula de 40x40 losetas (1600 baldosas físicas)
+            let gridSize = 40;
+            let tileSize = 2.0; 
+            for (let x = -gridSize/2; x < gridSize/2; x++) {
+                for (let z = -gridSize/2; z < gridSize/2; z++) {
+                    let instance = tileMaster.createInstance("t_" + x + "_" + z);
+                    instance.position.x = x * tileSize + (tileSize/2);
+                    instance.position.z = z * tileSize + (tileSize/2);
+                    // Damero de altura para dar textura y profundidad física
+                    if ((x + z) % 2 === 0) {
+                        instance.position.y = 0.03; 
+                    }
+                }
+            }
+            tileMaster.isVisible = false;
+
+            var ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            var groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            ground.material = groundMat;
+
+            wrapper = new BABYLON.TransformNode("wrapper", scene);
+            // IMPORTANTE: NO usamos camera.setTarget(wrapper) para que la cámara sea estática como en P1, 
+            // esto elimina CUALQUIER sensación de vibración/stuttering durante el movimiento.
+
+            let targetMarker = BABYLON.MeshBuilder.CreateTorus("marker", {diameter: 1, thickness: 0.1}, scene);
+            let markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+            markerMat.emissiveColor = BABYLON.Color3.Green();
+            targetMarker.material = markerMat;
+            targetMarker.isVisible = false;
+
+            try {
+                // Cargar R2-D2
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "R2D2_perfect.glb", scene);
+                rootMesh = result.meshes[0];
+                rootMesh.parent = wrapper; 
+                
+                // Hacer que el robot no bloquee el clic del ratón (evita temblores al apuntar)
+                result.meshes.forEach(m => m.isPickable = false);
+                
+                // Escalar a tamaño imponente
+                wrapper.scaling = new BABYLON.Vector3(2.5, 2.5, 2.5);
+
+                let animGroups = result.animationGroups;
+                if (animGroups && animGroups.length > 0) {
+                    // Bloqueamos la animación del GLB modificando los keyframes directamente
+                    animGroups.forEach(ag => {
+                        ag.targetedAnimations.forEach(ta => {
+                            let name = ta.target.name.toLowerCase();
+                            let isAccessory = name.includes("leg") || name.includes("foot") || name.includes("head") || name.includes("dome") || name.includes("wheel") || name.includes("arm");
+                            
+                            if (!isAccessory) {
+                                let keys = ta.animation.getKeys();
+                                if (keys && keys.length > 0) {
+                                    if (ta.animation.targetProperty === "position") {
+                                        // NO APLANAR Leg_middle PARA QUE LA TERCERA PATA BAJE
+                                        if (name !== "Leg_middle") {
+                                            let initialValue = keys[0].value.clone();
+                                            keys.forEach(k => k.value = initialValue);
+                                        }
+                                    } 
+                                    else if (ta.animation.targetProperty === "rotationQuaternion" || ta.animation.targetProperty === "rotation") {
+                                        let isBody = name.includes("r2d2") || name.includes("body") || name.includes("chassis") || name.includes("torso") || name.includes("spine");
+                                        // NO APLANAR Body NI Legs rotator PARA QUE SE INCLINE CORRECTAMENTE
+                                        if (!isBody && name !== "Legs rotator") {
+                                            let initialValue = keys[0].value.clone();
+                                            keys.forEach(k => k.value = initialValue);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        ag.start(false, 1.0, 0, 2.5); // Iniciar rango
+                        ag.pause(); // Pausarlo inmediatamente (lo controlaremos a mano)
+                        ag.goToFrame(2.5); // Posición inicial: 2 patas
+                        window.r2AnimFrame = 2.5;
+                    });
+                }
+
+                // Seleccionamos explícitamente el hueso "Head" (mayúscula) para que la rotación afecte al esqueleto
+                headNode = scene.getTransformNodeByName("Head");
+                
+                // Si la animación Rove mueve la cabeza, la bloqueamos también para que no pelee con nuestro botón
+                if (headNode && animGroups && animGroups.length > 0) {
+                    animGroups.forEach(ag => {
+                        ag.targetedAnimations = ag.targetedAnimations.filter(ta => {
+                            if (ta.target.name === headNode.name && (ta.animation.targetProperty === "rotationQuaternion" || ta.animation.targetProperty === "rotation")) {
+                                return false;
+                            }
+                            return true;
+                        });
+                    });
+                }
+                
+                // Crear un LED físico en la cabeza (puesto que el modelo original es todo 1 textura)
+                let ledMesh = BABYLON.MeshBuilder.CreateSphere("led", {diameter: 0.15}, scene);
+                ledMesh.parent = headNode;
+                ledMesh.position = new BABYLON.Vector3(0.2, 0.1, 0.45); // Aproximadamente en un lateral del ojo
+                ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+                ledMat.emissiveColor = new BABYLON.Color3(0, 0, 0); // Apagado
+                ledMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                ledMesh.material = ledMat;
+
+                // Configurar contenedor de holograma anclado al robot principal
+                holoNode = new BABYLON.TransformNode("holoNode", scene);
+                holoNode.parent = wrapper;
+
+                // Cargar Obi-Wan desde el OBJ extraído para asegurar compatibilidad total en web
+                try {
+                    BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "ObiWan.obj", scene).then((holoResult) => {
+                        let holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+                        holoMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0); // Cian
+                        holoMat.alpha = 0.6; // Semitransparente
+                        holoMat.wireframe = false;
+
+                        holoResult.meshes.forEach(m => {
+                            m.parent = holoNode;
+                            m.material = holoMat;
+                        });
+                        
+                        // El origen del OBJ ya tiene los pies en Z=0. Al rotarlo, Z pasa a ser Y (altura).
+                        holoNode.setPivotMatrix(BABYLON.Matrix.Translation(0, 0, 0), false);
+                        
+                        // Doble de tamaño como pediste y flotando
+                        holoNode.scaling = new BABYLON.Vector3(0.006, 0.006, 0.006);
+                        holoNode.rotation.x = -Math.PI / 2; // Ajustar rotación porque viene de Blender
+                        
+                        // Posición relativa al cuerpo de R2D2 (flotando a 0.45m y 0.9m hacia adelante)
+                        holoNode.position = new BABYLON.Vector3(0, 0.45, 0.9);
+                        
+                        // Ocultar por defecto
+                        holoNode.setEnabled(false);
+
+                        // --- CREAR EL CONO DE PROYECCIÓN ---
+                        window.holoCone = BABYLON.MeshBuilder.CreateCylinder("holoCone", {
+                            diameterTop: 0.9,      // Base del holograma
+                            diameterBottom: 0.05,  // Proyector en R2D2
+                            height: 0.78,          // Distancia exacta entre proyector (0,0.8,0.2) y holograma (0,0.45,0.9)
+                            tessellation: 32
+                        }, scene);
+                        
+                        let coneMat = new BABYLON.StandardMaterial("coneMat", scene);
+                        coneMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
+                        coneMat.alpha = 0.15; // Translúcido y sutil
+                        coneMat.disableLighting = true;
+                        coneMat.wireframe = false;
+                        window.holoCone.material = coneMat;
+                        
+                        // Anclar al cuerpo de R2D2 (el headNode de Blender tenía escala x100 interna oculta)
+                        window.holoCone.parent = wrapper;
+                        
+                        // Posicionar en el punto medio entre proyector (0, 0.8, 0.2) y holograma (0, 0.45, 0.9)
+                        window.holoCone.position = new BABYLON.Vector3(0, 0.625, 0.55);
+                        
+                        // Rotar para que apunte del proyector al holograma (deltaZ = 0.7, deltaY = -0.35)
+                        window.holoCone.rotation.x = Math.atan2(0.7, -0.35); 
+                        
+                        window.holoCone.setEnabled(false);
+
+                    }).catch((e) => { console.log("Error asíncrono cargando OBJ:", e); });
+                } catch(errHolo) {
+                    console.log("No se pudo iniciar la carga del OBJ.");
+                }
+
+                window.triggerAction = function(type) {
+                    if (type === 'head' && headNode) {
+                        if(headNode.rotationQuaternion) {
+                            let currentRot = headNode.rotationQuaternion.toEulerAngles();
+                            let targetY = currentRot.y + Math.PI * 2;
+                            let inter = setInterval(() => {
+                                currentRot.y += 0.1;
+                                headNode.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(currentRot.y, currentRot.x, currentRot.z);
+                                if(currentRot.y >= targetY) {
+                                    headNode.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(targetY, currentRot.x, currentRot.z);
+                                    clearInterval(inter);
+                                }
+                            }, 16);
+                        } else {
+                            let targetY = headNode.rotation.y + Math.PI * 2;
+                            let currentY = headNode.rotation.y;
+                            let inter = setInterval(() => {
+                                currentY += 0.1;
+                                headNode.rotation.y = currentY;
+                                if(currentY >= targetY) {
+                                    headNode.rotation.y = targetY;
+                                    clearInterval(inter);
+                                }
+                            }, 16);
+                        }
+                    }
+                    if (type === 'holo' && holoNode) {
+                        let isShowing = holoNode.isEnabled();
+                        holoNode.setEnabled(!isShowing);
+                        if(window.holoCone) window.holoCone.setEnabled(!isShowing);
+                    }
+                    if (type === 'speak') {
+                        sfxAudio.currentTime = 0;
+                        sfxAudio.play();
+                        document.getElementById('ui').style.borderColor = '#FFEB3B';
+                        
+                        // Encender nuestro LED creado
+                        if (ledMat) {
+                            ledMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2); // Rojo brillante
+                        }
+
+                        setTimeout(()=> {
+                            document.getElementById('ui').style.borderColor = '#00E5FF';
+                            if (ledMat) {
+                                ledMat.emissiveColor = new BABYLON.Color3(0, 0, 0); // Apagar
+                            }
+                        }, 1500);
+                    }
+                }
+
+            } catch (e) { console.error(e); }
+
+            camera.detachControl();
+            scene.onPointerObservable.add((pi) => {
+                if (pi.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+                    if (pi.event.buttons === 1 || pi.event.button === 0) {
+                        let pick = scene.pick(scene.pointerX, scene.pointerY);
+                        if (pick.hit && (pick.pickedMesh === ground || pick.pickedMesh.name.startsWith("t_") || pick.pickedMesh === tileMaster)) {
+                            targetPosition = pick.pickedPoint;
+                            targetMarker.position.x = targetPosition.x;
+                            targetMarker.position.z = targetPosition.z;
+                            targetMarker.isVisible = true;
+                        }
+                    }
+                }
+            });
+
+            let currentVelocity = new BABYLON.Vector3(0, 0, 0);
+            scene.onBeforeRenderObservable.add(() => {
+                let dt = engine.getDeltaTime() / 1000.0;
+                // Limitar el delta time para que los picos de lag del navegador no causen "saltos" físicos (teletransporte)
+                if (dt > 0.05) dt = 0.05; 
+                
+                targetMarker.rotation.y += 0.05;
+                let ag = scene.animationGroups ? scene.animationGroups[0] : null;
+
+                let targetVelocity = new BABYLON.Vector3(0, 0, 0);
+
+                if (targetPosition && wrapper) {
+                    let dx = targetPosition.x - wrapper.position.x;
+                    let dz = targetPosition.z - wrapper.position.z;
+                    let dist = Math.sqrt(dx*dx + dz*dz);
+                    
+                    let direction = new BABYLON.Vector3(dx, 0, dz);
+                    if (dist > 0) direction.normalize();
+
+                    // FRENADA INTELIGENTE: Reducir velocidad gradualmente si estamos cerca
+                    // Esto emula la inercia sin pasarnos nunca del círculo
+                    let speed = 4.0; 
+                    if (dist < 0.8) {
+                        speed = speed * (dist / 0.8);
+                    }
+
+                    if (dist > 0.02) {
+                        let targetAngle = Math.atan2(direction.x, direction.z);
+                        let currentAngle = wrapper.rotation.y % (Math.PI * 2);
+                        if (currentAngle < 0) currentAngle += Math.PI * 2;
+                        if (targetAngle < 0) targetAngle += Math.PI * 2;
+                        
+                        let angleDiff = targetAngle - currentAngle;
+                        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        
+                        let rotationSpeed = 3.0 * dt; 
+                        
+                        if (Math.abs(angleDiff) > rotationSpeed) {
+                            wrapper.rotation.y += Math.sign(angleDiff) * rotationSpeed;
+                        } else {
+                            wrapper.rotation.y = targetAngle; 
+                        }
+
+                        let speedFactor = Math.max(0, Math.cos(angleDiff));
+                        let moveDir = new BABYLON.Vector3(Math.sin(wrapper.rotation.y), 0, Math.cos(wrapper.rotation.y));
+                        
+                        targetVelocity = moveDir.scale(speed * dt * speedFactor);
+                    } else {
+                        targetMarker.isVisible = false;
+                        targetPosition = null;
+                    }
+                }
+
+                // El filtro mágico (Low-pass filter del dt) que evita el parpadeo de fotogramas
+                currentVelocity = BABYLON.Vector3.Lerp(currentVelocity, targetVelocity, 0.15);
+                
+                // Evitar vibración final y pasarse del objetivo
+                if (targetPosition) {
+                    let dx = targetPosition.x - wrapper.position.x;
+                    let dz = targetPosition.z - wrapper.position.z;
+                    let dist = Math.sqrt(dx*dx + dz*dz);
+                    if (currentVelocity.length() > dist) {
+                        currentVelocity = new BABYLON.Vector3(dx, 0, dz);
+                        targetPosition = null;
+                        targetMarker.isVisible = false;
+                    }
+                }
+
+                let isMovingNow = currentVelocity.lengthSquared() > 0.000001;
+
+                if (isMovingNow) {
+                    wrapper.position.addInPlace(currentVelocity);
+                } else {
+                    currentVelocity = new BABYLON.Vector3(0,0,0);
+                }
+
+                // CONTROL MANUAL DE ANIMACIÓN (Tercera pata e inclinación)
+                // Frame 0 = 3 Patas (Inclinado) | Frame 2.5 = 2 Patas (Vertical)
+                if (ag) {
+                    let targetFrame = isMovingNow ? 0 : 2.5;
+                    if (window.r2AnimFrame === undefined) window.r2AnimFrame = 2.5;
+                    
+                    window.r2AnimFrame = BABYLON.Scalar.Lerp(window.r2AnimFrame, targetFrame, 0.1);
+                    
+                    if (Math.abs(window.r2AnimFrame - targetFrame) > 0.01) {
+                        ag.goToFrame(window.r2AnimFrame);
+                    }
+                }
+            });
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => scene.render());
+        });
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
+</html>

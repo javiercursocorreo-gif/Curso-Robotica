@@ -1,0 +1,1127 @@
+<!--
+MEJORAS:
+- Ajuste del contraste visual en el suelo para resaltar el rastro de limpieza: el suelo base es ahora más oscuro (#2a2a35) y la estela de limpieza es una franja blanca sutil (#8a9aa8 para el listo, #a89a8a para el tonto).
+- Esto permite observar perfectamente el patrón geométrico sistemático del robot inteligente frente a la maraña caótica del robot tonto sin deslumbrar la vista.
+- Se ha implementado `lineJoin = 'round'` en el Canvas 2D para que las franjas se conecten de manera continua y suave, simulando con mayor realismo el rodillo limpiador.
+- La lógica aleatoria del robot tonto se mantiene optimizada para rebotar en ángulos de 90º a 180º, garantizando un cruce caótico evidente en su rastro.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.2.EJEMPLO-REAL</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --primary: #00f2ff;
+            --primary-glow: rgba(0, 242, 255, 0.4);
+            --bg-glass: rgba(15, 20, 35, 0.85);
+            --text-main: #ffffff;
+            --text-sub: #8899aa;
+            --warning: #ffcc00;
+            --danger: #ff4444;
+            --success: #00e676;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0b0f19;
+            font-family: 'Outfit', 'Inter', sans-serif;
+            color: var(--text-main);
+            user-select: none;
+        }
+
+        /* CUSTOM SCROLLBARS */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* HEADER OBLIGATORIO */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 90px;
+            background: linear-gradient(180deg, rgba(8, 12, 24, 0.95) 0%, rgba(15, 20, 35, 0.85) 100%);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 2px solid var(--primary);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 25px rgba(0, 242, 255, 0.2);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            background: linear-gradient(90deg, #00f2ff, #3a88fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            font-weight: 900;
+        }
+
+        header h2 {
+            margin: 5px 0 0 0;
+            font-size: 15px;
+            color: var(--text-sub);
+            font-weight: 500;
+            transition: color 0.3s;
+            letter-spacing: 0.5px;
+        }
+
+        /* TABS DE MODO */
+        .mode-switch {
+            position: absolute;
+            top: 110px;
+            left: 24px;
+            width: 360px;
+            display: flex;
+            gap: 12px;
+            z-index: 20;
+        }
+
+        .tab-btn {
+            flex: 1;
+            height: 50px;
+            background: rgba(20, 28, 46, 0.8);
+            color: var(--text-sub);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #00f2ff, #0088ff);
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 6px 20px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active#tab-tonto {
+            background: linear-gradient(135deg, #ffcc00, #ff8800);
+            border-color: #fff;
+            box-shadow: 0 6px 20px rgba(255, 204, 0, 0.5);
+        }
+
+        /* PANEL DE CONTROL GLASS-UI */
+        #ui-panel {
+            position: absolute;
+            top: 172px;
+            left: 24px;
+            width: 360px;
+            background: var(--bg-glass);
+            border: 1px solid rgba(0, 242, 255, 0.25);
+            border-radius: 18px;
+            padding: 22px;
+            z-index: 10;
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .indicator-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .indicator-label {
+            font-size: 13px;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+        }
+
+        .indicator-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* BARRAS DE PROGRESO */
+        .progress-container {
+            width: 100%;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 4px;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0088ff, var(--primary));
+            transition: width 0.3s ease, background 0.3s ease;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .progress-bar.battery {
+            background: linear-gradient(90deg, #00b359, var(--success));
+            box-shadow: 0 0 15px rgba(0, 230, 118, 0.4);
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+        }
+
+        /* BOTONES ACCESIBILIDAD */
+        .btn {
+            height: 60px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(90deg, rgba(0, 242, 255, 0.15), rgba(0, 136, 255, 0.05));
+            border: 1px solid var(--primary);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 4px;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.2);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn:hover {
+            background: linear-gradient(90deg, #00f2ff, #0088ff);
+            color: #000;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px var(--primary-glow);
+            border-color: #fff;
+        }
+        .btn:active { transform: translateY(1px); }
+
+        .btn-restart {
+            border-color: var(--danger);
+            background: rgba(255, 68, 68, 0.1);
+            box-shadow: 0 4px 15px rgba(255, 68, 68, 0.2);
+        }
+
+        .btn-restart:hover {
+            background: linear-gradient(90deg, #ff4444, #cc0000);
+            color: #fff;
+            box-shadow: 0 8px 25px rgba(255, 68, 68, 0.5);
+            border-color: #fff;
+        }
+
+        /* ESTADÍSTICAS FINALES */
+        #ui-stats {
+            display: none;
+            background: rgba(11, 15, 25, 0.9);
+            border: 1px solid var(--primary);
+            padding: 18px;
+            border-radius: 14px;
+            font-size: 16px;
+            line-height: 1.5;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>ANÁLISIS DE COBERTURA: TONTO vs LISTO</h1>
+        <h2 id="header-subtitle">Seleccione un modo de navegación para la simulación</h2>
+    </header>
+
+    <div class="mode-switch">
+        <button id="tab-tonto" class="tab-btn">ROBOT TONTO</button>
+        <button id="tab-listo" class="tab-btn active">ROBOT LISTO</button>
+    </div>
+
+    <div id="ui-panel">
+        <div class="indicator-group">
+            <span class="indicator-label">Modo Actual:</span>
+            <span class="indicator-value" id="ui-modo">DETENIDO</span>
+        </div>
+
+        <div class="indicator-group" id="group-franja">
+            <span class="indicator-label">Franja Actual:</span>
+            <span class="indicator-value"><span id="ui-franja">0</span> / 10</span>
+        </div>
+
+        <div class="indicator-group">
+            <span class="indicator-label">Batería Restante:</span>
+            <div class="progress-container">
+                <div class="progress-bar battery" id="ui-battery-barra"></div>
+                <div class="progress-text" id="ui-battery-texto">100%</div>
+            </div>
+        </div>
+
+        <div class="indicator-group">
+            <span class="indicator-label">Área Limpiada:</span>
+            <div class="progress-container">
+                <div class="progress-bar" id="ui-progreso-barra"></div>
+                <div class="progress-text" id="ui-progreso-texto">0%</div>
+            </div>
+        </div>
+
+        <div class="indicator-group">
+            <span class="indicator-label">Sensor Frontal:</span>
+            <span class="indicator-value" id="ui-sensor">LIBRE</span>
+        </div>
+
+        <div id="ui-stats"></div>
+
+        <button class="btn" id="btn-iniciar">INICIAR</button>
+        <button class="btn btn-restart" id="btn-reiniciar">REINICIAR</button>
+    </div>
+
+    <div id="scene-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- VARIABLES GLOBALES ---
+        let scene, camera, renderer;
+        let robotGroup, wallsGroup, furnitureGroup, dockGroup;
+        let trailCanvas, trailCtx, trailTexture, trailMesh;
+        let lastRobotPos = null;
+        
+        // Estado del sistema
+        let simMode = 'SMART'; // 'SMART' o 'DUMB'
+        let robotState = 'STOPPED'; 
+        let battery = 100;
+        let timeElapsed = 0;
+        let coverageSet = new Set(); // Para calcular el % de área limpiada en tiempo real
+
+        // Variables de navegación Inteligente
+        let currentStrip = 1;
+        let robotDir = 1; 
+        
+        // Físicas y cinemática
+        let speed = 5.0;
+        let turnSpeed = Math.PI * 2.0; 
+        let targetRot = 0;
+        let targetZ = 0;
+        let originalZ = 0;
+        let marginDist = 0;
+        const clearanceMargin = 0.85;
+
+        // Sensores
+        let frontRaycaster, leftRaycaster;
+        let clock = new THREE.Clock();
+        let lastBatteryFloor = -1;
+        let lastCovFloor = -1;
+        let lastCovTime = 0;
+        let smoothDt = 0.0166;
+
+        // UI Elements
+        const headerSubtitle = document.getElementById('header-subtitle');
+        const tabTonto = document.getElementById('tab-tonto');
+        const tabListo = document.getElementById('tab-listo');
+        const uiModo = document.getElementById('ui-modo');
+        const groupFranja = document.getElementById('group-franja');
+        const uiFranja = document.getElementById('ui-franja');
+        const uiBatteryBar = document.getElementById('ui-battery-barra');
+        const uiBatteryText = document.getElementById('ui-battery-texto');
+        const uiProgBar = document.getElementById('ui-progreso-barra');
+        const uiProgText = document.getElementById('ui-progreso-texto');
+        const uiSensor = document.getElementById('ui-sensor');
+        const uiStats = document.getElementById('ui-stats');
+        const btnIniciar = document.getElementById('btn-iniciar');
+        const btnReiniciar = document.getElementById('btn-reiniciar');
+
+        function init() {
+            // SCENE & CAMERA (Vista cenital pura)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            const initWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 1024;
+            const initHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight || 768;
+            camera = new THREE.PerspectiveCamera(45, initWidth / initHeight, 0.1, 1000);
+            camera.position.set(0, 28, 0.001);
+            camera.up.set(0, 0, -1);
+            camera.lookAt(0, 0, 0);
+
+            // RENDERER
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.setSize(initWidth, initHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.6;
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+
+            // LIGHTS
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3.5);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x00f2ff, 60, 50);
+            pointLight.position.set(-10, 10, 5);
+            scene.add(pointLight);
+
+            // GROUPS
+            wallsGroup = new THREE.Group();
+            scene.add(wallsGroup);
+            furnitureGroup = new THREE.Group();
+            scene.add(furnitureGroup);
+            dockGroup = new THREE.Group();
+            scene.add(dockGroup);
+
+            // SCENARIO SETUP
+            buildEnvironment();
+            buildRobot();
+
+            // RAYCASTERS
+            frontRaycaster = new THREE.Raycaster();
+            leftRaycaster = new THREE.Raycaster();
+
+            // EVENTS
+            window.addEventListener('resize', onWindowResize);
+            setTimeout(onWindowResize, 100);
+            setTimeout(onWindowResize, 500);
+            btnIniciar.addEventListener('click', startSimulation);
+            btnReiniciar.addEventListener('click', resetSimulation);
+            
+            tabTonto.addEventListener('click', () => setMode('DUMB'));
+            tabListo.addEventListener('click', () => setMode('SMART'));
+
+            // Initial State setup
+            setMode('SMART');
+        }
+
+        function setMode(mode) {
+            simMode = mode;
+            
+            if(mode === 'SMART') {
+                tabListo.classList.add('active');
+                tabTonto.classList.remove('active');
+                headerSubtitle.innerText = "El robot LISTO hace líneas completas, limpia todo rápido y le sobra batería";
+                headerSubtitle.style.color = "var(--primary)";
+                groupFranja.style.display = "flex";
+                document.documentElement.style.setProperty('--primary', '#00f2ff');
+            } else {
+                tabTonto.classList.add('active');
+                tabListo.classList.remove('active');
+                headerSubtitle.innerText = "El robot TONTO rebota al azar, repite zonas, y agota su batería dejando la casa sucia";
+                headerSubtitle.style.color = "var(--warning)";
+                groupFranja.style.display = "none";
+                document.documentElement.style.setProperty('--primary', '#ffcc00'); 
+            }
+            
+            resetSimulation();
+        }
+
+        function buildEnvironment() {
+            // Suelo Base más oscuro para resaltar la banda blanca de limpieza
+            const baseFloorGeo = new THREE.PlaneGeometry(100, 100);
+            const baseFloorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x222222, metalness: 0.2, roughness: 0.8, emissive: new THREE.Color(0,0,0)
+            });
+            const baseFloor = new THREE.Mesh(baseFloorGeo, baseFloorMat);
+            baseFloor.rotation.x = -Math.PI / 2;
+            baseFloor.receiveShadow = true;
+            scene.add(baseFloor);
+
+            // Grid
+            const grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            // Rastro liso con CanvasTexture (lineCap y lineJoin round para que sea continuo, suave y sin pixelazos)
+            trailCanvas = document.createElement('canvas');
+            trailCanvas.width = 1000;
+            trailCanvas.height = 750;
+            trailCtx = trailCanvas.getContext('2d');
+            trailCtx.lineCap = 'round';
+            trailCtx.lineJoin = 'round';
+            
+            trailTexture = new THREE.CanvasTexture(trailCanvas);
+            const trailMat = new THREE.MeshStandardMaterial({
+                map: trailTexture,
+                transparent: true,
+                opacity: 0.85,
+                roughness: 0.9,
+                metalness: 0.1,
+                emissive: new THREE.Color(0,0,0)
+            });
+            const trailGeo = new THREE.PlaneGeometry(20, 15);
+            trailMesh = new THREE.Mesh(trailGeo, trailMat);
+            trailMesh.rotation.x = -Math.PI / 2;
+            trailMesh.position.set(0, 0.015, 0); // Justo encima del suelo base
+            trailMesh.receiveShadow = true;
+            scene.add(trailMesh);
+
+            // Paredes (Bounding Box 20x15 interior)
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x222233, metalness: 0.3, roughness: 0.7, emissive: new THREE.Color(0,0,0)
+            });
+
+            const wallTBGeo = new THREE.BoxGeometry(22, 2, 1);
+            const wallTop = new THREE.Mesh(wallTBGeo, wallMat);
+            wallTop.position.set(0, 1, -8);
+            wallTop.castShadow = true; wallTop.receiveShadow = true;
+            wallsGroup.add(wallTop);
+
+            const wallBot = new THREE.Mesh(wallTBGeo, wallMat);
+            wallBot.position.set(0, 1, 8);
+            wallBot.castShadow = true; wallBot.receiveShadow = true;
+            wallsGroup.add(wallBot);
+
+            const wallLRGeo = new THREE.BoxGeometry(1, 2, 15);
+            const wallLeft = new THREE.Mesh(wallLRGeo, wallMat);
+            wallLeft.position.set(-10.5, 1, 0);
+            wallLeft.castShadow = true; wallLeft.receiveShadow = true;
+            wallsGroup.add(wallLeft);
+
+            const wallRight = new THREE.Mesh(wallLRGeo, wallMat);
+            wallRight.position.set(10.5, 1, 0);
+            wallRight.castShadow = true; wallRight.receiveShadow = true;
+            wallsGroup.add(wallRight);
+
+            // Estación de Carga (Base)
+            const dockBaseMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+            const dockBaseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 1.5), dockBaseMat);
+            dockBaseMesh.position.set(-9.6, 0.025, 6.5);
+            dockBaseMesh.receiveShadow = true;
+            dockGroup.add(dockBaseMesh);
+
+            const dockTowerMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5, emissive: new THREE.Color(0,0,0) });
+            const dockTowerMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.0, 1.2), dockTowerMat);
+            dockTowerMesh.position.set(-10.2, 0.5, 6.5);
+            dockTowerMesh.castShadow = true;
+            dockGroup.add(dockTowerMesh);
+
+            const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const ledMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1), ledMat);
+            ledMesh.position.set(-9.99, 0.8, 6.5);
+            ledMesh.rotation.y = Math.PI / 2;
+            dockGroup.add(ledMesh);
+
+            // Muebles
+            const furnMat1 = new THREE.MeshStandardMaterial({ color: 0x883333, metalness: 0.2, roughness: 0.6, emissive: new THREE.Color(0,0,0) });
+            const furnMat2 = new THREE.MeshStandardMaterial({ color: 0x664422, metalness: 0.1, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+            const furnMat3 = new THREE.MeshStandardMaterial({ color: 0x334488, metalness: 0.4, roughness: 0.5, emissive: new THREE.Color(0,0,0) });
+
+            const mesa = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 2), furnMat2);
+            mesa.position.set(2, 0.75, 3.5);
+            mesa.castShadow = true; mesa.receiveShadow = true;
+            furnitureGroup.add(mesa);
+
+            const silla = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 1), furnMat3);
+            silla.position.set(-3, 0.75, -1.0);
+            silla.castShadow = true; silla.receiveShadow = true;
+            furnitureGroup.add(silla);
+
+            const sofa = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 2), furnMat1);
+            sofa.position.set(1, 0.75, -5.0); 
+            sofa.castShadow = true; sofa.receiveShadow = true;
+            furnitureGroup.add(sofa);
+        }
+
+        function buildRobot() {
+            robotGroup = new THREE.Group();
+
+            const bodyGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.4, 32);
+            const bodyMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, metalness: 0.7, roughness: 0.2, emissive: new THREE.Color(0,0,0) 
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.2;
+            body.castShadow = true;
+            robotGroup.add(body);
+
+            const indGeo = new THREE.BoxGeometry(0.6, 0.1, 0.2);
+            const indMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00f2ff, metalness: 0.8, roughness: 0.1, emissive: new THREE.Color(0,0,0) 
+            });
+            const ind = new THREE.Mesh(indGeo, indMat);
+            ind.position.set(0.4, 0.45, 0);
+            ind.name = "robotIndicator";
+            robotGroup.add(ind);
+
+            scene.add(robotGroup);
+        }
+
+        function clearTrailCanvas() {
+            if (trailCtx && trailCanvas) {
+                trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+                if (trailTexture) trailTexture.needsUpdate = true;
+            }
+            lastRobotPos = null;
+            coverageSet.clear();
+        }
+
+        function drawTrail() {
+            const rx = robotGroup.position.x;
+            const rz = robotGroup.position.z;
+            
+            // Coordenadas en el canvas 2D (de -10..+10 en X y -7.5..+7.5 en Z hacia 0..1000 y 0..750)
+            const px = (rx + 10) * 50;
+            const py = (rz + 7.5) * 50;
+            
+            if (!lastRobotPos) {
+                lastRobotPos = { x: px, y: py };
+            } else {
+                const distSqCanvas = (px - lastRobotPos.x) * (px - lastRobotPos.x) + (py - lastRobotPos.y) * (py - lastRobotPos.y);
+                if (distSqCanvas > 0.5) {
+                    trailCtx.strokeStyle = simMode === 'SMART' ? '#8a9aa8' : '#a89a8a';
+                    // Anchura de 3 filas de cuadrados (1.5 unidades del mundo * 50 px/u = 75 px) para franja completamente lisa
+                    trailCtx.lineWidth = 75;
+                    trailCtx.beginPath();
+                    trailCtx.moveTo(lastRobotPos.x, lastRobotPos.y);
+                    trailCtx.lineTo(px, py);
+                    trailCtx.stroke();
+                    
+                    trailTexture.needsUpdate = true;
+                    lastRobotPos = { x: px, y: py };
+                }
+            }
+            
+            // Además, actualizamos coverageSet en segundo plano para el cálculo del porcentaje de limpieza
+            const centerGridX = Math.floor((rx + 10) / 0.5);
+            const centerGridZ = Math.floor((rz + 7.5) / 0.5);
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dz = -1; dz <= 1; dz++) {
+                    const gx = centerGridX + dx;
+                    const gz = centerGridZ + dz;
+                    const cx = (gx * 0.5) - 10 + 0.25;
+                    const cz = (gz * 0.5) - 7.5 + 0.25;
+                    const distSq = (cx - rx) * (cx - rx) + (cz - rz) * (cz - rz);
+                    if (distSq <= 0.75 * 0.75) {
+                        coverageSet.add(`${gx},${gz}`);
+                    }
+                }
+            }
+        }
+
+        function startSimulation() {
+            if (robotState === 'STOPPED' || robotState === 'DONE') {
+                if (robotState === 'DONE') resetSimulation();
+                robotState = simMode === 'SMART' ? 'ADVANCE' : 'ADVANCE_DUMB';
+                uiModo.innerText = "LIMPIANDO";
+                uiModo.style.color = "var(--primary)";
+                clock.getDelta(); 
+            }
+        }
+
+        function resetSimulation() {
+            robotState = 'STOPPED';
+            currentStrip = 1;
+            robotDir = 1;
+            timeElapsed = 0;
+            battery = 100;
+            targetRot = 0;
+
+            // Actualizar color del indicador del robot
+            const indMat = robotGroup.children.find(c => c.name === "robotIndicator").material;
+            indMat.color.setHex(simMode === 'SMART' ? 0x00f2ff : 0xffcc00);
+
+            // Inicio en la base
+            robotGroup.position.set(-9, 0, 6.5);
+            robotGroup.rotation.set(0, 0, 0);
+
+            clearTrailCanvas();
+
+            // UI Reset
+            uiModo.innerText = "DETENIDO";
+            uiModo.style.color = "#aaaaaa";
+            uiFranja.innerText = "1";
+            uiProgBar.style.width = "0%";
+            uiProgText.innerText = "0%";
+            uiSensor.innerText = "LIBRE";
+            uiSensor.style.color = "var(--primary)";
+            uiStats.style.display = 'none';
+            
+            updateBatteryUI(true);
+            updateCoverageUI(true);
+        }
+
+        function finishSimulation() {
+            robotState = 'DONE';
+            uiSensor.innerText = "CONECTADO A BASE";
+            uiSensor.style.color = "var(--success)";
+            
+            uiStats.style.display = 'block';
+            
+            if (simMode === 'SMART') {
+                uiModo.innerText = "MISIÓN CUMPLIDA";
+                uiModo.style.color = "var(--success)";
+                uiProgBar.style.width = "100%";
+                uiProgText.innerText = "100%";
+                
+                uiStats.innerHTML = `
+                    <div style="color: var(--success); font-weight: bold; margin-bottom: 10px; font-size: 22px;">¡HABITACIÓN LIMPIA 100%!</div>
+                    <div style="color: #ffffff; margin-bottom: 10px;">El <b>Robot Listo</b> terminó en ${Math.floor(timeElapsed)}s y le sobró batería para otra habitación.</div>
+                    <div style="color: #aaaaaa; font-size: 16px;">Observa las bandas blancas organizadas en perfecto zigzag en el suelo.</div>
+                `;
+            } else {
+                uiModo.innerText = "RECARGANDO";
+                uiModo.style.color = "var(--danger)";
+                const finalCov = getCoverage();
+                uiProgBar.style.width = `${finalCov}%`;
+                uiProgText.innerText = `${finalCov}%`;
+
+                uiStats.innerHTML = `
+                    <div style="color: var(--danger); font-weight: bold; margin-bottom: 10px; font-size: 22px;">¡BATERÍA AGOTADA!</div>
+                    <div style="color: #ffffff; margin-bottom: 10px;">El <b>Robot Tonto</b> tuvo que volver a la base tras ${Math.floor(timeElapsed)}s dejando un ${100 - finalCov}% sin limpiar.</div>
+                    <div style="color: #aaaaaa; font-size: 16px;">Fíjate en la maraña caótica de bandas aleatorias superpuestas en el suelo.</div>
+                `;
+            }
+        }
+
+        function updateBatteryUI(force = false) {
+            const currentFloor = Math.floor(Math.max(0, battery));
+            if (!force && currentFloor === lastBatteryFloor && robotState !== 'DONE' && robotState !== 'STOPPED') return;
+            lastBatteryFloor = currentFloor;
+
+            uiBatteryBar.style.width = `${Math.max(0, battery)}%`;
+            uiBatteryText.innerText = `${currentFloor}%`;
+            
+            if (battery > 50) {
+                uiBatteryBar.style.background = "var(--success)";
+            } else if (battery > 20) {
+                uiBatteryBar.style.background = "var(--warning)";
+            } else {
+                uiBatteryBar.style.background = "var(--danger)";
+            }
+        }
+
+        function getCoverage() {
+            // Cuadrícula lógica de celdas para área real limpia
+            let cov = (coverageSet.size / 1050) * 100;
+            return Math.min(100, Math.floor(cov));
+        }
+
+        function updateCoverageUI(force = false) {
+            if (robotState.startsWith('GO_HOME') || robotState === 'DONE') {
+                if(simMode === 'SMART') {
+                    uiFranja.innerText = "10";
+                    uiProgBar.style.width = "100%";
+                    uiProgText.innerText = "100%";
+                }
+                return;
+            }
+
+            const now = performance.now();
+            if (!force && now - lastCovTime < 80) return; // Throttling de actualizaciones DOM
+            lastCovTime = now;
+
+            let cov = getCoverage();
+            
+            // Refinamiento exacto para modo Smart por franjas
+            if (simMode === 'SMART') {
+                const stripBaseCov = (currentStrip - 1) * 10;
+                const hProg = robotDir === 1 ? (robotGroup.position.x + 9) / 18 : (9 - robotGroup.position.x) / 18;
+                cov = stripBaseCov + Math.max(0, Math.min(1, hProg)) * 10;
+                uiFranja.innerText = Math.min(10, currentStrip);
+            }
+            
+            cov = Math.min(100, Math.max(0, cov));
+            const covFloor = Math.floor(cov);
+            if (!force && covFloor === lastCovFloor) return;
+            lastCovFloor = covFloor;
+
+            uiProgBar.style.width = `${cov.toFixed(1)}%`;
+            uiProgText.innerText = `${covFloor}%`;
+        }
+
+        function updateRobotLogic(dt) {
+            if (robotState === 'STOPPED' || robotState === 'DONE') return;
+
+            timeElapsed += dt;
+            updateCoverageUI();
+            
+            // Descontar Batería: el tonto la agota mucho más rápido para demostrar el desgaste por ineficiencia
+            if (!robotState.startsWith('GO_HOME')) {
+                const drainRate = simMode === 'SMART' ? 1.2 : 2.5; 
+                battery -= dt * drainRate;
+                updateBatteryUI();
+
+                if (battery <= 20) {
+                    robotState = 'GO_HOME_TURN_X';
+                    targetRot = Math.PI; 
+                    uiModo.innerText = "BATERÍA BAJA - VOLVIENDO";
+                    uiModo.style.color = "var(--danger)";
+                    uiSensor.innerText = "BUSCANDO SEÑAL...";
+                    uiSensor.style.color = "var(--danger)";
+                }
+            }
+
+            // Direcciones de los Raycasters
+            const currentRot = robotGroup.rotation.y;
+            const frontDir = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), currentRot);
+            const leftDir = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), currentRot + Math.PI/2); 
+
+            const rayOrigin = robotGroup.position.clone();
+            rayOrigin.y = 0.4;
+
+            frontRaycaster.set(rayOrigin, frontDir);
+            leftRaycaster.set(rayOrigin, leftDir);
+
+            const frontFurnHits = frontRaycaster.intersectObject(furnitureGroup, true);
+            const frontWallHits = frontRaycaster.intersectObject(wallsGroup, true);
+            const leftFurnHits = leftRaycaster.intersectObject(furnitureGroup, true);
+
+            const distFrontFurn = frontFurnHits.length > 0 ? frontFurnHits[0].distance : Infinity;
+            const distFrontWall = frontWallHits.length > 0 ? frontWallHits[0].distance : Infinity;
+            const distLeftFurn = leftFurnHits.length > 0 ? leftFurnHits[0].distance : Infinity;
+
+            // RAMIFICACIÓN DE ALGORITMOS SEGÚN EL MODO
+            if (simMode === 'SMART') {
+                processSmartLogic(dt, distFrontFurn, distFrontWall, distLeftFurn);
+            } else {
+                processDumbLogic(dt, distFrontFurn, distFrontWall);
+            }
+
+            // LOGICA COMPARTIDA DE RETORNO A CASA (Seguridad perimetral)
+            processHomeLogic(dt);
+        }
+
+        function processSmartLogic(dt, distFrontFurn, distFrontWall, distLeftFurn) {
+            switch (robotState) {
+                case 'ADVANCE':
+                    uiSensor.innerText = "LIBRE";
+                    uiSensor.style.color = "var(--primary)";
+                    uiModo.innerText = "LÍNEA RECTA";
+
+                    if (distFrontFurn < 1.2) {
+                        robotState = 'SKIRT_1';
+                        targetRot = robotGroup.rotation.y - Math.PI/2; 
+                        originalZ = robotGroup.position.z;
+                        uiSensor.innerText = "MUEBLE DETECTADO";
+                        uiSensor.style.color = "var(--warning)";
+                        uiModo.innerText = "RODEANDO MUEBLE";
+                    } 
+                    else if (distFrontWall < 1.0) {
+                        let nextZ = robotGroup.position.z - 1.5;
+                        
+                        // Fin de habitación
+                        if (nextZ < -7.5) {
+                            robotState = 'GO_HOME_TURN_X';
+                            targetRot = Math.PI;
+                            uiModo.innerText = "TAREA TERMINADA";
+                            uiModo.style.color = "var(--success)";
+                        } else {
+                            robotState = 'TURN_WALL_1';
+                            uiModo.innerText = "GIRO 180 SISTEMÁTICO";
+                            targetRot = robotDir === 1 ? robotGroup.rotation.y + Math.PI/2 : robotGroup.rotation.y - Math.PI/2;
+                            originalZ = robotGroup.position.z;
+                            targetZ = nextZ;
+                        }
+                    } 
+                    else {
+                        robotGroup.translateX(speed * dt);
+                        drawTrail();
+                    }
+                    break;
+
+                case 'TURN_WALL_1':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'TURN_WALL_2';
+                    }
+                    break;
+
+                case 'TURN_WALL_2':
+                    robotGroup.translateX(speed * dt);
+                    drawTrail();
+                    if (robotGroup.position.z <= targetZ) {
+                        robotGroup.position.z = targetZ;
+                        robotState = 'TURN_WALL_3';
+                        targetRot = robotDir === 1 ? targetRot + Math.PI/2 : targetRot - Math.PI/2;
+                        robotDir *= -1; 
+                        currentStrip++;
+                    }
+                    break;
+
+                case 'TURN_WALL_3':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'ADVANCE';
+                    }
+                    break;
+
+                // --- MANIOBRA EN U PARA ESQUIVAR MUEBLE ---
+                case 'SKIRT_1':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'SKIRT_2';
+                        marginDist = 0;
+                    }
+                    break;
+
+                case 'SKIRT_2':
+                    if (distLeftFurn < 1.2) {
+                        marginDist = 0;
+                        robotGroup.translateX(speed * dt);
+                    } else {
+                        marginDist += speed * dt;
+                        robotGroup.translateX(speed * dt);
+                        if (marginDist >= clearanceMargin) {
+                            robotState = 'SKIRT_3';
+                            targetRot = robotGroup.rotation.y + Math.PI/2;
+                        }
+                    }
+                    drawTrail();
+                    break;
+
+                case 'SKIRT_3':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'SKIRT_4';
+                        marginDist = 0;
+                    }
+                    break;
+
+                case 'SKIRT_4':
+                    if (distLeftFurn < 1.2) {
+                        marginDist = 0;
+                        robotGroup.translateX(speed * dt);
+                    } else {
+                        marginDist += speed * dt;
+                        robotGroup.translateX(speed * dt);
+                        if (marginDist >= clearanceMargin) {
+                            robotState = 'SKIRT_5';
+                            targetRot = robotGroup.rotation.y + Math.PI/2;
+                        }
+                    }
+                    drawTrail();
+                    break;
+
+                case 'SKIRT_5':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'SKIRT_6';
+                    }
+                    break;
+
+                case 'SKIRT_6':
+                    robotGroup.translateX(speed * dt);
+                    drawTrail();
+                    if (Math.abs(robotGroup.position.z - originalZ) < (speed * dt * 1.5)) {
+                        robotGroup.position.z = originalZ;
+                        robotState = 'SKIRT_7';
+                        targetRot = robotGroup.rotation.y - Math.PI/2;
+                    }
+                    break;
+
+                case 'SKIRT_7':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'ADVANCE';
+                    }
+                    break;
+            }
+        }
+
+        function processDumbLogic(dt, distFrontFurn, distFrontWall) {
+            switch (robotState) {
+                case 'ADVANCE_DUMB':
+                    uiSensor.innerText = "LIBRE";
+                    uiSensor.style.color = "var(--primary)";
+                    uiModo.innerText = "AVANCE CAÓTICO";
+
+                    // Rebote al detectar CUALQUIER obstáculo
+                    if (distFrontFurn < 1.2 || distFrontWall < 1.0) {
+                        robotState = 'TURN_DUMB';
+                        uiSensor.innerText = "¡CHOQUE!";
+                        uiSensor.style.color = "var(--warning)";
+                        uiModo.innerText = "GIRO ALEATORIO";
+                        
+                        // Giro aleatorio entre 90 y 180 grados, derecha o izquierda
+                        let randomAngle = (Math.PI / 2) + Math.random() * (Math.PI / 2);
+                        if (Math.random() > 0.5) randomAngle *= -1;
+                        targetRot = robotGroup.rotation.y + randomAngle;
+                    } else {
+                        robotGroup.translateX(speed * dt);
+                        drawTrail();
+                    }
+                    break;
+
+                case 'TURN_DUMB':
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'ADVANCE_DUMB';
+                    }
+                    break;
+            }
+        }
+
+        function processHomeLogic(dt) {
+            // Rutina idéntica y segura para ambos modos
+            switch (robotState) {
+                case 'GO_HOME_TURN_X':
+                    // 1. Mirar a la izquierda (-X)
+                    turnTowards(Math.PI, dt);
+                    if (isAngleReached(Math.PI)) {
+                        robotGroup.rotation.y = Math.PI;
+                        robotState = 'GO_HOME_MOVE_X';
+                    }
+                    break;
+
+                case 'GO_HOME_MOVE_X':
+                    // 2. Avanzar hasta tocar pared izquierda
+                    if (robotGroup.position.x > -9.0) {
+                        robotGroup.translateX(speed * dt);
+                    } else {
+                        robotGroup.position.x = -9.0;
+                        robotState = 'GO_HOME_TURN_Z';
+                        targetRot = -Math.PI / 2; // Mirar hacia abajo (+Z)
+                    }
+                    break;
+
+                case 'GO_HOME_TURN_Z':
+                    // 3. Girar hacia la base
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        robotState = 'GO_HOME_MOVE_Z';
+                    }
+                    break;
+
+                case 'GO_HOME_MOVE_Z':
+                    // 4. Bajar por carril libre hasta la base
+                    if (robotGroup.position.z < 6.5) {
+                        robotGroup.translateX(speed * dt);
+                    } else {
+                        robotGroup.position.z = 6.5;
+                        robotState = 'GO_HOME_TURN_FINAL';
+                        targetRot = 0; // Aparcar
+                    }
+                    break;
+
+                case 'GO_HOME_TURN_FINAL':
+                    // 5. Alinear
+                    turnTowards(targetRot, dt);
+                    if (isAngleReached(targetRot)) {
+                        robotGroup.rotation.y = targetRot;
+                        finishSimulation();
+                    }
+                    break;
+            }
+        }
+
+        // Normalizador de ángulos para el camino más corto
+        function turnTowards(target, dt) {
+            let diff = target - robotGroup.rotation.y;
+            
+            while(diff > Math.PI) diff -= Math.PI * 2;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+
+            if (Math.abs(diff) > 0.001) {
+                const step = turnSpeed * dt;
+                if (Math.abs(diff) <= step) {
+                    robotGroup.rotation.y = target; 
+                } else {
+                    robotGroup.rotation.y += Math.sign(diff) * step;
+                }
+            }
+        }
+
+        function isAngleReached(target) {
+            let diff = target - robotGroup.rotation.y;
+            while(diff > Math.PI) diff -= Math.PI * 2;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+            return Math.abs(diff) < 0.05;
+        }
+
+        function onWindowResize() {
+            if (!camera || !renderer) return;
+            const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+            const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+            if (!width || !height || width === 0 || height === 0) return;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            let rawDt = clock.getDelta();
+            if (rawDt > 0.1) rawDt = 0.1;
+            // Suavizado exponencial para absorber fluctuaciones de vsync en Safari y Chrome
+            smoothDt = smoothDt * 0.8 + rawDt * 0.2;
+            
+            updateRobotLogic(smoothDt);
+            
+            renderer.render(scene, camera);
+        }
+
+        init();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

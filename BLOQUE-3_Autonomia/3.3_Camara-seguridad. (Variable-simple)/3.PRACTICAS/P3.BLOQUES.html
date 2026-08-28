@@ -1,0 +1,714 @@
+<!-- MEJORAS:
+- [Ajuste de Escena 3D - Escala y Separación - NUEVO] Coche un 25% más grande y trayectorias separadas en el eje de profundidad (Z) para simular acera (persona) y calzada (coche) evitando sensación de atropello.
+- [Ajuste de Escena 3D - Orientación del Coche] Se ha corregido la proporción del coche con morro largo.
+- [Aclaración Visual] Faros delanteros y luces de freno.
+- [Ajuste de Escena 3D - Encuadre Isométrico] Cámara ortográfica verdadera.
+- [Iluminación Mejorada] Escena brillante y visible sin perder el tono nocturno isométrico.
+- [Corrección Cinemática y UX] Todo intacto.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES - Isométrico Ajustado</title>
+    <style>
+        body { margin:0; overflow:hidden; height:100vh; display:flex; flex-direction:column; background:#1a1a2e; font-family:'Segoe UI',sans-serif; user-select:none; }
+        
+        /* HEADER */
+        header { height:70px; background:rgba(0,0,0,0.85); border-bottom:2px solid #00f2ff; display:flex; flex-direction:column; justify-content:center; padding:0 20px; z-index:100; flex-shrink:0; }
+        header h1 { margin:0; font-size:26px; color:#00f2ff; letter-spacing:5px; text-transform:uppercase; }
+        header p { margin:5px 0 0 0; font-size:16px; color:#aaaaaa; }
+
+        /* LAYOUT OBLIGATORIO */
+        #main-container { display:flex; width:100%; height:calc(100vh - 70px); }
+        #left-panel { width:40%; background:#2a2a40; border-right:2px solid #333; display:flex; flex-direction:column; padding:15px; box-sizing:border-box; overflow:hidden; gap:10px; position:relative; z-index:10; }
+        #right-panel { width:60%; position:relative; }
+
+        /* MISIONES NAV */
+        #missions-nav { display:flex; gap:10px; align-items:center; }
+        .mission-btn { min-height:40px; height:40px; width:40px; font-size:18px; font-weight:bold; border:2px solid #555; border-radius:6px; background:#333; color:white; cursor:pointer; transition:all 0.2s; }
+        .mission-btn.active { background:#ffcc00; color:black; border-color:#ffcc00; }
+        .mission-btn.completed { background:#00f2ff; color:black; border-color:#00f2ff; }
+        
+        #mission-info { background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; border:1px solid #444; min-height: 80px; }
+        #mission-title { font-size:20px; color:#ffcc00; font-weight:bold; margin:0 0 5px 0; }
+        #mission-desc { font-size:16px; line-height:1.3; margin:0; color:#ddd; }
+
+        /* PALETA Y SECUENCIA */
+        #palette-zone { display:flex; flex-direction:row; overflow-x:auto; flex-wrap:nowrap; gap:8px; padding:10px; flex-shrink:0; background:rgba(0,0,0,0.2); border-radius:8px; }
+        #palette-zone::-webkit-scrollbar { height:8px; }
+        #palette-zone::-webkit-scrollbar-thumb { background:#555; border-radius:4px; }
+        
+        #sequence-zone { display:flex; flex-direction:column; gap:6px; flex-grow:1; overflow-y:auto; padding:10px; padding-bottom:80px; background:rgba(0,0,0,0.4); border:2px dashed #666; border-radius:8px; min-height:200px; transition: background 0.2s; }
+        #sequence-zone::-webkit-scrollbar { width:8px; }
+        #sequence-zone::-webkit-scrollbar-thumb { background:#555; border-radius:4px; }
+        
+        #sequence-zone.drag-over { background: rgba(0, 242, 255, 0.1); }
+
+        /* BLOQUES */
+        .block { display:flex; align-items:center; justify-content:space-between; min-height:40px; height:auto; border-radius:6px; padding:6px 12px; font-size:15px; font-weight:bold; color:white; cursor:grab; border:2px solid transparent; position:relative; flex-shrink:0; box-sizing:border-box; box-shadow:0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
+        .block:active { cursor:grabbing; }
+        .block.dragging { opacity:0.6; box-shadow:0 5px 15px rgba(0,0,0,0.5); border-color:#fff; }
+        .block.locked { cursor:default; }
+        .block.active-exec { border-color:#ffcc00; box-shadow:0 0 12px #ffcc00; transform:scale(1.02); z-index:5; }
+        
+        .block-header { display:flex; align-items:center; justify-content:space-between; width:100%; pointer-events:none; }
+        .block-title { pointer-events:none; display:flex; align-items:center; gap:5px; }
+        
+        .block-delete { width:28px; height:28px; min-height:28px; font-size:12px; border-radius:50%; background:rgba(0,0,0,0.4); border:none; color:white; cursor:pointer; margin-left:10px; display:flex; align-items:center; justify-content:center; pointer-events:auto; }
+        .block-delete:hover { background:rgba(255,0,0,0.7); }
+        .block.locked .block-delete { display:none; }
+        
+        .block-tag-new { background:red; color:white; font-size:10px; padding:2px 4px; border-radius:4px; position:absolute; top:-8px; right:-8px; }
+
+        /* CONTENEDORES (IF / LOOP) */
+        .container-block { flex-direction:column; align-items:stretch; padding:6px; }
+        .branch { background:rgba(0,0,0,0.25); border-radius:4px; min-height:45px; margin-top:5px; padding:10px 5px; display:flex; flex-direction:column; gap:6px; border:1px solid rgba(255,255,255,0.1); transition: all 0.2s ease; }
+        .branch-label { font-size:12px; opacity:0.8; margin-bottom:2px; padding-left:4px; font-weight:normal; pointer-events:none; }
+        .branch.drag-over { background: rgba(0, 242, 255, 0.2); border: 2px dashed #00f2ff; box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.3); }
+
+        /* INPUTS EN BLOQUES */
+        .block-input { width:45px; height:24px; border-radius:4px; border:none; text-align:center; font-weight:bold; margin:0 5px; pointer-events:auto; }
+
+        /* CONTROLES */
+        #controls-zone { display:flex; gap:10px; flex-shrink:0; margin-top:5px; }
+        .control-btn { min-height:50px; font-size:15px; font-weight:bold; border:none; border-radius:6px; cursor:pointer; color:white; transition:all 0.2s; display:flex; align-items:center; justify-content:center; }
+        #btn-execute { min-height:55px; flex:2; background:#00aa44; font-size: 16px;}
+        #btn-execute:hover { background:#00cc55; }
+        #btn-execute.running { background:#e74c3c; }
+        #btn-clear { flex:1; background:#555; }
+        #btn-clear:hover { background:#777; }
+        #btn-solution { flex:1; background:#8e44ad; }
+        #btn-solution:hover { background:#9b59b6; }
+
+        /* UI SOBRE THREE.JS */
+        #camera-ui { position:absolute; top:20px; right:20px; display:flex; flex-direction:column; gap:10px; z-index:20; pointer-events:none; }
+        .ui-badge { background:rgba(0,0,0,0.7); border:2px solid #444; border-radius:8px; padding:10px 15px; color:white; font-size:16px; font-weight:bold; display:flex; align-items:center; gap:10px; opacity:0; transition:opacity 0.3s; transform:translateX(20px); }
+        .ui-badge.visible { opacity:1; transform:translateX(0); }
+        
+        #rec-indicator { border-color:#e91e63; color:#e91e63; }
+        .rec-dot { width:12px; height:12px; background:#e91e63; border-radius:50%; animation:blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        #notify-indicator { border-color:#00f2ff; color:#00f2ff; }
+
+        /* MODALES */
+        #modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s; }
+        #modal-overlay.visible { opacity:1; pointer-events:auto; }
+        .modal-box { background:#2a2a40; padding:30px; border-radius:12px; border:2px solid #00f2ff; text-align:center; max-width:400px; }
+        .modal-title { font-size:24px; color:#00f2ff; margin:0 0 15px 0; }
+        .modal-msg { font-size:18px; color:white; margin-bottom:20px; line-height: 1.4; }
+        .modal-btn { background:#00f2ff; color:black; border:none; padding:12px 24px; font-size:18px; font-weight:bold; border-radius:6px; cursor:pointer; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <header>
+        <h1>PROGRAMACIÓN DE LA CÁMARA (ISOMÉTRICA)</h1>
+        <p>Decide qué hace la cámara cuando detecta una persona</p>
+    </header>
+
+    <div id="main-container">
+        <!-- PANEL IZQUIERDO -->
+        <div id="left-panel">
+            <div id="missions-nav">
+                <button class="mission-btn active" data-m="1">1</button>
+                <button class="mission-btn" data-m="2">2</button>
+                <button class="mission-btn" data-m="3">3</button>
+                <button class="mission-btn" data-m="4">4</button>
+                <button class="mission-btn" data-m="5">5</button>
+            </div>
+            
+            <div id="mission-info">
+                <div id="mission-title">MISIÓN 1 — ENCENDER LA LUZ</div>
+                <div id="mission-desc">El portal está oscuro. Ya hemos puesto los bloques. Pulsa EJECUTAR para ver cómo la luz se enciende al detectar a alguien.</div>
+            </div>
+
+            <div id="palette-zone">
+                <!-- Se rellena por JS -->
+            </div>
+
+            <div id="sequence-zone">
+                <!-- Zona donde se sueltan los bloques -->
+            </div>
+
+            <div id="controls-zone">
+                <button id="btn-execute" class="control-btn">▶ EJECUTAR</button>
+                <button id="btn-clear" class="control-btn">🔄 REINICIAR</button>
+                <button id="btn-solution" class="control-btn">💡 SOLUCIÓN</button>
+            </div>
+        </div>
+
+        <!-- PANEL DERECHO (THREE.JS) -->
+        <div id="right-panel">
+            <div id="camera-ui">
+                <div id="rec-indicator" class="ui-badge">
+                    <div class="rec-dot"></div>
+                    GRABANDO
+                </div>
+                <div id="notify-indicator" class="ui-badge">
+                    🔔 VECINO AVISADO
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <h2 id="modal-title" class="modal-title">¡Excelente!</h2>
+            <p id="modal-msg" class="modal-msg">Has completado la misión correctamente.</p>
+            <button id="modal-btn" class="modal-btn">Cerrar</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        /* ====================================================================================
+           1. DEFINICIÓN DE BLOQUES Y MISIONES (INTACTA)
+           ==================================================================================== */
+        const BLOCKS = {
+            'esperar': { text: 'ESPERAR', bg: '#7f8c8d', isWait: true },
+            'repetir_siempre': { text: 'REPETIR SIEMPRE', bg: '#8e44ad', isContainer: true },
+            'si_persona': { text: 'SI DETECTA PERSONA', bg: '#e91e63', isContainer: true, branches: ['SÍ','NO'], isNew: true },
+            'si_coche': { text: 'SI DETECTA COCHE', bg: '#d81b60', isContainer: true, branches: ['SÍ','NO'] },
+            'si_noche': { text: 'SI ES DE NOCHE', bg: '#c0392b', isContainer: true },
+            'luz_on': { text: 'ENCENDER LUZ', bg: '#f39c12' },
+            'luz_off': { text: 'APAGAR LUZ', bg: '#555555' },
+            'luz_verde': { text: 'ENCENDER LUZ VERDE', bg: '#00e676', color: '#000' },
+            'luz_naranja': { text: 'ENCENDER LUZ NARANJA', bg: '#ff9800', color: '#000' },
+            'notificar': { text: 'ENVIAR NOTIFICACIÓN', bg: '#00bcd4', color: '#000' },
+            'grabar_on': { text: 'INICIAR GRABACIÓN', bg: '#ff1744' },
+            'grabar_off': { text: 'PARAR GRABACIÓN', bg: '#b71c1c' }
+        };
+
+        const MISSIONS = [
+            { id: 1, title: "MISIÓN 1 — ENCENDER LA LUZ", desc: "El portal está oscuro. Pulsa EJECUTAR para ver cómo la cámara enciende la luz al detectar a la persona." },
+            { id: 2, title: "MISIÓN 2 — AVISAR AL VECINO", desc: "Construye un programa que encienda la luz Y envíe una notificación cuando detecte a alguien (solo por las noches)." },
+            { id: 3, title: "MISIÓN 3 — GRABAR SOLO LO IMPORTANTE", desc: "Programa la cámara para iniciar grabación cuando detecte a alguien, esperar 30 segundos, y parar la grabación." },
+            { id: 4, title: "MISIÓN 4 — SISTEMA COMPLETO", desc: "Orden estricto: Detectar persona → Encender luz → Grabar → Notificar → Esperar 30s → Apagar luz." },
+            { id: 5, title: "MISIÓN 5 — RETO MAESTRO", desc: "Si detecta persona: encender luz verde. Si detecta coche: encender luz naranja. (Sin avisos ni grabaciones)." }
+        ];
+
+        let currentMission = 1;
+        let missionProgress = Array(6).fill(false);
+        let executionRunning = false;
+        
+        let gameState = {
+            personDetected: false, carDetected: false, isNight: true,
+            lightStatus: 0, recording: false, notified: false, victoryTriggered: false
+        };
+        let executedLog = []; 
+        let animationLimbs = {}; 
+        let carWheels = []; 
+
+        /* ====================================================================================
+           2. INICIALIZACIÓN DE LA INTERFAZ Y LÓGICA DE EVENTOS (INTACTA)
+           ==================================================================================== */
+        function initUI() {
+            const pal = document.getElementById('palette-zone');
+            for (const [key, def] of Object.entries(BLOCKS)) {
+                pal.appendChild(createBlock(key, def, true));
+            }
+            document.querySelectorAll('.mission-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => { loadMission(parseInt(e.target.dataset.m)); });
+            });
+            document.getElementById('btn-execute').addEventListener('click', toggleExecution);
+            document.getElementById('btn-clear').addEventListener('click', () => { if(!executionRunning) loadMission(currentMission); });
+            document.getElementById('btn-solution').addEventListener('click', () => { if(!executionRunning) loadSolution(currentMission); });
+            document.getElementById('modal-btn').addEventListener('click', () => {
+                document.getElementById('modal-overlay').classList.remove('visible');
+            });
+            loadMission(1);
+        }
+
+        function createBlock(type, def, isPalette = false) {
+            const el = document.createElement('div');
+            el.className = 'block';
+            if (def.isContainer) el.classList.add('container-block');
+            el.dataset.type = type;
+            el.style.background = def.bg;
+            el.style.color = def.color || 'white';
+            el.draggable = true;
+
+            let html = `<div class="block-header">
+                <span class="block-title">${def.text} 
+                    ${def.isWait ? '<input type="number" class="block-input" value="30" min="1" max="60">' : ''}
+                </span>
+                ${def.isNew ? '<span class="block-tag-new">NUEVO</span>' : ''}
+                <button class="block-delete">✕</button>
+            </div>`;
+
+            if (def.isContainer) {
+                if (def.branches) {
+                    def.branches.forEach((b, i) => { html += `<div class="branch branch-${i}" data-label="${b}"><div class="branch-label">${b}</div></div>`; });
+                } else { html += `<div class="branch branch-0"></div>`; }
+            }
+
+            el.innerHTML = html;
+
+            if (isPalette) {
+                el.dataset.source = "palette";
+                el.querySelector('.block-delete').style.display = 'none';
+            } else {
+                el.querySelector('.block-delete').addEventListener('click', function(e) {
+                    const block = this.closest('.block');
+                    if(block.classList.contains('locked')) return;
+                    const parent = block.parentElement;
+                    Array.from(block.children).forEach(child => {
+                        if (child.classList.contains('branch')) {
+                            Array.from(child.children).forEach(inner => {
+                                if (inner.classList.contains('block')) parent.insertBefore(inner, block);
+                            });
+                        }
+                    });
+                    block.remove();
+                });
+            }
+
+            el.addEventListener('dragstart', (e) => {
+                if (el.classList.contains('locked')) { e.preventDefault(); return; }
+                el.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', type);
+                e.dataTransfer.effectAllowed = 'copyMove';
+            });
+            el.addEventListener('dragend', () => { el.classList.remove('dragging'); });
+            return el;
+        }
+
+        function lockBlock(el) { el.draggable = false; el.classList.add('locked'); }
+
+        function loadMission(m) {
+            stopExecution();
+            currentMission = m;
+            document.querySelectorAll('.mission-btn').forEach(btn => {
+                const b = parseInt(btn.dataset.m);
+                btn.className = 'mission-btn';
+                if (b === m) btn.classList.add('active');
+                else if (missionProgress[b]) btn.classList.add('completed');
+            });
+
+            const mDef = MISSIONS[m-1];
+            document.getElementById('mission-title').innerText = mDef.title;
+            document.getElementById('mission-desc').innerText = mDef.desc;
+            
+            const seq = document.getElementById('sequence-zone');
+            seq.innerHTML = '';
+            resetScenePositions();
+            updateUIState();
+
+            if (m === 1) {
+                loadSolution(1);
+                Array.from(seq.querySelectorAll('.block')).forEach(b => lockBlock(b));
+            }
+        }
+
+        function loadSolution(m) {
+            const seq = document.getElementById('sequence-zone');
+            seq.innerHTML = '';
+            const bLoop = createBlock('repetir_siempre', BLOCKS['repetir_siempre']);
+            const bIfPerson = createBlock('si_persona', BLOCKS['si_persona']);
+            const bIfCar = createBlock('si_coche', BLOCKS['si_coche']);
+            const bIfNight = createBlock('si_noche', BLOCKS['si_noche']);
+            
+            if (m === 1) {
+                const bOn = createBlock('luz_on', BLOCKS['luz_on']);
+                const bOff = createBlock('luz_off', BLOCKS['luz_off']);
+                bIfPerson.querySelector('.branch-0').appendChild(bOn);
+                bIfPerson.querySelector('.branch-1').appendChild(bOff);
+                bLoop.querySelector('.branch-0').appendChild(bIfPerson);
+            } 
+            else if (m === 2) {
+                const bOn = createBlock('luz_on', BLOCKS['luz_on']);
+                const bNoti = createBlock('notificar', BLOCKS['notificar']);
+                bIfNight.querySelector('.branch-0').appendChild(bOn);
+                bIfNight.querySelector('.branch-0').appendChild(bNoti);
+                bIfPerson.querySelector('.branch-0').appendChild(bIfNight);
+                bLoop.querySelector('.branch-0').appendChild(bIfPerson);
+            } 
+            else if (m === 3) {
+                const bRecOn = createBlock('grabar_on', BLOCKS['grabar_on']);
+                const bWait = createBlock('esperar', BLOCKS['esperar']);
+                const bRecOff = createBlock('grabar_off', BLOCKS['grabar_off']);
+                bIfPerson.querySelector('.branch-0').appendChild(bRecOn);
+                bIfPerson.querySelector('.branch-0').appendChild(bWait);
+                bIfPerson.querySelector('.branch-0').appendChild(bRecOff);
+                bLoop.querySelector('.branch-0').appendChild(bIfPerson);
+            } 
+            else if (m === 4) {
+                const bOn = createBlock('luz_on', BLOCKS['luz_on']);
+                const bRecOn = createBlock('grabar_on', BLOCKS['grabar_on']);
+                const bNoti = createBlock('notificar', BLOCKS['notificar']);
+                const bWait = createBlock('esperar', BLOCKS['esperar']);
+                const bOff = createBlock('luz_off', BLOCKS['luz_off']);
+                bIfPerson.querySelector('.branch-0').appendChild(bOn);
+                bIfPerson.querySelector('.branch-0').appendChild(bRecOn);
+                bIfPerson.querySelector('.branch-0').appendChild(bNoti);
+                bIfPerson.querySelector('.branch-0').appendChild(bWait);
+                bIfPerson.querySelector('.branch-0').appendChild(bOff);
+                bLoop.querySelector('.branch-0').appendChild(bIfPerson);
+            } 
+            else if (m === 5) {
+                const bVerde = createBlock('luz_verde', BLOCKS['luz_verde']);
+                const bNaranja = createBlock('luz_naranja', BLOCKS['luz_naranja']);
+                bIfPerson.querySelector('.branch-0').appendChild(bVerde);
+                bIfCar.querySelector('.branch-0').appendChild(bNaranja);
+                bLoop.querySelector('.branch-0').appendChild(bIfPerson);
+                bLoop.querySelector('.branch-0').appendChild(bIfCar);
+            }
+            seq.appendChild(bLoop);
+        }
+
+        function showModal(title, msg) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            document.getElementById('modal-overlay').classList.add('visible');
+        }
+
+        /* --- LÓGICA DE DRAG & DROP CORRECTA --- */
+        document.addEventListener('dragenter', e => {
+            const container = e.target.closest('.branch, #sequence-zone');
+            if (container) {
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                container.classList.add('drag-over');
+            }
+        });
+        document.addEventListener('dragover', e => {
+            const container = e.target.closest('.branch, #sequence-zone');
+            if (!container) return; e.preventDefault(); 
+            const dragging = document.querySelector('.dragging');
+            if (!dragging || dragging.dataset.source === "palette") return;
+            const afterElement = getDragAfterElement(container, e.clientY);
+            if (afterElement == null) container.appendChild(dragging);
+            else container.insertBefore(dragging, afterElement);
+        });
+        document.addEventListener('drop', e => {
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            const container = e.target.closest('.branch, #sequence-zone');
+            if (!container) return; e.preventDefault();
+            const dragging = document.querySelector('.dragging');
+            if (dragging && dragging.dataset.source === "palette") {
+                const type = dragging.dataset.type;
+                const clone = createBlock(type, BLOCKS[type]);
+                clone.classList.remove('dragging');
+                const afterElement = getDragAfterElement(container, e.clientY);
+                if (afterElement == null) container.appendChild(clone);
+                else container.insertBefore(clone, afterElement);
+            }
+        });
+        document.addEventListener('dragend', () => { document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); });
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.block:not(.dragging)')].filter(el => el.parentElement === container);
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
+                else return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        /* --- MOTOR DE EJECUCIÓN ASÍNCRONO --- */
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        async function toggleExecution() {
+            const btn = document.getElementById('btn-execute');
+            if (executionRunning) { stopExecution(); } 
+            else {
+                executionRunning = true; gameState.victoryTriggered = false;
+                btn.innerText = "⏹ DETENER"; btn.classList.add('running'); executedLog = [];
+                resetScenePositions();
+                try { await runSequence(); } catch(e) { console.log("Exec interrumpida"); }
+                if(executionRunning && !gameState.victoryTriggered) stopExecution(); 
+            }
+        }
+        function stopExecution() {
+            executionRunning = false; gameState.victoryTriggered = false;
+            const btn = document.getElementById('btn-execute');
+            btn.innerText = "▶ EJECUTAR"; btn.classList.remove('running');
+            document.querySelectorAll('.active-exec').forEach(el => el.classList.remove('active-exec'));
+            gameState.lightStatus = 0; gameState.recording = false; gameState.notified = false;
+            updateUIState();
+        }
+        async function runSequence() {
+            const seq = document.getElementById('sequence-zone');
+            const blocks = Array.from(seq.children).filter(c => c.classList.contains('block'));
+            for (let block of blocks) { if (!executionRunning) return; await executeBlock(block); }
+        }
+        async function executeBlock(block) {
+            if (!executionRunning) return;
+            block.classList.add('active-exec'); await sleep(250); 
+            const type = block.dataset.type;
+            
+            if (type === 'repetir_siempre') {
+                const branch = block.querySelector('.branch-0');
+                while (executionRunning && !gameState.victoryTriggered) {
+                    const children = Array.from(branch.children).filter(c => c.classList.contains('block'));
+                    for (let child of children) await executeBlock(child);
+                    await sleep(200); checkMissionSuccess();
+                }
+            } 
+            else if (type === 'si_persona') {
+                const branchIdx = gameState.personDetected ? '.branch-0' : '.branch-1';
+                const branch = block.querySelector(branchIdx);
+                if (branch) {
+                    const children = Array.from(branch.children).filter(c => c.classList.contains('block'));
+                    for (let child of children) await executeBlock(child);
+                }
+            }
+            else if (type === 'si_coche') {
+                const branchIdx = gameState.carDetected ? '.branch-0' : '.branch-1';
+                const branch = block.querySelector(branchIdx);
+                if (branch) {
+                    const children = Array.from(branch.children).filter(c => c.classList.contains('block'));
+                    for (let child of children) await executeBlock(child);
+                }
+            }
+            else if (type === 'si_noche') {
+                if (gameState.isNight) {
+                    const branch = block.querySelector('.branch-0');
+                    const children = Array.from(branch.children).filter(c => c.classList.contains('block'));
+                    for (let child of children) await executeBlock(child);
+                }
+            }
+            else if (type === 'esperar') {
+                const input = block.querySelector('input');
+                let secs = input ? parseInt(input.value) : 1;
+                executedLog.push(`esperar_${secs}`);
+                let waitTime = Math.min(secs * 50, 1500); 
+                await sleep(waitTime);
+            }
+            else {
+                if (type === 'luz_on') { gameState.lightStatus = 1; executedLog.push('luz_on'); }
+                if (type === 'luz_off') { gameState.lightStatus = 0; executedLog.push('luz_off'); }
+                if (type === 'luz_verde') { gameState.lightStatus = 2; executedLog.push('luz_verde'); }
+                if (type === 'luz_naranja') { gameState.lightStatus = 3; executedLog.push('luz_naranja'); }
+                if (type === 'notificar') { gameState.notified = true; executedLog.push('notificar'); }
+                if (type === 'grabar_on') { gameState.recording = true; executedLog.push('grabar_on'); }
+                if (type === 'grabar_off') { gameState.recording = false; executedLog.push('grabar_off'); }
+                updateUIState(); await sleep(400); 
+            }
+            block.classList.remove('active-exec'); await sleep(100); checkMissionSuccess();
+        }
+        function checkMissionSuccess() {
+            if (!executionRunning || gameState.victoryTriggered) return;
+            const logStr = executedLog.join(','); let won = false;
+            if (currentMission === 1 && logStr.includes('luz_on') && logStr.includes('luz_off')) won = true;
+            else if (currentMission === 2 && logStr.includes('notificar') && logStr.includes('luz_on')) won = true;
+            else if (currentMission === 3 && logStr.includes('grabar_on') && logStr.includes('esperar_30') && logStr.includes('grabar_off')) won = true;
+            else if (currentMission === 4 && logStr.includes('luz_on,grabar_on,notificar,esperar_30,luz_off')) won = true;
+            else if (currentMission === 5 && logStr.includes('luz_verde') && logStr.includes('luz_naranja') && !logStr.includes('notificar')) won = true;
+
+            if (won) {
+                gameState.victoryTriggered = true; missionProgress[currentMission] = true;
+                document.querySelector(`.mission-btn[data-m="${currentMission}"]`).classList.add('completed');
+                setTimeout(() => {
+                    stopExecution();
+                    showModal("¡Misión Completada!", "El sistema de seguridad ha funcionado a la perfección. Puedes cerrar este aviso y experimentar haciendo cambios, o avanzar a la siguiente misión arriba.");
+                }, 2500);
+            }
+        }
+
+        /* ====================================================================================
+           5. THREE.JS (ESCENA ISOMÉTRICA)
+           ==================================================================================== */
+        const rightPanel = document.getElementById('right-panel');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0f1e); // Fondo ligeramente más claro
+
+        // CONFIGURACIÓN DE CÁMARA ORTOGRÁFICA (ISOMÉTRICA VERDADERA)
+        let aspect = rightPanel.clientWidth / rightPanel.clientHeight;
+        const frustumSize = 35; 
+        const camera = new THREE.OrthographicCamera(
+            frustumSize * aspect / -2, frustumSize * aspect / 2,
+            frustumSize / 2, frustumSize / -2, 0.1, 1000
+        );
+        // Perspectiva Isométrica clásica
+        camera.position.set(25, 25, 25); 
+        camera.lookAt(0, 3, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(rightPanel.clientWidth, rightPanel.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 2.2; // EXPOSICIÓN SUBIDA
+        renderer.domElement.style.cssText = 'position:absolute;top:0;left:0;z-index:1';
+        rightPanel.appendChild(renderer.domElement);
+
+        // ILUMINACIÓN ISOMÉTRICA MEJORADA
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 0.7)); // INTENSIDAD SUBIDA
+        
+        const moonLight = new THREE.DirectionalLight(0x99bbee, 2.5); // INTENSIDAD SUBIDA Y COLOR MÁS CLARO
+        moonLight.position.set(-20, 30, 15);
+        moonLight.castShadow = true;
+        moonLight.shadow.mapSize.set(2048, 2048);
+        moonLight.shadow.camera.left = -30;
+        moonLight.shadow.camera.right = 30;
+        moonLight.shadow.camera.top = 30;
+        moonLight.shadow.camera.bottom = -30;
+        scene.add(moonLight);
+
+        // ENTORNO ESTÁTICO
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, emissive: new THREE.Color(0,0,0) });
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), floorMat);
+        floor.rotation.x = -Math.PI/2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Cuadrícula para realzar el aspecto de "maqueta isométrica"
+        const grid = new THREE.GridHelper(100, 50, 0x00f2ff, 0x555555);
+        grid.material.opacity = 0.15;
+        grid.material.transparent = true;
+        grid.position.y = 0.05; 
+        scene.add(grid);
+
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9, emissive: new THREE.Color(0,0,0) });
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(40, 20, 2), wallMat);
+        wall.position.set(0, 10, -3);
+        wall.receiveShadow = true;
+        scene.add(wall);
+
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x3d2314, emissive: new THREE.Color(0,0,0) });
+        const door = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 0.5), doorMat);
+        door.position.set(0, 4, -1.8);
+        scene.add(door);
+
+        // Cámara de Seguridad
+        const camBox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1), new THREE.MeshStandardMaterial({ color: 0x888888, emissive: new THREE.Color(0,0,0) }));
+        const camLens = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: new THREE.Color(0,0,0) }));
+        camLens.rotation.x = Math.PI/2; camLens.position.z = 0.6; camBox.add(camLens);
+        camBox.position.set(3, 8.5, -1.8); camBox.lookAt(0, 2, 0);
+        scene.add(camBox);
+
+        // Foco de Luz
+        const bulbMat = new THREE.MeshStandardMaterial({ color: 0x555555, emissive: new THREE.Color(0,0,0) });
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3), bulbMat);
+        bulb.position.set(0, 9, -1.5);
+        scene.add(bulb);
+        const pointLight = new THREE.PointLight(0xffffff, 0, 50); 
+        pointLight.position.set(0, 8.5, -1);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        /* --- MODELADO HUMANOIDE ANIMADO --- */
+        const personGrp = new THREE.Group();
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3498db, emissive: new THREE.Color(0,0,0) });
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, emissive: new THREE.Color(0,0,0) });
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, emissive: new THREE.Color(0,0,0) });
+
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.0, 0.4), bodyMat);
+        torso.position.y = 1.5; torso.castShadow = true;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.3), skinMat);
+        head.position.y = 2.3; head.castShadow = true;
+
+        const createLimb = (x, y, w, h, d, mat, pivotY) => {
+            const group = new THREE.Group(); group.position.set(x, y, 0);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.position.y = pivotY; mesh.castShadow = true; group.add(mesh); return group;
+        };
+        const armL = createLimb(0.45, 1.9, 0.2, 0.8, 0.2, bodyMat, -0.3);
+        const armR = createLimb(-0.45, 1.9, 0.2, 0.8, 0.2, bodyMat, -0.3);
+        const legL = createLimb(0.2, 1.0, 0.25, 1.0, 0.25, legMat, -0.5);
+        const legR = createLimb(-0.2, 1.0, 0.25, 1.0, 0.25, legMat, -0.5);
+        
+        animationLimbs = { armL, armR, legL, legR };
+        personGrp.add(torso, head, armL, armR, legL, legR);
+        personGrp.rotation.y = Math.PI / 2; // Cara apuntando hacia la dirección de avance (+X global)
+        scene.add(personGrp);
+
+        /* --- MODELADO DE COCHE REALISTA (TAMAÑO AUMENTADO) --- */
+        const carGrp = new THREE.Group();
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.8, 2), new THREE.MeshStandardMaterial({ color: 0xe74c3c, emissive: new THREE.Color(0,0,0) }));
+        chassis.position.y = 0.7; chassis.castShadow = true;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 1.8), new THREE.MeshStandardMaterial({ color: 0x333333, emissive: new THREE.Color(0,0,0), roughness: 0.2 }));
+        cabin.position.set(0.6, 1.5, 0); cabin.castShadow = true;
+
+        const headlights = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 1.6), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: new THREE.Color(0xffffff) }));
+        headlights.position.set(-2.25, 0.7, 0);
+        const taillights = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 1.6), new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: new THREE.Color(0xff0000) }));
+        taillights.position.set(2.25, 0.7, 0);
+
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16); wheelGeo.rotateX(Math.PI/2);
+        const wheelMat = new THREE.MeshStandardMaterial({color: 0x111111, emissive: new THREE.Color(0,0,0)});
+        const createWheel = (x, y, z) => { const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(x, y, z); w.castShadow = true; return w; };
+        const w1 = createWheel(1.4, 0.4, 1.05); const w2 = createWheel(-1.4, 0.4, 1.05);
+        const w3 = createWheel(1.4, 0.4, -1.05); const w4 = createWheel(-1.4, 0.4, -1.05);
+        carWheels = [w1, w2, w3, w4];
+
+        carGrp.add(chassis, cabin, headlights, taillights, w1, w2, w3, w4);
+        carGrp.scale.set(1.25, 1.25, 1.25); // COCHE ESCALADO UN 25% MÁS GRANDE
+        scene.add(carGrp);
+
+        function resetScenePositions() {
+            // SEPARACIÓN DE CARRILES EN PROFUNDIDAD (EJE Z)
+            personGrp.position.set(-15, 0, -0.5); // Persona pegada a la acera/fachada
+            carGrp.position.set(20, 0, 3.5);      // Coche en la calzada (más al frente)
+            
+            Object.values(animationLimbs).forEach(limb => { limb.rotation.x = 0; limb.rotation.z = 0; });
+            carWheels.forEach(w => w.rotation.z = 0);
+        }
+
+        function updateUIState() {
+            if (gameState.lightStatus === 0) { pointLight.intensity = 0; bulbMat.emissive.set(0x000000); } 
+            else {
+                pointLight.intensity = 60;
+                if (gameState.lightStatus === 1) { pointLight.color.setHex(0xffffff); bulbMat.emissive.set(0xffffff); }
+                if (gameState.lightStatus === 2) { pointLight.color.setHex(0x00ff00); bulbMat.emissive.set(0x00ff00); }
+                if (gameState.lightStatus === 3) { pointLight.color.setHex(0xff8800); bulbMat.emissive.set(0xff8800); }
+            }
+            const rec = document.getElementById('rec-indicator'); const noti = document.getElementById('notify-indicator');
+            if (gameState.recording) rec.classList.add('visible'); else rec.classList.remove('visible');
+            if (gameState.notified) noti.classList.add('visible'); else noti.classList.remove('visible');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (executionRunning) {
+                // HUMANOIDE
+                personGrp.position.x += 0.05; if (personGrp.position.x > 15) personGrp.position.x = -15;
+                const t = performance.now() * 0.008;
+                animationLimbs.armL.rotation.x = Math.sin(t) * 0.6; animationLimbs.armR.rotation.x = Math.sin(t + Math.PI) * 0.6;
+                animationLimbs.legL.rotation.x = Math.sin(t + Math.PI) * 0.6; animationLimbs.legR.rotation.x = Math.sin(t) * 0.6;
+
+                // COCHE
+                const carSpeed = 0.08;
+                carGrp.position.x -= carSpeed; if (carGrp.position.x < -20) carGrp.position.x = 20;
+                const wheelRot = carSpeed / 0.4;
+                carWheels.forEach(w => w.rotation.z -= wheelRot);
+
+                // Detección (Coordenadas iguales porque evaluamos X)
+                gameState.personDetected = (personGrp.position.x > -3.5 && personGrp.position.x < 3.5);
+                gameState.carDetected = (carGrp.position.x > -4.5 && carGrp.position.x < 4.5);
+            } else {
+                Object.values(animationLimbs).forEach(limb => { limb.rotation.x = 0; limb.rotation.z = 0; });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            if (!rightPanel) return;
+            aspect = rightPanel.clientWidth / rightPanel.clientHeight;
+            camera.left = -frustumSize * aspect / 2;
+            camera.right = frustumSize * aspect / 2;
+            camera.top = frustumSize / 2;
+            camera.bottom = -frustumSize / 2;
+            camera.updateProjectionMatrix();
+            renderer.setSize(rightPanel.clientWidth, rightPanel.clientHeight);
+        });
+
+        initUI();
+        resetScenePositions();
+        animate();
+
+    </script>
+</body>
+</html>

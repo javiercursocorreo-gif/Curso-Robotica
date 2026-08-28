@@ -1,0 +1,2015 @@
+<!-- 
+CORRECCIONES REALIZADAS:
+1. Base tapaba el dial: Se ha reducido el tamaño de la `basePlate` (madera) de 5.5 a 2.4.
+2. Materiales de P2 Clavados en P3: Se ha revertido el motor de renderizado de los materiales de la base y el robot. Se eliminan los PBRMaterials y se usan los StandardMaterials exactos de P2 (mismo brillo especular y reflejo) para recuperar el tono amarillento original bajo la luz en lugar de un naranja mate oscuro.
+3. Círculos de color eliminados de las bandejas.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0d0d18;
+            font-family: 'Segoe UI', sans-serif;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* HEADER */
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #00f2ff;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 100;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #00f2ff;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0 0 0 20px;
+            font-size: 18px;
+            color: #aaaaaa;
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        /* PANEL IZQUIERDO (40% de ancho) */
+        #left-panel {
+            width: 40%;
+            min-width: 480px;
+            background: rgba(10, 10, 25, 0.95);
+            border-right: 2px solid #00f2ff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        /* PANEL DERECHO (60% de ancho) */
+        #right-panel {
+            width: 60%;
+            flex: 1;
+            height: 100%;
+            position: relative;
+            min-width: 0;
+            cursor: grab;
+        }
+        
+        #right-panel:active {
+            cursor: grabbing;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        /* SELECTOR DE MISIONES */
+        .missions-row {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-mission {
+            flex: 1;
+            height: 50px;
+            background: #1b1c2e;
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-mission:hover {
+            border-color: #00f2ff;
+            background: #252844;
+        }
+
+        .btn-mission.active {
+            background: rgba(0, 242, 255, 0.2);
+            border-color: #00f2ff;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+            color: #00f2ff;
+        }
+
+        /* INSTRUCCIONES DE MISIÓN */
+        .mission-info {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 242, 255, 0.15);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        .mission-title {
+            font-weight: bold;
+            color: #00f2ff;
+            font-size: 20px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .mission-hint {
+            margin-top: 10px;
+            color: #FFD166;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-hint-solution {
+            background: transparent;
+            border: 1px dashed #FFD166;
+            color: #FFD166;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+        .btn-hint-solution:hover {
+            background: rgba(255, 209, 102, 0.1);
+        }
+
+        /* PALETA DE BLOQUES (Horizontal) */
+        .palette-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px;
+        }
+        
+        .section-label {
+            font-size: 15px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .blocks-palette {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        /* BLOQUES */
+        .block {
+            background: #2a2a3a;
+            border: 2px solid #4a4a5a;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 17px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: grab;
+            white-space: nowrap;
+            user-select: none;
+            box-sizing: border-box;
+            height: 48px;
+        }
+
+        .block.block-new {
+            background: #FF5A09;
+            border-color: #00f2ff;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+        }
+
+        .block select {
+            background: #0d0d18;
+            color: #fff;
+            border: 1px solid #4a4a5a;
+            border-radius: 4px;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 2px 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .block-new select {
+            border-color: #00f2ff;
+        }
+
+        .block-tag-new {
+            background: #00f2ff;
+            color: #000;
+            font-size: 11px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+        /* WORKSPACE DE SECUENCIA */
+        .workspace-section {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px dashed rgba(0, 242, 255, 0.25);
+            border-radius: 12px;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 250px;
+            position: relative;
+        }
+
+        .workspace-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 18px;
+            text-align: center;
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        /* ESTRUCTURA RECURSIVA DE BLOQUES */
+        .workspace-block-wrap {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* C-BLOCKS (CONTENEDORES) */
+        .c-block-container {
+            background: rgba(255, 255, 255, 0.01);
+            border: 2px solid #4a4a5a;
+            border-radius: 10px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+
+        .repeat-container {
+            border-color: #FFD166;
+        }
+
+        .condition-container {
+            border-color: #00ffaa;
+        }
+
+        .c-block-header {
+            background: rgba(20, 20, 30, 0.85);
+            padding: 10px 14px;
+            font-size: 17px;
+            font-weight: bold;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .repeat-container .c-block-header {
+            color: #FFD166;
+        }
+
+        .condition-container .c-block-header {
+            color: #00ffaa;
+        }
+
+        .c-block-body {
+            padding: 12px 12px 12px 24px; /* Sangrado visual */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            min-height: 50px;
+            border-left: 4px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .repeat-container .c-block-body {
+            border-left-color: rgba(255, 209, 102, 0.2);
+        }
+
+        .condition-container .c-block-body {
+            border-left-color: rgba(0, 255, 170, 0.2);
+        }
+
+        .c-branch-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            color: #888;
+            padding: 4px 14px;
+            background: rgba(0,0,0,0.1);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .c-block-footer {
+            background: rgba(20, 20, 30, 0.7);
+            padding: 8px 14px;
+            font-size: 14px;
+            color: #888;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            font-weight: bold;
+        }
+
+        /* Resaltado de ejecución */
+        .workspace-block-wrap.executing {
+            box-shadow: 0 0 15px #FFD166;
+            transform: scale(1.01);
+            z-index: 5;
+        }
+
+        .workspace-block-wrap.executing .block {
+            border-color: #FFD166 !important;
+            background: #e2b13c !important;
+            color: #000 !important;
+        }
+        .workspace-block-wrap.executing .c-block-container {
+            border-color: #FFD166 !important;
+        }
+        .workspace-block-wrap.executing .c-block-header {
+            background: #e2b13c !important;
+            color: #000 !important;
+        }
+
+        /* Botones de control del bloque */
+        .block-controls {
+            display: flex;
+            gap: 4px;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            align-self: center;
+            margin-left: auto;
+        }
+
+        .workspace-block-wrap:hover .block-controls {
+            opacity: 1;
+        }
+
+        .btn-ctrl {
+            background: #202030;
+            border: 1px solid #444;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn-ctrl:hover {
+            background: #2e334a;
+            border-color: #00f2ff;
+        }
+        .btn-ctrl.btn-del {
+            color: #ff5555;
+        }
+        .btn-ctrl.btn-del:hover {
+            background: #441515;
+            border-color: #ff5555;
+        }
+
+        /* CONTROLES DE EJECUCIÓN */
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .execution-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-run {
+            flex: 2;
+            height: 70px;
+            background: linear-gradient(135deg, #00f2ff, #0088cc);
+            color: #000;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.2);
+            transition: all 0.2s;
+        }
+
+        .btn-run:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 242, 255, 0.4);
+        }
+
+        .btn-run:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .btn-stop {
+            flex: 1;
+            height: 70px;
+            background: linear-gradient(135deg, #ff5555, #cc1111);
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn-stop:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(255, 85, 85, 0.3);
+        }
+
+        .btn-restart {
+            flex: 1;
+            height: 70px;
+            background: linear-gradient(135deg, #ff9900, #cc6600);
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(255, 153, 0, 0.3);
+        }
+
+        .speed-slider-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 17px;
+            color: #ccc;
+        }
+
+        .speed-slider-wrap input {
+            flex: 1;
+            margin-left: 20px;
+            accent-color: #00f2ff;
+            cursor: pointer;
+        }
+
+        /* AYUDA DE BLOQUE */
+        .help-panel {
+            background: rgba(0, 242, 255, 0.03);
+            border: 2px solid rgba(0, 242, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            min-height: 110px;
+            box-sizing: border-box;
+        }
+
+        .help-title {
+            font-size: 19px;
+            font-weight: bold;
+            color: #00f2ff;
+            margin-bottom: 6px;
+        }
+
+        .help-text {
+            font-size: 18px;
+            line-height: 1.45;
+            color: #ddd;
+        }
+
+        /* MODAL DE ÉXITO CUSTOM */
+        #success-modal {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: calc(40% - 40px);
+            height: auto;
+            background: transparent;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 35, 0.95);
+            border: 2px solid #00f2ff;
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
+            width: 100%;
+            max-width: 380px;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-sizing: border-box;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .modal-content h2 {
+            margin: 0 0 15px 0;
+            font-size: 32px;
+            color: #00ffaa;
+            text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
+            text-transform: uppercase;
+        }
+
+        .modal-content p {
+            font-size: 20px;
+            line-height: 1.5;
+            color: #fff;
+            margin: 0 0 25px 0;
+        }
+
+        .modal-btn {
+            flex: 1;
+            height: 65px;
+            background: linear-gradient(135deg, #00ffaa, #00aa77);
+            color: #000;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 255, 170, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 255, 170, 0.5);
+        }
+
+        /* DRAG AND DROP FEEDBACK */
+        .workspace-section.drag-hover {
+            border-color: #00ffaa !important;
+            background: rgba(0, 255, 170, 0.1) !important;
+        }
+
+        .c-block-body.drag-hover {
+            background: rgba(0, 255, 170, 0.15) !important;
+            border-left-color: #00ffaa !important;
+        }
+
+        @keyframes flashYellow {
+            0% { border-color: #00f2ff; }
+            100% { border-color: #ffd166; box-shadow: 0 0 15px #ffd166; }
+        }
+
+        body.dragging-active .workspace-section * {
+            pointer-events: none;
+        }
+        body.dragging-active .workspace-section,
+        body.dragging-active .workspace-section .c-block-body {
+            pointer-events: auto !important;
+        }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>P3.BLOQUES</h1>
+        <p>Construye secuencias lógicas y programa el movimiento de la base robótica.</p>
+    </header>
+
+    <div id="main-layout">
+        <!-- PANEL IZQUIERDO -->
+        <div id="left-panel">
+            <!-- MISIONES -->
+            <div class="missions-row">
+                <button class="btn-mission active" onclick="selectMission(1)">Misión 1</button>
+                <button class="btn-mission" onclick="selectMission(2)">Misión 2</button>
+                <button class="btn-mission" onclick="selectMission(3)">Misión 3</button>
+                <button class="btn-mission" onclick="selectMission(4)">Misión 4</button>
+                <button class="btn-mission" onclick="selectMission(5)">Misión 5</button>
+            </div>
+
+            <!-- INSTRUCCIONES -->
+            <div class="mission-info">
+                <div class="mission-title" id="mission-title">M1: Centrado de prueba</div>
+                <div id="mission-desc">Carga la orden pre-programada y ejecuta el código para ver cómo la base del brazo gira a su posición central (90°).</div>
+                <div class="mission-hint" id="mission-hint-wrap">
+                    💡 <span id="mission-hint-text">Pulsa el botón verde EJECUTAR para arrancar.</span>
+                    <button class="btn-hint-solution" id="btn-solution" onclick="showSolution()" style="display:none;">Ver Solución</button>
+                </div>
+            </div>
+
+            <!-- PALETA DE BLOQUES -->
+            <div class="palette-section">
+                <div class="section-label">Paleta de Bloques (Arrastra al programa)</div>
+                <div class="blocks-palette" id="blocks-palette">
+                    <div class="block block-new" draggable="true" ondragstart="dragBlock(event, 'girar')" onmouseover="showHelp('girar')">
+                        <span class="block-tag-new">NUEVO</span>
+                        <span>🔄 Girar base a</span>
+                        <select id="pal-girar-select" onclick="event.stopPropagation()">
+                            <option value="0">0°</option>
+                            <option value="45">45°</option>
+                            <option value="90" selected>90°</option>
+                            <option value="135">135°</option>
+                            <option value="180">180°</option>
+                        </select>
+                    </div>
+
+                    <div class="block" draggable="true" ondragstart="dragBlock(event, 'esperar')" onmouseover="showHelp('esperar')">
+                        <span>⏳ Esperar 1s</span>
+                    </div>
+
+                    <div class="block" draggable="true" ondragstart="dragBlock(event, 'repeat')" onmouseover="showHelp('repetir')">
+                        <span>🔁 Repetir siempre</span>
+                    </div>
+
+                    <div class="block" draggable="true" ondragstart="dragBlock(event, 'si-sensor')" onmouseover="showHelp('si-sensor')">
+                        <span>🔍 Si sensor detecta objeto</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WORKSPACE -->
+            <div class="workspace-section" id="workspace">
+                <div class="workspace-placeholder" id="workspace-placeholder">
+                    El espacio de trabajo está vacío. ¡Arrastra bloques desde la paleta para empezar a programar!
+                </div>
+                <div id="workspace-content"></div>
+            </div>
+
+            <!-- CONTROLES -->
+            <div class="controls-panel">
+                <div class="speed-slider-wrap">
+                    <span>Velocidad: <strong id="speed-label">1.0x</strong></span>
+                    <input type="range" id="speed-slider" min="0.5" max="2.0" step="0.25" value="1.0" oninput="updateSpeed()">
+                </div>
+                <div class="execution-row">
+                    <button class="btn-run" id="btn-run" onclick="runProgram()">Ejecutar Programa 🚀</button>
+                    <button class="btn-stop" id="btn-stop" onclick="stopProgram()" style="display: none;">Parar ⏹️</button>
+                    <button class="btn-restart" id="btn-restart" onclick="loadMission(activeMissionNum)">Reiniciar 🔄</button>
+                </div>
+            </div>
+
+            <!-- AYUDA DE BLOQUE -->
+            <div class="help-panel">
+                <div class="help-title" id="help-title">Ayuda del Bloque</div>
+                <div class="help-text" id="help-text">Pasa el cursor sobre cualquier bloque de la paleta para conocer su funcionamiento y parámetros.</div>
+            </div>
+        </div>
+
+        <!-- PANEL DERECHO -->
+        <div id="right-panel">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
+
+    <!-- MODAL DE ÉXITO -->
+    <div id="success-modal">
+        <div class="modal-content">
+            <h2>¡Misión Completada! 🎉</h2>
+            <p id="success-message">¡Excelente trabajo! Has logrado programar el robot con éxito.</p>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; width: 100%;">
+                <button class="modal-btn" onclick="closeSuccessModalOnly()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE MISIONES Y SOLUCIONES
+        const MISIONES = {
+            1: {
+                title: "M1: Centrado de prueba",
+                desc: "Carga la orden pre-programada y ejecuta el código para ver cómo la base del brazo gira a su posición central (90°).",
+                hint: "Pulsa el botón verde EJECUTAR para arrancar.",
+                solution: null,
+                preloaded: [
+                    { type: 'girar', param: '90', locked: true }
+                ]
+            },
+            2: {
+                title: "M2: Ajustar parámetro",
+                desc: "Queremos apuntar el brazo hacia la bandeja de la derecha que está a 45°. Configura el parámetro del bloque de giro para lograrlo.",
+                hint: "Haz clic sobre el bloque en el workspace y selecciona 45° en el menú desplegable.",
+                solution: [
+                    { type: 'girar', param: '45' }
+                ],
+                preloaded: [
+                    { type: 'girar', param: '', flash: true }
+                ]
+            },
+            3: {
+                title: "M3: Secuencia de barrido",
+                desc: "Programa al robot para que realice una secuencia: mirar primero a la bandeja izquierda (135°), esperar un segundo y después apuntar a la derecha (45°).",
+                hint: "Usa: Girar(135°) ➔ Esperar ➔ Girar(45°).",
+                solution: [
+                    { type: 'girar', param: '135' },
+                    { type: 'esperar' },
+                    { type: 'girar', param: '45' }
+                ],
+                preloaded: []
+            },
+            4: {
+                title: "M4: Lógica con condiciones",
+                desc: "Cajas metálicas circulan por la cinta transportadora. Programa al robot de manera que: SI el sensor detecta una caja, gire a la bandeja central (90°) para recogerla. SINO, debe regresar a su posición de espera a la derecha (0°). Todo esto dentro de un bucle continuo.",
+                hint: "Introduce un Bucle 'Repetir siempre', luego mete la 'Condición' dentro de él, y añade los giros correspondientes en SI y SINO.",
+                solution: [
+                    {
+                        type: 'repeat',
+                        children: [
+                            {
+                                type: 'si-sensor',
+                                thenChildren: [{ type: 'girar', param: '90' }],
+                                elseChildren: [{ type: 'girar', param: '0' }]
+                            }
+                        ]
+                    }
+                ],
+                preloaded: []
+            },
+            5: {
+                title: "M5: Reto de escaneo continuo",
+                desc: "Programa libremente el brazo para que escanee continuamente de izquierda a derecha (135° ➔ 90° ➔ 45° ➔ 90°) sin detenerse.",
+                hint: "Debes estructurar una secuencia de giros dentro de un bucle 'Repetir siempre'.",
+                solution: null,
+                preloaded: []
+            }
+        };
+
+        const HELPS = {
+            'girar': {
+                title: "🔄 GIRAR BASE A [ÁNGULO]",
+                text: "Ordena al motor de la base girar hasta el ángulo seleccionado (0° a 180°). El parámetro del ángulo define a dónde debe apuntar. ¡Es la orden clave de esta clase!"
+            },
+            'esperar': {
+                title: "⏳ ESPERAR 1s",
+                text: "Pausa la ejecución del programa durante exactamente 1 segundo antes de pasar a la siguiente instrucción. Sirve para dar tiempo a que ocurran acciones."
+            },
+            'repetir': {
+                title: "🔁 REPETIR SIEMPRE (Bucle)",
+                text: "Crea un contenedor de bucle infinito. Todas las instrucciones arrastradas o insertadas DENTRO de esta caja se repetirán cíclicamente una y otra vez."
+            },
+            'si-sensor': {
+                title: "🔍 SI SENSOR DETECTA OBJETO (Condición)",
+                text: "Un bloque contenedor de decisión. Si una caja se detiene frente al sensor, se ejecutan las órdenes puestas dentro del bloque 'SI'. De lo contrario, ejecuta lo puesto dentro del bloque 'SINO'."
+            }
+        };
+
+        // ESTADO GLOBAL
+        let activeMissionNum = 1;
+        let workspaceBlocks = [];
+        let executionSpeed = 1.0;
+        let isRunning = false;
+        let ip = 0;
+        
+        let flatList = [];
+        let activeTimer = null;
+        let activeInterval = null;
+        let grabTimeout = null;
+        let grabObserver = null;
+
+        let listRegistry = {};
+
+        function registerList(list) {
+            const id = 'list_' + Math.random().toString(36).substr(2, 9);
+            listRegistry[id] = list;
+            return id;
+        }
+
+        function getListId(list) {
+            for (let id in listRegistry) {
+                if (listRegistry[id] === list) return id;
+            }
+            return registerList(list);
+        }
+
+        // ELEMENTOS 3D
+        const canvas = document.getElementById('renderCanvas');
+        let engine, scene, camera, shadowGen;
+        let baseRotator;
+        let anguloActual = 90;
+        let anguloObjetivo = 90;
+        
+        // Entorno
+        let sensorPlate, sensorLED, ledMat;
+        let beltMesh;
+        let boxMesh = null;
+
+        // Lógica simulación
+        let sensorActive = false;
+        let boxSpawningTimer = 0;
+        let boxGrabbed = false;
+        let missionBoxesDelivered = 0;
+        let missionSweepHistory = [];
+        let lastLoggedAngle = -1;
+
+        // FUNCIÓN DEL DIAL
+        function createFloorDial(glow) {
+            const angles = [-90, -45, 0, 45, 90, 135, 180, 225, 270];
+            angles.forEach(ang => {
+                const rad = -(ang + 45) * Math.PI / 180;
+                const dist = 2.15;
+                const px = dist * Math.sin(rad);
+                const pz = dist * Math.cos(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.04, height: 0.02, depth: 0.15}, scene);
+                tick.position.set(px * 0.92, 0.06, pz * 0.92);
+                tick.rotation.y = rad;
+                
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene);
+                tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                tickMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                tick.material = tickMat;
+                if (glow) glow.addIncludedOnlyMesh(tick);
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 0.8, height: 0.4}, scene);
+                label.position.set(px, 0.055, pz);
+                label.rotation.x = Math.PI / 2;
+                label.rotation.y = rad + Math.PI;
+
+                const labelText = (ang < 0 ? ang + 360 : ang) + "°";
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 256, height: 128}, scene);
+                dynTex.hasAlpha = true;
+                const ctx = dynTex.getContext();
+                ctx.fillStyle = "rgba(0,0,0,0)";
+                ctx.fillRect(0, 0, 256, 128);
+                
+                ctx.font = "bold 72px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(labelText, 128, 64);
+                dynTex.update();
+                
+                const mat = new BABYLON.StandardMaterial("floorMat_" + ang, scene);
+                mat.diffuseTexture = dynTex;
+                mat.useAlphaFromDiffuseTexture = true;
+                mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                mat.disableLighting = true;
+                label.material = mat;
+            });
+        }
+
+        // MOTOR, ESCENA Y POST-PROCESADO - INICIALIZACIÓN SÍNCRONA
+        function initEngine() {
+            // Se utiliza inicialización síncrona segura con WebGL para evitar renders negros 
+            // causados por fallos asíncronos en WebGPU o race conditions en el canvas.
+            engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.035;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            // Cámara perspectiva isométrica ajustada
+            camera = new BABYLON.ArcRotateCamera("cam", Math.PI/4, Math.PI/3.5, 12, new BABYLON.Vector3(0, 1.2, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 6; 
+            camera.upperRadiusLimit = 22;
+
+            // Luces
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.6; 
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+            
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-0.5), scene);
+            dirLight.position = new BABYLON.Vector3(20,40,20); 
+            dirLight.intensity = 2.5;
+            
+            shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true; 
+            shadowGen.blurKernel = 32;
+            
+            const glow = new BABYLON.GlowLayer("glow", scene); 
+            glow.intensity = 0.8;
+            
+            const pipeline = new BABYLON.DefaultRenderingPipeline("pp", true, scene, [camera]);
+            pipeline.msaaSamples = 4; 
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.85; 
+            pipeline.bloomWeight = 0.35;
+            
+            // Entorno PBR. Con Try-Catch para que no crashee la escena completa si se ejecuta offline.
+            try {
+                scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+                scene.environmentIntensity = 0.6;
+            } catch(e) {
+                console.warn("Ejecución offline: Entorno PBR no cargado.");
+            }
+
+            // SUELO
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:30, height:30}, scene);
+            const groundMat = new BABYLON.PBRMaterial("groundMat", scene);
+            groundMat.albedoColor = new BABYLON.Color3(0.12, 0.14, 0.18);
+            groundMat.roughness = 0.9; 
+            groundMat.metallic = 0.0;
+            ground.material = groundMat; 
+            ground.receiveShadows = true;
+
+            buildRobotAndEnvironment(glow);
+
+            engine.runRenderLoop(() => {
+                try {
+                    if(scene) scene.render();
+                } catch(err) { console.error(err); }
+            });
+
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+        }
+
+        function buildRobotAndEnvironment(glow) {
+            // MATERIALES ESTÁNDAR (Sustituyen al PBR para igualar exactamente la respuesta a la luz de P2)
+            const orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            orangeMat.specularPower = 32;
+
+            const blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+            blackMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            blackMat.specularPower = 8;
+
+            const whiteMat = new BABYLON.StandardMaterial("whiteMat", scene);
+            whiteMat.diffuseColor = BABYLON.Color3.FromHexString("#f5f5dc");
+            whiteMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+            const metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            metalMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+            metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+            metalMat.specularPower = 64;
+
+            const woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+            woodMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+
+            const holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+            holoMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            holoMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+            holoMat.alpha = 0.25;
+
+            // 1. BASE DE MADERA 
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 2.4, height: 0.05, depth: 2.4}, scene);
+            basePlate.position.y = 0.025;
+            basePlate.rotation.y = Math.PI / 4; 
+            basePlate.material = woodMat;
+            basePlate.receiveShadows = true;
+
+            createFloorDial(glow);
+
+            // 2. BASE GIRATORIA
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3, tessellation: 32}, scene);
+            domeBase.position.y = 0.2; 
+            domeBase.material = orangeMat; domeBase.parent = baseRotator;
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35;
+            domeSphere.scaling.y = 0.5;
+            domeSphere.material = orangeMat; domeSphere.parent = baseRotator;
+
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.0, 0);
+            pillarL.material = orangeMat; pillarL.parent = baseRotator;
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.0, 0);
+            pillarR.material = orangeMat; pillarR.parent = baseRotator;
+
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.25}, scene);
+            shoulderPin.rotation.z = Math.PI / 2;
+            shoulderPin.position.set(0, 1.2, 0);
+            shoulderPin.material = metalMat; shoulderPin.parent = baseRotator;
+
+            const shoulderServo = BABYLON.MeshBuilder.CreateBox("shoulderServo", {width: 0.45, height: 0.45, depth: 0.65}, scene);
+            shoulderServo.position.set(0.75, 1.2, 0);
+            shoulderServo.material = blackMat; shoulderServo.parent = baseRotator;
+
+            const shoulderServoAxle = BABYLON.MeshBuilder.CreateCylinder("shoulderServoAxle", {diameter: 0.15, height: 0.3}, scene);
+            shoulderServoAxle.rotation.z = Math.PI / 2;
+            shoulderServoAxle.position.set(0.55, 1.2, 0);
+            shoulderServoAxle.material = metalMat; shoulderServoAxle.parent = baseRotator;
+
+            for (let zOffset = -0.2; zOffset <= 0.2; zOffset += 0.2) {
+                const wireMat = zOffset < -0.05 ? blackMat : (zOffset > 0.05 ? orangeMat : whiteMat);
+                const wire = BABYLON.MeshBuilder.CreateCylinder("wire_" + zOffset, {diameter: 0.03, height: 1.2, tessellation: 8}, scene);
+                wire.position.set(0.75, 0.5, zOffset - 0.35);
+                wire.rotation.x = 0.5;
+                wire.material = wireMat; wire.parent = baseRotator;
+            }
+
+            baseRotator.getChildMeshes(false).forEach(m => shadowGen.addShadowCaster(m));
+
+            // 3. ARTICULACIÓN SUPERIOR HOLOGRÁFICA
+            const shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.parent = baseRotator;
+            shoulderNode.position.set(0, 1.2, 0);
+            shoulderNode.rotation.x = -Math.PI / 4; 
+
+            const armBarL = BABYLON.MeshBuilder.CreateCylinder("armBarL", {diameter: 0.36, height: 1.8}, scene);
+            armBarL.position.set(0.35, 0.8, 0);
+            armBarL.material = holoMat; armBarL.parent = shoulderNode;
+
+            const armBarR = BABYLON.MeshBuilder.CreateCylinder("armBarR", {diameter: 0.36, height: 1.8}, scene);
+            armBarR.position.set(-0.35, 0.8, 0);
+            armBarR.material = holoMat; armBarR.parent = shoulderNode;
+
+            const armBrace1 = BABYLON.MeshBuilder.CreateCylinder("armBrace1", {diameter: 0.28, height: 0.5}, scene);
+            armBrace1.rotation.z = Math.PI / 2;
+            armBrace1.position.set(0, 0.2, 0);
+            armBrace1.material = holoMat; armBrace1.parent = shoulderNode;
+
+            const armBrace2 = BABYLON.MeshBuilder.CreateCylinder("armBrace2", {diameter: 0.28, height: 0.5}, scene);
+            armBrace2.rotation.z = Math.PI / 2;
+            armBrace2.position.set(0, 1.4, 0);
+            armBrace2.material = holoMat; armBrace2.parent = shoulderNode;
+
+            const codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.parent = shoulderNode;
+            codoNode.position.set(0, 1.7, 0);
+            codoNode.rotation.x = Math.PI / 2; 
+
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.3, height: 0.8}, scene);
+            codoPin.rotation.z = Math.PI / 2;
+            codoPin.material = holoMat; codoPin.parent = codoNode;
+
+            const elbowServo = BABYLON.MeshBuilder.CreateBox("elbowServo", {width: 0.45, height: 0.45, depth: 0.65}, scene);
+            elbowServo.position.set(0.4, 0, 0);
+            elbowServo.material = holoMat; elbowServo.parent = codoNode;
+
+            const link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBarL = BABYLON.MeshBuilder.CreateCylinder("forearmBarL", {diameter: 0.28, height: 1.3}, scene);
+            forearmBarL.position.set(0.2, 0.6, 0);
+            forearmBarL.material = holoMat; forearmBarL.parent = link2Node;
+
+            const forearmBarR = BABYLON.MeshBuilder.CreateCylinder("forearmBarR", {diameter: 0.28, height: 1.3}, scene);
+            forearmBarR.position.set(-0.2, 0.6, 0);
+            forearmBarR.material = holoMat; forearmBarR.parent = link2Node;
+
+            const forearmBrace = BABYLON.MeshBuilder.CreateCylinder("forearmBrace", {diameter: 0.22, height: 0.3}, scene);
+            forearmBrace.rotation.z = Math.PI / 2;
+            forearmBrace.position.set(0, 0.6, 0);
+            forearmBrace.material = holoMat; forearmBrace.parent = link2Node;
+
+            const munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.parent = link2Node;
+            munecaNode.position.set(0, 1.25, 0);
+            munecaNode.rotation.x = Math.PI / 2; 
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.4, height: 0.45, depth: 0.4}, scene);
+            wristServo.position.set(0, 0.15, 0);
+            wristServo.material = holoMat; wristServo.parent = munecaNode;
+
+            const pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.parent = munecaNode;
+            pinzaNode.position.set(0, 0.35, 0);
+            pinzaNode.rotation.x = -Math.PI / 2; 
+
+            const gripperBase = BABYLON.MeshBuilder.CreateBox("gripperBase", {width: 0.5, height: 0.08, depth: 0.25}, scene);
+            gripperBase.material = holoMat; gripperBase.parent = pinzaNode;
+
+            const gearG1 = BABYLON.MeshBuilder.CreateCylinder("gearG1", {diameter: 0.25, height: 0.06}, scene);
+            gearG1.position.set(0.12, 0.05, 0);
+            gearG1.material = holoMat; gearG1.parent = pinzaNode;
+
+            const gearG2 = BABYLON.MeshBuilder.CreateCylinder("gearG2", {diameter: 0.25, height: 0.06}, scene);
+            gearG2.position.set(-0.12, 0.05, 0);
+            gearG2.material = holoMat; gearG2.parent = pinzaNode;
+
+            const fingerL = BABYLON.MeshBuilder.CreateBox("fingerL", {width: 0.05, height: 0.07, depth: 0.35}, scene);
+            fingerL.position.set(0.16, 0.05, 0.175);
+            fingerL.rotation.y = 0.35;
+            fingerL.material = holoMat; fingerL.parent = pinzaNode;
+
+            const fingerL_dist = BABYLON.MeshBuilder.CreateBox("fingerL_dist", {width: 0.04, height: 0.07, depth: 0.25}, scene);
+            fingerL_dist.position.set(0.11, 0.05, 0.4);
+            fingerL_dist.rotation.y = -0.5; 
+            fingerL_dist.material = holoMat; fingerL_dist.parent = pinzaNode;
+
+            const tipL = BABYLON.MeshBuilder.CreateBox("tipL", {width: 0.02, height: 0.08, depth: 0.08}, scene);
+            tipL.position.set(0.06, 0.05, 0.5);
+            tipL.material = holoMat; tipL.parent = pinzaNode;
+
+            const fingerR = BABYLON.MeshBuilder.CreateBox("fingerR", {width: 0.05, height: 0.07, depth: 0.35}, scene);
+            fingerR.position.set(-0.16, 0.05, 0.175);
+            fingerR.rotation.y = -0.35;
+            fingerR.material = holoMat; fingerR.parent = pinzaNode;
+
+            const fingerR_dist = BABYLON.MeshBuilder.CreateBox("fingerR_dist", {width: 0.04, height: 0.07, depth: 0.25}, scene);
+            fingerR_dist.position.set(-0.11, 0.05, 0.4);
+            fingerR_dist.rotation.y = 0.5;
+            fingerR_dist.material = holoMat; fingerR_dist.parent = pinzaNode;
+
+            const tipR = BABYLON.MeshBuilder.CreateBox("tipR", {width: 0.02, height: 0.08, depth: 0.08}, scene);
+            tipR.position.set(-0.06, 0.05, 0.5);
+            tipR.material = holoMat; tipR.parent = pinzaNode;
+
+            armBarL.isPickable = false; armBarR.isPickable = false;
+            armBrace1.isPickable = false; armBrace2.isPickable = false;
+            codoPin.isPickable = false; elbowServo.isPickable = false;
+            forearmBarL.isPickable = false; forearmBarR.isPickable = false;
+            forearmBrace.isPickable = false; wristServo.isPickable = false;
+            gripperBase.isPickable = false; gearG1.isPickable = false; gearG2.isPickable = false;
+            fingerL.isPickable = false; fingerL_dist.isPickable = false; tipL.isPickable = false;
+            fingerR.isPickable = false; fingerR_dist.isPickable = false; tipR.isPickable = false;
+
+            // ELEMENTOS DEL ENTORNO
+            // Cinta transportadora
+            beltMesh = BABYLON.MeshBuilder.CreateBox("belt", {width: 10, height: 0.1, depth: 0.8}, scene);
+            beltMesh.position.set(-2.26, 0.05, -2.26);
+            beltMesh.rotation.y = Math.PI / 4;
+            const beltMat = new BABYLON.PBRMaterial("beltMat", scene);
+            beltMat.albedoColor = new BABYLON.Color3(0.12, 0.12, 0.14);
+            beltMat.metallic = 0.0; beltMat.roughness = 0.8;
+            beltMesh.material = beltMat;
+            beltMesh.receiveShadows = true;
+
+            // Sensor
+            sensorPlate = BABYLON.MeshBuilder.CreateBox("sensorPlate", {width: 0.5, height: 0.15, depth: 0.9}, scene);
+            sensorPlate.position.set(0, 0.1, -2.5);
+            const sensorMat = new BABYLON.PBRMaterial("sensorMat", scene);
+            sensorMat.albedoColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+            sensorMat.metallic = 0.5; sensorMat.roughness = 0.5;
+            sensorPlate.material = sensorMat;
+
+            sensorLED = BABYLON.MeshBuilder.CreateSphere("sensorLED", {diameter: 0.1}, scene);
+            sensorLED.position.set(0, 0.22, -2.5);
+            ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+            ledMat.emissiveColor = new BABYLON.Color3(1, 0, 0); 
+            sensorLED.material = ledMat;
+
+            // BUCLE DE FÍSICA Y ANIMACIONES
+            scene.onBeforeRenderObservable.add(() => {
+                const dt = engine.getDeltaTime() / 1000;
+
+                const error = anguloObjetivo - anguloActual;
+                const stepLimit = 120 * dt * executionSpeed;
+                const step = Math.min(Math.max(error, -stepLimit), stepLimit);
+                anguloActual += step;
+                if (Math.abs(anguloActual - anguloObjetivo) < 0.1) anguloActual = anguloObjetivo;
+
+                const rad = -(anguloActual + 45) * Math.PI / 180; 
+                baseRotator.rotation.y = rad;
+
+                const roundedAngle = Math.round(anguloActual);
+                if (roundedAngle !== lastLoggedAngle && [0, 45, 90, 135, 180].includes(roundedAngle)) {
+                    if (isRunning) {
+                        missionSweepHistory.push(roundedAngle);
+                        if (missionSweepHistory.length > 20) missionSweepHistory.shift();
+                        checkSweepConditions();
+                    }
+                    lastLoggedAngle = roundedAngle;
+                }
+
+                if (activeMissionNum === 4) {
+                    beltMesh.setEnabled(true);
+                    sensorPlate.setEnabled(true);
+                    sensorLED.setEnabled(true);
+
+                    if (isRunning) {
+                        if (!boxMesh && !boxGrabbed) {
+                            boxSpawningTimer += dt;
+                            if (boxSpawningTimer > 2.0) {
+                                spawnBox();
+                            }
+                        }
+
+                        if (boxMesh && !boxGrabbed) {
+                            if (boxMesh.position.x < 0) {
+                                boxMesh.position.x += 1.5 * dt;
+                                if (boxMesh.position.x >= 0) {
+                                    boxMesh.position.x = 0;
+                                    sensorActive = true;
+                                    ledMat.emissiveColor = new BABYLON.Color3(0, 1, 0); 
+                                }
+                            } else if (boxMesh.position.x === 0) {
+                                boxSpawningTimer += dt;
+                                if (Math.abs(anguloActual - 90) < 3.5) {
+                                    grabBox();
+                                } else if (boxSpawningTimer > 3.0) {
+                                    boxMesh.position.x = 0.01;
+                                    sensorActive = false;
+                                    ledMat.emissiveColor = new BABYLON.Color3(1, 0, 0); 
+                                }
+                            } else {
+                                boxMesh.position.x += 1.5 * dt;
+                                if (boxMesh.position.x >= 5.0) {
+                                    boxMesh.dispose();
+                                    boxMesh = null;
+                                    boxSpawningTimer = 0;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    beltMesh.setEnabled(false);
+                    sensorPlate.setEnabled(false);
+                    sensorLED.setEnabled(false);
+                    if (boxMesh) {
+                        boxMesh.dispose();
+                        boxMesh = null;
+                    }
+                }
+            });
+        }
+
+        function spawnBox() {
+            boxMesh = BABYLON.MeshBuilder.CreateBox("box", {size: 0.5}, scene);
+            boxMesh.parent = beltMesh;
+            boxMesh.position.set(-5.0, 0.3, 0);
+            const boxMat = new BABYLON.PBRMaterial("boxMat", scene);
+            boxMat.albedoColor = new BABYLON.Color3(0.7, 0.7, 0.8);
+            boxMat.metallic = 0.3; boxMat.roughness = 0.4;
+            boxMesh.material = boxMat;
+            shadowGen.addShadowCaster(boxMesh);
+            boxSpawningTimer = 0;
+            boxGrabbed = false;
+        }
+
+        function grabBox() {
+            boxGrabbed = true;
+            sensorActive = false;
+            ledMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+
+            const activeBox = boxMesh;
+            boxMesh = null;
+            boxSpawningTimer = 0;
+
+            let t0 = performance.now();
+            const beamMesh = BABYLON.MeshBuilder.CreateCylinder("beam", {diameter: 0.15, height: 1.5}, scene);
+            beamMesh.position.copyFrom(activeBox.getAbsolutePosition());
+            beamMesh.position.y = 0.7;
+            const beamMat = new BABYLON.StandardMaterial("beamMat", scene);
+            beamMat.emissiveColor = new BABYLON.Color3(0, 1, 0.8);
+            beamMat.alpha = 0.8;
+            beamMesh.material = beamMat;
+
+            const grabAnim = () => {
+                const p = Math.min((performance.now() - t0) / 800, 1);
+                activeBox.position.y = 0.35 + 0.8 * Math.sin(p * Math.PI);
+                activeBox.position.z = -3.2 - 0.5 * p;
+                
+                beamMesh.scaling.x = 1 - p;
+                beamMesh.scaling.z = 1 - p;
+
+                if (p >= 1) {
+                    activeBox.position.set(0, 0.3, -3.2);
+                    beamMesh.dispose();
+                    if (grabObserver) {
+                        scene.onBeforeRenderObservable.remove(grabObserver);
+                        grabObserver = null;
+                    }
+                    
+                    grabTimeout = setTimeout(() => {
+                        activeBox.dispose();
+                        boxGrabbed = false;
+                        if (isRunning) {
+                            missionBoxesDelivered++;
+                            checkSweepConditions();
+                        }
+                    }, 1000);
+                }
+            };
+            grabObserver = scene.onBeforeRenderObservable.add(grabAnim);
+        }
+
+        function updateSpeed() {
+            const val = parseFloat(document.getElementById('speed-slider').value);
+            executionSpeed = val;
+            document.getElementById('speed-label').textContent = val.toFixed(1) + 'x';
+        }
+
+        function selectMission(num) {
+            if (isRunning) stopProgram();
+            activeMissionNum = num;
+            document.querySelectorAll('.btn-mission').forEach((btn, idx) => {
+                btn.classList.toggle('active', (idx + 1) === num);
+            });
+            loadMission(num);
+        }
+
+        function loadMission(num) {
+            const mis = MISIONES[num];
+            document.getElementById('mission-title').textContent = mis.title;
+            document.getElementById('mission-desc').textContent = mis.desc;
+            document.getElementById('mission-hint-text').textContent = mis.hint;
+            document.getElementById('btn-solution').style.display = mis.solution ? 'inline-block' : 'none';
+
+            workspaceBlocks = [];
+            if (mis.preloaded && mis.preloaded.length > 0) {
+                mis.preloaded.forEach(pb => {
+                    workspaceBlocks.push(createBlock(pb.type, pb.param, pb.locked, pb.flash));
+                });
+            }
+            renderWorkspace();
+            resetSimulation();
+        }
+
+        function showSolution() {
+            const mis = MISIONES[activeMissionNum];
+            if (!mis.solution) return;
+            
+            workspaceBlocks = [];
+            mis.solution.forEach(sb => {
+                workspaceBlocks.push(cloneBlockNode(sb));
+            });
+            renderWorkspace();
+        }
+
+        function cloneBlockNode(b) {
+            const copy = { type: b.type, param: b.param || '', id: 'b_' + Math.random().toString(36).substr(2, 9) };
+            if (b.children) copy.children = b.children.map(cloneBlockNode);
+            if (b.thenChildren) copy.thenChildren = b.thenChildren.map(cloneBlockNode);
+            if (b.elseChildren) copy.elseChildren = b.elseChildren.map(cloneBlockNode);
+            return copy;
+        }
+
+        function createBlock(type, param = '', locked = false, flash = false) {
+            const b = {
+                type,
+                param,
+                locked,
+                flash,
+                id: 'b_' + Math.random().toString(36).substr(2, 9)
+            };
+            if (type === 'repeat') b.children = [];
+            if (type === 'si-sensor') {
+                b.thenChildren = [];
+                b.elseChildren = [];
+            }
+            return b;
+        }
+
+        function renderWorkspace() {
+            const content = document.getElementById('workspace-content');
+            const placeholder = document.getElementById('workspace-placeholder');
+            
+            content.innerHTML = '';
+            listRegistry = {}; 
+
+            if (workspaceBlocks.length === 0) {
+                placeholder.style.display = 'block';
+                return;
+            }
+            placeholder.style.display = 'none';
+
+            renderBlockList(workspaceBlocks, content, workspaceBlocks);
+        }
+
+        function renderBlockList(blocks, parentEl, listRef) {
+            const listId = listRef === workspaceBlocks ? 'main' : getListId(listRef);
+
+            blocks.forEach((block, index) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'workspace-block-wrap';
+                wrap.id = `ws-block-${block.id}`;
+
+                if (block.type === 'girar') {
+                    const bl = document.createElement('div');
+                    bl.className = 'block block-new';
+                    if (block.flash) bl.style.animation = 'flashYellow 1.0s infinite alternate';
+                    bl.innerHTML = `
+                        <span class="block-tag-new">NUEVO</span>
+                        <span>🔄 Girar base a</span>
+                        <select onchange="updateBlockParam('${block.id}', this.value)" ${block.locked ? 'disabled' : ''}>
+                            <option value="" ${block.param === '' ? 'selected' : ''}>[Elegir]</option>
+                            <option value="0" ${block.param === '0' ? 'selected' : ''}>0° (Der)</option>
+                            <option value="45" ${block.param === '45' ? 'selected' : ''}>45° (Bandeja Der)</option>
+                            <option value="90" ${block.param === '90' ? 'selected' : ''}>90° (Centro)</option>
+                            <option value="135" ${block.param === '135' ? 'selected' : ''}>135° (Bandeja Izq)</option>
+                            <option value="180" ${block.param === '180' ? 'selected' : ''}>180° (Izq)</option>
+                        </select>
+                    `;
+                    bl.onmouseover = () => showHelp('girar');
+                    wrap.appendChild(bl);
+                } else if (block.type === 'esperar') {
+                    const bl = document.createElement('div');
+                    bl.className = 'block';
+                    bl.innerHTML = `<span>⏳ Esperar 1s</span>`;
+                    bl.onmouseover = () => showHelp('esperar');
+                    wrap.appendChild(bl);
+                } else if (block.type === 'repeat') {
+                    const container = document.createElement('div');
+                    container.className = 'c-block-container repeat-container';
+
+                    const header = document.createElement('div');
+                    header.className = 'c-block-header';
+                    header.innerHTML = `<span>🔁 REPETIR SIEMPRE (Bucle)</span>`;
+                    header.onmouseover = () => showHelp('repetir');
+                    container.appendChild(header);
+
+                    const body = document.createElement('div');
+                    body.className = 'c-block-body';
+                    setupDropZone(body, () => block.children);
+                    renderBlockList(block.children, body, block.children);
+                    container.appendChild(body);
+
+                    const footer = document.createElement('div');
+                    footer.className = 'c-block-footer';
+                    footer.textContent = "🔚 FIN REPETIR";
+                    container.appendChild(footer);
+
+                    wrap.appendChild(container);
+                } else if (block.type === 'si-sensor') {
+                    const container = document.createElement('div');
+                    container.className = 'c-block-container condition-container';
+
+                    const header = document.createElement('div');
+                    header.className = 'c-block-header';
+                    header.innerHTML = `<span>🔍 SI SENSOR DETECTA OBJETO</span>`;
+                    header.onmouseover = () => showHelp('si-sensor');
+                    container.appendChild(header);
+
+                    const thenLabel = document.createElement('div');
+                    thenLabel.className = 'c-branch-label';
+                    thenLabel.textContent = "➔ SI SE DETECTA OBJETO:";
+                    container.appendChild(thenLabel);
+
+                    const thenBody = document.createElement('div');
+                    thenBody.className = 'c-block-body';
+                    setupDropZone(thenBody, () => block.thenChildren);
+                    renderBlockList(block.thenChildren, thenBody, block.thenChildren);
+                    container.appendChild(thenBody);
+
+                    const elseLabel = document.createElement('div');
+                    elseLabel.className = 'c-branch-label';
+                    elseLabel.textContent = "🌿 SINO (DE LO CONTRARIO):";
+                    container.appendChild(elseLabel);
+
+                    const elseBody = document.createElement('div');
+                    elseBody.className = 'c-block-body';
+                    setupDropZone(elseBody, () => block.elseChildren);
+                    renderBlockList(block.elseChildren, elseBody, block.elseChildren);
+                    container.appendChild(elseBody);
+
+                    const footer = document.createElement('div');
+                    footer.className = 'c-block-footer';
+                    footer.textContent = "🔚 FIN SI";
+                    container.appendChild(footer);
+
+                    wrap.appendChild(container);
+                }
+
+                if (!block.locked) {
+                    const ctrls = document.createElement('div');
+                    ctrls.className = 'block-controls';
+                    ctrls.innerHTML = `
+                        <button class="btn-ctrl" onclick="moveBlockInList('${block.id}', -1)" title="Subir">▲</button>
+                        <button class="btn-ctrl" onclick="moveBlockInList('${block.id}', 1)" title="Bajar">▼</button>
+                        <button class="btn-ctrl btn-del" onclick="deleteBlockInList('${block.id}')" title="Eliminar">×</button>
+                    `;
+                    wrap.appendChild(ctrls);
+                }
+
+                parentEl.appendChild(wrap);
+            });
+        }
+
+        window.addBlockToList = function(listId, type) {
+            let list = listId === 'main' ? workspaceBlocks : listRegistry[listId];
+            if (list) {
+                let param = '';
+                if (type === 'girar') {
+                    const sel = document.getElementById('pal-girar-select');
+                    param = sel ? sel.value : '90';
+                }
+                list.push(createBlock(type, param));
+                renderWorkspace();
+            }
+        };
+
+        window.dragBlock = function(event, type) {
+            document.body.classList.add('dragging-active');
+            event.dataTransfer.setData('text/plain', type);
+            event.dataTransfer.setData('text', type);
+            if (type === 'girar') {
+                const sel = document.getElementById('pal-girar-select');
+                const val = sel ? sel.value : '90';
+                event.dataTransfer.setData('block-param', val);
+            }
+        };
+
+        document.addEventListener('dragend', () => {
+            document.body.classList.remove('dragging-active');
+        });
+
+        document.addEventListener('dragover', (e) => {
+            if (e.target.closest('#workspace') || e.target.closest('.c-block-body')) {
+                e.preventDefault();
+            }
+        });
+
+        function setupDropZone(element, getListRef) {
+            let counter = 0;
+            element.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                counter++;
+                element.classList.add('drag-hover');
+            });
+
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            element.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                counter--;
+                if (counter === 0) {
+                    element.classList.remove('drag-hover');
+                }
+            });
+
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                counter = 0;
+                element.classList.remove('drag-hover');
+                
+                const type = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+                if (type) {
+                    let param = '';
+                    if (type === 'girar') {
+                        param = e.dataTransfer.getData('block-param') || '90';
+                    }
+                    const listRef = typeof getListRef === 'function' ? getListRef() : getListRef;
+                    listRef.push(createBlock(type, param));
+                    renderWorkspace();
+                }
+            });
+        }
+
+        function setupWorkspaceDrop() {
+            const ws = document.getElementById('workspace');
+            if (ws) {
+                setupDropZone(ws, () => workspaceBlocks);
+            }
+        }
+
+        function removeBlockRecursive(blocks, blockId) {
+            for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i].id === blockId) {
+                    blocks.splice(i, 1);
+                    return true;
+                }
+                if (blocks[i].type === 'repeat') {
+                    if (removeBlockRecursive(blocks[i].children, blockId)) return true;
+                }
+                if (blocks[i].type === 'si-sensor') {
+                    if (removeBlockRecursive(blocks[i].thenChildren, blockId)) return true;
+                    if (removeBlockRecursive(blocks[i].elseChildren, blockId)) return true;
+                }
+            }
+            return false;
+        }
+
+        window.deleteBlockInList = function(blockId) {
+            removeBlockRecursive(workspaceBlocks, blockId);
+            renderWorkspace();
+        };
+
+        function moveBlockRecursive(blocks, blockId, dir) {
+            for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i].id === blockId) {
+                    const target = i + dir;
+                    if (target >= 0 && target < blocks.length) {
+                        const temp = blocks[i];
+                        blocks[i] = blocks[target];
+                        blocks[target] = temp;
+                    }
+                    return true;
+                }
+                if (blocks[i].type === 'repeat') {
+                    if (moveBlockRecursive(blocks[i].children, blockId, dir)) return true;
+                }
+                if (blocks[i].type === 'si-sensor') {
+                    if (moveBlockRecursive(blocks[i].thenChildren, blockId, dir)) return true;
+                    if (moveBlockRecursive(blocks[i].elseChildren, blockId, dir)) return true;
+                }
+            }
+            return false;
+        }
+
+        window.moveBlockInList = function(blockId, dir) {
+            moveBlockRecursive(workspaceBlocks, blockId, dir);
+            renderWorkspace();
+        };
+
+        function updateBlockParamRecursive(blocks, blockId, val) {
+            for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i].id === blockId) {
+                    blocks[i].param = val;
+                    blocks[i].flash = false;
+                    return true;
+                }
+                if (blocks[i].type === 'repeat') {
+                    if (updateBlockParamRecursive(blocks[i].children, blockId, val)) return true;
+                }
+                if (blocks[i].type === 'si-sensor') {
+                    if (updateBlockParamRecursive(blocks[i].thenChildren, blockId, val)) return true;
+                    if (updateBlockParamRecursive(blocks[i].elseChildren, blockId, val)) return true;
+                }
+            }
+            return false;
+        }
+
+        window.updateBlockParam = function(blockId, val) {
+            updateBlockParamRecursive(workspaceBlocks, blockId, val);
+            renderWorkspace();
+        };
+
+        function showHelp(type) {
+            const help = HELPS[type];
+            if (help) {
+                document.getElementById('help-title').textContent = help.title;
+                document.getElementById('help-text').textContent = help.text;
+            }
+        }
+
+        function flattenBlocks(blocks, list = []) {
+            blocks.forEach(b => {
+                if (b.type === 'girar') {
+                    list.push({ type: 'girar', param: b.param, sourceBlock: b });
+                } else if (b.type === 'esperar') {
+                    list.push({ type: 'esperar', sourceBlock: b });
+                } else if (b.type === 'repeat') {
+                    const startIdx = list.length;
+                    list.push({ type: 'repeat_start', sourceBlock: b });
+                    flattenBlocks(b.children, list);
+                    list.push({ type: 'repeat_end', startIdx: startIdx, sourceBlock: b });
+                } else if (b.type === 'si-sensor') {
+                    const ifIdx = list.length;
+                    list.push({ type: 'if_start', elseIdx: -1, finIdx: -1, sourceBlock: b });
+                    
+                    flattenBlocks(b.thenChildren, list);
+                    const elseStartIdx = list.length;
+                    list.push({ type: 'else_start', finIdx: -1, sourceBlock: b });
+                    
+                    flattenBlocks(b.elseChildren, list);
+                    const finIdx = list.length;
+                    list.push({ type: 'if_end', sourceBlock: b });
+                    
+                    list[ifIdx].elseIdx = elseStartIdx;
+                    list[ifIdx].finIdx = finIdx;
+                    list[elseStartIdx].finIdx = finIdx;
+                }
+            });
+            return list;
+        }
+
+        function checkEmptyParamsRecursive(blocks) {
+            for (let i = 0; i < blocks.length; i++) {
+                const b = blocks[i];
+                if (b.type === 'girar' && b.param === '') {
+                    b.flash = true;
+                    return true;
+                }
+                if (b.type === 'repeat') {
+                    if (checkEmptyParamsRecursive(b.children)) return true;
+                }
+                if (b.type === 'si-sensor') {
+                    if (checkEmptyParamsRecursive(b.thenChildren)) return true;
+                    if (checkEmptyParamsRecursive(b.elseChildren)) return true;
+                }
+            }
+            return false;
+        }
+
+        function runProgram() {
+            if (workspaceBlocks.length === 0) return;
+            if (isRunning) stopProgram();
+
+            if (checkEmptyParamsRecursive(workspaceBlocks)) {
+                renderWorkspace();
+                alert("Por favor, selecciona un ángulo válido antes de ejecutar el programa.");
+                return;
+            }
+
+            resetSimulation();
+            flatList = flattenBlocks(workspaceBlocks);
+            isRunning = true;
+            document.getElementById('btn-run').disabled = true;
+            document.getElementById('btn-restart').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-block';
+            ip = 0;
+            missionSweepHistory = [];
+            lastLoggedAngle = -1;
+            
+            if (activeMissionNum === 4) {
+                if (boxMesh) boxMesh.dispose();
+                boxMesh = null;
+                boxGrabbed = false;
+                boxSpawningTimer = 0;
+            }
+
+            executeNextStep();
+        }
+
+        function executeNextStep() {
+            if (!isRunning) return;
+
+            document.querySelectorAll('.workspace-block-wrap, .c-block-container, .block').forEach(el => el.classList.remove('executing'));
+
+            if (ip >= flatList.length) {
+                document.querySelectorAll('.workspace-block-wrap, .c-block-container, .block').forEach(el => el.classList.remove('executing'));
+                
+                isRunning = false;
+                document.getElementById('btn-run').disabled = false;
+                document.getElementById('btn-restart').style.display = 'inline-block';
+                document.getElementById('btn-stop').style.display = 'none';
+
+                if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
+                if (activeInterval) { clearInterval(activeInterval); activeInterval = null; }
+
+                activeTimer = setTimeout(() => {
+                    checkMissionSuccess();
+                    resetSimulation();
+                }, 2000);
+                return;
+            }
+
+            const current = flatList[ip];
+            if (current.sourceBlock) {
+                const wrap = document.getElementById('ws-block-' + current.sourceBlock.id);
+                if (wrap) {
+                    wrap.classList.add('executing');
+                    const b = wrap.querySelector('.block');
+                    if (b) b.classList.add('executing');
+                }
+            }
+
+            const delay = 1000 / executionSpeed;
+
+            switch(current.type) {
+                case 'repeat_start':
+                    ip++;
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+                    break;
+
+                case 'repeat_end':
+                    ip = current.startIdx;
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+                    break;
+
+                case 'if_start':
+                    if (sensorActive) {
+                        ip++; 
+                    } else {
+                        ip = current.elseIdx + 1; 
+                    }
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+                    break;
+
+                case 'else_start':
+                    ip = current.finIdx; 
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+                    break;
+
+                case 'if_end':
+                    ip++;
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+                    break;
+
+                case 'esperar':
+                    activeTimer = setTimeout(() => {
+                        ip++;
+                        executeNextStep();
+                    }, delay);
+                    break;
+
+                case 'girar':
+                    anguloObjetivo = parseFloat(current.param);
+                    activeInterval = setInterval(() => {
+                        if (!isRunning) {
+                            clearInterval(activeInterval);
+                            return;
+                        }
+                        if (Math.abs(anguloActual - anguloObjetivo) < 0.25) {
+                            clearInterval(activeInterval);
+                            ip++;
+                            executeNextStep();
+                        }
+                    }, 50);
+                    break;
+
+                default:
+                    ip++;
+                    activeTimer = setTimeout(executeNextStep, 50 / executionSpeed);
+            }
+        }
+
+        function stopProgram() {
+            isRunning = false;
+            document.getElementById('btn-run').disabled = false;
+            document.getElementById('btn-restart').style.display = 'inline-block';
+            document.getElementById('btn-stop').style.display = 'none';
+            document.querySelectorAll('.workspace-block-wrap, .c-block-container, .block').forEach(el => el.classList.remove('executing'));
+
+            if (activeTimer) {
+                clearTimeout(activeTimer);
+                activeTimer = null;
+            }
+            if (activeInterval) {
+                clearInterval(activeInterval);
+                activeInterval = null;
+            }
+            
+            resetSimulation();
+        }
+
+        function resetSimulation() {
+            if (grabTimeout) {
+                clearTimeout(grabTimeout);
+                grabTimeout = null;
+            }
+            if (grabObserver) {
+                scene.onBeforeRenderObservable.remove(grabObserver);
+                grabObserver = null;
+            }
+            if (activeTimer) {
+                clearTimeout(activeTimer);
+                activeTimer = null;
+            }
+            if (activeInterval) {
+                clearInterval(activeInterval);
+                activeInterval = null;
+            }
+
+            if (scene) {
+                scene.meshes.slice().forEach(m => {
+                    if (m.name === "box" || m.name === "beam") {
+                        m.dispose();
+                    }
+                });
+            }
+            boxMesh = null;
+            boxGrabbed = false;
+            sensorActive = false;
+            if (ledMat) ledMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+
+            if (activeMissionNum === 1 || activeMissionNum === 4) {
+                anguloActual = 0;
+                anguloObjetivo = 0;
+            } else {
+                anguloActual = 90;
+                anguloObjetivo = 90;
+            }
+            if (baseRotator) {
+                const rad = -(anguloActual + 45) * Math.PI / 180;
+                baseRotator.rotation.y = rad;
+            }
+            missionBoxesDelivered = 0;
+            missionSweepHistory = [];
+            lastLoggedAngle = -1;
+        }
+
+        function checkSweepConditions() {
+            if (isRunning && activeMissionNum === 4 && missionBoxesDelivered >= 1) {
+                isRunning = false;
+                document.getElementById('btn-run').disabled = false;
+                document.getElementById('btn-restart').style.display = 'inline-block';
+                document.getElementById('btn-stop').style.display = 'none';
+                document.querySelectorAll('.workspace-block-wrap, .c-block-container, .block').forEach(el => el.classList.remove('executing'));
+
+                if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
+                if (activeInterval) { clearInterval(activeInterval); activeInterval = null; }
+
+                activeTimer = setTimeout(() => {
+                    showSuccessModal("¡Misión 4 Completada! Has programado la lógica reactiva correctamente usando la caja del bucle y de la condición.");
+                    resetSimulation();
+                }, 2000);
+            }
+
+            if (isRunning && activeMissionNum === 5) {
+                const histStr = missionSweepHistory.join(',');
+                if (histStr.includes("135,90,45,90") || histStr.includes("45,90,135,90")) {
+                    isRunning = false;
+                    document.getElementById('btn-run').disabled = false;
+                    document.getElementById('btn-restart').style.display = 'inline-block';
+                    document.getElementById('btn-stop').style.display = 'none';
+                    document.querySelectorAll('.workspace-block-wrap, .c-block-container, .block').forEach(el => el.classList.remove('executing'));
+
+                    if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
+                    if (activeInterval) { clearInterval(activeInterval); activeInterval = null; }
+
+                    activeTimer = setTimeout(() => {
+                        showSuccessModal("¡Misión 5 Completada! Has creado un escaneo oscilante continuo perfecto en bucle.");
+                        resetSimulation();
+                    }, 2000);
+                }
+            }
+        }
+
+        function checkMissionSuccess() {
+            if (isRunning) return; 
+            if (activeMissionNum === 1) {
+                if (Math.abs(anguloActual - 90) < 1) {
+                    showSuccessModal("¡Misión 1 Completada! Has ejecutado tu primera orden de giro correctamente.");
+                }
+            } else if (activeMissionNum === 2) {
+                if (Math.abs(anguloActual - 45) < 1) {
+                    showSuccessModal("¡Misión 2 Completada! Has apuntado correctamente hacia la bandeja de la derecha (45°).");
+                }
+            } else if (activeMissionNum === 3) {
+                const has135 = missionSweepHistory.includes(135);
+                const has45 = missionSweepHistory.includes(45);
+                const index135 = missionSweepHistory.indexOf(135);
+                const index45 = missionSweepHistory.indexOf(45);
+                
+                if (has135 && has45 && index135 < index45) {
+                    showSuccessModal("¡Misión 3 Completada! La base ha realizado correctamente el barrido en orden.");
+                } else {
+                    alert("Secuencia incorrecta. Asegúrate de girar primero a 135° y luego a 45°.");
+                }
+            } else if (activeMissionNum === 5) {
+                const histStr = missionSweepHistory.join(',');
+                if (histStr.includes("135,90,45,90") || histStr.includes("45,90,135,90")) {
+                    showSuccessModal("¡Misión 5 Completada! Has creado un escaneo oscilante continuo perfecto en bucle.");
+                } else {
+                    alert("El brazo no ha realizado el ciclo completo de escaneo (135° ➔ 90° ➔ 45° ➔ 90°). Revisa el orden de tus bloques.");
+                }
+            }
+        }
+
+        function showSuccessModal(msg) {
+            document.getElementById('success-message').textContent = msg;
+            document.getElementById('success-modal').style.display = 'flex';
+        }
+
+        function closeSuccessModalOnly() {
+            document.getElementById('success-modal').style.display = 'none';
+        }
+
+        window.onload = () => {
+            // Inicialización síncrona segura.
+            initEngine();
+            loadMission(1);
+            setupWorkspaceDrop();
+        };
+    </script>
+</body>
+</html>

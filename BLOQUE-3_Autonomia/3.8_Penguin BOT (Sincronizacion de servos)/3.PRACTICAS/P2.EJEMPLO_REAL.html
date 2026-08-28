@@ -1,0 +1,725 @@
+<!-- MEJORAS: 
+- [CORRECCIÓN VISUAL - BOCA]: La clase `CreateTorus` de Babylon.js no soporta el parámetro `arc` nativamente, por lo que antes se dibujaba el anillo completo independientemente de los parámetros. Para lograr una verdadera media circunferencia (una sonrisa real abierta en los extremos), se ha reescrito la boca usando `MeshBuilder.CreateTube`, generando proceduralmente un tubo sólido a lo largo de un trazado curvo (path) desde 180° hasta 360° con los extremos sellados (CAP_ALL).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; 
+            background: #1a1a2e; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            flex: 0 0 70px; 
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid #00f2ff;
+            z-index: 100;
+            display: flex; align-items: center; padding: 0 20px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+        header h1 { margin: 0; font-size: 26px; color: #00f2ff; letter-spacing: 5px; text-transform: uppercase; }
+        header p { margin: 0 0 0 20px; font-size: 16px; color: #aaaaaa; }
+
+        .main-container {
+            display: flex; 
+            flex: 1; 
+            box-sizing: border-box; 
+            width: 100%;
+            overflow: hidden; 
+        }
+        
+        #canvas-container {
+            flex: 1;
+            min-width: 0; 
+            height: 100%;
+            display: flex;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%; 
+            outline: none; 
+            display: block;
+        }
+
+        #ui-panel {
+            width: 380px; 
+            flex-shrink: 0; 
+            background: rgba(10,10,20,0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid #00f2ff;
+            border-radius: 12px;
+            margin: 20px; 
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            color: white;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.15);
+        }
+
+        h2 { font-size: 20px; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 15px; color: #00f2ff;}
+        h2:first-child { margin-top: 0; }
+        p { font-size: 18px; margin: 10px 0; line-height: 1.4; }
+        span.highlight { font-weight: bold; }
+
+        .modo-btn {
+            width: 100%; min-height: 55px;
+            background: #2a2a4e; color: white; border: 2px solid #444;
+            border-radius: 8px; margin-bottom: 10px; font-size: 16px; 
+            cursor: pointer; transition: 0.2s; font-weight: bold;
+        }
+        .modo-btn:hover { background: #3a3a6e; }
+        .modo-btn.active {
+            background: #00f2ff; color: #000; border-color: #fff;
+        }
+
+        .flex-row {
+            display: flex; gap: 10px; margin-bottom: 10px;
+        }
+        .flex-row .modo-btn {
+            margin-bottom: 0;
+        }
+
+        .restart-btn {
+            width: 100%; height: 60px;
+            background: #E52020; color: white; border: none;
+            border-radius: 8px; margin-top: 20px; font-size: 18px; 
+            cursor: pointer; font-weight: bold; transition: 0.2s;
+        }
+        .restart-btn:hover { background: #ff4444; }
+
+        input[type=range] {
+            -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 24px; width: 24px;
+            border-radius: 50%; background: #00f2ff; cursor: pointer; margin-top: -10px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; background: #555; border-radius: 3px;
+        }
+
+        .bar-bg { width: 100%; height: 16px; background: #333; border-radius: 8px; overflow: hidden; margin-top: 5px; }
+        .bar-fill { height: 100%; transition: width 0.1s, background-color 0.2s; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 4px; }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+<header>
+    <h1>PENGUIN BOT</h1>
+    <p>Simulación Cinemática Interactiva</p>
+</header>
+
+<div class="main-container">
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+    
+    <div id="ui-panel">
+        <h2>COMPORTAMIENTO</h2>
+        
+        <button id="btn-modo-1" class="modo-btn active" onclick="setModo(1)">🚶 CAMINAR</button>
+        <button id="btn-modo-6" class="modo-btn" onclick="setModo(6)">🛑 PARAR</button>
+        
+        <div class="flex-row">
+            <button id="btn-modo-7" class="modo-btn" onclick="setModo(7)">⬅️ GIRAR IZQ</button>
+            <button id="btn-modo-8" class="modo-btn" onclick="setModo(8)">GIRAR DER ➡️</button>
+        </div>
+        
+        <button id="btn-modo-5" class="modo-btn" onclick="setModo(5)">↩️ RETROCEDER</button>
+        <button id="btn-modo-3" class="modo-btn" onclick="setModo(3)">⚠️ ESQUIVAR</button>
+        
+        <button id="btn-modo-4" class="modo-btn" onclick="setModo(4)">💃 BAILAR</button>
+        <button id="btn-modo-2" class="modo-btn" onclick="setModo(2)">🦵 LEVANTAR PATA</button>
+        <button id="btn-cambiar-pata" class="modo-btn" onclick="cambiarPata()" style="display:none; height:45px; background:#444; border-color:#666;">🔄 CAMBIAR PATA</button>
+
+        <h2>DATOS EN TIEMPO REAL</h2>
+        <p>SERVO ACTIVO:<br><span id="ui-servo" class="highlight" style="color:#00f2ff;">...</span></p>
+        <p>FASE ACTUAL:<br><span id="ui-fase" class="highlight">...</span></p>
+        <div id="vel-container">
+            <p>VELOCIDAD:</p>
+            <input id="vel-slider" type="range" min="1" max="4" step="0.1" value="2.0" oninput="velocidad = parseFloat(this.value)">
+        </div>
+        <div style="margin-top: 15px;">
+            <p style="margin-bottom:0;">OJOS DEL ROBOT: <span id="ui-ojos-txt" class="highlight">100 cm</span></p>
+            <div class="bar-bg"><div id="ui-ojos-bar" class="bar-fill" style="width:100%; background:#00ff00;"></div></div>
+        </div>
+
+        <h2>EXPLICACIÓN</h2>
+        <p id="ui-expl" style="font-size: 16px; color: #ccc;">...</p>
+
+        <button class="restart-btn" onclick="reiniciar()">🔄 REINICIAR ESCENA</button>
+    </div>
+</div>
+
+<script>
+// VARIABLES DE ESTADO Y CONTROL
+let modo = 1;
+let velocidad = 2.0;
+let pataLevantada = 'izq';
+let animTime = 0;
+let esquivando = false;
+let esquivarFase = 0;
+let esquivarTimer = 0;
+let trails = [];
+let lastTrailTime = 0;
+
+// INICIALIZACIÓN MOTOR Y ESCENA
+const canvas = document.getElementById('renderCanvas');
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+const scene = new BABYLON.Scene(engine);
+
+scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+scene.fogDensity = 0.035;
+scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+// CÁMARA
+const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3.5, 18, BABYLON.Vector3.Zero(), scene);
+camera.attachControl(canvas, true);
+camera.lowerRadiusLimit = 8; 
+camera.upperRadiusLimit = 30;
+
+// ILUMINACIÓN Y POST-PROCESADO
+const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+hemi.intensity = 0.6; 
+hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-0.5), scene);
+dirLight.position = new BABYLON.Vector3(20,40,20); 
+dirLight.intensity = 2.5;
+
+const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+shadowGen.useBlurExponentialShadowMap = true; 
+shadowGen.blurKernel = 32;
+
+const glow = new BABYLON.GlowLayer("glow", scene); 
+glow.intensity = 0.8;
+
+const pipeline = new BABYLON.DefaultRenderingPipeline("pp", true, scene, [camera]);
+pipeline.msaaSamples = 4; 
+pipeline.bloomEnabled = true;
+pipeline.bloomThreshold = 0.85; 
+pipeline.bloomWeight = 0.35;
+
+scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData(
+    "https://playground.babylonjs.com/textures/environment.dds", scene);
+scene.environmentIntensity = 0.6;
+
+// SUELO
+const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:30, height:30}, scene);
+const groundMat = new BABYLON.PBRMaterial("groundMat", scene);
+groundMat.albedoColor = new BABYLON.Color3(0.24, 0.17, 0.12);
+groundMat.roughness = 0.85; 
+groundMat.metallic = 0.0;
+ground.material = groundMat; 
+ground.receiveShadows = true;
+
+// OBSTÁCULO
+const obstaculo = BABYLON.MeshBuilder.CreateBox("obstaculo", {width: 4, height: 0.8, depth: 0.2}, scene);
+obstaculo.position = new BABYLON.Vector3(0, 0.4, -6);
+const obsMat = new BABYLON.PBRMaterial("obsMat", scene);
+obsMat.albedoColor = BABYLON.Color3.FromHexString("#8B4513");
+obsMat.roughness = 0.9; obsMat.metallic = 0.0;
+obstaculo.material = obsMat;
+shadowGen.addShadowCaster(obstaculo);
+obstaculo.receiveShadows = true;
+
+// MATERIALES DEL ROBOT
+const matRed = new BABYLON.PBRMaterial("matRed", scene);
+matRed.albedoColor = BABYLON.Color3.FromHexString("#E52020");
+matRed.roughness = 0.3; matRed.metallic = 0.0;
+
+const matDark = new BABYLON.PBRMaterial("matDark", scene);
+matDark.albedoColor = BABYLON.Color3.FromHexString("#151515");
+matDark.roughness = 0.7; matDark.metallic = 0.1;
+
+const matSilver = new BABYLON.PBRMaterial("matSilver", scene);
+matSilver.albedoColor = BABYLON.Color3.FromHexString("#E0E0E0");
+matSilver.roughness = 0.15; matSilver.metallic = 0.9;
+
+const matWhite = new BABYLON.PBRMaterial("matWhite", scene);
+matWhite.albedoColor = BABYLON.Color3.FromHexString("#F0F0F0");
+matWhite.roughness = 0.9; matWhite.metallic = 0.0;
+
+// Materiales emisivos individuales para cada servo
+function createServoMat(name) {
+    const m = new BABYLON.PBRMaterial(name, scene);
+    m.albedoColor = BABYLON.Color3.FromHexString("#1030B0");
+    m.roughness = 0.4; m.metallic = 0.1;
+    m.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.5);
+    return m;
+}
+const matBlue_HL = createServoMat("matBlue_HL");
+const matBlue_HR = createServoMat("matBlue_HR");
+const matBlue_AL = createServoMat("matBlue_AL");
+const matBlue_AR = createServoMat("matBlue_AR");
+
+// ESQUELETO CINEMÁTICO
+const robotGroup = new BABYLON.TransformNode("robotGroup", scene);
+const bodyPivot = new BABYLON.TransformNode("bodyPivot", scene);
+bodyPivot.parent = robotGroup;
+bodyPivot.position.y = 2.1;
+
+const hipL = new BABYLON.TransformNode("hipL", scene);
+hipL.parent = bodyPivot;
+hipL.position = new BABYLON.Vector3(0.65, -0.6, 0);
+
+const hipR = new BABYLON.TransformNode("hipR", scene);
+hipR.parent = bodyPivot;
+hipR.position = new BABYLON.Vector3(-0.65, -0.6, 0);
+
+const ankleL = new BABYLON.TransformNode("ankleL", scene);
+ankleL.parent = hipL;
+ankleL.position = new BABYLON.Vector3(0, -1.05, 0);
+
+const ankleR = new BABYLON.TransformNode("ankleR", scene);
+ankleR.parent = hipR;
+ankleR.position = new BABYLON.Vector3(0, -1.05, 0);
+
+// GEOMETRÍA DEL ROBOT
+const meshesToShadow = [];
+
+// p1 Carcasa - Se dimensiona y baja para abrazar las caderas
+const carcasa = BABYLON.MeshBuilder.CreateBox("carcasa", {width: 1.2, height: 1.5, depth: 1.1}, scene);
+carcasa.parent = bodyPivot; 
+carcasa.position.y = -0.15; 
+carcasa.material = matRed;
+meshesToShadow.push(carcasa);
+
+// Boca - Construida proceduralmente con CreateTube como media circunferencia real
+const pathBoca = [];
+for (let i = 0; i <= 30; i++) {
+    // Calculamos los puntos en el plano XY (mitad inferior del círculo de PI a 2PI)
+    let ang = Math.PI + (i / 30) * Math.PI; 
+    pathBoca.push(new BABYLON.Vector3(Math.cos(ang) * 0.28, Math.sin(ang) * 0.15, 0));
+}
+const boca = BABYLON.MeshBuilder.CreateTube("boca", {
+    path: pathBoca, 
+    radius: 0.045, 
+    cap: BABYLON.Mesh.CAP_ALL
+}, scene);
+boca.parent = carcasa; 
+// Se coloca justo en la cara frontal de la carcasa (Z = -0.56) y un poco abajo (Y = -0.15)
+boca.position = new BABYLON.Vector3(0, -0.15, -0.56);
+boca.material = matDark;
+meshesToShadow.push(boca);
+
+// p2 Cadera Izq
+const servoH_L = BABYLON.MeshBuilder.CreateBox("servoHL", {width:0.4, height:0.5, depth:0.3}, scene);
+servoH_L.parent = hipL; servoH_L.material = matBlue_HL;
+const ejeH_L = BABYLON.MeshBuilder.CreateCylinder("ejeHL", {diameter:0.15, height:0.3}, scene);
+ejeH_L.parent = hipL; ejeH_L.rotation.z = Math.PI/2; ejeH_L.position.x = -0.2; ejeH_L.material = matDark;
+const strutL = BABYLON.MeshBuilder.CreateBox("strutL", {width:0.2, height:1.1, depth:0.2}, scene);
+strutL.parent = hipL; strutL.position.y = -0.55; strutL.material = matRed;
+meshesToShadow.push(servoH_L, ejeH_L, strutL);
+
+// p3 Cadera Der
+const servoH_R = BABYLON.MeshBuilder.CreateBox("servoHR", {width:0.4, height:0.5, depth:0.3}, scene);
+servoH_R.parent = hipR; servoH_R.material = matBlue_HR;
+const ejeH_R = BABYLON.MeshBuilder.CreateCylinder("ejeHR", {diameter:0.15, height:0.3}, scene);
+ejeH_R.parent = hipR; ejeH_R.rotation.z = Math.PI/2; ejeH_R.position.x = 0.2; ejeH_R.material = matDark;
+const strutR = BABYLON.MeshBuilder.CreateBox("strutR", {width:0.2, height:1.1, depth:0.2}, scene);
+strutR.parent = hipR; strutR.position.y = -0.55; strutR.material = matRed;
+meshesToShadow.push(servoH_R, ejeH_R, strutR);
+
+// p4 Pie+Tobillo Izq
+const servoA_L = BABYLON.MeshBuilder.CreateBox("servoAL", {width:0.4, height:0.4, depth:0.3}, scene);
+servoA_L.parent = ankleL; servoA_L.material = matBlue_AL;
+const footL = BABYLON.MeshBuilder.CreateBox("footL", {width:0.8, height:0.15, depth:1.2}, scene);
+footL.parent = ankleL; footL.position = new BABYLON.Vector3(0, -0.275, -0.2); footL.material = matRed;
+const padL = BABYLON.MeshBuilder.CreateBox("padL", {width:0.75, height:0.05, depth:1.15}, scene);
+padL.parent = ankleL; padL.position = new BABYLON.Vector3(0, -0.375, -0.2); padL.material = matWhite;
+meshesToShadow.push(servoA_L, footL, padL);
+
+// p5 Pie+Tobillo Der
+const servoA_R = BABYLON.MeshBuilder.CreateBox("servoAR", {width:0.4, height:0.4, depth:0.3}, scene);
+servoA_R.parent = ankleR; servoA_R.material = matBlue_AR;
+const footR = BABYLON.MeshBuilder.CreateBox("footR", {width:0.8, height:0.15, depth:1.2}, scene);
+footR.parent = ankleR; footR.position = new BABYLON.Vector3(0, -0.275, -0.2); footR.material = matRed;
+const padR = BABYLON.MeshBuilder.CreateBox("padR", {width:0.75, height:0.05, depth:1.15}, scene);
+padR.parent = ankleR; padR.position = new BABYLON.Vector3(0, -0.375, -0.2); padR.material = matWhite;
+meshesToShadow.push(servoA_R, footR, padR);
+
+// p6 / p7 Interiores
+const placa = BABYLON.MeshBuilder.CreateBox("placa", {width: 0.9, height: 0.9, depth: 0.1}, scene);
+placa.parent = carcasa; placa.position = new BABYLON.Vector3(0, 0, 0.4); placa.material = matDark;
+const chip = BABYLON.MeshBuilder.CreateBox("chip", {width: 0.4, height: 0.4, depth: 0.15}, scene);
+chip.parent = placa; chip.position.z = -0.05; chip.material = matSilver;
+const battery = BABYLON.MeshBuilder.CreateBox("battery", {width: 0.8, height: 0.5, depth: 0.4}, scene);
+battery.parent = carcasa; battery.position = new BABYLON.Vector3(0, -0.4, 0.2); battery.material = matDark;
+meshesToShadow.push(placa, chip, battery);
+
+// p8 Sensor Ultrasonidos
+const sensorBase = BABYLON.MeshBuilder.CreateBox("sensorBase", {width: 0.6, height: 0.3, depth: 0.2}, scene);
+sensorBase.parent = carcasa; sensorBase.position = new BABYLON.Vector3(0, 0.3, -0.55); sensorBase.material = matRed;
+const eye1 = BABYLON.MeshBuilder.CreateCylinder("eye1", {diameter: 0.25, height: 0.25}, scene);
+eye1.parent = sensorBase; eye1.rotation.x = Math.PI/2; eye1.position = new BABYLON.Vector3(0.15, 0, -0.1); eye1.material = matSilver;
+const pupil1 = BABYLON.MeshBuilder.CreateCylinder("pupil1", {diameter: 0.1, height: 0.26}, scene);
+pupil1.parent = sensorBase; pupil1.rotation.x = Math.PI/2; pupil1.position = new BABYLON.Vector3(0.15, 0, -0.1); pupil1.material = matDark;
+const eye2 = BABYLON.MeshBuilder.CreateCylinder("eye2", {diameter: 0.25, height: 0.25}, scene);
+eye2.parent = sensorBase; eye2.rotation.x = Math.PI/2; eye2.position = new BABYLON.Vector3(-0.15, 0, -0.1); eye2.material = matSilver;
+const pupil2 = BABYLON.MeshBuilder.CreateCylinder("pupil2", {diameter: 0.1, height: 0.26}, scene);
+pupil2.parent = sensorBase; pupil2.rotation.x = Math.PI/2; pupil2.position = new BABYLON.Vector3(-0.15, 0, -0.1); pupil2.material = matDark;
+meshesToShadow.push(sensorBase, eye1, pupil1, eye2, pupil2);
+
+// p9 Tapa superior
+const tapa = BABYLON.MeshBuilder.CreateBox("tapa", {width: 1.25, height: 0.15, depth: 1.15}, scene);
+tapa.parent = carcasa; tapa.position.y = 0.825; tapa.material = matRed;
+meshesToShadow.push(tapa);
+
+meshesToShadow.forEach(m => {
+    shadowGen.addShadowCaster(m);
+    m.receiveShadows = true;
+});
+
+// UI Y CONTROLADORES
+function setModo(m) {
+    modo = m;
+    document.querySelectorAll('.modo-btn:not(#btn-cambiar-pata)').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-modo-'+m).classList.add('active');
+    
+    document.getElementById('btn-cambiar-pata').style.display = (m === 2) ? 'block' : 'none';
+    
+    // El slider de velocidad es útil para caminar y para girar manual
+    let usaVelocidad = (m === 1 || m === 7 || m === 8);
+    document.getElementById('vel-container').style.display = usaVelocidad ? 'block' : 'none';
+    
+    esquivando = false;
+}
+
+function cambiarPata() {
+    pataLevantada = pataLevantada === 'izq' ? 'der' : 'izq';
+}
+
+function reiniciar() {
+    modo = 1;
+    velocidad = 2.0;
+    document.getElementById('vel-slider').value = 2.0;
+    pataLevantada = 'izq';
+    animTime = 0;
+    esquivando = false;
+    
+    robotGroup.position = BABYLON.Vector3.Zero();
+    robotGroup.rotation = BABYLON.Vector3.Zero();
+    
+    bodyPivot.rotation = BABYLON.Vector3.Zero();
+    bodyPivot.position.y = 2.1;
+    hipL.rotation = BABYLON.Vector3.Zero();
+    hipR.rotation = BABYLON.Vector3.Zero();
+    ankleL.rotation = BABYLON.Vector3.Zero();
+    ankleR.rotation = BABYLON.Vector3.Zero();
+    
+    trails.forEach(t => t.dispose());
+    trails = [];
+    
+    setModo(1);
+}
+
+const colorOn = new BABYLON.Color3(0.2, 0.3, 1.0);
+const colorOff = new BABYLON.Color3(0.05, 0.08, 0.5);
+
+// BUCLE DE RENDERIZADO Y LÓGICA PRINCIPAL
+scene.onBeforeRenderObservable.add(() => {
+    let dt = engine.getDeltaTime() / 1000;
+    if (dt > 0.1) dt = 0.1;
+
+    // Control de tiempo por modo
+    if (modo === 1 || modo === 5 || modo === 3 || modo === 7 || modo === 8) animTime += dt * velocidad;
+    else if (modo === 4) animTime += dt * 3.0;
+    else animTime += dt * 2.0;
+
+    // LÓGICA DEL SENSOR RAYCASTER
+    let dist = 100;
+    let forwardWorld = robotGroup.getDirection(new BABYLON.Vector3(0, 0, -1));
+    let origin = robotGroup.position.clone();
+    origin.y = 0.8; 
+    origin.addInPlace(forwardWorld.scale(0.8)); // Extremo frontal del robot
+    
+    const ray = new BABYLON.Ray(origin, forwardWorld, 100);
+    const hit = scene.pickWithRay(ray, (m) => m === obstaculo);
+    if (hit.hit) dist = hit.distance * 100; // a cm
+
+    // AUTO-ACTIVACIÓN (Obstáculo muy cerca)
+    if (modo === 1) {
+        if (dist < 18) setModo(5); // Peligro inminente -> retroceder
+        else if (dist < 38) setModo(3); // Cerca -> esquivar
+    }
+
+    // VARIABLES OBJETIVO DE CINEMÁTICA
+    let targetBodyZ = bodyPivot.rotation.z;
+    let targetBodyY = bodyPivot.position.y;
+    let targetHipL = hipL.rotation.x;
+    let targetHipR = hipR.rotation.x;
+    let targetAnkleL = ankleL.rotation.z;
+    let targetAnkleR = ankleR.rotation.z;
+
+    // ESTADO DE SERVOS PARA UI Y LUCES
+    let matBlueAnkleL_On = false; let matBlueAnkleR_On = false;
+    let matBlueHipL_On = false; let matBlueHipR_On = false;
+    
+    let activeServoText = "NINGUNO";
+    let phaseText = "REPOSO";
+    let phaseColor = "#888";
+    let explText = "...";
+
+    // Fase basada en cuadrantes de la onda Seno
+    let normalizedTime = animTime % (Math.PI * 2);
+    if (normalizedTime < 0) normalizedTime += Math.PI * 2;
+    let quadrant = Math.floor(normalizedTime / (Math.PI / 2));
+    let isBalancePhase = (quadrant === 0 || quadrant === 2);
+
+    // MÁQUINA DE ESTADOS
+    if (modo === 1) { // 🚶 CAMINAR HACIA ADELANTE
+        targetBodyZ = Math.sin(animTime) * 0.22;
+        targetBodyY = 2.1 + Math.abs(Math.sin(animTime)) * 0.12;
+        targetHipL = -Math.cos(animTime) * 0.35;
+        targetHipR = Math.cos(animTime) * 0.35;
+        targetAnkleL = -targetBodyZ;
+        targetAnkleR = -targetBodyZ;
+        
+        robotGroup.translate(BABYLON.Axis.Z, -0.012 * (velocidad/2.0), BABYLON.Space.LOCAL);
+
+        if (isBalancePhase) {
+            activeServoText = "SERVOS DE TOBILLOS";
+            phaseText = quadrant === 0 ? "BALANCEO (FASE 1)" : "COMPENSACIÓN (FASE 3)";
+            phaseColor = quadrant === 0 ? "#00f2ff" : "#00ff00";
+            explText = quadrant === 0 
+                ? "Fase 1 — Los tobillos inclinan el cuerpo para levantar una pata." 
+                : "Fase 3 — Los tobillos se compensan para que el pie quede plano.";
+            matBlueAnkleL_On = true; matBlueAnkleR_On = true;
+        } else {
+            activeServoText = "SERVOS DE CADERAS";
+            phaseText = "AVANCE (FASE 2)";
+            phaseColor = "#ff8800";
+            explText = quadrant === 1 
+                ? "Fase 2 — La cadera gira la pata levantada hacia adelante." 
+                : "Cambio de peso — el robot inclina hacia el otro lado y repite.";
+            matBlueHipL_On = true; matBlueHipR_On = true;
+        }
+    } 
+    else if (modo === 6) { // 🛑 PARAR
+        targetBodyZ = BABYLON.Scalar.Lerp(bodyPivot.rotation.z, 0, 0.1);
+        targetBodyY = BABYLON.Scalar.Lerp(bodyPivot.position.y, 2.1, 0.1);
+        targetHipL = BABYLON.Scalar.Lerp(hipL.rotation.x, 0, 0.1);
+        targetHipR = BABYLON.Scalar.Lerp(hipR.rotation.x, 0, 0.1);
+        targetAnkleL = BABYLON.Scalar.Lerp(ankleL.rotation.z, 0, 0.1);
+        targetAnkleR = BABYLON.Scalar.Lerp(ankleR.rotation.z, 0, 0.1);
+
+        activeServoText = "NINGUNO";
+        phaseText = "DETENIDO";
+        phaseColor = "#888888";
+        explText = "El robot está en reposo total sin realizar ningún movimiento.";
+    }
+    else if (modo === 7 || modo === 8) { // ⬅️ GIRAR IZQ / DERECHA ➡️
+        // Ciclo de caminata ligeramente más sutil pero rápido
+        targetBodyZ = Math.sin(animTime * 2) * 0.15;
+        targetBodyY = 2.1 + Math.abs(Math.sin(animTime * 2)) * 0.08;
+        targetHipL = -Math.cos(animTime * 2) * 0.25;
+        targetHipR = Math.cos(animTime * 2) * 0.25;
+        targetAnkleL = -targetBodyZ;
+        targetAnkleR = -targetBodyZ;
+
+        // Babylon usa la regla de la mano izquierda (rotación +Y es a la Derecha/Clockwise)
+        let turnDir = modo === 7 ? -1 : 1; // -1 = Izquierda, 1 = Derecha
+        robotGroup.rotation.y += turnDir * 0.015 * (velocidad / 2.0);
+
+        if (isBalancePhase) {
+            activeServoText = "SERVOS DE TOBILLOS";
+            matBlueAnkleL_On = true; matBlueAnkleR_On = true;
+        } else {
+            activeServoText = "SERVOS DE CADERAS";
+            matBlueHipL_On = true; matBlueHipR_On = true;
+        }
+        
+        phaseText = modo === 7 ? "GIRANDO IZQUIERDA" : "GIRANDO DERECHA";
+        phaseColor = "#ffff00";
+        explText = "El robot camina en el sitio mientras pivota sobre su eje central.";
+    }
+    else if (modo === 2) { // 🦵 LEVANTAR UNA PATA
+        let inclTarget = pataLevantada === 'izq' ? -0.22 : 0.22;
+        let hipTargetL = pataLevantada === 'izq' ? 0 : -0.5;
+        let hipTargetR = pataLevantada === 'izq' ? -0.5 : 0;
+        
+        targetBodyZ = BABYLON.Scalar.Lerp(bodyPivot.rotation.z, inclTarget, 0.1);
+        targetBodyY = BABYLON.Scalar.Lerp(bodyPivot.position.y, 2.1, 0.1);
+        targetHipL = BABYLON.Scalar.Lerp(hipL.rotation.x, hipTargetL, 0.1);
+        targetHipR = BABYLON.Scalar.Lerp(hipR.rotation.x, hipTargetR, 0.1);
+        
+        targetAnkleL = pataLevantada === 'izq' ? -targetBodyZ : 0;
+        targetAnkleR = pataLevantada === 'der' ? -targetBodyZ : 0;
+        
+        activeServoText = pataLevantada === 'izq' ? "TOBILLO IZQ Y CADERA DER" : "TOBILLO DER Y CADERA IZQ";
+        phaseText = "EN REPOSO (EQUILIBRIO)";
+        phaseColor = "#888888";
+        explText = "El robot mantiene el equilibrio usando el tobillo de apoyo y levanta la cadera opuesta.";
+        if (pataLevantada === 'izq') { matBlueAnkleL_On = true; matBlueHipR_On = true; } 
+        else { matBlueAnkleR_On = true; matBlueHipL_On = true; }
+    } 
+    else if (modo === 4) { // 💃 BAILAR
+        targetBodyZ = Math.sin(animTime) * 0.30;
+        targetBodyY = 2.1;
+        targetHipL = Math.sin(animTime) * 0.50;
+        targetHipR = -Math.sin(animTime) * 0.50;
+        targetAnkleL = -targetBodyZ;
+        targetAnkleR = -targetBodyZ;
+        
+        activeServoText = "TODOS LOS SERVOS";
+        phaseText = "BAILE";
+        phaseColor = "#ff00ff";
+        explText = "El robot ejecuta movimientos combinados de balanceo rápido sin desplazamiento.";
+        matBlueAnkleL_On = true; matBlueAnkleR_On = true;
+        matBlueHipL_On = true; matBlueHipR_On = true;
+    } 
+    else if (modo === 5) { // ↩️ RETROCEDER
+        targetBodyZ = Math.sin(animTime) * 0.22;
+        targetBodyY = 2.1 + Math.abs(Math.sin(animTime)) * 0.12;
+        targetHipL = Math.cos(animTime) * 0.35;
+        targetHipR = -Math.cos(animTime) * 0.35;
+        targetAnkleL = -targetBodyZ;
+        targetAnkleR = -targetBodyZ;
+        
+        robotGroup.translate(BABYLON.Axis.Z, 0.012 * (velocidad/2.0), BABYLON.Space.LOCAL);
+        
+        if (isBalancePhase) {
+            activeServoText = "SERVOS DE TOBILLOS";
+            phaseText = "BALANCEO (ATRÁS)";
+            phaseColor = "#00f2ff";
+            explText = "Preparando el cuerpo para el paso en retroceso.";
+            matBlueAnkleL_On = true; matBlueAnkleR_On = true;
+        } else {
+            activeServoText = "SERVOS DE CADERAS";
+            phaseText = "RETROCESO";
+            phaseColor = "#ff8800";
+            explText = "Las caderas giran de forma invertida para caminar hacia atrás.";
+            matBlueHipL_On = true; matBlueHipR_On = true;
+        }
+    } 
+    else if (modo === 3) { // ⚠️ ESQUIVAR
+        if (!esquivando) {
+            if (dist < 38) {
+                esquivando = true; esquivarFase = 0; esquivarTimer = performance.now();
+            }
+            targetBodyZ = Math.sin(animTime) * 0.22;
+            targetBodyY = 2.1 + Math.abs(Math.sin(animTime)) * 0.12;
+            targetHipL = -Math.cos(animTime) * 0.35; targetHipR = Math.cos(animTime) * 0.35;
+            targetAnkleL = -targetBodyZ; targetAnkleR = -targetBodyZ;
+            robotGroup.translate(BABYLON.Axis.Z, -0.012 * (velocidad/2.0), BABYLON.Space.LOCAL);
+            
+            activeServoText = isBalancePhase ? "TOBILLOS" : "CADERAS";
+            phaseText = "BUSCANDO ESPACIO";
+            phaseColor = "#00ff00";
+            explText = "Caminando hasta que el sensor detecte un obstáculo en el camino.";
+            if (isBalancePhase) { matBlueAnkleL_On = true; matBlueAnkleR_On = true; } 
+            else { matBlueHipL_On = true; matBlueHipR_On = true; }
+        } else {
+            let elapsed = performance.now() - esquivarTimer;
+            if (esquivarFase === 0) { // PARAR Y PENSAR
+                targetBodyZ = BABYLON.Scalar.Lerp(bodyPivot.rotation.z, 0, 0.1);
+                targetBodyY = BABYLON.Scalar.Lerp(bodyPivot.position.y, 2.1, 0.1);
+                targetHipL = BABYLON.Scalar.Lerp(hipL.rotation.x, 0, 0.1);
+                targetHipR = BABYLON.Scalar.Lerp(hipR.rotation.x, 0, 0.1);
+                targetAnkleL = BABYLON.Scalar.Lerp(ankleL.rotation.z, 0, 0.1);
+                targetAnkleR = BABYLON.Scalar.Lerp(ankleR.rotation.z, 0, 0.1);
+                
+                activeServoText = "NINGUNO";
+                phaseText = "OBSTÁCULO DETECTADO";
+                phaseColor = "#ff0000";
+                explText = "El robot se detiene para recalcular su dirección de avance.";
+                
+                if (elapsed > 500) {
+                    esquivarFase = 1; 
+                    robotGroup.targetRotY = robotGroup.rotation.y + Math.PI/2; // Giro a la derecha
+                }
+            } else if (esquivarFase === 1) { // GIRAR 90 GRADOS
+                robotGroup.rotation.y = BABYLON.Scalar.Lerp(robotGroup.rotation.y, robotGroup.targetRotY, 0.05);
+                
+                targetBodyZ = Math.sin(animTime * 3) * 0.12;
+                targetHipL = -Math.cos(animTime * 3) * 0.25;
+                targetHipR = Math.cos(animTime * 3) * 0.25;
+                targetAnkleL = -targetBodyZ; targetAnkleR = -targetBodyZ;
+                
+                activeServoText = "SERVOS DE CADERAS";
+                phaseText = "GIRANDO (ESQUIVA)";
+                phaseColor = "#ffff00";
+                explText = "El robot pivota girando las patas para cambiar de dirección 90 grados.";
+                matBlueHipL_On = true; matBlueHipR_On = true;
+                
+                if (Math.abs(robotGroup.rotation.y - robotGroup.targetRotY) < 0.02) {
+                    robotGroup.rotation.y = robotGroup.targetRotY; esquivando = false;
+                }
+            }
+        }
+    }
+
+    // APLICACIÓN DE TRANSFORMACIONES
+    bodyPivot.rotation.z = targetBodyZ;
+    bodyPivot.position.y = targetBodyY;
+    hipL.rotation.x = targetHipL;
+    hipR.rotation.x = targetHipR;
+    ankleL.rotation.z = targetAnkleL;
+    ankleR.rotation.z = targetAnkleR;
+
+    // ACTUALIZACIÓN EMISIVOS (COLOR)
+    matBlue_AL.emissiveColor.copyFrom(matBlueAnkleL_On ? colorOn : colorOff);
+    matBlue_AR.emissiveColor.copyFrom(matBlueAnkleR_On ? colorOn : colorOff);
+    matBlue_HL.emissiveColor.copyFrom(matBlueHipL_On ? colorOn : colorOff);
+    matBlue_HR.emissiveColor.copyFrom(matBlueHipR_On ? colorOn : colorOff);
+
+    // DIBUJADO DE RASTRO (TRAIL)
+    if (modo === 1 || modo === 5 || modo === 3 || modo === 7 || modo === 8) {
+        if (performance.now() - lastTrailTime > 400) {
+            let tr = BABYLON.MeshBuilder.CreateCylinder("t", {diameter: 0.15, height: 0.02}, scene);
+            tr.position = new BABYLON.Vector3(robotGroup.position.x, 0.01, robotGroup.position.z);
+            let trMat = new BABYLON.PBRMaterial("trMat", scene);
+            trMat.albedoColor = BABYLON.Color3.FromHexString("#FF6B35");
+            trMat.metallic = 0.0; trMat.roughness = 0.9;
+            tr.material = trMat;
+            trails.push(tr);
+            if (trails.length > 30) trails.shift().dispose();
+            lastTrailTime = performance.now();
+        }
+    }
+
+    // ACTUALIZACIÓN DE UI EN DOM
+    document.getElementById('ui-servo').innerText = activeServoText;
+    let uiFaseObj = document.getElementById('ui-fase');
+    uiFaseObj.innerText = phaseText;
+    uiFaseObj.style.color = phaseColor;
+    document.getElementById('ui-expl').innerText = explText;
+
+    let validDist = Math.min(dist, 99);
+    let pct = Math.max(0, Math.min(100, (validDist / 35) * 100)); // Relativo a 35cm para escala visual
+    let barColor = dist > 20 ? "#00ff00" : (dist > 12 ? "#ffff00" : "#ff0000");
+    document.getElementById('ui-ojos-txt').innerText = validDist > 98 ? "+99 cm" : validDist.toFixed(1) + " cm";
+    document.getElementById('ui-ojos-bar').style.width = pct + "%";
+    document.getElementById('ui-ojos-bar').style.backgroundColor = barColor;
+});
+
+engine.runRenderLoop(() => {
+    scene.render();
+});
+
+window.addEventListener('resize', () => {
+    engine.resize();
+});
+</script>
+</body>
+</html>

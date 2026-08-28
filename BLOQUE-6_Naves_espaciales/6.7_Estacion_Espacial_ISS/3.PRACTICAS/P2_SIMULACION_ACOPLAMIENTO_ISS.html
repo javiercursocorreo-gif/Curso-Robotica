@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2: Simulación Acoplamiento ISS</title>
+    <!-- Babylon.js core -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <!-- Babylon.js loaders (necesario para GLTF/GLB) -->
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #uiContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none; /* Deja que los clics pasen al canvas */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        h1 {
+            color: #00aaff;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            text-transform: uppercase;
+        }
+        .hud-text {
+            font-size: 20px;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+        }
+        .key {
+            display: inline-block;
+            border: 2px solid white;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin: 0 5px;
+            font-weight: bold;
+            background-color: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="uiContainer">
+        <h1>MISIÓN: ACOPLAMIENTO ISS</h1>
+        <div id="distMsg" class="hud-text">DISTANCIA: -- m</div>
+        <div id="velMsg" class="hud-text">VELOCIDAD: 0 m/s</div>
+        <div id="alignMsg" class="hud-text" style="color: yellow;">ALINEACIÓN: CALCULANDO...</div>
+        <div id="statusMsg" class="hud-text" style="color: #00ff00; margin-top: 15px; font-size: 24px;"></div>
+    </div>
+
+    <div id="instructions">
+        Controles RCS (Gravedad Cero):<br><br>
+        <span class="key">S</span> Avanzar | <span class="key">D</span> Retroceder (Frenar)<br><br>
+        <span class="key">↑</span> <span class="key">↓</span> <span class="key">←</span> <span class="key">→</span> Traslación (Arriba/Abajo/Izquierda/Derecha)
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.05, 1); // Espacio profundo
+
+            // Cámara orbital (ArcRotateCamera) para que el usuario pueda girar alrededor de la nave y verlo todo como en una película
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 15, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+            
+            // Luces (El sol)
+            const light = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-1, -0.5, 0.5), scene);
+            light.intensity = 2.0;
+            const ambientLight = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.5; // Luz de ambiente un poco más fuerte para ver la estación
+
+            // ESTRELLAS EN EL CIELO
+            const stars = new BABYLON.ParticleSystem("stars", 2000, scene);
+            stars.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Sun/T_Star.png", scene);
+            stars.emitter = new BABYLON.Vector3(0, 0, 0); 
+            stars.minEmitBox = new BABYLON.Vector3(-5000, -5000, -5000); 
+            stars.maxEmitBox = new BABYLON.Vector3(5000, 5000, 5000);
+            stars.color1 = new BABYLON.Color4(1, 1, 1, 0.8);
+            stars.color2 = new BABYLON.Color4(0.8, 0.8, 1, 0.8);
+            stars.colorDead = new BABYLON.Color4(0, 0, 0, 0);
+            stars.minSize = 5.0;
+            stars.maxSize = 15.0;
+            stars.minLifeTime = 999999;
+            stars.maxLifeTime = 999999;
+            stars.emitRate = 2000;
+            stars.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD;
+            stars.gravity = new BABYLON.Vector3(0, 0, 0);
+            stars.direction1 = new BABYLON.Vector3(0, 0, 0);
+            stars.direction2 = new BABYLON.Vector3(0, 0, 0);
+            stars.minAngularSpeed = 0;
+            stars.maxAngularSpeed = Math.PI;
+            stars.minEmitPower = 0;
+            stars.maxEmitPower = 0;
+            stars.updateSpeed = 0.005;
+            stars.start();
+
+            // Variables de físicas (Gravedad Cero)
+            let speedX = 0;
+            let speedY = 0;
+            let speedZ = 0;
+            let isDocked = false;
+
+            const thrustPower = 0.05; // Cuánta aceleración da cada toque
+            const maxSpeed = 5.0;
+
+            // Nodo de la nave espacial (Transbordador)
+            const shuttleNode = new BABYLON.TransformNode("shuttleNode", scene);
+            shuttleNode.position = new BABYLON.Vector3(10, -10, -300); // Empezamos desviados y lejos
+
+            // Hacer que la cámara orbite y siga físicamente al transbordador
+            camera.target = shuttleNode;
+            
+            // Puerto de atraque objetivo (En la ISS)
+            const dockingPort = new BABYLON.Vector3(0, 0, -20); // El punto exacto donde debe tocar el morro
+            
+            // Crear un anillo de guía visual para el puerto (opcional, para ayudar)
+            const guideRing = BABYLON.MeshBuilder.CreateTorus("guide", {diameter: 4, thickness: 0.1}, scene);
+            guideRing.position = dockingPort;
+            guideRing.rotation.x = Math.PI / 2;
+            const ringMat = new BABYLON.StandardMaterial("ringMat", scene);
+            ringMat.emissiveColor = new BABYLON.Color3(0, 1, 0);
+            ringMat.alpha = 0.5;
+            guideRing.material = ringMat;
+
+            // Cargar Modelos
+            let issMesh = null;
+            let shuttleMesh = null;
+
+            try {
+                // CARGAR LA ISS
+                const issUrl = "../../../MODELOS/MODELOS NUEVOS 1/MEGAESTRUCTURAS/iss/";
+                const issResult = await BABYLON.SceneLoader.ImportMeshAsync("", issUrl, "scene.gltf", scene);
+                issMesh = issResult.meshes[0];
+                issMesh.position = new BABYLON.Vector3(0, 0, 0);
+                // Normalizar al tamaño 1x1x1 y luego multiplicar la escala
+                issMesh.normalizeToUnitCube();
+                issMesh.scaling.scaleInPlace(20); // Reducido de 100 a 20 para que no tape toda la pantalla
+
+                // Rotación lenta de la estación espacial
+                scene.onBeforeRenderObservable.add(() => {
+                    issMesh.rotation.y += 0.0002;
+                    issMesh.rotation.z -= 0.0001;
+                });
+            } catch (error) {
+                console.error("No se pudo cargar la ISS:", error);
+            }
+
+            try {
+                // CARGAR EL TRANSBORDADOR (sin tren de aterrizaje)
+                const shuttleUrl = "../../../MODELOS/MODELOS NUEVOS 1/TRANSBORDADOR_ESPACIAL/the_space_shuttle-3/";
+                const shuttleResult = await BABYLON.SceneLoader.ImportMeshAsync("", shuttleUrl, "scene.gltf", scene);
+                shuttleMesh = shuttleResult.meshes[0];
+                
+                // Normalizar al tamaño 1x1x1 y luego multiplicarlo
+                shuttleMesh.normalizeToUnitCube();
+                shuttleMesh.scaling.scaleInPlace(8);
+                
+                // Centrar la geometría (este modelo 3D en concreto venía con su punto de anclaje muy lejos de la nave real)
+                const boundingInfo = shuttleMesh.getHierarchyBoundingVectors();
+                const center = boundingInfo.max.add(boundingInfo.min).scale(0.5);
+                shuttleMesh.setPivotPoint(center, BABYLON.Space.LOCAL);
+                
+                // Agrupar en el nodo
+                shuttleMesh.parent = shuttleNode;
+                // Ajustar rotación si es necesario para que el morro apunte en +Z
+                // Dependerá de la orientación original del GLTF.
+                shuttleMesh.rotationQuaternion = null; 
+                shuttleMesh.rotation.y = Math.PI; // Suponemos que mira hacia atrás originalmente
+            } catch (e) {
+                console.error("Error al cargar los modelos 3D:", e);
+                document.getElementById("statusMsg").innerText = "ERROR AL CARGAR MODELOS 3D";
+                document.getElementById("statusMsg").style.color = "red";
+            }
+
+            // Entradas de teclado
+            const inputMap = {};
+            scene.actionManager = new BABYLON.ActionManager(scene);
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toUpperCase()] = true;
+                inputMap[evt.sourceEvent.key] = true;
+            }));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toUpperCase()] = false;
+                inputMap[evt.sourceEvent.key] = false;
+            }));
+
+            // Bucle principal de simulación
+            scene.onBeforeRenderObservable.add(() => {
+                if (!isDocked) {
+                    // Resetear velocidad a cero en cada frame para eliminar inercia
+                    speedX = 0;
+                    speedY = 0;
+                    speedZ = 0;
+                    const moveSpeed = 0.5; // Velocidad de movimiento
+
+                    if (inputMap["S"] || inputMap["s"]) speedZ = moveSpeed;
+                    if (inputMap["D"] || inputMap["d"]) speedZ = -moveSpeed;
+
+                    // Traslación vertical y lateral
+                    if (inputMap["ArrowUp"]) speedY = moveSpeed;
+                    if (inputMap["ArrowDown"]) speedY = -moveSpeed;
+                    if (inputMap["ArrowLeft"]) speedX = -moveSpeed;
+                    if (inputMap["ArrowRight"]) speedX = moveSpeed;
+
+                    // Aplicar el movimiento
+                    shuttleNode.position.x += speedX;
+                    shuttleNode.position.y += speedY;
+                    shuttleNode.position.z += speedZ;
+
+                    // Cálculos del HUD
+                    let distX = shuttleNode.position.x - dockingPort.x;
+                    let distY = shuttleNode.position.y - dockingPort.y;
+                    let distZ = dockingPort.z - shuttleNode.position.z; // Positivo si estamos detrás
+
+                    let totalDist = Math.sqrt(distX*distX + distY*distY + distZ*distZ);
+                    let relativeVel = Math.sqrt(speedX*speedX + speedY*speedY + speedZ*speedZ);
+
+                    document.getElementById("distMsg").innerText = "DISTANCIA: " + Math.max(0, Math.floor(distZ)) + " m";
+                    document.getElementById("velMsg").innerText = "VELOCIDAD: " + relativeVel.toFixed(1) + " m/s";
+
+                    // Indicador de alineación visual
+                    let alignError = Math.sqrt(distX*distX + distY*distY);
+                    if (alignError < 2) {
+                        document.getElementById("alignMsg").innerText = "ALINEACIÓN: PERFECTA";
+                        document.getElementById("alignMsg").style.color = "#00ff00";
+                    } else if (alignError < 10) {
+                        document.getElementById("alignMsg").innerText = "ALINEACIÓN: ACEPTABLE";
+                        document.getElementById("alignMsg").style.color = "yellow";
+                    } else {
+                        document.getElementById("alignMsg").innerText = "ALINEACIÓN: DESVIADA";
+                        document.getElementById("alignMsg").style.color = "red";
+                        document.getElementById("alignMsg").innerText += ` (X: ${Math.floor(distX)} Y: ${Math.floor(distY)})`;
+                    }
+
+                    // Lógica de colisión / acoplamiento
+                    if (distZ <= 0 && distZ > -10) {
+                        // Hemos llegado al plano Z del puerto
+                        if (alignError < 5) {
+                            if (relativeVel < 5.0) {
+                                // Éxito
+                                isDocked = true;
+                                velocity.x = velocity.y = velocity.z = 0;
+                                document.getElementById("statusMsg").innerText = "ACOPLAMIENTO COMPLETADO CON ÉXITO";
+                                document.getElementById("statusMsg").style.color = "#00ff00";
+                            } else {
+                                // Demasiado rápido
+                                isDocked = true;
+                                velocity.x = velocity.y = velocity.z = 0;
+                                document.getElementById("statusMsg").innerText = "FALLO: VELOCIDAD DE IMPACTO EXCESIVA";
+                                document.getElementById("statusMsg").style.color = "red";
+                            }
+                        } else {
+                            // Hemos fallado el anillo
+                            document.getElementById("statusMsg").innerText = "FALLO: NAVE DESALINEADA. ABORTAR MISIÓN.";
+                            document.getElementById("statusMsg").style.color = "red";
+                        }
+                    }
+                }
+            });
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

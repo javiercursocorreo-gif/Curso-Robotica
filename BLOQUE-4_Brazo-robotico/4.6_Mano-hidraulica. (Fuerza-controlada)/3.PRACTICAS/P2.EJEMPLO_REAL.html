@@ -1,0 +1,747 @@
+<!-- Decisiones Técnicas: Renderizado 3D con Babylon.js partiendo con exactitud del diseño final construido en P1 (Mano Hidráulica Cyborg independiente con sus 5 jeringuillas y tubos). Interfaz interactiva ampliada en V2 para el ejercicio práctico P2: conteo numérico tradicional (1-5), nuevos gestos icónicos (Peineta, Cuernos, Shaka, OK) y rutina especial de conteo tocando yemas de los dedos (2 al 5) tanto individual como en secuencia automática. -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2.EJEMPLO_REAL_v2 — Gestos y Conteo</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #0a0a1a;
+    --panel-bg: rgba(13, 13, 34, 0.95);
+    --primary: #00f2ff;
+    --primary-glow: rgba(0, 242, 255, 0.35);
+    --accent: #ff6f00;
+    --text: #e8e8f0;
+    --text-muted: #8888aa;
+    --success: #00c853;
+    --warning: #ffd600;
+    --danger: #d50000;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 100%; height: 100vh; overflow: hidden;
+    background: var(--bg-dark); font-family: 'Outfit', 'Segoe UI', sans-serif;
+    color: var(--text); display: flex; flex-direction: column;
+  }
+  header {
+    height: 70px; background: rgba(0,0,0,0.92); border-bottom: 2px solid var(--primary);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 28px; z-index: 100;
+    box-shadow: 0 2px 25px rgba(0,242,255,0.18);
+  }
+  .ht { color: var(--primary); font-size: 21px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; }
+  .hs { color: var(--text-muted); font-size: 13.5px; margin-top: 2px; }
+  .header-badge {
+    background: rgba(0, 242, 255, 0.12); border: 1px solid var(--primary);
+    padding: 7px 14px; border-radius: 6px; font-size: 13.5px; font-weight: 700; color: var(--primary);
+    box-shadow: 0 0 12px rgba(0,242,255,0.2);
+  }
+  .app { display: flex; flex: 1; height: calc(100vh - 70px); position: relative; }
+  #panel {
+    width: 460px; flex-shrink: 0; background: var(--panel-bg);
+    border-right: 1px solid rgba(0,242,255,0.2); display: flex; flex-direction: column;
+    overflow-y: auto; padding: 22px; gap: 16px; z-index: 10;
+    box-shadow: 5px 0 30px rgba(0,0,0,0.6);
+  }
+  #panel::-webkit-scrollbar { width: 6px; }
+  #panel::-webkit-scrollbar-thumb { background: rgba(0,242,255,0.25); border-radius: 3px; }
+  .sec {
+    background: rgba(255,255,255,0.025); border: 1px solid rgba(0,242,255,0.15);
+    border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .sec-title {
+    font-size: 13.5px; font-weight: 800; color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid rgba(0,242,255,0.15);
+    padding-bottom: 6px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .desc-text { font-size: 13px; color: #cbd5e1; line-height: 1.45; }
+  
+  /* Botones numéricos 1 al 5 */
+  .cnt-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 4px; }
+  .cnt-btn {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,242,255,0.08));
+    border: 1.5px solid rgba(0,242,255,0.25); color: var(--text);
+    padding: 10px 4px; border-radius: 8px; font-size: 15px; font-weight: 800; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .cnt-btn span { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+  .cnt-btn:hover {
+    background: linear-gradient(135deg, rgba(0,242,255,0.2), rgba(0,110,255,0.35));
+    border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); transform: translateY(-2px);
+  }
+  .cnt-btn.active {
+    background: linear-gradient(135deg, rgba(0,242,255,0.35), rgba(0,110,255,0.5));
+    border-color: var(--primary); box-shadow: 0 0 20px var(--primary-glow);
+  }
+
+  /* Gestos Especiales Grid */
+  .gestures-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .gst-btn {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,111,0,0.35); color: var(--text);
+    padding: 10px 8px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  }
+  .gst-btn:hover {
+    background: rgba(255,111,0,0.18); border-color: var(--accent); box-shadow: 0 0 12px rgba(255,111,0,0.3);
+  }
+  .gst-btn.active {
+    background: rgba(255,111,0,0.3); border-color: var(--accent);
+  }
+
+  /* Conteo Tocando Yemas Grid */
+  .touch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .tch-btn {
+    background: rgba(0,200,83,0.08); border: 1px solid rgba(0,200,83,0.35); color: var(--text);
+    padding: 8px 4px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
+  }
+  .tch-btn:hover {
+    background: rgba(0,200,83,0.22); border-color: var(--success); box-shadow: 0 0 12px rgba(0,200,83,0.3);
+  }
+  .tch-btn.active {
+    background: rgba(0,200,83,0.35); border-color: var(--success);
+  }
+  
+  /* Botones de acción general */
+  .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); color: var(--text);
+    border-radius: 8px; padding: 11px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;
+  }
+  .btn:hover { background: rgba(0,242,255,0.12); border-color: var(--primary); }
+  .btn-accent { border-color: var(--accent); color: #fff; background: linear-gradient(135deg, rgba(255,111,0,0.15), rgba(255,50,0,0.25)); }
+  .btn-accent:hover { background: linear-gradient(135deg, rgba(255,111,0,0.3), rgba(255,50,0,0.45)); box-shadow: 0 0 15px rgba(255,111,0,0.4); }
+
+  /* Banner de Estado en Vivo */
+  .status-banner {
+    background: rgba(0, 0, 0, 0.4); border: 1.5px solid rgba(0,242,255,0.25);
+    border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+    transition: all 0.3s;
+  }
+  .status-banner.waiting { border-color: var(--warning); background: rgba(255, 214, 0, 0.08); }
+  .status-banner.closing { border-color: var(--accent); background: rgba(255, 111, 0, 0.08); }
+  .status-title { font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-banner.waiting .status-title { color: var(--warning); }
+  .status-banner.closing .status-title { color: var(--accent); }
+  .status-msg { font-size: 13.5px; font-weight: 600; color: #fff; }
+  
+  .prog-bar-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+  .prog-bar-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.1s linear; }
+  .status-banner.waiting .prog-bar-fill { background: var(--warning); }
+
+  /* Controles Manuales (Sliders) */
+  .cg { display: flex; flex-direction: column; gap: 5px; }
+  .cl { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+  .val { font-weight: 700; color: var(--primary); font-family: monospace; }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 7px; background: #181838; border-radius: 4px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--primary); cursor: pointer; box-shadow: 0 0 10px var(--primary); transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+
+  /* Info Pascal */
+  .info-box {
+    font-size: 12px; color: #a0aec0; background: rgba(0,242,255,0.04);
+    border-left: 3px solid var(--primary); padding: 10px 12px; border-radius: 0 6px 6px 0;
+    line-height: 1.4;
+  }
+
+  /* Visor 3D */
+  .wrap3d { flex: 1; min-width: 0; position: relative; }
+  #c { width: 100%; height: 100%; display: block; outline: none; }
+  
+  /* Telemetría superpuesta HUD */
+  .hud-3d {
+    position: absolute; top: 20px; right: 20px; background: rgba(10, 10, 26, 0.88);
+    border: 1px solid rgba(0,242,255,0.3); border-radius: 12px; padding: 14px 18px;
+    width: 250px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  }
+  .hud-title { font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+  .hud-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text); }
+  .hud-val { font-weight: 700; font-family: monospace; color: var(--primary); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="ht">Mano Hidráulica Cyborg V2</span>
+    <p class="hs">Ejemplo Real P2 · Gestos Expresivos y Conteo Tocando Yemas</p>
+  </div>
+  <span class="header-badge">Versión 2.0 Ampliada ✨</span>
+</header>
+
+<div class="app">
+  <div id="panel">
+    
+    <!-- SECCIÓN 1: GESTOS EXPRESIVOS E ICÓNICOS -->
+    <div class="sec">
+      <div class="sec-title">
+        <span>Gestos Icónicos y Expresivos</span>
+        <span style="font-size:11px; color:var(--accent);">Nuevos</span>
+      </div>
+      <div class="gestures-grid">
+        <button class="gst-btn" onclick="triggerGesture('ok')"><span style="font-size:18px;">👍</span> OK con Pulgar</button>
+        <button class="gst-btn" onclick="triggerGesture('peineta')"><span style="font-size:18px;">🖕</span> Peineta (Medio)</button>
+        <button class="gst-btn" onclick="triggerGesture('cuernos')"><span style="font-size:18px;">🤘</span> Cuernos Rock</button>
+        <button class="gst-btn" onclick="triggerGesture('shaka')"><span style="font-size:18px;">🤙</span> Todo Bien (Shaka)</button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: CONTEO TOCANDO YEMAS (2 AL 5) -->
+    <div class="sec">
+      <div class="sec-title">
+        <span>Contar Tocando Yemas (2 al 5)</span>
+        <span style="font-size:11px; color:var(--success);">Pinza Hidráulica</span>
+      </div>
+      <p class="desc-text" style="font-size:12px;">
+        Mano estirada: el pulgar va tocando secuencialmente las yemas del dedo 2, luego 3, 4 y 5.
+      </p>
+      
+      <button class="btn" style="background:rgba(0,200,83,0.15); border-color:var(--success); color:#fff; width:100%; margin-bottom:4px;" onclick="startTouchingSequence()">
+        ▶️ Secuencia Completa Tocando (2 al 5)
+      </button>
+
+      <div class="touch-grid">
+        <button class="tch-btn" onclick="triggerTouchStep(2)">✌️<span>Tocar 2<br>(P+Índice)</span></button>
+        <button class="tch-btn" onclick="triggerTouchStep(3)">🤟<span>Tocar 3<br>(P+Medio)</span></button>
+        <button class="tch-btn" onclick="triggerTouchStep(4)">🖖<span>Tocar 4<br>(P+Anular)</span></button>
+        <button class="tch-btn" onclick="triggerTouchStep(5)">🖐️<span>Tocar 5<br>(P+Meñique)</span></button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3: CONTEO TRADICIONAL 1 AL 5 -->
+    <div class="sec">
+      <div class="sec-title">
+        <span>Conteo Clásico por Apertura</span>
+        <span style="font-size:11px; color:var(--text-muted);">1 al 5</span>
+      </div>
+      
+      <div class="cnt-grid">
+        <button class="cnt-btn" id="btn-n1" onclick="runCountRoutine(1)">1️⃣<span>Uno</span></button>
+        <button class="cnt-btn" id="btn-n2" onclick="runCountRoutine(2)">2️⃣<span>Dos</span></button>
+        <button class="cnt-btn" id="btn-n3" onclick="runCountRoutine(3)">3️⃣<span>Tres</span></button>
+        <button class="cnt-btn" id="btn-n4" onclick="runCountRoutine(4)">4️⃣<span>Cuatro</span></button>
+        <button class="cnt-btn" id="btn-n5" onclick="runCountRoutine(5)">5️⃣<span>Cinco</span></button>
+      </div>
+      
+      <div class="action-row" style="margin-top: 4px;">
+        <button class="btn btn-accent" onclick="triggerFist()">✊ Puño Cerrado</button>
+        <button class="btn" onclick="triggerOpen()">✋ Mano Abierta</button>
+      </div>
+    </div>
+
+    <!-- Banner de Estado en Vivo -->
+    <div class="status-banner" id="status-banner">
+      <div class="status-title" id="status-title">Estado del Sistema</div>
+      <div class="status-msg" id="status-msg">✊ En espera (Puño cerrado). Selecciona un gesto o conteo.</div>
+      <div class="prog-bar-bg"><div class="prog-bar-fill" id="prog-bar"></div></div>
+    </div>
+
+    <!-- SECCIÓN 4: CONTROL MANUAL DE JERINGUILLAS -->
+    <div class="sec">
+      <div class="sec-title">
+        <span>Circuito de Jeringuillas por Dedo</span>
+        <span style="font-size:11px; color:var(--text-muted);">Exploratorio</span>
+      </div>
+
+      <div class="cg">
+        <div class="cl"><span>Dedo Índice (ID 2)</span><span class="val" id="lbl-f2">Puño (0%)</span></div>
+        <input type="range" id="rng-f2" min="0" max="100" value="0" oninput="manualSliderInput(2, this.value)">
+      </div>
+      <div class="cg">
+        <div class="cl"><span>Dedo Medio (ID 3)</span><span class="val" id="lbl-f3">Puño (0%)</span></div>
+        <input type="range" id="rng-f3" min="0" max="100" value="0" oninput="manualSliderInput(3, this.value)">
+      </div>
+      <div class="cg">
+        <div class="cl"><span>Dedo Anular (ID 4)</span><span class="val" id="lbl-f4">Puño (0%)</span></div>
+        <input type="range" id="rng-f4" min="0" max="100" value="0" oninput="manualSliderInput(4, this.value)">
+      </div>
+      <div class="cg">
+        <div class="cl"><span>Dedo Meñique (ID 5)</span><span class="val" id="lbl-f5">Puño (0%)</span></div>
+        <input type="range" id="rng-f5" min="0" max="100" value="0" oninput="manualSliderInput(5, this.value)">
+      </div>
+      <div class="cg">
+        <div class="cl"><span>Dedo Pulgar (ID 1)</span><span class="val" id="lbl-f1">Puño (0%)</span></div>
+        <input type="range" id="rng-f1" min="0" max="100" value="0" oninput="manualSliderInput(1, this.value)">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- VISOR 3D -->
+  <div class="wrap3d">
+    <canvas id="c"></canvas>
+    
+    <div class="hud-3d">
+      <div class="hud-title">Telemetría Hidráulica</div>
+      <div class="hud-row"><span>Modo Activo:</span><span class="hud-val" id="hud-mode">MANUAL</span></div>
+      <div class="hud-row"><span>Gesto / Acción:</span><span class="hud-val" id="hud-action">-</span></div>
+      <div class="hud-row"><span>Presión Media:</span><span class="hud-val" id="hud-press">2.4 Bar</span></div>
+      <div class="hud-row"><span>Dedos Extendidos:</span><span class="hud-val" id="hud-active">0 / 5</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// MOTOR 3D BABYLON.JS — MANO HIDRÁULICA CYBORG V2
+// ═══════════════════════════════════════════════════════════════
+var canvas = document.getElementById('c');
+var engine, scene, camera, shadowGen;
+var handRoot;
+var mats = {};
+var fj = [];
+var syringes = [];
+
+// t=1 puño cerrado, t=0 dedo estirado/abierto
+// ID 1: Pulgar, ID 2: Índice, ID 3: Medio, ID 4: Anular, ID 5: Meñique
+var currentT = [1, 1, 1, 1, 1, 1];
+var targetT = [1, 1, 1, 1, 1, 1];
+
+// Máquina de estados
+var routineMode = 'IDLE'; // 'IDLE', 'PREPARING_FIST', 'EXTENDING', 'HOLDING', 'CLOSING_FIST', 'TOUCH_SEQ'
+var activeNum = 0;
+var activeGestureName = "-";
+var extendStartTime = 0;
+var holdStartTime = 0;
+var holdDuration = 3.0;
+var touchStartTime = 0;
+
+window.addEventListener('DOMContentLoaded', function(){
+  engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true});
+  buildScene();
+  engine.runRenderLoop(function(){ scene.render(); });
+  window.addEventListener('resize', function(){ engine.resize(); });
+  updateUI();
+});
+
+function buildScene(){
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.04, 0.04, 0.12, 1);
+
+  camera = new BABYLON.ArcRotateCamera('cam', Math.PI/2, Math.PI/2.5, 13,
+    new BABYLON.Vector3(0, 2.2, 1.8), scene);
+  camera.attachControl(canvas, true);
+  camera.lowerRadiusLimit = 4; camera.upperRadiusLimit = 30;
+
+  var h = new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0, 1, 0), scene);
+  h.intensity = 0.65;
+  var d = new BABYLON.DirectionalLight('d', new BABYLON.Vector3(-1, -2, -1), scene);
+  d.position = new BABYLON.Vector3(5, 12, 5); d.intensity = 1.6;
+  shadowGen = new BABYLON.ShadowGenerator(1024, d);
+  shadowGen.useBlurExponentialShadowMap = true;
+
+  var t = BABYLON.MeshBuilder.CreateBox('t', {width: 18, height: 0.2, depth: 14}, scene);
+  t.position.y = -0.1; t.receiveShadows = true;
+  t.material = sm(0.90, 0.88, 0.82);
+
+  initMats();
+  buildHand();
+
+  scene.onBeforeRenderObservable.add(function(){
+    var dt = engine.getDeltaTime();
+    
+    handleRoutineLogic();
+
+    for (var i = 1; i <= 5; i++) {
+      currentT[i] += (targetT[i] - currentT[i]) * (1 - Math.exp(-0.008 * dt));
+    }
+
+    fj.forEach(function(f){
+      setRotFinger(f, currentT[f.id]);
+    });
+
+    syringes.forEach(function(s){
+      var tVal = currentT[s.fingerId];
+      s.p.position.y = 0.65 - tVal * 0.50;
+      s.w.scaling.y = 1 - tVal * 0.60;
+      s.w.position.y = -0.655 + (0.95 / 2) * (1 - tVal * 0.60);
+    });
+
+    updateUI();
+  });
+}
+
+function sm(r,g,b,a){
+  var m = new BABYLON.StandardMaterial('m'+Math.random(), scene);
+  m.diffuseColor = new BABYLON.Color3(r,g,b);
+  if(a !== undefined) m.alpha = a;
+  return m;
+}
+
+function initMats(){
+  mats.orange = sm(1.00, 0.42, 0.10);
+  mats.black  = sm(0.12, 0.12, 0.22);
+  mats.palm   = sm(0.82, 0.82, 0.82, 0.45);
+  mats.metal  = sm(0.75, 0.75, 0.75);
+  mats.white  = sm(0.92, 0.92, 0.92);
+  mats.tClear = sm(0.00, 0.60, 1.00, 0.45);
+  mats.tWater = sm(0.00, 0.80, 1.00, 0.80);
+}
+
+function cbox(n,w,h,d){ return BABYLON.MeshBuilder.CreateBox(n,{width:w,height:h,depth:d},scene); }
+function ccyl(n,d,h){ return BABYLON.MeshBuilder.CreateCylinder(n,{diameter:d,height:h,tessellation:14},scene); }
+
+function buildHand(){
+  handRoot = new BABYLON.TransformNode('hr', scene);
+  handRoot.position.set(0, 3.0, 0);
+
+  var palma = cbox('palma', 1.6, 0.40, 1.4);
+  palma.parent = handRoot; palma.position.set(0, 0, 0.70);
+  palma.material = mats.palm; shadowGen.addShadowCaster(palma);
+
+  var mun = ccyl('mun', 1.1, 0.9);
+  mun.parent = handRoot; mun.position.set(0, 0, -0.10); mun.rotation.x = Math.PI/2;
+  mun.material = mats.metal; shadowGen.addShadowCaster(mun);
+
+  var YD = -0.20;
+  var ZD = 1.40;
+
+  mkFinger(2,  0.52, YD, ZD,  0.384, 0.90, 0.63, 0.34); // Índice (+22°)
+  mkFinger(3,  0.17, YD, ZD,  0.000, 0.95, 0.63, 0.34); // Medio (0°)
+  mkFinger(4, -0.17, YD, ZD, -0.384, 0.90, 0.63, 0.34); // Anular (-22°)
+  mkFinger(5, -0.52, YD, ZD-0.08, -0.524, 0.72, 0.50, 0.28); // Meñique (-30°)
+
+  mkThumb(0.90, YD - 0.10, 0.15);
+
+  [-0.48,-0.24,0,0.24,0.48].forEach(function(x){
+    var tb = ccyl('tb', 0.10, 1.6);
+    tb.parent = handRoot; tb.position.set(x, 0.22, -0.15); tb.rotation.x = Math.PI/2;
+    tb.material = mats.tClear;
+    var tw = ccyl('tw', 0.07, 1.58);
+    tw.parent = handRoot; tw.position.set(x, 0.22, -0.15); tw.rotation.x = Math.PI/2;
+    tw.material = mats.tWater;
+  });
+
+  mkSyr(7,  0.75, -1.3);
+  mkSyr(8,  0.40, -1.3);
+  mkSyr(8,  0.00, -1.3);
+  mkSyr(8, -0.40, -1.3);
+  mkSyr(8, -0.75, -1.3);
+}
+
+function mkFinger(id, x, y, z, fanY, l1, l2, l3){
+  var root = new BABYLON.TransformNode('fr'+id, scene);
+  root.parent = handRoot; root.position.set(x, y, z);
+  root.rotation.y = fanY;
+
+  var j1 = new BABYLON.TransformNode('j1'+id, scene); j1.parent = root;
+  var f1 = ccyl('f1'+id, 0.28, l1); f1.parent = j1; f1.rotation.x = -Math.PI/2; f1.position.z = l1/2;
+
+  var j2 = new BABYLON.TransformNode('j2'+id, scene); j2.parent = j1; j2.position.z = l1;
+  var f2 = ccyl('f2'+id, 0.24, l2); f2.parent = j2; f2.rotation.x = -Math.PI/2; f2.position.z = l2/2;
+
+  var j3 = new BABYLON.TransformNode('j3'+id, scene); j3.parent = j2; j3.position.z = l2;
+  var f3 = ccyl('f3'+id, 0.20, l3); f3.parent = j3; f3.rotation.x = -Math.PI/2; f3.position.z = l3/2;
+
+  f1.material = mats.black; f2.material = mats.black; f3.material = mats.orange;
+  fj.push({j1: j1, j2: j2, j3: j3, id: id, thumb: false});
+  [f1, f2, f3].forEach(function(m){ shadowGen.addShadowCaster(m); });
+}
+
+function mkThumb(x, y, z){
+  var root = new BABYLON.TransformNode('frt', scene);
+  root.parent = handRoot; root.position.set(x, y, z);
+  root.rotation.y = Math.PI / 2;
+
+  var j1 = new BABYLON.TransformNode('j1t', scene); j1.parent = root;
+  var f1 = ccyl('f1t', 0.28, 0.72); f1.parent = j1; f1.rotation.x = -Math.PI/2; f1.position.z = 0.72/2;
+
+  var j2 = new BABYLON.TransformNode('j2t', scene); j2.parent = j1; j2.position.z = 0.72;
+  var f2 = ccyl('f2t', 0.24, 0.55); f2.parent = j2; f2.rotation.x = -Math.PI/2; f2.position.z = 0.55/2;
+
+  var j3 = new BABYLON.TransformNode('j3t', scene); j3.parent = j2; j3.position.z = 0.55;
+  var f3 = ccyl('f3t', 0.20, 0.38); f3.parent = j3; f3.rotation.x = -Math.PI/2; f3.position.z = 0.38/2;
+
+  f1.material = mats.black; f2.material = mats.black; f3.material = mats.orange;
+  fj.push({j1: j1, j2: j2, j3: j3, id: 1, thumb: true});
+  [f1, f2, f3].forEach(function(m){ shadowGen.addShadowCaster(m); });
+}
+
+function mkSyr(id, x, z){
+  var g = new BABYLON.TransformNode('sy', scene);
+  g.parent = handRoot; g.position.set(x, 0.25, z);
+  var e = ccyl('e', 0.30, 1.3); e.parent = g; e.position.y = 0;    e.material = mats.white; shadowGen.addShadowCaster(e);
+  var p = ccyl('p', 0.18, 0.85); p.parent = g; p.position.y = 0.65; p.material = mats.metal; shadowGen.addShadowCaster(p);
+  var k = ccyl('k', 0.09, 0.28); k.parent = g; k.position.y = -0.80; k.material = mats.black;
+  var w = ccyl('w', 0.24, 0.95); w.parent = g; w.position.y = -0.18; w.material = mats.tWater;
+
+  var fingerId = 1;
+  if(id === 8) {
+    if(x === 0.40) fingerId = 2;
+    else if(x === 0.00) fingerId = 3;
+    else if(x === -0.40) fingerId = 4;
+    else if(x === -0.75) fingerId = 5;
+  }
+  syringes.push({fingerId: fingerId, p: p, w: w});
+}
+
+var CLOSE = {
+  2: {mcp: 90, pip: 65},
+  3: {mcp: 83, pip: 70},
+  4: {mcp: 90, pip: 63},
+  5: {mcp: 90, pip: 65}
+};
+
+function setRotFinger(f, t) {
+  var R = Math.PI / 180;
+  if(f.thumb){
+    f.j1.rotation.x = t * 75 * R;
+    f.j1.rotation.y = 0;
+    f.j2.rotation.x = t * 65 * R;
+    f.j3.rotation.x = t * 40 * R;
+  } else {
+    var c = CLOSE[f.id];
+    f.j1.rotation.x = t * c.mcp * R;
+    f.j2.rotation.x = t * c.pip * R;
+    f.j3.rotation.x = t * c.pip * (2/3) * R;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// LÓGICA DE GESTOS Y RUTINAS
+// ══════════════════════════════════════════════════════════════
+
+function clearActiveButtons() {
+  document.querySelectorAll('.cnt-btn, .gst-btn, .tch-btn').forEach(b => b.classList.remove('active'));
+}
+
+function triggerGesture(type) {
+  routineMode = 'IDLE';
+  clearActiveButtons();
+  
+  if (type === 'ok') {
+    activeGestureName = "👍 OK con Pulgar";
+    targetT = [1, 0, 1, 1, 1, 1]; // Pulgar estirado (0), los otros 4 cerrados (1)
+  }
+  else if (type === 'peineta') {
+    activeGestureName = "🖕 Peineta (Dedo Medio)";
+    targetT = [1, 1, 1, 0, 1, 1]; // Medio estirado (0), resto cerrado (1)
+  }
+  else if (type === 'cuernos') {
+    activeGestureName = "🤘 Cuernos Rock";
+    targetT = [1, 1, 0, 1, 1, 0]; // Índice (2) y Meñique (5) estirados
+  }
+  else if (type === 'shaka') {
+    activeGestureName = "🤙 Todo Bien (Shaka)";
+    targetT = [1, 0, 1, 1, 1, 0]; // Pulgar (1) y Meñique (5) estirados
+  }
+}
+
+function triggerTouchStep(num) {
+  routineMode = 'IDLE';
+  clearActiveButtons();
+  activeGestureName = "🤏 Tocando Yema del Dedo " + num;
+  
+  // Mano estirada de base (todos a 0)
+  targetT = [0, 0, 0, 0, 0, 0];
+  
+  // Flexionamos pulgar (ID 1) y el dedo correspondiente del todo (1.0 como cuando están en puño)
+  targetT[1] = 1.0;
+  targetT[num] = 1.0;
+}
+
+function startTouchingSequence() {
+  clearActiveButtons();
+  routineMode = 'TOUCH_SEQ';
+  activeGestureName = "▶️ Secuencia Tocando 2 al 5";
+  touchStartTime = performance.now();
+  targetT = [0, 0, 0, 0, 0, 0]; // Primero estiramos la mano
+}
+
+function runCountRoutine(num) {
+  clearActiveButtons();
+  activeNum = num;
+  activeGestureName = "Conteo Clásico (" + num + ")";
+  var btn = document.getElementById('btn-n' + num);
+  if(btn) btn.classList.add('active');
+
+  var isFist = currentT.slice(1).every(t => t > 0.85);
+  if (isFist) {
+    startExtendingSequence();
+  } else {
+    routineMode = 'PREPARING_FIST';
+    targetT = [1, 1, 1, 1, 1, 1];
+  }
+}
+
+function startExtendingSequence() {
+  routineMode = 'EXTENDING';
+  extendStartTime = performance.now();
+}
+
+function handleRoutineLogic() {
+  if (routineMode === 'IDLE') return;
+  var now = performance.now();
+
+  if (routineMode === 'PREPARING_FIST') {
+    var allClosed = currentT.slice(1).every(t => t > 0.95);
+    if (allClosed) startExtendingSequence();
+  }
+  else if (routineMode === 'EXTENDING') {
+    var elapsed = (now - extendStartTime) / 1000;
+    var sequenceOrder = [2, 3, 4, 5, 1];
+    var fingersToOpen = sequenceOrder.slice(0, activeNum);
+
+    for (var i = 1; i <= 5; i++) {
+      if (fingersToOpen.indexOf(i) === -1) targetT[i] = 1;
+    }
+    fingersToOpen.forEach(function(fId, idx) {
+      if (elapsed >= idx * 0.22) targetT[fId] = 0;
+    });
+
+    var totalDelay = (activeNum - 1) * 0.22 + 0.35;
+    if (elapsed >= totalDelay) {
+      routineMode = 'HOLDING';
+      holdStartTime = performance.now();
+    }
+  }
+  else if (routineMode === 'HOLDING') {
+    var holdElapsed = (now - holdStartTime) / 1000;
+    if (holdElapsed >= holdDuration) {
+      routineMode = 'CLOSING_FIST';
+      targetT = [1, 1, 1, 1, 1, 1];
+    }
+  }
+  else if (routineMode === 'CLOSING_FIST') {
+    var allFist = currentT.slice(1).every(t => t > 0.95);
+    if (allFist) {
+      routineMode = 'IDLE';
+      clearActiveButtons();
+    }
+  }
+  else if (routineMode === 'TOUCH_SEQ') {
+    var tEl = (now - touchStartTime) / 1000;
+    if (tEl < 0.8) {
+      targetT = [0, 0, 0, 0, 0, 0];
+      activeGestureName = "Mano Estirada Preparando Conteo";
+    } else if (tEl < 2.0) {
+      targetT = [0, 1.0, 1.0, 0, 0, 0];
+      activeGestureName = "Tocando Dedo 2 (Índice cerrado del todo)";
+    } else if (tEl < 2.6) {
+      targetT = [0, 0, 0, 0, 0, 0];
+    } else if (tEl < 3.8) {
+      targetT = [0, 1.0, 0, 1.0, 0, 0];
+      activeGestureName = "Tocando Dedo 3 (Medio cerrado del todo)";
+    } else if (tEl < 4.4) {
+      targetT = [0, 0, 0, 0, 0, 0];
+    } else if (tEl < 5.6) {
+      targetT = [0, 1.0, 0, 0, 1.0, 0];
+      activeGestureName = "Tocando Dedo 4 (Anular cerrado del todo)";
+    } else if (tEl < 6.2) {
+      targetT = [0, 0, 0, 0, 0, 0];
+    } else if (tEl < 7.4) {
+      targetT = [0, 1.0, 0, 0, 0, 1.0];
+      activeGestureName = "Tocando Dedo 5 (Meñique cerrado del todo)";
+    } else {
+      routineMode = 'IDLE';
+      targetT = [0, 0, 0, 0, 0, 0];
+      activeGestureName = "✋ Secuencia Tocando Completada";
+    }
+  }
+}
+
+function triggerFist() {
+  routineMode = 'IDLE';
+  clearActiveButtons();
+  activeGestureName = "✊ Puño Cerrado";
+  targetT = [1, 1, 1, 1, 1, 1];
+}
+
+function triggerOpen() {
+  routineMode = 'IDLE';
+  clearActiveButtons();
+  activeGestureName = "✋ Mano Abierta";
+  targetT = [0, 0, 0, 0, 0, 0];
+}
+
+function manualSliderInput(fingerId, sliderVal) {
+  routineMode = 'IDLE';
+  clearActiveButtons();
+  activeGestureName = "Control Manual Jeringuilla ID " + fingerId;
+  targetT[fingerId] = 1 - (parseFloat(sliderVal) / 100);
+}
+
+function updateUI() {
+  for (var i = 1; i <= 5; i++) {
+    var pct = Math.round((1 - currentT[i]) * 100);
+    var slider = document.getElementById('rng-f' + i);
+    var label = document.getElementById('lbl-f' + i);
+    if (slider && document.activeElement !== slider) slider.value = pct;
+    if (label) {
+      if (pct < 10) label.innerText = "Puño (" + pct + "%)";
+      else if (pct > 90) label.innerText = "Estirado (" + pct + "%)";
+      else label.innerText = pct + "%";
+    }
+  }
+
+  var banner = document.getElementById('status-banner');
+  var title = document.getElementById('status-title');
+  var msg = document.getElementById('status-msg');
+  var prog = document.getElementById('prog-bar');
+
+  if (routineMode === 'TOUCH_SEQ') {
+    banner.className = "status-banner";
+    title.innerText = "Secuencia Activa: Conteo Tocando Yemas";
+    msg.innerText = "🤏 " + activeGestureName;
+    prog.style.width = Math.min(100, ((performance.now() - touchStartTime) / 7400) * 100) + "%";
+  }
+  else if (routineMode === 'PREPARING_FIST') {
+    banner.className = "status-banner closing";
+    title.innerText = "Preparando Secuencia";
+    msg.innerText = "✊ Cerrando puño para iniciar conteo...";
+    prog.style.width = "30%";
+  }
+  else if (routineMode === 'EXTENDING') {
+    banner.className = "status-banner";
+    title.innerText = "Secuencia Activa";
+    msg.innerText = "👉 Estirando dedos para conteo clásico (" + activeNum + ")...";
+    prog.style.width = "65%";
+  }
+  else if (routineMode === 'HOLDING') {
+    banner.className = "status-banner waiting";
+    title.innerText = "Temporizador de Espera (3 s)";
+    var rem = Math.max(0, holdDuration - ((performance.now() - holdStartTime) / 1000));
+    msg.innerText = "⏱️ Manteniendo postura: " + rem.toFixed(1) + " s para retorno";
+    prog.style.width = ((rem / holdDuration) * 100) + "%";
+  }
+  else if (routineMode === 'CLOSING_FIST') {
+    banner.className = "status-banner closing";
+    title.innerText = "Retorno Automático";
+    msg.innerText = "✊ Cerrando puño hidráulico...";
+    prog.style.width = "15%";
+  }
+  else {
+    banner.className = "status-banner";
+    title.innerText = "Estado del Sistema";
+    var extCount = currentT.slice(1).filter(t => t < 0.4).length;
+    if (activeGestureName !== "-") {
+      msg.innerText = "✨ Gesto activo: " + activeGestureName;
+    } else if (extCount === 0) {
+      msg.innerText = "✊ Puño cerrado. Selecciona una acción.";
+    } else if (extCount === 5) {
+      msg.innerText = "✋ Mano completamente abierta.";
+    } else {
+      msg.innerText = "⚙️ Postura intermedia (" + extCount + " dedos estirados).";
+    }
+    prog.style.width = (extCount * 20) + "%";
+  }
+
+  document.getElementById('hud-mode').innerText = routineMode === 'IDLE' ? "MANUAL" : "AUTOMÁTICO";
+  document.getElementById('hud-action').innerText = activeGestureName;
+  var extCount = currentT.slice(1).filter(t => t < 0.5).length;
+  document.getElementById('hud-active').innerText = extCount + " / 5";
+  var meanPress = 1.0 + extCount * 0.7;
+  document.getElementById('hud-press').innerText = meanPress.toFixed(1) + " Bar";
+}
+</script>
+</body>
+</html>

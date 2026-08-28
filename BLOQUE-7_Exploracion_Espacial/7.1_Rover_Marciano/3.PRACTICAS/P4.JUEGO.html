@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7.1 - Simulador Rover Marciano</title>
+    <!-- Babylon.js CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; }
+        
+        /* Interfaz de Usuario UI */
+        #uiContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none; /* Deja pasar los clics al canvas */
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        h1 { margin: 0; font-size: 2em; color: #ff5722; text-transform: uppercase; }
+        p { margin: 5px 0 0 0; font-size: 1.2em; font-weight: 300; }
+        
+        .controls {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #ff5722;
+        }
+
+
+        #loadingScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #1a0a00; color: #ff5722;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 2em; z-index: 100;
+        }
+        .spinner {
+            border: 8px solid rgba(255, 87, 34, 0.3); border-top: 8px solid #ff5722;
+            border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-top: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loadingScreen">
+        <div>Estableciendo conexión con Marte...</div>
+        <div class="spinner"></div>
+    </div>
+
+    <div id="uiContainer">
+        <h1>Misión Perseverance</h1>
+        <p>Centro de Control Terrestre JPL</p>
+        <div class="controls">
+            <strong>Controles de Conducción:</strong><br>
+            ↑ Avanzar | ↓ Retroceder<br>
+            ← Girar Izquierda | → Girar Derecha
+        </div>
+    </div>
+
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        const loadingScreen = document.getElementById("loadingScreen");
+
+        // Variables Globales
+        let roverMesh = null;
+        
+        // Estado del teclado
+        let inputMap = {};
+        window.addEventListener("keydown", (e) => { inputMap[e.key] = true; });
+        window.addEventListener("keyup", (e) => { inputMap[e.key] = false; });
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.2, 0.08, 0.05, 1); // Cielo marciano oscuro
+            scene.collisionsEnabled = true;
+            
+            // Niebla marciana
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP;
+            scene.fogColor = new BABYLON.Color3(0.3, 0.15, 0.1);
+            scene.fogDensity = 0.01;
+
+            // Iluminación (Sol de Marte)
+            const light = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-1, -2, -1), scene);
+            light.intensity = 1.5;
+            light.diffuse = new BABYLON.Color3(1, 0.85, 0.7);
+            
+            const ambientLight = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.4;
+            ambientLight.groundColor = new BABYLON.Color3(0.2, 0.1, 0.05);
+
+            // Cámara inicial genérica (se actualizará al cargar el rover)
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 3, 10, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+            camera.minZ = 0.1;
+
+            let terrainMeshes = []; // Guardar mallas para el raycast
+            // Cargar Terreno Marciano Real (Modelo 3D descargado)
+            const terrainUrl = "../../../MODELOS/MODELOS%20NUEVOS%201/MARTE/mars_landscape/";
+            const terrainFile = "scene.gltf";
+            try {
+                const terrainResult = await BABYLON.SceneLoader.ImportMeshAsync("", terrainUrl, terrainFile, scene);
+                const terrainMesh = terrainResult.meshes[0];
+                terrainMeshes = terrainResult.meshes;
+                // Escalar el terreno (x0.2) para que las texturas y el relieve no se vean tan gigantes respecto al coche
+                terrainMesh.scaling.scaleInPlace(0.2);
+                terrainMesh.position.y = 0;
+                // Forzar actualización de matrices antes de optimizar
+                terrainMesh.computeWorldMatrix(true);
+
+                // Activar colisiones y pickable
+                terrainResult.meshes.forEach(m => {
+                    m.checkCollisions = true;
+                    m.isPickable = true;
+                });
+            } catch(e) {
+                console.error("Error cargando terreno 3D marciano, usando fallback", e);
+                BABYLON.MeshBuilder.CreateGround("groundFallback", {width: 500, height: 500}, scene);
+            }
+            
+            // Rutas relativas codificadas (espacios reemplazados por %20)
+            const modelUrl = "../../../MODELOS/MODELOS%20NUEVOS%201/MARTE/perseverance_-_nasa_mars_landing_2021/";
+            const modelFile = "scene.gltf";
+
+            try {
+                // Cargar modelo
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, modelFile, scene);
+                roverMesh = result.meshes[0];
+                
+                // Extraer animaciones del GLTF (ruedas, mástil, etc.) para controlarlas manualmente
+                let roverAnimations = result.animationGroups;
+                if (roverAnimations && roverAnimations.length > 0) {
+                    roverAnimations.forEach(anim => {
+                        anim.stop();
+                        anim.speedRatio = 2.0; // Hacer que las ruedas giren un poco más rápido
+                    });
+                }
+                
+                // Normalizar tamaño
+                roverMesh.normalizeToUnitCube();
+                
+                // Hacer el rover MUY PEQUEÑO (x0.1) para que el mapa se sienta inmenso sin perder calidad
+                roverMesh.scaling.scaleInPlace(0.1);
+                
+                // Activar físicas y colisiones para el rover
+                roverMesh.checkCollisions = true;
+                roverMesh.ellipsoid = new BABYLON.Vector3(0.05, 0.05, 0.05);
+                roverMesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.05, 0);
+                
+                // -- CONTROLADOR FANTASMA PARA SEPARAR GIRO (Y) DE INCLINACIÓN TERRENO (PITCH/ROLL) --
+                const roverController = new BABYLON.TransformNode("roverController", scene);
+                roverController.position = new BABYLON.Vector3(0, 10, 0);
+                roverMesh.parent = roverController;
+                
+                // Subir el modelo 3D respecto al centro de gravedad para que las ruedas toquen el suelo
+                // Compensación de 0.035 para evitar que se entierre demasiado pero tampoco flote
+                roverMesh.position = new BABYLON.Vector3(0, 0.035, 0); 
+                roverMesh.rotationQuaternion = BABYLON.Quaternion.Identity();
+
+                // Configurar cámara para seguir al Rover
+                camera.target = roverMesh;
+                camera.radius = 0.6; // Acercar la cámara al rover pequeño
+                camera.alpha = -Math.PI / 2; // Mirar desde atrás
+                camera.beta = Math.PI / 3;
+
+
+                // Lógica de Movimiento (Render Loop)
+                const moveSpeed = 0.075; // Reducida a la mitad para evitar botes
+                const turnSpeed = 0.4; // Giro más controlado
+
+                scene.onBeforeRenderObservable.add(() => {
+                    if(!roverMesh) return; 
+
+                    let dt = engine.getDeltaTime() / 1000.0;
+                    if (dt > 0.1) dt = 0.1; // Limitar delta time para evitar saltos locos
+
+                    let moveVector = BABYLON.Vector3.Zero();
+                    let isMovingH = false;
+
+                    // Avanzar / Retroceder (Eje Z local del Rover)
+                    if (inputMap["ArrowUp"]) {
+                        moveVector.addInPlace(roverController.forward.scale(moveSpeed * dt));
+                        isMovingH = true;
+                    } else if (inputMap["ArrowDown"]) {
+                        moveVector.addInPlace(roverController.forward.scale(-moveSpeed * dt));
+                        isMovingH = true;
+                    }
+                    
+                    // Predecir la posición futura para detectar los bordes del mapa
+                    let futurePos = roverController.position.add(moveVector);
+                    // --- FÍSICAS DE 1 RAYO (Rendimiento Óptimo a 60 FPS) ---
+                    // Volvemos a 1 solo rayo central. Calcular varios puntos hunde los FPS del navegador.
+                    let ray = new BABYLON.Ray(new BABYLON.Vector3(futurePos.x, 100, futurePos.z), new BABYLON.Vector3(0, -1, 0));
+                    let hit = scene.pickWithRay(ray, (mesh) => terrainMeshes.includes(mesh) && mesh.isVisible);
+                    
+                    // Si el centro toca tierra firme (no nos hemos salido del mapa)
+                    if (hit && hit.hit) {
+                        if (isMovingH) {
+                            roverController.position = futurePos;
+                            if (roverAnimations) roverAnimations.forEach(a => { if (!a.isPlaying) a.play(true); });
+                        } else {
+                            if (roverAnimations) roverAnimations.forEach(a => a.pause());
+                        }
+
+                        // Amortiguador Asimétrico
+                        let targetY = hit.pickedPoint.y;
+                        let currentY = roverController.position.y;
+                        let lerpFactor = (targetY < currentY) ? 0.8 : 0.2;
+                        roverController.position.y = BABYLON.Scalar.Lerp(currentY, targetY, lerpFactor);
+                        
+                        // Matemáticas del plano inclinado (Normal del rayo central)
+                        let normal = hit.getNormal(true);
+                        if(normal) {
+                             // ¡ERROR ENCONTRADO! La normal del mapa está en coordenadas globales (Mundo).
+                             // Si no la convertimos a coordenadas locales del Rover, el coche siempre pensará
+                             // que "Cuesta Arriba" es ir hacia el Norte del mapa, independientemente de a dónde mire él.
+                             roverController.computeWorldMatrix(true);
+                             let invMat = roverController.getWorldMatrix().clone().invert();
+                             let localNormal = BABYLON.Vector3.TransformNormal(normal, invMat).normalize();
+                             
+                             let axis = BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), localNormal);
+                             let angle = Math.acos(BABYLON.Scalar.Clamp(BABYLON.Vector3.Dot(BABYLON.Vector3.Up(), localNormal), -1, 1));
+                             if (axis.lengthSquared() > 0.001) {
+                                 let targetQuat = BABYLON.Quaternion.RotationAxis(axis.normalize(), angle);
+                                 
+                                 // CORRECCIÓN VITAL: El modelo 3D original está exportado "mirando hacia atrás" (-Z).
+                                 targetQuat = targetQuat.multiply(BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), Math.PI));
+                                 
+                                 // Suavizado de inclinación a 0.15 para evitar temblores violentos en las rocas
+                                 roverMesh.rotationQuaternion = BABYLON.Quaternion.Slerp(roverMesh.rotationQuaternion, targetQuat, 0.15); 
+                             }
+                        }
+                    } else {
+                        // ¡BORDE DEL MAPA DETECTADO! 
+                        // No aplicamos el movimiento horizontal, creando un muro invisible.
+                        if (roverAnimations) roverAnimations.forEach(a => a.pause());
+                    }
+
+                    // Rotar Izquierda / Derecha
+                    if (inputMap["ArrowLeft"]) {
+                        roverController.rotation.y -= turnSpeed * dt;
+                    } else if (inputMap["ArrowRight"]) {
+                        roverController.rotation.y += turnSpeed * dt;
+                    }
+                });
+
+                // Ocultar pantalla de carga
+                loadingScreen.style.display = "none";
+
+            } catch (e) {
+                console.error("Error cargando modelo:", e);
+                loadingScreen.innerHTML = "<div>Error de Comunicación. Revisa la ruta del modelo GLTF.</div>";
+            }
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

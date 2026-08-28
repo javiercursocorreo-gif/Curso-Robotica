@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1 - Cinemática R2-D2 (V3)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', sans-serif; color: white;}
+        #canvas { width: 100vw; height: 100vh; touch-action: none; outline: none; }
+        #ui { position: absolute; top: 20px; left: 20px; background: rgba(30,30,35,0.85); padding: 20px; border-radius: 8px; border-left: 5px solid #E91E63; box-shadow: 2px 2px 10px rgba(0,0,0,0.5); pointer-events: none;}
+        h2 { margin-top: 0; color: #E91E63; }
+        .info { font-size: 14px; color: #ccc; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2>Práctica 1. Presentacion de R2D2</h2>
+    </div>
+    <canvas id="canvas"></canvas>
+    
+    <script>
+        window.onerror = function(msg, url, line) {
+            document.getElementById('ui').innerHTML += `<p style="color:red;font-size:12px; font-weight:bold;">Error: ${msg} (Línea ${line})</p>`;
+        };
+
+        const canvas = document.getElementById("canvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.19, 0.30, 0.47, 1); // Fondo similar a Unity
+            
+            // Cámara estática simulando la de Unity (0, 3, -8)
+            const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/2.5, 12, new BABYLON.Vector3(0, 0.5, 0), scene);
+            camera.setPosition(new BABYLON.Vector3(0, 3, -8));
+            camera.attachControl(canvas, true);
+            
+            new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene).intensity = 1.2;
+
+            // Suelo extra grande
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            let gMat = new BABYLON.StandardMaterial("gMat", scene);
+            gMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            ground.material = gMat;
+
+            // Recrear los cubos de Unity
+            let matRed = new BABYLON.StandardMaterial("redMat", scene);
+            matRed.diffuseColor = new BABYLON.Color3(1, 0, 0);
+            let matBlue = new BABYLON.StandardMaterial("blueMat", scene);
+            matBlue.diffuseColor = new BABYLON.Color3(0, 0, 1);
+
+            let cubeR1 = BABYLON.MeshBuilder.CreateBox("cR1", {size: 1}, scene);
+            cubeR1.position = new BABYLON.Vector3(3, 0.5, 3);
+            cubeR1.material = matRed;
+
+            let cubeR2 = BABYLON.MeshBuilder.CreateBox("cR2", {size: 1}, scene);
+            cubeR2.position = new BABYLON.Vector3(-3, 0.5, 3);
+            cubeR2.material = matRed;
+
+            let cubeB1 = BABYLON.MeshBuilder.CreateBox("cB1", {size: 1}, scene);
+            cubeB1.position = new BABYLON.Vector3(3, 0.5, -3);
+            cubeB1.material = matBlue;
+
+            let cubeB2 = BABYLON.MeshBuilder.CreateBox("cB2", {size: 1}, scene);
+            cubeB2.position = new BABYLON.Vector3(-3, 0.5, -3);
+            cubeB2.material = matBlue;
+
+            const wrapper = new BABYLON.TransformNode("wrapper", scene);
+            
+            try {
+                // Importamos el modelo desde la carpeta centralizada de MODELOS
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "R2D2_perfect.glb", scene);
+                
+                // Mover todas las mallas al wrapper para no romper los pivotes
+                result.meshes[0].parent = wrapper;
+
+                // Anulamos translaciones locales del GLB en TODAS las animaciones
+                let animGroups = result.animationGroups;
+                if (animGroups && animGroups.length > 0) {
+                    // Bloqueamos la animación del GLB para la raíz para evitar que el robot dé saltos al parar
+                    let rootNames = ["__root__", "RootNode", "Object_2", "R2D2", "Sketchfab_model"]; 
+                    animGroups.forEach(ag => {
+                        ag.targetedAnimations = ag.targetedAnimations.filter(ta => {
+                            if (rootNames.includes(ta.target.name) && ta.animation.targetProperty === "position") {
+                                return false; 
+                            }
+                            return true;
+                        });
+                        ag.stop(); // Empezar quieto (Bípedo)
+                    });
+                }
+
+                // Inicializar variables idénticas a C#
+                let state = 0;
+                let timeElapsed = 0;
+                let isMoving = false;
+                
+                // Nodos para animación manual de la pata central (ya que el GLB original parece no sacarla)
+                let middleLeg = scene.getTransformNodeByName("Leg_middle_07");
+                if (!middleLeg) middleLeg = scene.getMeshByName("Leg_middle_07");
+                
+                // Posición inicial: centro Z=2, de frente a cámara (180 grados)
+                let initialPosition = new BABYLON.Vector3(0, 0, 2);
+                let targetPosition = initialPosition.clone();
+                
+                wrapper.position = initialPosition.clone();
+                wrapper.rotation.y = Math.PI; 
+                // Aumentar el tamaño del robot para que se vea imponente
+                wrapper.scaling = new BABYLON.Vector3(2.5, 2.5, 2.5);
+
+                scene.onBeforeRenderObservable.add(() => {
+                    let dt = engine.getDeltaTime() / 1000.0;
+                    timeElapsed += dt;
+
+                    // Máquina de estados
+                    if (state === 0 && timeElapsed >= 2.0) {
+                        targetPosition = new BABYLON.Vector3(0, 0, 10);
+                        isMoving = true;
+                        state = 1;
+                    } else if (state === 1 && timeElapsed >= 9.0) {
+                        targetPosition = new BABYLON.Vector3(0, 0, 2);
+                        isMoving = true;
+                        state = 2;
+                    } else if (state === 2 && timeElapsed >= 16.0) {
+                        isMoving = false;
+                        state = 3;
+                    }
+
+                    if (isMoving) {
+                        let distance = BABYLON.Vector3.Distance(wrapper.position, targetPosition);
+                        
+                        if (distance > 0.1) {
+                            if (animGroups) {
+                                animGroups.forEach(ag => {
+                                    if (!ag.isPlaying) ag.play(true);
+                                });
+                            }
+
+                            let direction = targetPosition.subtract(wrapper.position);
+                            direction.y = 0;
+                            direction.normalize();
+
+                            if (direction.lengthSquared() > 0) {
+                                // Math.atan2 en Babylon/Unity usa (x, z)
+                                let targetAngle = Math.atan2(direction.x, direction.z);
+                                let currentAngle = wrapper.rotation.y;
+                                
+                                // Normalizar para evitar giros raros (RotateTowards)
+                                while (targetAngle - currentAngle > Math.PI) targetAngle -= Math.PI * 2;
+                                while (targetAngle - currentAngle < -Math.PI) targetAngle += Math.PI * 2;
+                                
+                                let angleDiff = targetAngle - currentAngle;
+                                let rotationSpeed = (Math.PI / 2) * dt; // 90 grados/s
+                                
+                                if (Math.abs(angleDiff) > rotationSpeed) {
+                                    wrapper.rotation.y += Math.sign(angleDiff) * rotationSpeed;
+                                } else {
+                                    wrapper.rotation.y = targetAngle;
+                                }
+
+                                // Solo avanzar si está mirando (< 5 grados = ~0.087 rad)
+                                if (Math.abs(targetAngle - wrapper.rotation.y) < 0.1) {
+                                    let moveStep = direction.scale(3.0 * dt);
+                                    wrapper.position.addInPlace(moveStep);
+                                }
+                            }
+                            
+                            // Clamp de altura
+                            wrapper.position.y = initialPosition.y;
+                            
+                        } else {
+                            if (animGroups) {
+                                animGroups.forEach(ag => {
+                                    if (ag.isPlaying) ag.stop();
+                                });
+                            }
+                        }
+                    } else {
+                        if (animGroups) {
+                            animGroups.forEach(ag => {
+                                if (ag.isPlaying) ag.stop();
+                            });
+                        }
+                    }
+                });
+
+            } catch (e) { 
+                document.getElementById('ui').innerHTML += `<p style="color:red;font-size:14px; font-weight:bold;">Error de carga (¿Estás abriendo el archivo directamente sin servidor?): ${e.message}</p>`;
+                console.error(e); 
+            }
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => scene.render());
+        });
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
+</html>

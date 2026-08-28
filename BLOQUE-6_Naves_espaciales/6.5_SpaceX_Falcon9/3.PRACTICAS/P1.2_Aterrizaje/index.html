@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1.2 - Aterrizaje Falcon 9</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <link rel="stylesheet" href="styles.css?v=6">
+</head>
+<body>
+    
+    <div id="ui-container">
+        <div id="top-panel">
+            <h1>SPACEX: SUICIDE BURN</h1>
+            <p>Mantén pulsada la <kbd>BARRA ESPACIADORA</kbd> para encender el motor y frenar.</p>
+        </div>
+        
+        <div id="telemetry-panel">
+            <div class="telemetry-item">ALTITUD: <span id="alt-val">0</span> m</div>
+            <div class="telemetry-item">VELOCIDAD: <span id="vel-val" class="safe">0</span> m/s</div>
+            <div class="telemetry-item" style="font-size: 1rem; color:#aaa; margin-top: 15px;">TARGET BURN: <span id="target-val">0</span> m</div>
+        </div>
+
+        <div id="burn-warning" class="hidden">¡IGNICIÓN AHORA!</div>
+
+        <div id="game-over-panel" class="hidden">
+            <h2 id="end-title">ATERRIZAJE FALLIDO</h2>
+            <p id="end-desc">Impacto a demasiada velocidad.</p>
+            <button id="btn-retry" onclick="location.reload()">REINTENTAR</button>
+        </div>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script src="app.js?v=11"></script>
+</body>
+</html>

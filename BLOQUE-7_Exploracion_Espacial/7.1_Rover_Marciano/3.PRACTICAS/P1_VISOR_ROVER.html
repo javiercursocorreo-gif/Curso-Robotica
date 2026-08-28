@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7.1 - P1 Visor Interactivo: Rover (Versión Marrón)</title>
+    <!-- Babylon.js CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: radial-gradient(circle at center, #5d2a1a 0%, #2f140a 50%, #140502 100%); }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; background: transparent; }
+        
+        #header {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: #ffffff;
+            pointer-events: none;
+        }
+        h1 { margin: 0; font-size: 2.5em; font-weight: 800; letter-spacing: 2px; }
+        p { margin: 5px 0; font-size: 1.2em; font-weight: 300; color: #ffcc88; }
+        
+        #loadingScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #140502; color: #ffcc88;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 1.5em; z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            border: 6px solid rgba(0, 0, 0, 0.1); border-top: 6px solid #ffcc88;
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-top: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loadingScreen">
+        <div>Cargando Artefacto: Rover Perseverance...</div>
+        <div class="spinner"></div>
+    </div>
+
+    <div id="header">
+        <h1>MARS ROVER</h1>
+        <p>Análisis Técnico del Artefacto (Gira la cámara y pulsa los números)</p>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            // Fondo Transparente para dejar ver el CSS Viñeteado marrón
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+            // Iluminación Cinemática para fondo oscuro
+            const ambientLight = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.4;
+            ambientLight.groundColor = new BABYLON.Color3(0.3, 0.15, 0.1); 
+
+            const spotLight = new BABYLON.SpotLight("spotLight", new BABYLON.Vector3(-10, 10, -10), new BABYLON.Vector3(1, -1, 1), Math.PI / 3, 2, scene);
+            spotLight.intensity = 120;
+            spotLight.diffuse = new BABYLON.Color3(1, 0.9, 0.8);
+            spotLight.specular = new BABYLON.Color3(1, 1, 1);
+
+            // Cámara orbital suave
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 5, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+            camera.useAutoRotationBehavior = true;
+            camera.minZ = 0.1;
+            camera.lowerRadiusLimit = 2;
+            camera.upperRadiusLimit = 15;
+            camera.useBouncingBehavior = true;
+
+            // Interfaz de Usuario Avanzada (GUI)
+            const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            
+            const sidePanel = new BABYLON.GUI.StackPanel();
+            sidePanel.width = "300px";
+            sidePanel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+            sidePanel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+            sidePanel.left = "20px";
+            sidePanel.background = "rgba(10, 15, 20, 0.8)";
+            sidePanel.isVertical = true;
+            sidePanel.paddingTop = "20px";
+            sidePanel.paddingBottom = "20px";
+            advancedTexture.addControl(sidePanel);
+
+            const panelTitle = new BABYLON.GUI.TextBlock();
+            panelTitle.text = "ESPECIFICACIONES";
+            panelTitle.height = "40px";
+            panelTitle.color = "#ffcc88";
+            panelTitle.fontSize = 20;
+            panelTitle.fontWeight = "bold";
+            sidePanel.addControl(panelTitle);
+
+            const addFeature = function(title, description) {
+                const featureHeader = new BABYLON.GUI.TextBlock();
+                featureHeader.text = title.toUpperCase();
+                featureHeader.height = "40px";
+                featureHeader.color = "white";
+                featureHeader.fontSize = 18;
+                featureHeader.fontWeight = "bold";
+                featureHeader.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                featureHeader.paddingLeft = "15px";
+                featureHeader.paddingTop = "10px";
+                sidePanel.addControl(featureHeader);
+
+                const featureText = new BABYLON.GUI.TextBlock();
+                featureText.text = description;
+                featureText.height = "130px";
+                featureText.color = "#bbccdd";
+                featureText.fontSize = 16;
+                featureText.textWrapping = true;
+                featureText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+                featureText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+                featureText.paddingLeft = "15px";
+                featureText.paddingRight = "15px";
+                sidePanel.addControl(featureText);
+            };
+
+            addFeature("SuperCam / Mastcam-Z", "Los 'ojos' del rover. Usan láseres para vaporizar roca a distancia y analizar el plasma resultante en busca de firmas químicas orgánicas.");
+            addFeature("Generador RTG", "El 'corazón' nuclear. Utiliza la desintegración radiactiva del plutonio-238 para generar electricidad constante durante años.");
+            addFeature("Brazo Robótico", "Mide 2 metros. En su extremo lleva un taladro para extraer núcleos de roca y espectrómetros para buscar vida microbiana.");
+            addFeature("Antena de Alta Ganancia", "Este gran 'plato' hexagonal apunta hacia la Tierra. Sirve para enviar todos los descubrimientos y recibir instrucciones.");
+
+            // Cargar Modelo GLTF
+            const modelUrl = "../../../MODELOS/MODELOS%20NUEVOS%201/MARTE/perseverance_-_nasa_mars_landing_2021/";
+            const modelFile = "scene.gltf";
+
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, modelFile, scene);
+                const rover = result.meshes[0];
+                
+                // Parar animaciones
+                if (result.animationGroups) result.animationGroups.forEach(a => a.stop());
+                
+                rover.normalizeToUnitCube();
+                rover.scaling.scaleInPlace(3);
+                rover.position.y = -0.5; 
+                
+                // Hacer que el rover gire lentamente por sí solo para la presentación
+                scene.onBeforeRenderObservable.add(() => {
+                    rover.rotation.y += 0.002;
+                });
+
+                // Ocultar pantalla de carga
+                const ls = document.getElementById("loadingScreen");
+                ls.style.opacity = "0";
+                setTimeout(() => ls.style.display = "none", 500);
+
+            } catch (e) {
+                console.error("Error", e);
+                document.getElementById("loadingScreen").innerHTML = "Error cargando el modelo.";
+            }
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+        });
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

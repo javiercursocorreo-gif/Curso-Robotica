@@ -1,0 +1,1047 @@
+<!-- MEJORAS:
+  - Incremento del 33% (1/3) en la velocidad general del robot (animaciones, avance y giros).
+  - Integración de 8 nuevos bloques de expresión y acrobacia: Reverencia, Saludar, Temblar, Paso Lateral, Moonwalk, Salto, Baile y Tropezar.
+  - Creación de un helper asíncrono procedural `runSpecialAnim` que aísla los ejes locales (`bodyPivot`) para animaciones complejas, previniendo conflictos con el bucle base de waddling.
+  - Paleta de bloques optimizada y colorizada para clasificar visualmente la gran variedad de nuevos comandos.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin:0; overflow:hidden; background:#1a1a2e; font-family:'Segoe UI',sans-serif;
+               display:flex; flex-direction:column; height:100vh; color:#fff; }
+
+        /* HEADER */
+        header { background:rgba(0,0,0,0.85); border-bottom:2px solid #00f2ff; height:70px;
+                 z-index:100; display:flex; align-items:center; padding:0 30px;
+                 box-sizing:border-box; flex-shrink:0; }
+        header h1 { margin:0; font-size:24px; color:#00f2ff; letter-spacing:5px; text-transform:uppercase; }
+        header h2 { margin:0 0 0 20px; font-size:16px; color:#aaaaaa; font-weight:normal; }
+
+        /* LAYOUT PRINCIPAL */
+        #main-layout { display:flex; flex:1; height:calc(100vh - 70px); overflow:hidden; }
+
+        /* PANEL IZQUIERDO */
+        #left-panel { width:40%; display:flex; flex-direction:column; padding:15px;
+                      box-sizing:border-box; background:#111; overflow:hidden;
+                      box-shadow:5px 0 15px rgba(0,0,0,0.8); z-index:10; }
+
+        /* MISIONES */
+        #mission-selector { display:flex; gap:10px; margin-bottom:15px; }
+        .btn-mission { height:40px; width:40px; border-radius:5px; border:2px solid #555;
+                       background:#333; color:#fff; font-size:18px; font-weight:bold;
+                       cursor:pointer; display:flex; justify-content:center; align-items:center; }
+        .btn-mission.completed { border-color:#00f2ff; background:#222; }
+        .btn-mission.active    { background:#ffcc00; color:#000; border-color:#ffcc00; }
+        #mission-text { font-size:17px; line-height:1.4; margin-bottom:15px; color:#ddd; min-height:50px; }
+
+        /* PALETA — HORIZONTAL */
+        #palette { display:flex; flex-direction:row; overflow-x:auto; flex-wrap:nowrap;
+                   gap:10px; padding-bottom:10px; margin-bottom:15px;
+                   min-height:60px; flex-shrink:0; align-items: flex-start; }
+        #palette::-webkit-scrollbar { height: 8px; }
+        #palette::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
+        /* ZONA DE SECUENCIA */
+        #sequence-container { flex:1; display:flex; flex-direction:column; overflow-y:auto;
+                              padding:10px; padding-bottom:80px; border:2px dashed #666;
+                              background:#1a1a1a; gap:8px; position:relative; border-radius:8px; }
+        #sequence-container.drag-over { border-color:#00f2ff; background:rgba(0,242,255,0.05); }
+
+        /* BLOQUES */
+        .block { padding:10px 15px; border-radius:6px; font-size:16px; color:white;
+                 cursor:grab; user-select:none; position:relative; min-height:40px;
+                 display:flex; flex-direction:column; gap:10px; white-space:nowrap;
+                 box-shadow:0 4px 6px rgba(0,0,0,0.3); flex-shrink:0; box-sizing:border-box; }
+        .block-header { display:flex; align-items:center; gap:10px; }
+        .block:active { cursor:grabbing; }
+        .block.running { outline:3px solid #ffcc00; transform:scale(1.02); z-index: 5; }
+        
+        .bloque-inner { display:flex; flex-direction:column; gap:8px; min-height:50px; 
+                        padding:8px; margin-left:10px; border-left:3px solid rgba(255,255,255,0.3);
+                        background:rgba(0,0,0,0.2); border-radius:4px; }
+        .bloque-inner.drag-over { background:rgba(0,242,255,0.15); border-left-color:#00f2ff; }
+
+        .btn-delete { position:absolute; top:-10px; right:-10px; background:#e74c3c;
+                      border-radius:50%; width:24px; height:24px; display:none;
+                      align-items:center; justify-content:center; font-size:14px;
+                      font-weight:bold; color:white; cursor:pointer; z-index:20; }
+        #sequence-container .block:not(.locked):hover > .btn-delete { display:flex; }
+        .block.locked { cursor:default; opacity:0.9; }
+        .block.locked > .block-header::after { content:'🔒'; margin-left:auto; font-size:20px; }
+        .block.locked > .btn-delete { display:none !important; }
+        .tag-nuevo { position:absolute; top:-12px; left:-10px; background:#ff2a2a; color:white;
+                     font-size:12px; padding:2px 8px; border-radius:12px; font-weight:bold; z-index:15; }
+        .block select { font-size:16px; padding:4px; border-radius:4px; border:none;
+                        background:rgba(255,255,255,0.9); color:#000; cursor:pointer; font-weight:bold; }
+
+        /* Colores de bloques */
+        .bg-standard { background:#4a4a5a; }
+        .bg-balancear { background:#E52020; border: 3px solid #FF6B35; padding:7px 12px; }
+        .bg-condition { background:#2980b9; }
+        .bg-loop { background:#8e44ad; }
+        
+        .bg-reverencia { background:#27ae60; }
+        .bg-saludar { background:#8e44ad; }
+        .bg-temblar { background:#d35400; }
+        .bg-paso { background:#16a085; }
+        .bg-moonwalk { background:#2c3e50; }
+        .bg-salto { background:#e67e22; }
+        .bg-baile { background:#e84393; }
+        .bg-tropezar { background:#c0392b; }
+
+        /* HUECO DE PISTA */
+        .hueco-pista { min-height:50px; border:2px dashed #ffcc00; background:rgba(255,204,0,0.1);
+                       color:#ffcc00; display:flex; align-items:center; justify-content:center;
+                       border-radius:6px; font-size:16px; text-transform:uppercase; letter-spacing:1px; }
+
+        /* BOTONERA */
+        #controls { display:flex; gap:10px; margin-top:15px; flex-shrink:0; }
+        button { border:none; border-radius:8px; font-size:18px; font-weight:bold; color:white;
+                 cursor:pointer; text-transform:uppercase; transition:all 0.2s; }
+        button:disabled { opacity:0.5; cursor:not-allowed; }
+        #btn-execute  { background:linear-gradient(135deg,#28B463,#1D8348); height:55px; flex:1.5; }
+        #btn-stop     { background:linear-gradient(135deg,#e67e22,#d35400); height:55px; flex:1.5; display:none; }
+        #btn-solution { background:linear-gradient(135deg,#3498DB,#2980B9); height:55px; flex:1; display:none; }
+        #btn-restart  { background:linear-gradient(135deg,#E74C3C,#C0392B); height:55px; flex:1; }
+
+        /* CANVAS */
+        #right-panel { flex:1; display:flex; min-width:0; position:relative; background:#000; }
+        #renderCanvas { width:100%; height:100%; outline:none; display:block; }
+
+        /* MODAL */
+        #modal { display:none; position:absolute; top:0; left:0; width:100%; height:100%;
+                 background:rgba(0,0,0,0.85); z-index:200; justify-content:center;
+                 align-items:center; backdrop-filter:blur(5px); }
+        #modal-content { background:#1a1a2e; border:2px solid #00f2ff; padding:40px;
+                         border-radius:10px; text-align:center; max-width:600px; }
+        #modal-title { color:#00f2ff; font-size:32px; margin-top:0; text-transform:uppercase; }
+        #modal-text  { color:#fff; font-size:22px; margin-bottom:30px; line-height:1.5; }
+        .modal-btns  { display:flex; gap:15px; }
+        .modal-btns button { height:70px; flex:1; font-size:22px;
+                             background:linear-gradient(135deg,#00BFA5,#00897B); }
+        #btn-modal-close { background:linear-gradient(135deg,#7f8c8d,#34495e); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ROBÓTICA</h1>
+        <h2>Simulación de Bloques · ELEGOO Penguin BOT</h2>
+    </header>
+
+    <div id="main-layout">
+        <div id="left-panel">
+            <div id="mission-selector">
+                <div class="btn-mission" onclick="loadMission(1)" id="m1">1</div>
+                <div class="btn-mission" onclick="loadMission(2)" id="m2">2</div>
+                <div class="btn-mission" onclick="loadMission(3)" id="m3">3</div>
+                <div class="btn-mission" onclick="loadMission(4)" id="m4">4</div>
+                <div class="btn-mission" onclick="loadMission(5)" id="m5">5</div>
+            </div>
+            
+            <div id="mission-text">Cargando misión...</div>
+
+            <div id="palette"></div>
+
+            <div id="sequence-container"></div>
+
+            <div id="controls">
+                <button id="btn-execute" onclick="runCode()">Ejecutar</button>
+                <button id="btn-stop" onclick="stopExecution()">Parar</button>
+                <button id="btn-restart" onclick="resetScene()">Reiniciar</button>
+                <button id="btn-solution" onclick="showSolution()">Solución</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal">
+        <div id="modal-content">
+            <h2 id="modal-title">¡Misión Completada!</h2>
+            <p id="modal-text">Has programado el comportamiento correctamente.</p>
+            <div class="modal-btns">
+                <button id="btn-modal-close" onclick="closeModal()">Cerrar</button>
+                <button onclick="nextMission()">Siguiente Misión</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // SISTEMA DE ESTADO GLOBAL
+    // ==========================================
+    let currentMission = 1;
+    let animTime = 0;
+    let animando = false;
+    let isSpecialMove = false; // Bloquea el waddling durante acrobacias
+    
+    // Incremento global del 33% (1/3 más rápido) en la lógica base
+    const SPEED_MULTIPLIER = 1.333; 
+    let globalVelocidad = 2.66; // Normal = 2.0 * 1.333
+
+    let stopRequested = false;
+    let executionFinished = false;
+    let m5ReachedTarget = false;
+    let animObservers = [];
+    let trailMeshes = [];
+    let trailTimer = 0;
+
+    // ==========================================
+    // INICIALIZACIÓN BABYLON.JS
+    // ==========================================
+    const canvas = document.getElementById('renderCanvas');
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer:true, stencil:true });
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.035;
+    scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+    const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3.5, 20, BABYLON.Vector3.Zero(), scene);
+    camera.attachControl(canvas, true);
+    camera.lowerRadiusLimit = 10; camera.upperRadiusLimit = 40;
+
+    const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+    hemi.intensity = 0.6; hemi.groundColor = new BABYLON.Color3(0.1,0.1,0.15);
+    
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-0.5), scene);
+    dirLight.position = new BABYLON.Vector3(20,40,20); dirLight.intensity = 2.5;
+    
+    const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+    shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+    const glow = new BABYLON.GlowLayer("glow", scene); glow.intensity = 0.8;
+    const pipeline = new BABYLON.DefaultRenderingPipeline("pp", true, scene, [camera]);
+    pipeline.msaaSamples = 4; pipeline.bloomEnabled = true;
+    pipeline.bloomThreshold = 0.85; pipeline.bloomWeight = 0.35;
+    pipeline.vignetteEnabled = true; pipeline.vignetteWeight = 1.5;
+    
+    scene.environmentIntensity = 0.6;
+    try { scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene); } catch(e) {}
+
+    // ==========================================
+    // MATERIALES PBR
+    // ==========================================
+    const matRed = new BABYLON.PBRMaterial("matRed", scene); matRed.albedoColor = BABYLON.Color3.FromHexString("#E52020"); matRed.roughness = 0.3; matRed.metallic = 0.0;
+    const matDark = new BABYLON.PBRMaterial("matDark", scene); matDark.albedoColor = BABYLON.Color3.FromHexString("#151515"); matDark.roughness = 0.7; matDark.metallic = 0.1;
+    const matSilver = new BABYLON.PBRMaterial("matSilver", scene); matSilver.albedoColor = BABYLON.Color3.FromHexString("#E0E0E0"); matSilver.roughness = 0.15; matSilver.metallic = 0.9;
+    const matWhite = new BABYLON.PBRMaterial("matWhite", scene); matWhite.albedoColor = BABYLON.Color3.FromHexString("#F0F0F0"); matWhite.roughness = 0.9; matWhite.metallic = 0.0;
+    
+    function createServoMat(name) {
+        const m = new BABYLON.PBRMaterial(name, scene);
+        m.albedoColor = BABYLON.Color3.FromHexString("#1030B0");
+        m.roughness = 0.4; m.metallic = 0.1;
+        m.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.5);
+        return m;
+    }
+    const matBlue_HL = createServoMat("matBlue_HL");
+    const matBlue_HR = createServoMat("matBlue_HR");
+    const matBlue_AL = createServoMat("matBlue_AL");
+    const matBlue_AR = createServoMat("matBlue_AR");
+
+    // ==========================================
+    // ESCENARIO
+    // ==========================================
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:30, height:30}, scene);
+    const groundMat = new BABYLON.PBRMaterial("gMat", scene);
+    groundMat.albedoColor = new BABYLON.Color3(0.24, 0.17, 0.12); groundMat.roughness = 0.85; groundMat.metallic = 0;
+    ground.material = groundMat; ground.receiveShadows = true;
+
+    const obstaculo = BABYLON.MeshBuilder.CreateBox("obstaculo", {width:4, height:0.8, depth:0.2}, scene);
+    obstaculo.position = new BABYLON.Vector3(0, 0.4, -5);
+    const obsMat = new BABYLON.PBRMaterial("obsMat", scene); obsMat.albedoColor = BABYLON.Color3.FromHexString("#8B4513");
+    obsMat.roughness=0.9; obsMat.metallic=0.0; obstaculo.material = obsMat;
+    shadowGen.addShadowCaster(obstaculo); obstaculo.receiveShadows = true;
+
+    const targetCyl = BABYLON.MeshBuilder.CreateCylinder("target", {diameter:2.5, height:0.05}, scene);
+    targetCyl.position = new BABYLON.Vector3(0, 0.025, -8.5);
+    const tarMat = new BABYLON.PBRMaterial("tarMat", scene);
+    tarMat.albedoColor = BABYLON.Color3.FromHexString("#00c853");
+    tarMat.emissiveColor = BABYLON.Color3.FromHexString("#00c853");
+    tarMat.roughness = 0.8; targetCyl.material = tarMat;
+
+    // ==========================================
+    // CONSTRUCCIÓN DEL ROBOT
+    // ==========================================
+    const robotGroup = new BABYLON.TransformNode("robotGroup", scene);
+    robotGroup.position.z = 3.5;
+    
+    const bodyPivot = new BABYLON.TransformNode("bodyPivot", scene);
+    bodyPivot.parent = robotGroup; bodyPivot.position.y = 2.1;
+
+    const hipL = new BABYLON.TransformNode("hipL", scene);
+    hipL.parent = bodyPivot; hipL.position = new BABYLON.Vector3(0.65, -0.6, 0);
+
+    const hipR = new BABYLON.TransformNode("hipR", scene);
+    hipR.parent = bodyPivot; hipR.position = new BABYLON.Vector3(-0.65, -0.6, 0);
+
+    const ankleL = new BABYLON.TransformNode("ankleL", scene);
+    ankleL.parent = hipL; ankleL.position = new BABYLON.Vector3(0, -1.05, 0);
+
+    const ankleR = new BABYLON.TransformNode("ankleR", scene);
+    ankleR.parent = hipR; ankleR.position = new BABYLON.Vector3(0, -1.05, 0);
+
+    const meshesToShadow = [];
+
+    // Carcasa
+    const carcasa = BABYLON.MeshBuilder.CreateBox("carcasa", {width: 1.2, height: 1.5, depth: 1.1}, scene);
+    carcasa.parent = bodyPivot; carcasa.position.y = -0.15; carcasa.material = matRed;
+    meshesToShadow.push(carcasa);
+
+    // Boca procedural (sonrisa)
+    const pathBoca = [];
+    for (let i = 0; i <= 30; i++) {
+        let ang = Math.PI + (i / 30) * Math.PI; 
+        pathBoca.push(new BABYLON.Vector3(Math.cos(ang) * 0.28, Math.sin(ang) * 0.15, 0));
+    }
+    const boca = BABYLON.MeshBuilder.CreateTube("boca", { path: pathBoca, radius: 0.045, cap: BABYLON.Mesh.CAP_ALL }, scene);
+    boca.parent = carcasa; boca.position = new BABYLON.Vector3(0, -0.15, -0.56); boca.material = matDark;
+    meshesToShadow.push(boca);
+
+    // Caderas y pies
+    const servoH_L = BABYLON.MeshBuilder.CreateBox("servoHL", {width:0.4, height:0.5, depth:0.3}, scene);
+    servoH_L.parent = hipL; servoH_L.material = matBlue_HL;
+    const ejeH_L = BABYLON.MeshBuilder.CreateCylinder("ejeHL", {diameter:0.15, height:0.3}, scene);
+    ejeH_L.parent = hipL; ejeH_L.rotation.z = Math.PI/2; ejeH_L.position.x = -0.2; ejeH_L.material = matDark;
+    const strutL = BABYLON.MeshBuilder.CreateBox("strutL", {width:0.2, height:1.1, depth:0.2}, scene);
+    strutL.parent = hipL; strutL.position.y = -0.55; strutL.material = matRed;
+    meshesToShadow.push(servoH_L, ejeH_L, strutL);
+
+    const servoH_R = BABYLON.MeshBuilder.CreateBox("servoHR", {width:0.4, height:0.5, depth:0.3}, scene);
+    servoH_R.parent = hipR; servoH_R.material = matBlue_HR;
+    const ejeH_R = BABYLON.MeshBuilder.CreateCylinder("ejeHR", {diameter:0.15, height:0.3}, scene);
+    ejeH_R.parent = hipR; ejeH_R.rotation.z = Math.PI/2; ejeH_R.position.x = 0.2; ejeH_R.material = matDark;
+    const strutR = BABYLON.MeshBuilder.CreateBox("strutR", {width:0.2, height:1.1, depth:0.2}, scene);
+    strutR.parent = hipR; strutR.position.y = -0.55; strutR.material = matRed;
+    meshesToShadow.push(servoH_R, ejeH_R, strutR);
+
+    const servoA_L = BABYLON.MeshBuilder.CreateBox("servoAL", {width:0.4, height:0.4, depth:0.3}, scene);
+    servoA_L.parent = ankleL; servoA_L.material = matBlue_AL;
+    const footL = BABYLON.MeshBuilder.CreateBox("footL", {width:0.8, height:0.15, depth:1.2}, scene);
+    footL.parent = ankleL; footL.position = new BABYLON.Vector3(0, -0.275, -0.2); footL.material = matRed;
+    const padL = BABYLON.MeshBuilder.CreateBox("padL", {width:0.75, height:0.05, depth:1.15}, scene);
+    padL.parent = ankleL; padL.position = new BABYLON.Vector3(0, -0.375, -0.2); padL.material = matWhite;
+    meshesToShadow.push(servoA_L, footL, padL);
+
+    const servoA_R = BABYLON.MeshBuilder.CreateBox("servoAR", {width:0.4, height:0.4, depth:0.3}, scene);
+    servoA_R.parent = ankleR; servoA_R.material = matBlue_AR;
+    const footR = BABYLON.MeshBuilder.CreateBox("footR", {width:0.8, height:0.15, depth:1.2}, scene);
+    footR.parent = ankleR; footR.position = new BABYLON.Vector3(0, -0.275, -0.2); footR.material = matRed;
+    const padR = BABYLON.MeshBuilder.CreateBox("padR", {width:0.75, height:0.05, depth:1.15}, scene);
+    padR.parent = ankleR; padR.position = new BABYLON.Vector3(0, -0.375, -0.2); padR.material = matWhite;
+    meshesToShadow.push(servoA_R, footR, padR);
+
+    const placa = BABYLON.MeshBuilder.CreateBox("placa", {width: 0.9, height: 0.9, depth: 0.1}, scene);
+    placa.parent = carcasa; placa.position = new BABYLON.Vector3(0, 0, 0.4); placa.material = matDark;
+    const chip = BABYLON.MeshBuilder.CreateBox("chip", {width: 0.4, height: 0.4, depth: 0.15}, scene);
+    chip.parent = placa; chip.position.z = -0.05; chip.material = matSilver;
+    const battery = BABYLON.MeshBuilder.CreateBox("battery", {width: 0.8, height: 0.5, depth: 0.4}, scene);
+    battery.parent = carcasa; battery.position = new BABYLON.Vector3(0, -0.4, 0.2); battery.material = matDark;
+    meshesToShadow.push(placa, chip, battery);
+
+    const sensorBase = BABYLON.MeshBuilder.CreateBox("sensorBase", {width: 0.6, height: 0.3, depth: 0.2}, scene);
+    sensorBase.parent = carcasa; sensorBase.position = new BABYLON.Vector3(0, 0.3, -0.55); sensorBase.material = matRed;
+    const eye1 = BABYLON.MeshBuilder.CreateCylinder("eye1", {diameter: 0.25, height: 0.25}, scene);
+    eye1.parent = sensorBase; eye1.rotation.x = Math.PI/2; eye1.position = new BABYLON.Vector3(0.15, 0, -0.1); eye1.material = matSilver;
+    const pupil1 = BABYLON.MeshBuilder.CreateCylinder("pupil1", {diameter: 0.1, height: 0.26}, scene);
+    pupil1.parent = sensorBase; pupil1.rotation.x = Math.PI/2; pupil1.position = new BABYLON.Vector3(0.15, 0, -0.1); pupil1.material = matDark;
+    const eye2 = BABYLON.MeshBuilder.CreateCylinder("eye2", {diameter: 0.25, height: 0.25}, scene);
+    eye2.parent = sensorBase; eye2.rotation.x = Math.PI/2; eye2.position = new BABYLON.Vector3(-0.15, 0, -0.1); eye2.material = matSilver;
+    const pupil2 = BABYLON.MeshBuilder.CreateCylinder("pupil2", {diameter: 0.1, height: 0.26}, scene);
+    pupil2.parent = sensorBase; pupil2.rotation.x = Math.PI/2; pupil2.position = new BABYLON.Vector3(-0.15, 0, -0.1); pupil2.material = matDark;
+    meshesToShadow.push(sensorBase, eye1, pupil1, eye2, pupil2);
+
+    const tapa = BABYLON.MeshBuilder.CreateBox("tapa", {width: 1.25, height: 0.15, depth: 1.15}, scene);
+    tapa.parent = carcasa; tapa.position.y = 0.825; tapa.material = matRed;
+    meshesToShadow.push(tapa);
+
+    meshesToShadow.forEach(m => { shadowGen.addShadowCaster(m); m.receiveShadows = true; });
+
+    // ==========================================
+    // ANIMACIÓN CONTINUA (WADDLING) Y TRAIL
+    // ==========================================
+    function updateEmissives(isBalancePhase) {
+        const colOn = new BABYLON.Color3(0.2, 0.3, 1.0);
+        const colOff = new BABYLON.Color3(0.05, 0.08, 0.5);
+        matBlue_AL.emissiveColor.copyFrom(isBalancePhase ? colOn : colOff);
+        matBlue_AR.emissiveColor.copyFrom(isBalancePhase ? colOn : colOff);
+        matBlue_HL.emissiveColor.copyFrom(!isBalancePhase ? colOn : colOff);
+        matBlue_HR.emissiveColor.copyFrom(!isBalancePhase ? colOn : colOff);
+    }
+
+    scene.onBeforeRenderObservable.add(() => {
+        if (!animando) return;
+        const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+        animTime += dt * globalVelocidad;
+
+        // Si el robot NO está haciendo un movimiento especial, aplicamos el waddling normal
+        if (!isSpecialMove) {
+            bodyPivot.rotation.z = Math.sin(animTime) * 0.22;
+            bodyPivot.position.y = 2.1 + Math.abs(Math.sin(animTime)) * 0.12;
+            hipL.rotation.x = -Math.cos(animTime) * 0.35;
+            hipR.rotation.x =  Math.cos(animTime) * 0.35;
+            ankleL.rotation.z = -bodyPivot.rotation.z;
+            ankleR.rotation.z = -bodyPivot.rotation.z;
+        }
+
+        let normalizedTime = animTime % (Math.PI * 2);
+        if (normalizedTime < 0) normalizedTime += Math.PI * 2;
+        let quadrant = Math.floor(normalizedTime / (Math.PI / 2));
+        updateEmissives(quadrant === 0 || quadrant === 2);
+        
+        trailTimer += dt;
+        if(trailTimer >= 0.4) {
+            trailTimer = 0;
+            crearTrail();
+        }
+    });
+
+    function crearTrail() {
+        const t = BABYLON.MeshBuilder.CreateCylinder("trail", {diameter:0.15, height:0.02}, scene);
+        t.position = new BABYLON.Vector3(robotGroup.position.x, 0.01, robotGroup.position.z);
+        const mat = new BABYLON.PBRMaterial("tMat", scene);
+        mat.albedoColor = BABYLON.Color3.FromHexString("#FF6B35"); mat.roughness = 0.9; mat.metallic = 0;
+        t.material = mat;
+        trailMeshes.push(t);
+        if(trailMeshes.length > 30) trailMeshes.shift().dispose();
+    }
+
+    // ==========================================
+    // HELPERS DE ANIMACIÓN ESPECIAL
+    // ==========================================
+    function resetPosture() {
+        bodyPivot.rotation.x = 0;
+        bodyPivot.rotation.y = 0;
+        bodyPivot.rotation.z = 0;
+        bodyPivot.position.y = 2.1;
+        hipL.rotation.x = 0;
+        hipR.rotation.x = 0;
+        ankleL.rotation.z = 0;
+        ankleR.rotation.z = 0;
+    }
+
+    async function runSpecialAnim(duration, updateFn, signal) {
+        isSpecialMove = true;
+        let time = 0;
+        
+        // Ajustamos la duración al multiplicador de velocidad
+        duration = duration / SPEED_MULTIPLIER; 
+
+        await new Promise(resolve => {
+            const obs = scene.onBeforeRenderObservable.add(() => {
+                const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+                time += dt;
+                let p = time / duration;
+                
+                if (p >= 1.0 || signal.stop) {
+                    scene.onBeforeRenderObservable.remove(obs);
+                    resolve();
+                    return;
+                }
+                updateFn(p, time, dt);
+            });
+            animObservers.push(obs);
+        });
+        resetPosture();
+        isSpecialMove = false;
+    }
+
+    // ==========================================
+    // MOTOR DE EJECUCIÓN (ASÍNCRONO)
+    // ==========================================
+    const sleep = ms => new Promise(r => setTimeout(r, ms / SPEED_MULTIPLIER));
+
+    async function ejecutarBloque(bloque, signal) {
+        if (signal.stop) return;
+        
+        if(bloque.element) bloque.element.classList.add('running');
+
+        switch (bloque.type) {
+            case 'BALANCEAR':
+                const vels = { LENTO:1.6, NORMAL:2.66, RAPIDO:4.8 };
+                const velStr = bloque.velocidad || "NORMAL";
+                globalVelocidad = vels[velStr];
+                const pasos = { LENTO:1, NORMAL:3, RAPIDO:5 }[velStr];
+
+                for (let i = 0; i < pasos; i++) {
+                    if (signal.stop) break;
+                    animando = true;
+                    const startAnimTime = animTime;
+                    const targetAnimTime = startAnimTime + (Math.PI * 2);
+
+                    await new Promise(resolve => {
+                        const obs = scene.onBeforeRenderObservable.add(() => {
+                            if (signal.stop || animTime >= targetAnimTime) {
+                                scene.onBeforeRenderObservable.remove(obs);
+                                resolve();
+                                return;
+                            }
+                            const dt = engine.getDeltaTime() / 1000;
+                            const speedPerSec = 0.96 * (globalVelocidad / 2.66);
+                            robotGroup.translate(BABYLON.Axis.Z, -speedPerSec * dt, BABYLON.Space.LOCAL);
+                        });
+                        animObservers.push(obs);
+                    });
+
+                    animando = false;
+                    resetPosture();
+                    if (signal.stop) break;
+                    await sleep(80);
+                    if (checkWin()) break;
+                }
+                break;
+
+            case 'REVERENCIA':
+                animando = true;
+                await runSpecialAnim(1.5, (p) => {
+                    bodyPivot.rotation.x = Math.sin(p * Math.PI) * 0.8;
+                }, signal);
+                animando = false;
+                break;
+
+            case 'SALUDAR':
+                animando = true;
+                await runSpecialAnim(2.0, (p) => {
+                    let lean = Math.sin(p * Math.PI) * 0.3;
+                    bodyPivot.rotation.z = lean;
+                    ankleL.rotation.z = -lean;
+                    ankleR.rotation.z = -lean;
+                    hipR.rotation.x = Math.abs(Math.sin(p * Math.PI * 6)) * -0.6;
+                }, signal);
+                animando = false;
+                break;
+
+            case 'TEMBLAR':
+                animando = true;
+                await runSpecialAnim(1.2, (p) => {
+                    let amp = Math.sin(p * Math.PI) * 0.15; 
+                    bodyPivot.rotation.x = (Math.random() - 0.5) * amp;
+                    bodyPivot.rotation.z = (Math.random() - 0.5) * amp;
+                    hipL.rotation.x = (Math.random() - 0.5) * amp;
+                    hipR.rotation.x = (Math.random() - 0.5) * amp;
+                }, signal);
+                animando = false;
+                break;
+
+            case 'PASO_LATERAL':
+                animando = true;
+                await runSpecialAnim(1.5, (p, time, dt) => {
+                    let lean = Math.sin(p * Math.PI * 2) * 0.2;
+                    bodyPivot.rotation.z = lean;
+                    ankleL.rotation.z = -lean; 
+                    ankleR.rotation.z = -lean;
+                    robotGroup.translate(BABYLON.Axis.X, -0.6 * dt, BABYLON.Space.LOCAL);
+                }, signal);
+                animando = false;
+                break;
+
+            case 'MOONWALK':
+                animando = true;
+                await runSpecialAnim(2.35, (p, time, dt) => {
+                    let wTime = time * 4.0; 
+                    bodyPivot.rotation.z = Math.sin(wTime) * 0.22;
+                    bodyPivot.position.y = 2.1 + Math.abs(Math.sin(wTime)) * 0.12;
+                    hipL.rotation.x = -Math.cos(wTime) * 0.35;
+                    hipR.rotation.x = Math.cos(wTime) * 0.35;
+                    ankleL.rotation.z = -bodyPivot.rotation.z;
+                    ankleR.rotation.z = -bodyPivot.rotation.z;
+                    robotGroup.translate(BABYLON.Axis.Z, 0.96 * dt, BABYLON.Space.LOCAL);
+                }, signal);
+                animando = false;
+                break;
+
+            case 'VOLTERETA':
+            case 'SALTO':
+                animando = true;
+                let isFlip = (bloque.type === 'VOLTERETA');
+                await runSpecialAnim(1.2, (p) => {
+                    if (isFlip) {
+                        bodyPivot.rotation.x = p * Math.PI * 2;
+                        bodyPivot.position.y = 2.1 + Math.sin(p * Math.PI) * 3.5;
+                        hipL.rotation.x = Math.sin(p * Math.PI) * 0.8;
+                        hipR.rotation.x = Math.sin(p * Math.PI) * 0.8;
+                    } else {
+                        if (p < 0.2) {
+                            bodyPivot.position.y = 2.1 - Math.sin(p/0.2 * Math.PI/2) * 0.3;
+                        } else if (p < 0.8) {
+                            let jp = (p - 0.2) / 0.6; 
+                            bodyPivot.position.y = 1.8 + Math.sin(jp * Math.PI) * 2.5;
+                            hipL.rotation.x = Math.sin(jp * Math.PI) * -0.4;
+                            hipR.rotation.x = Math.sin(jp * Math.PI) * -0.4;
+                        } else {
+                            bodyPivot.position.y = 2.1 - Math.sin((p-0.8)/0.2 * Math.PI) * 0.2;
+                        }
+                    }
+                }, signal);
+                animando = false;
+                await sleep(200); 
+                break;
+
+            case 'BAILE':
+                animando = true;
+                await runSpecialAnim(2.5, (p, time) => {
+                    let bTime = time * 8.0;
+                    bodyPivot.rotation.z = Math.sin(bTime) * 0.3;
+                    hipL.rotation.x = Math.cos(bTime) * 0.5;
+                    hipR.rotation.x = Math.cos(bTime) * 0.5;
+                    bodyPivot.rotation.y = Math.sin(time * 4.0) * 0.4;
+                }, signal);
+                animando = false;
+                break;
+
+            case 'TROPEZAR':
+                animando = true;
+                await runSpecialAnim(3.0, (p, time) => {
+                    if (p < 0.2) {
+                        bodyPivot.rotation.x = -(p/0.2) * Math.PI/2;
+                        bodyPivot.position.y = 2.1 - (p/0.2) * 1.0;
+                    } else if (p < 0.8) {
+                        bodyPivot.rotation.x = -Math.PI/2;
+                        bodyPivot.position.y = 1.1;
+                        hipL.rotation.x = Math.sin(time * 10) * 0.3;
+                        hipR.rotation.x = Math.cos(time * 12) * 0.3;
+                    } else {
+                        let up = (p - 0.8)/0.2;
+                        bodyPivot.rotation.x = -Math.PI/2 * (1 - up);
+                        bodyPivot.position.y = 1.1 + up * 1.0;
+                    }
+                }, signal);
+                animando = false;
+                break;
+
+            // Movimientos estándar (tiempos ajustados para ser más rápidos)
+            case 'AVANZAR':
+                robotGroup.translate(BABYLON.Axis.Z, -1.5, BABYLON.Space.LOCAL);
+                crearTrail();
+                await sleep(375);
+                break;
+
+            case 'ATRAS':
+                robotGroup.translate(BABYLON.Axis.Z, 1.5, BABYLON.Space.LOCAL);
+                crearTrail();
+                await sleep(375);
+                break;
+
+            case 'GIRAR_IZQ':
+                robotGroup.rotation.y -= Math.PI / 2;
+                await sleep(300);
+                break;
+
+            case 'GIRAR_DER':
+                robotGroup.rotation.y += Math.PI / 2;
+                await sleep(300);
+                break;
+
+            case 'PIVOTAR':
+                robotGroup.rotation.y += Math.PI;
+                await sleep(300);
+                break;
+
+            case 'ESPERAR':
+                // Esperar se mantiene constante
+                await sleep(1000 * SPEED_MULTIPLIER);
+                break;
+
+            case 'SI_SENSOR':
+                const dist = medirSensor();
+                if (dist < 2.8) {
+                    for (const hijo of bloque.hijos) {
+                        await ejecutarBloque(hijo, signal);
+                        if (checkWin() || signal.stop) break;
+                    }
+                }
+                break;
+
+            case 'REPETIR_SIEMPRE':
+                while (!signal.stop) {
+                    for (const hijo of bloque.hijos) {
+                        if (signal.stop) break;
+                        await ejecutarBloque(hijo, signal);
+                        if (checkWin() || signal.stop) break;
+                    }
+                    if (checkWin()) break;
+                }
+                break;
+        }
+
+        if(bloque.element) bloque.element.classList.remove('running');
+        if (!signal.stop) await sleep(600); // Pausa reducida entre bloques
+    }
+
+    function medirSensor() {
+        let forwardWorld = robotGroup.getDirection(new BABYLON.Vector3(0, 0, -1));
+        let origin = robotGroup.position.clone();
+        origin.y = 0.8; 
+        origin.addInPlace(forwardWorld.scale(0.8)); 
+        
+        const ray = new BABYLON.Ray(origin, forwardWorld, 10);
+        const hit = scene.pickWithRay(ray, (m) => m.name === 'obstaculo');
+        return hit.hit ? hit.distance : 99;
+    }
+
+    function checkWin() {
+        const z = robotGroup.position.z;
+        if (currentMission === 3 && Math.abs(robotGroup.position.x) > 3) return true;
+        if (currentMission === 4 && z < -7.5) return true;
+        if (currentMission === 5) {
+            if (z < -7.5) m5ReachedTarget = true;
+        }
+        return false;
+    }
+
+    async function runCode() {
+        stopExecution();
+        await sleep(50);
+        
+        stopRequested = false;
+        executionFinished = false;
+        m5ReachedTarget = false;
+        
+        document.getElementById('btn-execute').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'flex';
+
+        const rootBlocks = parseDOMSequence(document.getElementById('sequence-container'));
+        const signal = { stop: false };
+
+        try {
+            for (let b of rootBlocks) {
+                if (signal.stop) break;
+                await ejecutarBloque(b, signal);
+                if (checkWin()) break;
+            }
+            if(!signal.stop) executionFinished = true;
+        } catch(e) { console.error(e); }
+
+        if (!signal.stop) {
+            const z = robotGroup.position.z;
+            let success = false;
+            if (currentMission === 1) success = true;
+            else if (currentMission === 2 && Math.abs(robotGroup.rotation.y) > 0.1) success = true;
+            else if (currentMission === 3 && checkWin()) success = true;
+            else if (currentMission === 4 && checkWin()) success = true;
+            else if (currentMission === 5 && m5ReachedTarget && z > 2.5) success = true;
+
+            if (success) {
+                tarMat.emissiveColor = new BABYLON.Color3(0,1,0.4);
+                await sleep(2500);
+                tarMat.emissiveColor = new BABYLON.Color3(0,0.8,0.3);
+                showModal();
+            }
+        }
+        
+        document.getElementById('btn-execute').style.display = 'flex';
+        document.getElementById('btn-stop').style.display = 'none';
+    }
+
+    function stopExecution() {
+        stopRequested = true;
+        animObservers.forEach(o => scene.onBeforeRenderObservable.remove(o));
+        animObservers = [];
+        animando = false;
+        isSpecialMove = false;
+        
+        resetPosture();
+        
+        [matBlue_HL, matBlue_HR, matBlue_AL, matBlue_AR].forEach(m => 
+            m.emissiveColor = new BABYLON.Color3(0.05, 0.08, 0.5)
+        );
+        
+        document.querySelectorAll('.running').forEach(el => el.classList.remove('running'));
+        
+        document.getElementById('btn-stop').style.display = 'none';
+        document.getElementById('btn-execute').style.display = 'flex';
+    }
+
+    function resetScene() {
+        stopExecution();
+        robotGroup.position = new BABYLON.Vector3(0, 0, 3.5);
+        robotGroup.rotation = new BABYLON.Vector3(0, 0, 0);
+        trailMeshes.forEach(t => t.dispose());
+        trailMeshes = [];
+        loadMission(currentMission, false);
+    }
+
+    // ==========================================
+    // UI, DOM Y ARRASTRE
+    // ==========================================
+
+    const blocksDef = {
+        'BALANCEAR': { html: `<span class="tag-nuevo">WADDLE</span><div class="block-header">🐧 BALANCEAR <select><option value="LENTO">LENTO</option><option value="NORMAL" selected>NORMAL</option><option value="RAPIDO">RÁPIDO</option></select></div>`, bg: 'bg-balancear' },
+        'REVERENCIA':{ html: `<div class="block-header">🙇 REVERENCIA</div>`, bg: 'bg-reverencia' },
+        'SALUDAR':   { html: `<div class="block-header">👋 SALUDAR</div>`, bg: 'bg-saludar' },
+        'TEMBLAR':   { html: `<div class="block-header">🥶 TEMBLAR</div>`, bg: 'bg-temblar' },
+        'PASO_LATERAL':{html: `<div class="block-header">🦀 PASO LATERAL</div>`, bg: 'bg-paso' },
+        'MOONWALK':  { html: `<div class="block-header">🌕 MOONWALK</div>`, bg: 'bg-moonwalk' },
+        'SALTO':     { html: `<div class="block-header">🐸 SALTO</div>`, bg: 'bg-salto' },
+        'VOLTERETA': { html: `<div class="block-header">🤸 VOLTERETA</div>`, bg: 'bg-salto' },
+        'BAILE':     { html: `<div class="block-header">💃 BAILE</div>`, bg: 'bg-baile' },
+        'TROPEZAR':  { html: `<div class="block-header">💥 TROPEZAR</div>`, bg: 'bg-tropezar' },
+        'AVANZAR':   { html: `<div class="block-header">⬆️ AVANZAR</div>`, bg: 'bg-standard' },
+        'ATRAS':     { html: `<div class="block-header">⬇️ ATRÁS</div>`, bg: 'bg-standard' },
+        'GIRAR_IZQ': { html: `<div class="block-header">⬅️ GIRAR IZQ</div>`, bg: 'bg-standard' },
+        'GIRAR_DER': { html: `<div class="block-header">➡️ GIRAR DER</div>`, bg: 'bg-standard' },
+        'PIVOTAR':   { html: `<div class="block-header">🔄 PIVOTAR</div>`, bg: 'bg-standard' },
+        'ESPERAR':   { html: `<div class="block-header">⏳ ESPERAR</div>`, bg: 'bg-standard' },
+        'SI_SENSOR': { html: `<div class="block-header">👁️ SI OJOS DETECTAN</div><div class="bloque-inner"></div>`, bg: 'bg-condition' },
+        'REPETIR_SIEMPRE': { html: `<div class="block-header">🔁 REPETIR SIEMPRE</div><div class="bloque-inner"></div>`, bg: 'bg-loop' }
+    };
+
+    function initPalette() {
+        const pal = document.getElementById('palette');
+        pal.innerHTML = '';
+        Object.keys(blocksDef).forEach(type => {
+            const el = document.createElement('div');
+            el.className = `block palette-block ${blocksDef[type].bg}`;
+            el.dataset.type = type;
+            el.innerHTML = blocksDef[type].html;
+            el.draggable = true;
+            pal.appendChild(el);
+        });
+    }
+
+    function buildBlockEl(type, locked, velocity, childNodeHTML) {
+        const el = document.createElement('div');
+        el.className = `block sequence-block ${blocksDef[type].bg}`;
+        if (locked) el.classList.add('locked');
+        el.dataset.type = type;
+        el.innerHTML = blocksDef[type].html;
+        
+        if (!locked) {
+            el.draggable = true;
+            el.innerHTML += `<span class="btn-delete" onclick="this.parentElement.remove()">✕</span>`;
+        }
+
+        if (type === 'BALANCEAR' && velocity) {
+            el.querySelector('select').value = velocity;
+        }
+
+        const inner = el.querySelector('.bloque-inner');
+        if (inner && childNodeHTML !== undefined) {
+            if (childNodeHTML === null) {
+                inner.innerHTML = `<div class="hueco-pista">Arrástralo aquí</div>`;
+            } else if (typeof childNodeHTML === 'object') {
+                inner.appendChild(buildBlockEl(childNodeHTML.t, childNodeHTML.l, childNodeHTML.v, childNodeHTML.child));
+            } else if (typeof childNodeHTML === 'string') {
+                inner.innerHTML = childNodeHTML;
+            }
+        }
+        return el;
+    }
+
+    const missionsData = {
+        1: {
+            txt: "Misión 1: Exhibición. Observa la gran cantidad de expresiones y habilidades que puede realizar nuestro robot.",
+            blocks: [
+                {t:'SALUDAR', l:true},
+                {t:'BALANCEAR', v:'NORMAL', l:true},
+                {t:'TROPEZAR', l:true},
+                {t:'VOLTERETA', l:true},
+                {t:'BAILE', l:true}
+            ],
+            sol: false
+        },
+        2: {
+            txt: "Misión 2: Esquiva asustadiza. Si ve un obstáculo, debe TEMBLAR y luego GIRAR a la derecha.",
+            blocks: [
+                {t:'BALANCEAR', v:'NORMAL', l:true},
+                {t:'SI_SENSOR', l:true, child: null}
+            ],
+            sol: true
+        },
+        3: {
+            txt: "Misión 3: Modo cangrejo. Entra al bucle y añade PASO LATERAL para esquivar de lado como un cangrejo.",
+            blocks: [
+                {t:'REPETIR_SIEMPRE', l:true, child: {t:'BALANCEAR', v:'NORMAL', l:true}}
+            ],
+            sol: true
+        },
+        4: {
+            txt: "Misión 4: Llega al círculo verde al otro lado del obstáculo usando las animaciones que prefieras.",
+            blocks: [],
+            sol: true
+        },
+        5: {
+            txt: "Misión 5: Reto Libre. El robot debe llegar al círculo verde, volver al inicio y detenerse con una REVERENCIA. ¡Tú solo!",
+            blocks: [],
+            sol: false
+        }
+    };
+
+    function loadMission(id, reloadPos = true) {
+        if(reloadPos) {
+            stopExecution();
+            robotGroup.position = new BABYLON.Vector3(0, 0, 3.5);
+            robotGroup.rotation = new BABYLON.Vector3(0, 0, 0);
+            trailMeshes.forEach(t => t.dispose()); trailMeshes = [];
+        }
+        currentMission = id;
+        document.querySelectorAll('.btn-mission').forEach(b => {
+            b.classList.remove('active');
+            if(parseInt(b.innerText) < id) b.classList.add('completed');
+        });
+        document.getElementById(`m${id}`).classList.add('active');
+        document.getElementById('mission-text').innerText = missionsData[id].txt;
+        document.getElementById('btn-solution').style.display = missionsData[id].sol ? 'flex' : 'none';
+
+        const seq = document.getElementById('sequence-container');
+        seq.innerHTML = '';
+        missionsData[id].blocks.forEach(b => {
+            seq.appendChild(buildBlockEl(b.t, b.l, b.v, b.child));
+        });
+        
+        bindDragAndDrop();
+    }
+
+    function parseDOMSequence(container) {
+        const blocks = [];
+        Array.from(container.children).forEach(child => {
+            if (!child.classList.contains('block')) return;
+            const type = child.dataset.type;
+            const block = { type: type, hijos: [], element: child };
+
+            if (type === 'BALANCEAR') {
+                const sel = child.querySelector('select');
+                block.velocidad = sel ? sel.value : 'NORMAL';
+            }
+            const inner = child.querySelector('.bloque-inner');
+            if (inner) block.hijos = parseDOMSequence(inner);
+            
+            blocks.push(block);
+        });
+        return blocks;
+    }
+
+    // Drag & Drop logic
+    let draggedElement = null;
+
+    function bindDragAndDrop() {
+        document.querySelectorAll('.block').forEach(b => {
+            if (!b.classList.contains('locked')) {
+                b.addEventListener('dragstart', handleDragStart);
+                b.addEventListener('dragend', handleDragEnd);
+            }
+        });
+
+        const dropZones = document.querySelectorAll('#sequence-container, .bloque-inner, .hueco-pista');
+        dropZones.forEach(z => {
+            z.removeEventListener('dragover', handleDragOver);
+            z.removeEventListener('drop', handleDrop);
+            z.removeEventListener('dragleave', handleDragLeave);
+            
+            z.addEventListener('dragover', handleDragOver);
+            z.addEventListener('drop', handleDrop);
+            z.addEventListener('dragleave', handleDragLeave);
+        });
+    }
+
+    function handleDragStart(e) {
+        draggedElement = e.currentTarget;
+        if(draggedElement.classList.contains('palette-block')) {
+            draggedElement = buildBlockEl(draggedElement.dataset.type, false);
+        }
+        setTimeout(() => e.target.style.opacity = '0.5', 0);
+    }
+    function handleDragEnd(e) {
+        e.target.style.opacity = '1';
+        document.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+        bindDragAndDrop(); 
+    }
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+    function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.classList.remove('drag-over');
+
+        if(e.currentTarget.classList.contains('hueco-pista')) {
+            e.currentTarget.replaceWith(draggedElement);
+        } else {
+            const container = e.currentTarget;
+            const afterEl = getDragAfterElement(container, e.clientY);
+            if (afterEl) container.insertBefore(draggedElement, afterEl);
+            else container.appendChild(draggedElement);
+        }
+    }
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.sequence-block:not(.locked)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Modal UI
+    function showModal() {
+        document.getElementById('modal').style.display = 'flex';
+        document.getElementById(`m${currentMission}`).classList.add('completed');
+    }
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+    }
+    function nextMission() {
+        closeModal();
+        if(currentMission < 5) loadMission(currentMission + 1);
+    }
+    function showSolution() {
+        if(currentMission === 2) {
+            loadMission(2, false);
+            const hueco = document.querySelector('.hueco-pista');
+            if(hueco) {
+                const inner = document.createElement('div');
+                inner.appendChild(buildBlockEl('TEMBLAR', false));
+                inner.appendChild(buildBlockEl('GIRAR_DER', false));
+                hueco.replaceWith(...inner.childNodes);
+            }
+        } else if(currentMission === 3) {
+            loadMission(3, false);
+            const inner = document.querySelector('.bloque-inner');
+            const loopBlock = buildBlockEl('SI_SENSOR', false);
+            loopBlock.querySelector('.bloque-inner').appendChild(buildBlockEl('PASO_LATERAL', false));
+            inner.appendChild(loopBlock);
+        } else if(currentMission === 4) {
+            loadMission(4, false);
+            const seq = document.getElementById('sequence-container');
+            ['BALANCEAR','BALANCEAR','SI_SENSOR','SALTO','BALANCEAR','BALANCEAR'].forEach(t => {
+                seq.appendChild(buildBlockEl(t, false));
+            });
+        }
+        bindDragAndDrop();
+    }
+
+    // ==========================================
+    // ARRANQUE
+    // ==========================================
+    initPalette();
+    loadMission(1);
+
+    engine.runRenderLoop(() => {
+        scene.render();
+    });
+    window.addEventListener('resize', () => {
+        engine.resize();
+    });
+
+</script>
+</body>
+</html>

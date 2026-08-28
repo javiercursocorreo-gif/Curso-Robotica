@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P4: El Trío Dinámico</title>
+    <!-- Babylon.js Core and Loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+        #ui-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 10, 0.85);
+            border: 2px solid #58a6ff;
+            border-radius: 12px;
+            padding: 15px 30px;
+            color: #c9d1d9;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(88,166,255,0.2);
+            pointer-events: none;
+        }
+        #ui-container h2 { margin: 0 0 10px 0; color: #58a6ff; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 2px;}
+        #ui-container p { margin: 0; font-size: 1.1rem; color: #8b949e; }
+        #title-sign {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            font-size: 4rem;
+            font-weight: 900;
+            color: #f1c40f;
+            text-shadow: 0 0 20px rgba(241,196,15,0.5);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="title-sign">STAR WARS</div>
+    <div id="ui-container">
+        <h2>Simulación Conjunta</h2>
+        <p>Usa <b>FLECHAS</b> para BB-8. Usa <b>W, A, S, D</b> o el <b>RATÓN</b> para R2-D2. Mantén <b>B</b> para C-3PO.</p>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        let scene, camera;
+        
+        // Punteros a los androides
+        let bb8Root = null;
+        let bb8Sphere = null;
+        let bb8Head = null;
+        let r2d2Dome = null;
+        let c3poRoot = null;
+        let r2RootP4 = null;
+        let r2Anim = null;
+        let c3poAnim = null;
+        
+        // Físicas (Inercia Cinemática)
+        let bb8Velocity = BABYLON.Vector3.Zero();
+        let r2Velocity = BABYLON.Vector3.Zero();
+        
+        // Control por Ratón (R2-D2)
+        let r2TargetPosition = null;
+        let targetMarker = null;
+
+        // Inputs
+        const inputMap = {};
+
+        const createScene = async () => {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.05, 1);
+
+            // Cámara que sigue a BB-8
+            camera = new BABYLON.ArcRotateCamera("camera", Math.PI/2, Math.PI/3, 50, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+            // IMPORTANTE: Desvincular las flechas del control de la cámara para que no gire el escenario al mover a BB-8
+            camera.inputs.removeByType("ArcRotateCameraKeyboardMoveInput");
+            camera.keysUp = [];
+            camera.keysDown = [];
+            camera.keysLeft = [];
+            camera.keysRight = [];
+            
+            // IMPORTANTE: Evitar que el mundo gire al hacer clic izquierdo para guiar a R2-D2
+            if (camera.inputs.attached.pointers) {
+                camera.inputs.attached.pointers.buttons = [1, 2]; // Solo clic central (1) y derecho (2) rotan la cámara
+            }
+
+            const light = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.6;
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.intensity = 1.0;
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+
+            // Suelo (Grid)
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 100, height: 100}, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.wireframe = true;
+            gridMat.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            ground.material = gridMat;
+
+            // Marcador visual para el ratón (R2-D2)
+            targetMarker = BABYLON.MeshBuilder.CreateTorus("marker", {diameter: 1.2, thickness: 0.15}, scene);
+            let markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+            markerMat.emissiveColor = BABYLON.Color3.Green();
+            targetMarker.material = markerMat;
+            targetMarker.isVisible = false;
+            targetMarker.position.y = 0.05;
+
+            // Material dorado para C-3PO
+            const goldMaterial = new BABYLON.PBRMaterial("goldMat", scene);
+            goldMaterial.albedoColor = new BABYLON.Color3(1.0, 0.766, 0.336);
+            goldMaterial.metallic = 1.0;
+            goldMaterial.roughness = 0.2;
+            const envTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.dds", scene);
+            scene.environmentTexture = envTexture;
+
+            // Funciones auxiliares (Importadas directamente de P3)
+            const getBoundingInfoTotal = (meshes, rootMesh) => {
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
+                meshes.forEach(m => {
+                    if (m === rootMesh || !m.getBoundingInfo) return;
+                    m.refreshBoundingInfo(true);
+                    const bMin = m.getBoundingInfo().boundingBox.minimumWorld;
+                    const bMax = m.getBoundingInfo().boundingBox.maximumWorld;
+                    if (bMin.x < min.x) min.x = bMin.x; if (bMin.y < min.y) min.y = bMin.y; if (bMin.z < min.z) min.z = bMin.z;
+                    if (bMax.x > max.x) max.x = bMax.x; if (bMax.y > max.y) max.y = bMax.y; if (bMax.z > max.z) max.z = bMax.z;
+                });
+                return {min, max, size: max.subtract(min)};
+            };
+
+            // --- CARGAR C-3PO (Interactivo) ---
+            try {
+                const c3poResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "C-3PO_Base.glb", scene);
+                c3poRoot = c3poResult.meshes[0];
+                c3poRoot.position = new BABYLON.Vector3(0, 0, 0);
+                
+                c3poRoot.rotationQuaternion = null;
+                c3poRoot.rotation.y = Math.PI;
+
+                c3poResult.meshes.forEach(m => {
+                    m.isPickable = false;
+                    if(m.material) m.material = goldMaterial;
+                });
+
+                const baseNodes = [c3poRoot, ...c3poRoot.getDescendants(false)];
+                
+                const animResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "C-3PO_Macarena.glb", scene);
+                const macarenaAnim = animResult.animationGroups[0];
+                macarenaAnim.stop();
+                const clonedAnim = macarenaAnim.clone("Macarena_Cloned", (oldTarget) => {
+                    return baseNodes.find(n => n.name === oldTarget.name) || oldTarget;
+                });
+                macarenaAnim.dispose();
+                animResult.meshes[0].dispose();
+                
+                c3poAnim = clonedAnim;
+                c3poAnim.stop(); // Empieza quieto (T-pose)
+            } catch (e) {
+                console.error("Fallo al cargar C-3PO:", e);
+            }
+
+            // --- CARGAR R2-D2 (Observador) ---
+            try {
+                // Crear un wrapper (aislante de transformaciones) como en P3
+                r2RootP4 = new BABYLON.TransformNode("r2Wrapper", scene);
+                r2RootP4.position = new BABYLON.Vector3(12, 0, -5);
+                r2RootP4.scaling = new BABYLON.Vector3(10.0, 10.0, 10.0);
+                r2RootP4.rotation.y = -Math.PI / 4;
+
+                const r2Result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "R2D2_perfect.glb", scene);
+                const r2RootMesh = r2Result.meshes[0];
+                r2RootMesh.parent = r2RootP4; // Anclar el GLB al wrapper
+                r2Result.meshes.forEach(m => m.isPickable = false); // Evitar oclusión del ratón
+
+                // Guardar grupo de animación original
+                let r2AnimGroups = r2Result.animationGroups;
+                if (r2AnimGroups && r2AnimGroups.length > 0) {
+                    r2AnimGroups.forEach(ag => {
+                        ag.targetedAnimations.forEach(ta => {
+                            let name = ta.target.name.toLowerCase();
+                            let isAccessory = name.includes("leg") || name.includes("foot") || name.includes("head") || name.includes("dome") || name.includes("wheel") || name.includes("arm");
+                            
+                            if (!isAccessory) {
+                                let keys = ta.animation.getKeys();
+                                if (keys && keys.length > 0) {
+                                    if (ta.animation.targetProperty === "position") {
+                                        // NO APLANAR Leg_middle PARA QUE LA TERCERA PATA BAJE
+                                        if (name !== "leg_middle") {
+                                            let initialValue = keys[0].value.clone();
+                                            keys.forEach(k => k.value = initialValue);
+                                        }
+                                    } 
+                                    else if (ta.animation.targetProperty === "rotationQuaternion" || ta.animation.targetProperty === "rotation") {
+                                        let isBody = name.includes("r2d2") || name.includes("body") || name.includes("chassis") || name.includes("torso") || name.includes("spine");
+                                        // NO APLANAR Body NI Legs rotator PARA QUE SE INCLINE CORRECTAMENTE
+                                        if (!isBody && name !== "legs rotator") {
+                                            let initialValue = keys[0].value.clone();
+                                            keys.forEach(k => k.value = initialValue);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        ag.start(false, 1.0, 0, 2.5); // Iniciar rango
+                        ag.pause(); // Pausarlo inmediatamente (lo controlaremos a mano)
+                        ag.goToFrame(2.5); // Posición inicial: 2 patas
+                        window.r2AnimFrame = 2.5;
+                    });
+                    r2Anim = r2AnimGroups[0];
+                }
+
+                // Eliminado el ReferenceError que rompía r2d2Dome
+                r2d2Dome = scene.getTransformNodeByName("Head");
+            } catch (e) {
+                console.error("Fallo al cargar R2-D2:", e);
+            }
+
+            // --- CARGAR BB-8 (Controlable - Código EXACTO de P3) ---
+            try {
+                const bb8Result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+                
+                bb8Root = new BABYLON.TransformNode("bb8Root", scene);
+                bb8Sphere = new BABYLON.TransformNode("bb8Sphere", scene);
+                bb8Head = new BABYLON.TransformNode("bb8Head", scene);
+                
+                bb8Sphere.parent = bb8Root;
+                bb8Head.parent = bb8Root;
+                
+                const root = bb8Result.meshes[0];
+                scene.render(); // Forzar matrices
+                
+                // 3. Calibración Geométrica Pura con Pivote Externo
+                const modelPivot = new BABYLON.TransformNode("modelPivot", scene);
+                root.parent = modelPivot;
+                
+                // A. Poner de pie y corregir el sistema de coordenadas
+                modelPivot.rotation.z = Math.PI;
+                modelPivot.rotate(BABYLON.Axis.X, Math.PI/2, BABYLON.Space.LOCAL);
+                
+                scene.render(); // Forzar actualización de matrices
+                
+                let bbRadius = 1.333;
+                
+                // B. Escalar dinámicamente para que el diámetro sea exactamente 2.0 (Radio = 1.0)
+                let bbox = getBoundingInfoTotal(bb8Result.meshes, root);
+                let diameter = Math.min(bbox.size.x, Math.min(bbox.size.y, bbox.size.z));
+                if (diameter > 0) {
+                    modelPivot.scaling.scaleInPlace((bbRadius * 2.0) / diameter);
+                }
+                
+                // C. Centrar el pivote (Ajustado matemáticamente y escalado por bbRadius)
+                modelPivot.position.y = -(643.0 / 632.0) * bbRadius;
+                
+                // 4. Separación Inteligente
+                const headPivot = modelPivot.clone("headPivot", null);
+                modelPivot.parent = bb8Sphere;
+                headPivot.parent = bb8Head;
+                
+                const mBody = modelPivot.getChildMeshes(false);
+                const mHead = headPivot.getChildMeshes(false);
+                
+                for (let i = 0; i < mBody.length; i++) {
+                    const positions = mBody[i].getVerticesData(BABYLON.VertexBuffer.PositionKind);
+                    if (!positions) continue;
+                    
+                    let localMinY = Infinity;
+                    let localMaxY = -Infinity;
+                    for (let j = 0; j < positions.length; j += 3) {
+                        if (positions[j+1] < localMinY) localMinY = positions[j+1];
+                        if (positions[j+1] > localMaxY) localMaxY = positions[j+1];
+                    }
+                    const centerY = (localMinY + localMaxY) / 2;
+                    
+                    if (centerY < -1300) {
+                        mBody[i].dispose();
+                    } else {
+                        mHead[i].dispose();
+                    }
+                }
+                
+                bb8Root.position = new BABYLON.Vector3(-12, bbRadius, 2); 
+            } catch (e) {
+                console.error("Error cargando BB-8:", e);
+            }
+
+            // Entradas de teclado robustas (ActionManager)
+            scene.actionManager = new BABYLON.ActionManager(scene);
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = true;
+            }));
+            scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+                inputMap[evt.sourceEvent.key.toLowerCase()] = false;
+            }));
+            
+            // Entrada de Ratón para R2-D2
+            scene.onPointerObservable.add((pointerInfo) => {
+                if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+                    if (pointerInfo.event.buttons === 1 || pointerInfo.event.button === 0) {
+                        const pick = scene.pick(scene.pointerX, scene.pointerY);
+                        if (pick.hit && pick.pickedMesh === ground) {
+                            r2TargetPosition = pick.pickedPoint;
+                            targetMarker.position.x = r2TargetPosition.x;
+                            targetMarker.position.z = r2TargetPosition.z;
+                            targetMarker.isVisible = true;
+                        }
+                    }
+                }
+            });
+
+            // Lógica Frame a Frame
+            scene.onBeforeRenderObservable.add(() => {
+                try {
+                    if (!bb8Root) return;
+                    let dt = engine.getDeltaTime() / 1000.0;
+                    if (dt > 0.1) dt = 0.1; // Limitar salto temporal
+
+                    const speed = 0.15;
+                    const r2Speed = 0.12;
+                    let moveZ = 0;
+                    let moveX = 0;
+                    let r2MoveZ = 0;
+                    let r2MoveX = 0;
+
+                    // Controles BB-8 (Flechas)
+                    if (inputMap["arrowup"]) moveZ = -speed;
+                    if (inputMap["arrowdown"]) moveZ = speed;
+                    if (inputMap["arrowleft"]) moveX = speed;
+                    if (inputMap["arrowright"]) moveX = -speed;
+
+                    // Controles R2-D2 (W, A, S, D)
+                    if (inputMap["w"]) r2MoveZ = r2Speed;
+                    if (inputMap["s"]) r2MoveZ = -r2Speed;
+                    if (inputMap["a"]) r2MoveX = r2Speed;
+                    if (inputMap["d"]) r2MoveX = -r2Speed;
+                    
+                    let isMouseMoving = false;
+                    
+                    // Control por Ratón R2-D2
+                    let r2IsActive = false; // Flag para saber si debe reproducir animación
+                    
+                    if (r2TargetPosition) {
+                        if (inputMap["w"] || inputMap["s"] || inputMap["a"] || inputMap["d"]) {
+                            // Si usa el teclado, cancelamos el destino del ratón
+                            r2TargetPosition = null;
+                            targetMarker.isVisible = false;
+                        } else {
+                            let dx = r2TargetPosition.x - r2RootP4.position.x;
+                            let dz = r2TargetPosition.z - r2RootP4.position.z;
+                            let dist = Math.sqrt(dx*dx + dz*dz);
+                            if (dist > 0.1) { // Distancia mínima para frenar suavemente
+                                r2IsActive = true;
+                                isMouseMoving = true;
+                                
+                                let direction = new BABYLON.Vector3(dx, 0, dz).normalize();
+                                let targetAngle = Math.atan2(direction.x, direction.z);
+                                let currentAngle = r2RootP4.rotation.y;
+                                
+                                // Normalizar angleDiff a [-PI, PI]
+                                while (targetAngle - currentAngle > Math.PI) targetAngle -= Math.PI * 2;
+                                while (targetAngle - currentAngle < -Math.PI) targetAngle += Math.PI * 2;
+                                
+                                let angleDiff = targetAngle - currentAngle;
+                                let rotationSpeed = 3.0 * dt; // Velocidad de giro exacta de P3
+                                
+                                if (Math.abs(angleDiff) > rotationSpeed) {
+                                    r2RootP4.rotation.y += Math.sign(angleDiff) * rotationSpeed;
+                                } else {
+                                    r2RootP4.rotation.y = targetAngle;
+                                }
+                                
+                                // Avanzar fluidamente sin bloqueos: la velocidad es proporcional a la alineación
+                                let speedFactor = Math.max(0, Math.cos(angleDiff));
+                                r2MoveX = Math.sin(r2RootP4.rotation.y) * r2Speed * speedFactor;
+                                r2MoveZ = Math.cos(r2RootP4.rotation.y) * r2Speed * speedFactor;
+                            } else {
+                                r2TargetPosition = null;
+                                targetMarker.isVisible = false;
+                            }
+                        }
+                    }
+                    if (targetMarker && targetMarker.isVisible) {
+                        targetMarker.rotation.y += 0.05; // Girar marcador
+                    }
+
+                    // Animación C-3PO (B)
+                    if (inputMap["b"]) {
+                        if (c3poAnim && !c3poAnim.isPlaying) c3poAnim.play(true);
+                    } else {
+                        if (c3poAnim && c3poAnim.isPlaying) c3poAnim.stop();
+                    }
+
+                    // Mover BB-8 (Inercia Suave)
+                    let bb8TargetVel = new BABYLON.Vector3(moveX, 0, moveZ);
+                    bb8Velocity = BABYLON.Vector3.Lerp(bb8Velocity, bb8TargetVel, 0.1);
+                    
+                    if (bb8Velocity.lengthSquared() > 0.0001) {
+                        bb8Root.position.addInPlace(bb8Velocity);
+                        
+                        // Rotar esfera (física EXACTA de P3)
+                        if (bb8Sphere) {
+                            let distance = bb8Velocity.length();
+                            let angle = distance / 1.333;
+                            let moveDir = bb8Velocity.clone().normalize();
+                            let rotationAxis = new BABYLON.Vector3(moveDir.z, 0, -moveDir.x);
+                            bb8Sphere.rotate(rotationAxis, angle, BABYLON.Space.WORLD);
+                        }
+                        // Mantener cabeza orientada en su eje Y global
+                        if (bb8Head) {
+                            bb8Head.rotationQuaternion = null;
+                            bb8Head.rotation.x = 0;
+                            bb8Head.rotation.z = 0;
+                            const targetAngle = Math.atan2(bb8Velocity.x, bb8Velocity.z);
+                            bb8Head.rotation.y = BABYLON.Scalar.LerpAngle(bb8Head.rotation.y, targetAngle, 0.15);
+                        }
+                    }
+
+                    // Movimiento R2-D2 (Con inercia suave para matar los saltitos)
+                    if (r2RootP4) {
+                        if (!window.r2Velocity) window.r2Velocity = new BABYLON.Vector3(0, 0, 0);
+
+                        window.r2Velocity.x = BABYLON.Scalar.Lerp(window.r2Velocity.x, r2MoveX, 0.15);
+                        window.r2Velocity.z = BABYLON.Scalar.Lerp(window.r2Velocity.z, r2MoveZ, 0.15);
+                        
+                        let isMovingNow = window.r2Velocity.lengthSquared() > 0.00001;
+                        
+                        // R2 está activo si se mueve con ratón o teclado o por inercia
+                        let isR2MovingFrame = isMovingNow || r2IsActive;
+                        
+                        // CONTROL MANUAL DE ANIMACIÓN (Tercera pata e inclinación)
+                        // Frame 0 = 3 Patas (Inclinado) | Frame 2.5 = 2 Patas (Vertical)
+                        if (r2Anim) {
+                            let targetFrame = isR2MovingFrame ? 0 : 2.5;
+                            if (window.r2AnimFrame === undefined) window.r2AnimFrame = 2.5;
+                            
+                            window.r2AnimFrame = BABYLON.Scalar.Lerp(window.r2AnimFrame, targetFrame, 0.1);
+                            
+                            if (Math.abs(window.r2AnimFrame - targetFrame) > 0.01) {
+                                r2Anim.goToFrame(window.r2AnimFrame);
+                            }
+                        }
+
+                        if (isMovingNow) {
+                            r2RootP4.position.addInPlace(window.r2Velocity);
+                            
+                            // Orientar cuerpo suavemente si usa teclado (el ratón ya lo orienta)
+                            if (!isMouseMoving) {
+                                const targetAngle = Math.atan2(window.r2Velocity.x, window.r2Velocity.z);
+                                r2RootP4.rotation.y = BABYLON.Scalar.LerpAngle(r2RootP4.rotation.y, targetAngle, 0.15);
+                            }
+                        }
+                        
+                        // Si R2-D2 está quieto, gira su cabeza para mirar a BB-8
+                        if (!isMovingNow && r2d2Dome && bb8Root) {
+                            const dx = bb8Root.position.x - r2RootP4.position.x;
+                            const dz = bb8Root.position.z - r2RootP4.position.z;
+                            let targetHeadAngle = Math.atan2(dx, dz) - r2RootP4.rotation.y;
+                            
+                            // Normalizar a [-PI, PI] para evitar giros continuos
+                            while (targetHeadAngle > Math.PI) targetHeadAngle -= Math.PI * 2;
+                            while (targetHeadAngle < -Math.PI) targetHeadAngle += Math.PI * 2;
+                            
+                            // Rotación suave de la cúpula
+                            let currentRot = r2d2Dome.rotationQuaternion ? r2d2Dome.rotationQuaternion.toEulerAngles() : r2d2Dome.rotation;
+                            let newYaw = BABYLON.Scalar.LerpAngle(currentRot.y, targetHeadAngle, 0.05);
+                            r2d2Dome.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(newYaw, 0, 0);
+                        }
+                    }
+
+                    // La cámara sigue a BB-8
+                    if (bb8Root) {
+                        camera.target = bb8Root.position;
+                    }
+                } catch(e) {
+                    const ui = document.getElementById("ui-container");
+                    if (ui && !ui.innerHTML.includes(e.message)) {
+                        ui.innerHTML += `<p style='color:red; font-size:12px;'>Error: ${e.message}</p>`;
+                        console.error(e);
+                    }
+                }
+            });
+
+            return scene;
+        };
+
+        createScene().then(s => {
+            engine.runRenderLoop(() => {
+                s.render();
+            });
+        });
+
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
+</html>

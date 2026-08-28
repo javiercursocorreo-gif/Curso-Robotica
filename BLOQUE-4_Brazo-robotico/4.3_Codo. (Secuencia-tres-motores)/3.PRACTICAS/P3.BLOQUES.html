@@ -1,0 +1,2158 @@
+<!-- MEJORAS:
+- Geometría Monoviga de Clase 4.3: Viga naranja al costado (X=0.35) y antebrazo de largo 1.30 alineado con la muñeca.
+- Un Único Dial de Hombro: Se conserva únicamente el dial derecho (X=0.915, cara exterior, mirando a +X) y el puntero rojo (X=0.935, Y=1.88, Z=0). Se elimina el dial e indicador izquierdos.
+- Un Dial de Codo Derecho: Dial codo en X=0.565 y puntero codo en X=0.575, Y=0.52 (arriba del dial en Y local).
+- Calibración de Diales Exacta: Mapeo de ángulos corregido mediante canvas invertido en Y.
+  - Hombro: Math.PI - (ang * Math.PI / 180)
+  - Codo: 0.5 * Math.PI + (ang * Math.PI / 180)
+- Mapeo de Bloques de Programación:
+  - Adición del bloque "Codo" con ángulos dropdown de 0°, 30°, 45°, 60°, 90°, 120° y 145°.
+  - Agrupación concurrente triple (Base + Hombro + Codo) al activar la coordinación.
+- Misiones y Colisiones Avanzadas:
+  - Meta de esquivar barrera en Misión 5. Se verifica que al cruzar por Base = 0°, el hombro no esté alto (>25°) O bien el codo esté flexionado (>=90°) reduciendo el alcance para pasar por debajo de forma segura.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0b111e;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-layout {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* PANEL DE CONTROL IZQUIERDO (GLASS UI) */
+        #ui-panel {
+            width: 460px;
+            flex-shrink: 0;
+            background: rgba(15, 23, 42, 0.92);
+            border-right: 2px solid #ffaa44;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            min-width: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #ffaa44;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 2px solid #ffaa44;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #ffffff, #ffaa44);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* PESTAÑAS DE MISIÓN */
+        .mission-selector {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+        }
+
+        .mission-tab {
+            background: #1e293b;
+            border: 1px solid rgba(255, 170, 68, 0.2);
+            border-radius: 6px;
+            color: #cbd5e1;
+            padding: 8px 0;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .mission-tab:hover {
+            background: #334155;
+            color: #fff;
+        }
+
+        .mission-tab.active {
+            background: #ffaa44;
+            color: #000;
+            border-color: #ffaa44;
+            box-shadow: 0 0 8px rgba(255, 170, 68, 0.3);
+        }
+
+        .section-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 170, 68, 0.15);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            color: #ffaa44;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .mission-desc {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        .mission-reqs {
+            font-size: 13px;
+            color: #ffb700;
+            font-family: monospace;
+            background: rgba(255, 183, 0, 0.05);
+            padding: 6px 10px;
+            border-left: 3px solid #ffb700;
+            border-radius: 4px;
+        }
+
+        /* PALETA DE BLOQUES (HORIZONTAL) */
+        .palette-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .palette-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+
+        .palette-block {
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: grab;
+            font-size: 13px;
+            font-weight: bold;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.1s;
+        }
+
+        .palette-block:active {
+            cursor: grabbing;
+        }
+
+        .palette-block:hover {
+            transform: scale(1.03);
+        }
+
+        .block-base {
+            background: linear-gradient(135deg, #102a45 0%, #153c60 100%);
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+        }
+
+        .block-hombro {
+            background: linear-gradient(135deg, #2a1045 0%, #3e1560 100%);
+            border: 1px solid #d400ff;
+            color: #d400ff;
+        }
+
+        .block-codo {
+            background: linear-gradient(135deg, #10453a 0%, #15604c 100%);
+            border: 1px solid #00ffaa;
+            color: #00ffaa;
+        }
+
+        .block-esperar {
+            background: linear-gradient(135deg, #3c220f 0%, #563318 100%);
+            border: 1px solid #ffa500;
+            color: #ffa500;
+        }
+
+        .block-coord-on {
+            background: linear-gradient(135deg, #0f3522 0%, #174f33 100%);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+        }
+
+        .block-coord-off {
+            background: linear-gradient(135deg, #3a1515 0%, #541d1d 100%);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+
+        /* ESPACIO DE TRABAJO (WORKSPACE) */
+        .workspace-zone {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #workspace {
+            border: 2px dashed rgba(255, 170, 68, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.01);
+            min-height: 120px;
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        #workspace.drag-hover {
+            border-color: #ffaa44;
+            background: rgba(255, 170, 68, 0.04);
+            box-shadow: inset 0 0 15px rgba(255, 170, 68, 0.15);
+        }
+
+        /* BLOQUES EN EL WORKSPACE */
+        .workspace-block {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            position: relative;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-left: 5px solid transparent;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .workspace-block.block-base { border-left-color: #00f2ff; background: #132235; border: 1px solid rgba(0, 242, 255, 0.2); border-left-width: 5px; color: #fff; }
+        .workspace-block.block-hombro { border-left-color: #d400ff; background: #221535; border: 1px solid rgba(212, 0, 255, 0.2); border-left-width: 5px; color: #fff; }
+        .workspace-block.block-codo { border-left-color: #00ffaa; background: #13352c; border: 1px solid rgba(0, 255, 170, 0.2); border-left-width: 5px; color: #fff; }
+        .workspace-block.block-esperar { border-left-color: #ffa500; background: #281b10; border: 1px solid rgba(255, 165, 0, 0.2); border-left-width: 5px; color: #fff; }
+        .workspace-block.block-coord_on { border-left-color: #00ff88; background: #12281b; border: 1px solid rgba(0, 255, 136, 0.2); border-left-width: 5px; color: #fff; }
+        .workspace-block.block-coord_off { border-left-color: #ff4444; background: #2c1414; border: 1px solid rgba(255, 68, 68, 0.2); border-left-width: 5px; color: #fff; }
+
+        .workspace-block.dragging {
+            opacity: 0.4;
+        }
+
+        .workspace-block.running {
+            outline: 2px solid #ffcc00;
+            box-shadow: 0 0 15px #ffcc00;
+            background-color: rgba(255, 204, 0, 0.1) !important;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #666;
+            margin-right: 5px;
+            font-size: 16px;
+        }
+
+        .block-select {
+            background: #0f0f20;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .block-select:focus {
+            border-color: #ffaa44;
+        }
+
+        .block-delete {
+            margin-left: auto;
+            background: transparent;
+            border: none;
+            color: #ff4444;
+            font-size: 20px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+            transition: transform 0.1s;
+        }
+
+        .block-delete:hover {
+            transform: scale(1.3);
+            color: #ff6666;
+        }
+
+        /* CONTROLES DE EJECUCIÓN */
+        .controls-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn-control {
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-transform: uppercase;
+            min-height: 44px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn-play {
+            background: #00ff88;
+            color: #000;
+            font-size: 14px;
+        }
+
+        .btn-play:hover:not(:disabled) {
+            background: #00e077;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-stop {
+            background: #ff4444;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background: #cc3333;
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+        }
+
+        .btn-clear {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+        }
+
+        .btn-clear:hover:not(:disabled) {
+            background: #334155;
+            color: #fff;
+        }
+
+        .btn-control:disabled {
+            background: #1e293b !important;
+            color: #64748b !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            cursor: default;
+        }
+
+        /* FEEDBACK E INSTRUCCIONES */
+        .feedback-box {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.4;
+            display: none;
+        }
+
+        .feedback-box.error {
+            background: rgba(255, 68, 68, 0.15);
+            border: 1px solid #ff4444;
+            color: #ff6666;
+            display: block;
+        }
+
+        .feedback-box.info {
+            background: rgba(255, 170, 68, 0.1);
+            border: 1px solid #ffaa44;
+            color: #ffca80;
+            display: block;
+        }
+
+        .btn-solucion {
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-transform: uppercase;
+            min-height: 38px;
+            font-family: 'Outfit', sans-serif;
+            background: #ffaa44;
+            color: #000;
+            margin-top: 10px;
+            font-size: 13px;
+            width: 100%;
+        }
+
+        .btn-solucion:hover:not(:disabled) {
+            background: #ff9922;
+            transform: translateY(-1px);
+        }
+
+        /* HUD SOBRE EL VISOR 3D */
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 170, 68, 0.3);
+            border-radius: 12px;
+            padding: 14px;
+            width: 250px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hud-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #ffaa44;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+        }
+
+        .hud-val {
+            font-weight: bold;
+            font-family: monospace;
+            color: #ffaa44;
+        }
+
+        .hud-status {
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        /* MODALES */
+        .modal {
+            position: absolute;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .collision-overlay {
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 0, 0, 0.15);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-card {
+            background: #1c0e0e;
+            border: 2px solid #ff4444;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.4);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-card h2 {
+            color: #ff4444;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .modal-card p {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #ddd;
+        }
+
+        .modal-card button {
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.2s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .modal-card button:hover {
+            background: #cc3333;
+        }
+
+        #success-modal {
+            background: rgba(15, 50, 30, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            margin-top: 10px;
+            animation: slideUp 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .success-title {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .success-text {
+            font-size: 14px;
+            color: #eee;
+            line-height: 1.4;
+        }
+
+        .btn-next-mission {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-weight: bold;
+            cursor: pointer;
+            align-self: flex-start;
+            transition: background 0.2s;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn-next-mission:hover {
+            background: #00cc6e;
+        }
+
+        #confetti-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99;
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(15px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* SCROLLBARS */
+        #ui-panel::-webkit-scrollbar, #workspace::-webkit-scrollbar {
+            width: 6px;
+        }
+        #ui-panel::-webkit-scrollbar-track, #workspace::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        #ui-panel::-webkit-scrollbar-thumb, #workspace::-webkit-scrollbar-thumb {
+            background: rgba(255, 170, 68, 0.15);
+            border-radius: 3px;
+        }
+        #ui-panel::-webkit-scrollbar-thumb:hover, #workspace::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 170, 68, 0.30);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-layout">
+        <!-- PANEL DE PROGRAMACIÓN POR BLOQUES (IZQUIERDA) -->
+        <div id="ui-panel">
+            <div class="panel-title">Programación por Bloques</div>
+
+            <!-- Selector de Misiones -->
+            <div class="mission-selector">
+                <button class="mission-tab active" onclick="selectMission(1)" id="tab-m1">M1</button>
+                <button class="mission-tab" onclick="selectMission(2)" id="tab-m2">M2</button>
+                <button class="mission-tab" onclick="selectMission(3)" id="tab-m3">M3</button>
+                <button class="mission-tab" onclick="selectMission(4)" id="tab-m4">M4</button>
+                <button class="mission-tab" onclick="selectMission(5)" id="tab-m5">M5</button>
+            </div>
+
+            <!-- Información de Misión -->
+            <div class="section-box">
+                <div class="section-title" id="mission-title">Misión 1: Introducción</div>
+                <div class="mission-desc" id="mission-desc">Observa el brazo moverse en trayectoria coordinada simultánea. La secuencia ya viene precargada. Pulsa Ejecutar 🚀.</div>
+                <div class="mission-reqs" id="mission-reqs">Meta: Llegar a Base=90°, Hombro=26°, Codo=0°.</div>
+                <button class="btn-solucion" id="btn-solution" onclick="loadSolution()">Ver Solución 💡</button>
+            </div>
+
+            <!-- Paleta de Bloques Disponibles -->
+            <div class="section-box palette-container">
+                <div class="section-title">🧱 Bloques Disponibles</div>
+                <div class="palette-scroll">
+                    <div class="palette-block block-base" draggable="true" data-type="base">Base ↔</div>
+                    <div class="palette-block block-hombro" draggable="true" data-type="hombro">Hombro ↕</div>
+                    <div class="palette-block block-codo" draggable="true" data-type="codo">Codo 🦾</div>
+                    <div class="palette-block block-esperar" draggable="true" data-type="esperar">Esperar ⏱</div>
+                    <div class="palette-block block-coord-on" draggable="true" data-type="coord_on">Coord. ON 🔗</div>
+                    <div class="palette-block block-coord-off" draggable="true" data-type="coord_off">Coord. OFF 🚫</div>
+                </div>
+            </div>
+
+            <!-- Workspace de Secuencia -->
+            <div class="workspace-zone">
+                <div class="section-title">💻 Espacio de Trabajo (Arrastra los bloques aquí)</div>
+                <div id="workspace">
+                    <!-- Los bloques se inyectan dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Controles de Ejecución -->
+            <div class="controls-row">
+                <button class="btn-control btn-play" id="btn-play" onclick="startSequenceExecution()">Ejecutar 🚀</button>
+                <button class="btn-control btn-stop" id="btn-stop" onclick="stopSequenceExecution()" disabled>Parar ⏹️</button>
+                <button class="btn-control btn-clear" id="btn-clear" onclick="clearWorkspace()">Limpiar 🗑️</button>
+                <button class="btn-control" style="background: #2a3a4a; border-color: #0088ff; color: #0088ff;" onclick="resetRobotForMission(activeMission)">Reiniciar Robot 🔄</button>
+            </div>
+
+            <!-- Feedback de Ejecución -->
+            <div id="mission-feedback" class="feedback-box"></div>
+
+            <!-- Modal de Éxito Flotante -->
+            <div id="success-modal" style="display: none;">
+                <div class="success-title">🏆 ¡Misión Completada!</div>
+                <div class="success-text" id="success-message">Has completado todos los requisitos de la misión.</div>
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button class="btn-control" style="background: #1a3022; border: 1px solid #00ff88; color: #00ff88; padding: 0 15px;" onclick="dismissSuccessModal()">Repetir 🔄</button>
+                    <button class="btn-next-mission" onclick="advanceMission()" style="flex: 1;">Siguiente Misión ➡️</button>
+                </div>
+            </div>
+
+            <!-- Consejos Didácticos -->
+            <div class="section-box">
+                <div class="section-title">💡 Guía Rápida</div>
+                <div class="help-text">
+                    <span>• Arrastra bloques de la paleta horizontal al espacio de trabajo.</span>
+                    <span>• Ordena los bloques verticalmente arrastrándolos de su manejador ☰.</span>
+                    <span>• Si <b>Coord. ON</b> está activo, comandos consecutivos de Base, Hombro y Codo se mueven simultáneamente.</span>
+                    <span>• Pulsa el botón × de cualquier bloque en el Workspace para eliminarlo.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISOR 3D (DERECHA) -->
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            <canvas id="confetti-canvas"></canvas>
+
+            <!-- HUD de Telemetría -->
+            <div class="hud-overlay">
+                <div class="hud-title">Lecturas de Sensores</div>
+                <div class="hud-row">Base actual: <span class="hud-val" id="hud-base">0.0°</span></div>
+                <div class="hud-row">Hombro actual: <span class="hud-val" id="hud-hombro">45.0°</span></div>
+                <div class="hud-row">Codo actual: <span class="hud-val" id="hud-codo">90.0°</span></div>
+                <div class="hud-row">Coordinación: <span class="hud-status" id="hud-coord-status">ACTIVADA</span></div>
+                <div class="hud-row">Estado: <span class="hud-val" style="color: #ffaa44;" id="hud-state">Inmóvil</span></div>
+            </div>
+
+            <!-- Modal de Colisión en Pantalla Completa 3D -->
+            <div id="collision-modal" class="modal collision-overlay" style="display: none;">
+                <div class="modal-card">
+                    <h2>💥 ¡COLISIÓN DETECTADA!</h2>
+                    <p>El brazo robótico ha chocado con la <b>barrera roja</b> central.</p>
+                    <p style="color: #ff8888; font-size: 13px;">Pista: Al cruzar el centro (Base = 0°), debes mantener el codo replegado (ej. Flexión Codo >= 90°) para reducir el alcance del brazo y pasar por debajo de la barrera.</p>
+                    <button onclick="dismissCollision()">Reintentar 🔄</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CDNS OBLIGATORIOS -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <script>
+        // --- 1. CONFIGURACIÓN DE MISIONES Y ESTADOS ---
+        const missions = {
+            1: {
+                title: "Misión 1: Introducción",
+                desc: "Observa el brazo moverse en trayectoria coordinada simultánea. La secuencia ya viene precargada. Pulsa Ejecutar 🚀.",
+                reqs: "Meta: Llegar a Base=90°, Hombro=26°, Codo=0°.",
+                start: { base: 90, hombro: 90, codo: 90 },
+                target: { base: 90, hombro: 26, codo: 0 },
+                solution: [
+                    { type: "coord_on" },
+                    { type: "base", value: "90" },
+                    { type: "hombro", value: "26" },
+                    { type: "codo", value: "0" }
+                ],
+                preloaded: [
+                    { type: "coord_on" },
+                    { type: "base", value: "90" },
+                    { type: "hombro", value: "75" },
+                    { type: "codo", value: "0" }
+                ]
+            },
+            2: {
+                title: "Misión 2: Alta Izquierda Coordinada",
+                desc: "Alcanza la Zona Alta Izquierda (plataforma roja elevada). Para comprender la diferencia entre modos, sigue estos pasos:\n1. Diseña la secuencia y ejecútala primero con Coordinación = OFF para observar el movimiento secuencial de los motores (uno a uno).\n2. Añade el bloque 'Coord. ON' al principio de tu secuencia y ejecútala de nuevo para ver el movimiento fluido y simultáneo.",
+                reqs: "Meta: Base=135°, Hombro=75°, Codo=0°. Prueba primero en OFF y completa la misión en ON.",
+                start: { base: 90, hombro: 45, codo: 90 },
+                target: { base: 135, hombro: 75, codo: 0 },
+                solution: [
+                    { type: "coord_on" },
+                    { type: "base", value: "135" },
+                    { type: "hombro", value: "75" },
+                    { type: "codo", value: "0" }
+                ],
+                preloaded: []
+            },
+            3: {
+                title: "Misión 3: Retracción y Plegado",
+                desc: "Lleva el brazo a la plataforma verde baja (Zona Baja Derecha). Sigue estos pasos para comparar comportamientos:\n1. Diseña la secuencia y ejecútala con Coordinación = OFF para ver el plegado y giro secuencial.\n2. Añade el bloque 'Coord. ON' al inicio para ver cómo el codo se repliega mientras la base gira simultáneamente.",
+                reqs: "Meta: Base=45°, Hombro=30°, Codo=330°. Prueba primero en OFF y completa la misión en ON.",
+                start: { base: 90, hombro: 45, codo: 90 },
+                target: { base: 45, hombro: 30, codo: -30 },
+                solution: [
+                    { type: "coord_on" },
+                    { type: "base", value: "45" },
+                    { type: "hombro", value: "75" },
+                    { type: "codo", value: "-30" }
+                ],
+                preloaded: []
+            },
+            4: {
+                title: "Misión 4: Secuencia Triple",
+                desc: "Programa el robot para visitar primero la plataforma baja, esperar allí 1 segundo para recoger un objeto y llevarlo a la plataforma alta. Compara la fluidez del recorrido:\n1. Pruébalo primero con Coordinación = OFF para entender el trayecto paso a paso.\n2. Pruébalo luego añadiendo el bloque 'Coord. ON' al principio de la secuencia.",
+                reqs: "Meta: Ir a (45°, 30°, 330°) -> Esperar >=1s -> Terminar en (135°, 75°, 0°). Pruébalo en OFF y completa en ON.",
+                start: { base: 90, hombro: 45, codo: 90 },
+                target: { base: 135, hombro: 75, codo: 0 },
+                solution: [
+                    { type: "coord_on" },
+                    { type: "base", value: "45" },
+                    { type: "hombro", value: "75" },
+                    { type: "codo", value: "-30" },
+                    { type: "esperar", value: "1" },
+                    { type: "base", value: "135" },
+                    { type: "hombro", value: "75" },
+                    { type: "codo", value: "0" }
+                ],
+                preloaded: []
+            },
+            5: {
+                title: "Misión 5: Secuencia de Esquiva",
+                desc: "Debes realizar una secuencia exacta para esquivar los obstáculos. Partirás desde (225°, 90°, 0°). Deberás pasar por (225°, 0°, 330°), luego (135°, 0°, 90°), (45°, 0°, 330°) y finalmente llegar a (315°, 90°, 90°).",
+                reqs: "Meta: Seguir la secuencia exacta descrita en las instrucciones.",
+                start: { base: 225, hombro: 90, codo: 0 },
+                target: { base: 315, hombro: 90, codo: 90 },
+                preloaded: [],
+                solution: [
+                    { type: "coord_on" },
+                    { type: "base", value: "225" },
+                    { type: "hombro", value: "0" },
+                    { type: "codo", value: "-30" },
+                    { type: "base", value: "135" },
+                    { type: "hombro", value: "0" },
+                    { type: "codo", value: "90" },
+                    { type: "base", value: "45" },
+                    { type: "hombro", value: "0" },
+                    { type: "codo", value: "-30" },
+                    { type: "base", value: "315" },
+                    { type: "hombro", value: "90" },
+                    { type: "codo", value: "90" }
+                ]
+            }
+        };
+
+        let activeMission = 1;
+        let running = false;
+        let currentBlockIndex = 0;
+        let coordinated = false;
+
+        // Registro de telemetría del robot
+        let currentBase = 90;
+        let currentShoulder = 45;
+        let currentCodo = 90;
+
+        let targetBase = 90;
+        let targetShoulder = 45;
+        let targetCodo = 90;
+
+        let startBase = 90;
+        let startShoulder = 45;
+        let startCodo = 90;
+
+        // Estado del movimiento 3D
+        let moving = false;
+        let moveStartTime = 0;
+        const moveDuration = 2000; // 2 segundos por comando
+        let movementResolve = null;
+
+        // Variables de validación de misión
+        let m4_visited_baja_derecha = false;
+        let collisionOccurred = false;
+
+        // --- 2. MOTOR Y ELEMENTOS 3D DE BABYLON ---
+        const canvas = document.getElementById('renderCanvas');
+        let engine, scene, camera, shadowGen, glow;
+        let baseRotator, shoulderNode, codoNode, link2Node, munecaNode, codoPointerPivot;
+        let obstacleMesh, obstacleLabel;
+        let orangeMat, blackMat, metalMat, woodMat, holoMat, obsMat, lightOrangeMat, redMat, whiteMat;
+
+        // Puntos de estela
+        let trailPoints = [];
+        let trailsList = [];
+        let activeTrailMesh = null;
+
+        async function initEngine() {
+            try {
+                if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+                    engine = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+                    await engine.initAsync();
+                } else {
+                    throw new Error("WebGPU no soportado");
+                }
+            } catch(e) {
+                console.log("WebGL fallback:", e.message);
+                engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            }
+            createScene();
+            window.scene = scene;
+            initDragAndDrop();
+            selectMission(1);
+            resizeConfettiCanvas();
+            engine.runRenderLoop(() => {
+                try { if(scene) scene.render(); } catch(err) { console.error(err); }
+            });
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+        }
+
+        // Generar textura graduada calibrada y corregida por vertical invertida de Babylon
+        function createDialTexture(name, isShoulder) {
+            const size = 512;
+            const dynamicTexture = new BABYLON.DynamicTexture(name, size, scene, true);
+            const ctx = dynamicTexture.getContext();
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size * 0.4;
+            
+            ctx.fillStyle = "#ffaa44";
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 20, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 14;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            const mainAngles = [0, 90, 180, 270];
+            mainAngles.forEach(ang => {
+                const rad = (180 - ang) * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.moveTo(cx + r * cos, cy + r * sin);
+                ctx.lineTo(cx + (r - 40) * cos, cy + (r - 40) * sin);
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.font = "bold 44px Arial, Helvetica, sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#000000";
+                ctx.translate(cx + (r - 85) * cos, cy + (r - 85) * sin);
+                ctx.rotate(rad + Math.PI / 2);
+                ctx.fillText(ang + "°", 0, 0);
+                ctx.restore();
+            });
+            
+            const subAngles = [30, 60, 120, 150, 210, 240, 300, 330];
+            subAngles.forEach(ang => {
+                const rad = (180 - ang) * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(cx + r * cos, cy + r * sin);
+                ctx.lineTo(cx + (r - 25) * cos, cy + (r - 25) * sin);
+                ctx.stroke();
+            });
+            
+            dynamicTexture.update();
+            return dynamicTexture;
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+
+            // Niebla Exponencial
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.025;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            // Cámara lateral con zoom amplio para panel lateral (radius 13)
+            camera = new BABYLON.ArcRotateCamera("cam", Math.PI/4, Math.PI/3.5, 13, new BABYLON.Vector3(0, 1.25, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 6;
+            camera.upperRadiusLimit = 22;
+
+            // Luces
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.7;
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2.5,-0.6), scene);
+            dirLight.position = new BABYLON.Vector3(20,40,20);
+            dirLight.intensity = 2.0;
+
+            // Sombras
+            shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            shadowGen.blurKernel = 32;
+
+            // Glow para las estelas brillantes
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.85;
+
+            // Suelo (Mesa de trabajo oscura)
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:40, height:40}, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+            groundMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+            ground.material = groundMat;
+            ground.receiveShadows = true;
+
+            // ================= MATERIALES =================
+            orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            orangeMat.specularPower = 32;
+
+            lightOrangeMat = new BABYLON.StandardMaterial("lightOrangeMat", scene);
+            lightOrangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ffaa44");
+            lightOrangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+            blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+
+            metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            metalMat.diffuseColor = BABYLON.Color3.FromHexString("#cbd5e1");
+            metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+            redMat = new BABYLON.StandardMaterial("redMat", scene);
+            redMat.diffuseColor = BABYLON.Color3.FromHexString("#ff2222");
+            redMat.emissiveColor = BABYLON.Color3.FromHexString("#880000");
+
+            woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+
+            whiteMat = new BABYLON.StandardMaterial("whiteMat", scene);
+            whiteMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.95);
+
+            holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+            holoMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            holoMat.emissiveColor = new BABYLON.Color3(0, 0.5, 0.7);
+            holoMat.alpha = 0.22;
+            holoMat.backFaceCulling = false;
+
+            obsMat = new BABYLON.StandardMaterial("obsMat", scene);
+            obsMat.diffuseColor = new BABYLON.Color3(1, 0.1, 0.1);
+            obsMat.emissiveColor = new BABYLON.Color3(0.7, 0, 0);
+
+            // ================= GEOMETRÍA DEL ROBOT =================
+
+            // Suelo y Plato Base
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 5.5, height: 0.05, depth: 5.5}, scene);
+            basePlate.position.y = 0.025;
+            basePlate.material = woodMat;
+            basePlate.receiveShadows = true;
+
+            const gradCircle = BABYLON.MeshBuilder.CreateTorus("gradCircle", {diameter: 3.8, thickness: 0.03, tessellation: 64}, scene);
+            gradCircle.position.y = 0.051;
+            const gradMat = new BABYLON.StandardMaterial("gradMat", scene);
+            gradMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+            gradCircle.material = gradMat;
+
+            // Torreta base giratoria (pilares U de clase 4.2)
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3, tessellation: 32}, scene);
+            domeBase.position.y = 0.2;
+            domeBase.material = orangeMat; domeBase.parent = baseRotator;
+            shadowGen.addShadowCaster(domeBase);
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35;
+            domeSphere.scaling.y = 0.5;
+            domeSphere.material = orangeMat; domeSphere.parent = baseRotator;
+            shadowGen.addShadowCaster(domeSphere);
+
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.0, 0);
+            pillarL.material = orangeMat; pillarL.parent = baseRotator;
+            shadowGen.addShadowCaster(pillarL);
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.0, 0);
+            pillarR.material = orangeMat; pillarR.parent = baseRotator;
+            shadowGen.addShadowCaster(pillarR);
+
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.25}, scene);
+            shoulderPin.rotation.z = Math.PI / 2;
+            shoulderPin.position.set(0.20, 1.2, 0);
+            shoulderPin.material = metalMat; shoulderPin.parent = baseRotator;
+            shadowGen.addShadowCaster(shoulderPin);
+
+            // Cables
+            for (let zOffset = -0.2; zOffset <= 0.2; zOffset += 0.2) {
+                const wireMat = zOffset < -0.05 ? blackMat : (zOffset > 0.05 ? orangeMat : whiteMat);
+                const wire = BABYLON.MeshBuilder.CreateCylinder("wire_" + zOffset, {diameter: 0.03, height: 1.2, tessellation: 8}, scene);
+                wire.position.set(0.75, 0.5, zOffset - 0.35);
+                wire.rotation.x = 0.5;
+                wire.material = wireMat; wire.parent = baseRotator;
+            }
+
+            // Puntero de Base
+            const basePointer = BABYLON.MeshBuilder.CreateCylinder("basePointer", {diameterTop: 0.0, diameterBottom: 0.10, height: 0.20, tessellation: 4}, scene);
+            basePointer.position.set(0, 0.18, 1.95);
+            basePointer.rotation.x = Math.PI;
+            basePointer.parent = baseRotator;
+            basePointer.material = redMat;
+
+            createFloorDial();
+
+            // Articulación del Hombro (Sólida)
+            shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.parent = baseRotator;
+            shoulderNode.position.set(0, 1.2, 0);
+
+            // Servo Hombro Lado Derecho (X = 0.75) solamente (Reducido de 1.3 a 0.86 de diámetro)
+            const shoulderServo = BABYLON.MeshBuilder.CreateCylinder("shoulderServo", {diameter: 0.86, height: 0.3, tessellation: 32}, scene);
+            shoulderServo.rotation.z = Math.PI / 2;
+            shoulderServo.position.set(0.75, 0, 0);
+            shoulderServo.material = lightOrangeMat; shoulderServo.parent = shoulderNode;
+            shadowGen.addShadowCaster(shoulderServo);
+
+            // Dial del Hombro al costado exterior derecho (radius reducido de 0.64 a 0.42) parentado a la base para que quede fijo
+            const dialL = BABYLON.MeshBuilder.CreateDisc("shoulderDialL", {radius: 0.42, tessellation: 64}, scene);
+            dialL.parent = baseRotator;
+            dialL.position.set(0.915, 1.2, 0);
+            dialL.rotation.y = Math.PI / 2; // Cara derecha exterior (mirando a +X)
+            const shoulderDialMatL = new BABYLON.StandardMaterial("shoulderDialMatL", scene);
+            shoulderDialMatL.diffuseTexture = createDialTexture("shoulderDialTexL", true); // Calibración de hombro
+            shoulderDialMatL.emissiveTexture = shoulderDialMatL.diffuseTexture;
+            shoulderDialMatL.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            shoulderDialMatL.disableLighting = true;
+            shoulderDialMatL.backFaceCulling = false;
+            dialL.material = shoulderDialMatL;
+
+            // Puntero rojo del hombro parentado a shoulderNode para que gire con el brazo
+            const pointerL = BABYLON.MeshBuilder.CreateBox("pointerL", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            pointerL.position.set(0.935, 0.46, 0);
+            pointerL.material = redMat;
+            pointerL.parent = shoulderNode;
+
+            // VIGA DEL BRAZO MONOVIGA (Naranja, al costado, X=0.35, alto 1.70)
+            const armBox = BABYLON.MeshBuilder.CreateBox("armBox", {width: 0.20, height: 1.7, depth: 0.34}, scene);
+            armBox.position.set(0.35, 0.85, 0);
+            armBox.parent = shoulderNode;
+            armBox.material = orangeMat;
+            shadowGen.addShadowCaster(armBox);
+            armBox.receiveShadows = true;
+
+            const armFrontCurver = BABYLON.MeshBuilder.CreateCylinder("armFrontCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armFrontCurver.position.set(0.35, 0.85, 0.17);
+            armFrontCurver.parent = shoulderNode;
+            armFrontCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armFrontCurver);
+
+            const armBackCurver = BABYLON.MeshBuilder.CreateCylinder("armBackCurver", {diameter: 0.20, height: 1.7, tessellation: 32}, scene);
+            armBackCurver.position.set(0.35, 0.85, -0.17);
+            armBackCurver.parent = shoulderNode;
+            armBackCurver.material = orangeMat;
+            shadowGen.addShadowCaster(armBackCurver);
+
+            // Articulación del Codo (Sólida, Pivot en Y = 1.70 relativo al hombro)
+            codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.parent = shoulderNode;
+            codoNode.position.set(0, 1.7, 0);
+
+            // Eje del codo (metal pin)
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.14, height: 0.90}, scene);
+            codoPin.rotation.z = Math.PI / 2;
+            codoPin.position.set(0.20, 0, 0);
+            codoPin.parent = codoNode;
+            codoPin.material = metalMat;
+
+            // Servo del Codo (diámetro reducido de 1.0 a 0.66)
+            const codoServo = BABYLON.MeshBuilder.CreateCylinder("codoServo", {diameter: 0.66, height: 0.22, tessellation: 32}, scene);
+            codoServo.rotation.z = Math.PI / 2;
+            codoServo.position.set(0.35, 0, 0);
+            codoServo.material = lightOrangeMat; codoServo.parent = codoNode;
+            shadowGen.addShadowCaster(codoServo);
+
+            // DISCO DE JUNTA DEL CODO AL COSTADO EXTERIOR (diámetro reducido de 1.0 a 0.66)
+            const codoJointDisc = BABYLON.MeshBuilder.CreateCylinder("codoJointDisc", {diameter: 0.66, height: 0.10, tessellation: 48}, scene);
+            codoJointDisc.rotation.z = Math.PI / 2;
+            codoJointDisc.position.set(0.50, 0, 0);
+            codoJointDisc.parent = codoNode;
+            codoJointDisc.material = lightOrangeMat;
+            shadowGen.addShadowCaster(codoJointDisc);
+
+            // Pivot de calibración para mantener el dial del codo alineado verticalmente
+            codoPointerPivot = new BABYLON.TransformNode("codoPointerPivot", scene);
+            codoPointerPivot.parent = shoulderNode;
+            codoPointerPivot.position.set(0, 1.7, 0);
+
+            // Dial graduado plano en la cara derecha exterior (radius reducido de 0.50 a 0.33) parentado al pivot para que no rote
+            const codoDial = BABYLON.MeshBuilder.CreateDisc("codoDial", {radius: 0.33, tessellation: 64}, scene);
+            codoDial.position.set(0.565, 0, 0);
+            codoDial.rotation.y = Math.PI / 2; // Mirando a +X
+            codoDial.parent = codoPointerPivot;
+            const codoDialMat = new BABYLON.StandardMaterial("codoDialMat", scene);
+            codoDialMat.diffuseTexture = createDialTexture("codoDialTex", false); // Calibración de codo
+            codoDialMat.emissiveTexture = codoDialMat.diffuseTexture;
+            codoDialMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            codoDialMat.disableLighting = true;
+            codoDialMat.backFaceCulling = false;
+            codoDial.material = codoDialMat;
+
+            // Puntero rojo del codo parentado a codoNode para que rote con el antebrazo
+            const codoPointer = BABYLON.MeshBuilder.CreateBox("codoPointer", {width: 0.02, height: 0.08, depth: 0.03}, scene);
+            codoPointer.position.set(0.575, 0.35, 0); // hovering above the dial
+            codoPointer.material = redMat;
+            codoPointer.parent = codoNode;
+
+            // Link 2 (Antebrazo centrado en X=0, longitud 1.30)
+            link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBox = BABYLON.MeshBuilder.CreateBox("forearmBox", {width: 0.30, height: 1.30, depth: 0.23}, scene);
+            forearmBox.position.set(0, 0.65, 0); // centrado a la mitad de su largo
+            forearmBox.parent = link2Node;
+            forearmBox.material = orangeMat;
+            shadowGen.addShadowCaster(forearmBox);
+            forearmBox.receiveShadows = true;
+
+            const forearmFrontCurver = BABYLON.MeshBuilder.CreateCylinder("forearmFrontCurver", {diameter: 0.30, height: 1.30, tessellation: 32}, scene);
+            forearmFrontCurver.position.set(0, 0.65, 0.115);
+            forearmFrontCurver.parent = link2Node;
+            forearmFrontCurver.material = orangeMat;
+            shadowGen.addShadowCaster(forearmFrontCurver);
+
+            const forearmBackCurver = BABYLON.MeshBuilder.CreateCylinder("forearmBackCurver", {diameter: 0.30, height: 1.30, tessellation: 32}, scene);
+            forearmBackCurver.position.set(0, 0.65, -0.115);
+            forearmBackCurver.parent = link2Node;
+            forearmBackCurver.material = orangeMat;
+            shadowGen.addShadowCaster(forearmBackCurver);
+
+            // Conexión interior entre forearm y main arm (centered en X=0.20)
+            const codoInnerSpacer = BABYLON.MeshBuilder.CreateCylinder("codoInnerSpacer", {diameter: 0.70, height: 0.10}, scene);
+            codoInnerSpacer.rotation.z = Math.PI / 2;
+            codoInnerSpacer.position.set(0.20, 0, 0);
+            codoInnerSpacer.parent = codoNode;
+            codoInnerSpacer.material = blackMat;
+
+            // RESTO DEL BRAZO (Hologramas cian inactivos en Y=1.30)
+            munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.parent = link2Node;
+            munecaNode.position.set(0, 1.30, 0);
+            munecaNode.rotation.x = Math.PI / 2;
+
+            const wristJointOuter = BABYLON.MeshBuilder.CreateCylinder("wristJointOuter", {diameter: 0.45, height: 0.20, tessellation: 32}, scene);
+            wristJointOuter.rotation.z = Math.PI / 2;
+            wristJointOuter.material = holoMat; wristJointOuter.parent = munecaNode;
+
+            const wristJointInner = BABYLON.MeshBuilder.CreateCylinder("wristJointInner", {diameter: 0.28, height: 0.22, tessellation: 32}, scene);
+            wristJointInner.rotation.z = Math.PI / 2;
+            wristJointInner.material = holoMat; wristJointInner.parent = munecaNode;
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.24, height: 0.24, depth: 0.24}, scene);
+            wristServo.position.set(0, 0.12, 0);
+            wristServo.material = holoMat; wristServo.parent = munecaNode;
+
+            const wristConnector = BABYLON.MeshBuilder.CreateCylinder("wristConnector", {diameter: 0.20, height: 0.16, tessellation: 32}, scene);
+            wristConnector.rotation.z = Math.PI/2;
+            wristConnector.position.set(0, 0.24, 0);
+            wristConnector.material = holoMat; wristConnector.parent = munecaNode;
+
+            const pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.parent = munecaNode;
+            pinzaNode.position.set(0, 0.24, 0);
+            pinzaNode.rotation.x = -Math.PI / 2;
+
+            const gripperBase = BABYLON.MeshBuilder.CreateBox("gripperBase", {width: 0.42, height: 0.08, depth: 0.22}, scene);
+            gripperBase.material = holoMat; gripperBase.parent = pinzaNode;
+
+            const fingerL = BABYLON.MeshBuilder.CreateBox("fingerL", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerL.position.set(0.12, 0.04, 0.13);
+            fingerL.rotation.y = 0.22;
+            fingerL.material = holoMat; fingerL.parent = pinzaNode;
+
+            const tipL = BABYLON.MeshBuilder.CreateBox("tipL", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipL.position.set(0.08, 0.04, 0.28);
+            tipL.material = holoMat; tipL.parent = pinzaNode;
+
+            const fingerR = BABYLON.MeshBuilder.CreateBox("fingerR", {width: 0.04, height: 0.06, depth: 0.26}, scene);
+            fingerR.position.set(-0.12, 0.04, 0.13);
+            fingerR.rotation.y = -0.22;
+            fingerR.material = holoMat; fingerR.parent = pinzaNode;
+
+            const tipR = BABYLON.MeshBuilder.CreateBox("tipR", {width: 0.02, height: 0.06, depth: 0.10}, scene);
+            tipR.position.set(-0.08, 0.04, 0.28);
+            tipR.material = holoMat; tipR.parent = pinzaNode;
+
+            // ================= ESCENARIO =================
+            createPlatform("Zona Alta Izquierda", 135, 1.6, new BABYLON.Color3(0.9, 0.2, 0.2));
+            createPlatform("Zona Media Centro", 90, 1.0, new BABYLON.Color3(0.9, 0.8, 0.1));
+            createPlatform("Zona Baja Derecha", 45, 0.5, new BABYLON.Color3(0.2, 0.8, 0.2));
+
+            // Obstáculo central horizontal activo en misión 5
+            createObstacle();
+            updateObstacleVisibility();
+
+            // Bucle renderizado / física
+            scene.onBeforeRenderObservable.add(() => {
+                if (moving) {
+                    const elapsed = performance.now() - moveStartTime;
+                    let p = Math.min(elapsed / moveDuration, 1);
+
+                    let baseDiff = targetBase - startBase;
+                    if (baseDiff > 180) baseDiff -= 360;
+                    if (baseDiff < -180) baseDiff += 360;
+                    let rawBase = startBase + baseDiff * p;
+                    currentBase = (rawBase % 360 + 360) % 360;
+                    currentShoulder = startShoulder + (targetShoulder - startShoulder) * p;
+                    currentCodo = startCodo + (targetCodo - startCodo) * p;
+
+                    // Rotación física en el motor 3D
+                    baseRotator.rotation.y = (90 - currentBase) * Math.PI / 180;
+                    shoulderNode.rotation.x = (90 - currentShoulder) * Math.PI / 180;
+                    codoNode.rotation.x = (currentShoulder - currentCodo) * Math.PI / 180;
+                    if (codoPointerPivot) {
+                        codoPointerPivot.rotation.x = - shoulderNode.rotation.x;
+                    }
+
+                    // COMPROBACIÓN DE COLISIÓN (Solo en Misión 5)
+                    // Obstáculo en Base=90° (entre 78° y 102°). 
+                    // Si el hombro está bajo (>100°), colisiona con el muro.
+                    if (activeMission === 5 && currentBase >= 78 && currentBase <= 102 && currentShoulder > 100) {
+                        triggerCollision();
+                    }
+
+                    if (p >= 1) {
+                        moving = false;
+                        updateHUDReadings();
+                        if (trailPoints.length > 1) {
+                            saveTrail(trailPoints);
+                        }
+                        trailPoints = [];
+
+                        if (movementResolve) {
+                            let res = movementResolve;
+                            movementResolve = null;
+                            res();
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPlatform(label, baseAngle, height, color) {
+            const radBase = baseAngle * Math.PI / 180;
+            const dist = 3.2;
+            const px = dist * Math.cos(radBase);
+            const pz = dist * Math.sin(radBase);
+
+            const stand = BABYLON.MeshBuilder.CreateCylinder("stand_" + label, {diameter: 0.8, height: height}, scene);
+            stand.position.set(px, height/2, pz);
+            const standMat = new BABYLON.StandardMaterial("standMat_" + label, scene);
+            standMat.diffuseColor = color.scale(0.35);
+            stand.material = standMat;
+            stand.receiveShadows = true;
+
+            const plate = BABYLON.MeshBuilder.CreateCylinder("plate_" + label, {diameter: 1.0, height: 0.08}, scene);
+            plate.position.set(px, height, pz);
+            const plateMat = new BABYLON.StandardMaterial("plateMat_" + label, scene);
+            plateMat.diffuseColor = color;
+            plate.material = plateMat;
+            shadowGen.addShadowCaster(plate);
+
+            const box = BABYLON.MeshBuilder.CreateBox("box_" + label, {size: 0.35}, scene);
+            box.position.set(px, height + 0.18, pz);
+            const boxMat = new BABYLON.StandardMaterial("boxMat_" + label, scene);
+            boxMat.diffuseColor = new BABYLON.Color3(0, 0.9, 1);
+            boxMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+            box.material = boxMat;
+            shadowGen.addShadowCaster(box);
+
+            // Letrero Billboard
+            const distLabel = dist + 0.8;
+            const pxLabel = distLabel * Math.cos(radBase);
+            const pzLabel = distLabel * Math.sin(radBase);
+
+            const labelPlane = BABYLON.MeshBuilder.CreatePlane("lblPlane_" + label, {width: 2.0, height: 0.5}, scene);
+            labelPlane.position.set(pxLabel, height + 0.7, pzLabel);
+            labelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+            const dynTex = new BABYLON.DynamicTexture("dynTex_" + label, {width: 256, height: 64}, scene);
+            dynTex.hasAlpha = true;
+            const context2D = dynTex.getContext();
+            context2D.fillStyle = "rgba(10, 10, 25, 0.6)";
+            context2D.fillRect(0, 0, 256, 64);
+            context2D.fillStyle = "#ffffff";
+            context2D.font = "bold 16px 'Segoe UI'";
+            context2D.textAlign = "center";
+            context2D.textBaseline = "middle";
+            context2D.fillText(label, 128, 32);
+            dynTex.update();
+
+            const labelMat = new BABYLON.StandardMaterial("lblMat_" + label, scene);
+            labelMat.diffuseTexture = dynTex;
+            labelMat.emissiveColor = new BABYLON.Color3(1,1,1);
+            labelMat.disableLighting = true;
+            labelPlane.material = labelMat;
+            glow.addExcludedMesh(labelPlane);
+        }
+
+        function createObstacle() {
+            const radBase = 90 * Math.PI / 180;
+            const dist = 3.2;
+            const px = dist * Math.cos(radBase);
+            const pz = dist * Math.sin(radBase);
+
+            // Barrera horizontal roja
+            obstacleMesh = BABYLON.MeshBuilder.CreateBox("obstacle", {width: 0.2, height: 0.8, depth: 1.8}, scene);
+            obstacleMesh.position.set(px, 1.4, pz); // Altura que permite cruzar replegado pero choca si está extendido
+            obstacleMesh.material = obsMat;
+
+            // Letrero Billboard sobre el obstáculo
+            obstacleLabel = BABYLON.MeshBuilder.CreatePlane("lblPlane_obs", {width: 2.2, height: 0.5}, scene);
+            obstacleLabel.position.set(px - 0.2, 2.1, pz);
+            obstacleLabel.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+            const dynTex = new BABYLON.DynamicTexture("dynTex_obs", {width: 256, height: 64}, scene);
+            dynTex.hasAlpha = true;
+            const context2D = dynTex.getContext();
+            context2D.fillStyle = "rgba(40, 10, 10, 0.8)";
+            context2D.fillRect(0, 0, 256, 64);
+            context2D.fillStyle = "#ff4444";
+            context2D.font = "bold 16px 'Segoe UI'";
+            context2D.textAlign = "center";
+            context2D.textBaseline = "middle";
+            context2D.fillText("🚧 BARRERA ACTIVA", 128, 32);
+            dynTex.update();
+
+            const labelMat = new BABYLON.StandardMaterial("lblMat_obs", scene);
+            labelMat.diffuseTexture = dynTex;
+            labelMat.emissiveColor = new BABYLON.Color3(1,0.2,0.2);
+            labelMat.disableLighting = true;
+            obstacleLabel.material = labelMat;
+            glow.addExcludedMesh(obstacleLabel);
+        }
+
+        function updateObstacleVisibility() {
+            const show = (activeMission === 5);
+            if (obstacleMesh) obstacleMesh.setEnabled(show);
+            if (obstacleLabel) obstacleLabel.setEnabled(show);
+        }
+
+        function createFloorDial() {
+            const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+            angles.forEach(ang => {
+                const rad = ang * Math.PI / 180;
+                const dist = 2.25;
+                const px = dist * Math.cos(rad);
+                const pz = dist * Math.sin(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.05, height: 0.02, depth: 0.2}, scene);
+                tick.position.set(px * 0.9, 0.08, pz * 0.9);
+                tick.rotation.y = -rad + Math.PI/2;
+                
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene);
+                tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                tickMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                tick.material = tickMat;
+                glow.addIncludedOnlyMesh(tick);
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 1.4, height: 0.7}, scene);
+                label.position.set(px, 0.075, pz);
+                label.rotation.x = Math.PI / 2;
+                label.rotation.y = -rad - Math.PI/2;
+
+                const labelText = ang + "°";
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 512, height: 256}, scene);
+                dynTex.hasAlpha = true;
+                const ctx = dynTex.getContext();
+                ctx.fillStyle = "rgba(0,0,0,0)";
+                ctx.fillRect(0, 0, 512, 256);
+                
+                ctx.font = "bold 82px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 16;
+                ctx.strokeText(labelText, 256, 128);
+                ctx.fillStyle = "#000000";
+                ctx.fillText(labelText, 256, 128);
+                dynTex.update();
+
+                const labelMat = new BABYLON.StandardMaterial("floorLabelMat_" + ang, scene);
+                labelMat.diffuseTexture = dynTex;
+                labelMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                labelMat.disableLighting = true;
+                labelMat.backFaceCulling = false;
+                label.material = labelMat;
+                glow.addExcludedMesh(label);
+            });
+        }
+
+        function drawTrail(points) {
+            if (activeTrailMesh) activeTrailMesh.dispose();
+            if (points.length < 2) return;
+
+            activeTrailMesh = BABYLON.MeshBuilder.CreateLines("active_trail", {points: points, updatable: true}, scene);
+            activeTrailMesh.color = coordinated ? new BABYLON.Color3(0, 0.9, 1) : new BABYLON.Color3(1, 0.1, 0.1);
+            activeTrailMesh.isPickable = false;
+        }
+
+        function saveTrail(points) {
+            const savedMesh = BABYLON.MeshBuilder.CreateLines("saved_trail_" + Date.now(), {points: points}, scene);
+            savedMesh.color = coordinated ? new BABYLON.Color3(0, 0.9, 1) : new BABYLON.Color3(1, 0.1, 0.1);
+            glow.addIncludedOnlyMesh(savedMesh);
+            trailsList.push(savedMesh);
+            activeTrailMesh = null;
+        }
+
+        function clearTrails() {
+            trailsList.forEach(m => m.dispose());
+            trailsList = [];
+            if (activeTrailMesh) activeTrailMesh.dispose();
+            activeTrailMesh = null;
+        }
+
+        // --- 4. SISTEMA DRAG & DROP Y LÓGICA DE WORKSPACE ---
+        let blockCount = 0;
+
+        function initDragAndDrop() {
+            const workspace = document.getElementById('workspace');
+
+            document.querySelectorAll('.palette-block').forEach(paletteBlock => {
+                paletteBlock.addEventListener('dragstart', (e) => {
+                    if (running) { e.preventDefault(); return; }
+                    const type = paletteBlock.getAttribute('data-type');
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'palette', type: type }));
+                });
+            });
+
+            workspace.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (running) return;
+                workspace.classList.add('drag-hover');
+
+                const draggingElement = document.querySelector('.workspace-block.dragging');
+                const afterElement = getDragAfterElement(workspace, e.clientY);
+
+                if (draggingElement && draggingElement.parentNode === workspace) {
+                    if (afterElement == null) {
+                        workspace.appendChild(draggingElement);
+                    } else {
+                        workspace.insertBefore(draggingElement, afterElement);
+                    }
+                }
+            });
+
+            workspace.addEventListener('dragleave', () => {
+                workspace.classList.remove('drag-hover');
+            });
+
+            workspace.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (running) return;
+                workspace.classList.remove('drag-hover');
+
+                const dataStr = e.dataTransfer.getData('text/plain');
+                if (!dataStr) return;
+
+                try {
+                    const data = JSON.parse(dataStr);
+                    const afterElement = getDragAfterElement(workspace, e.clientY);
+
+                    if (data.source === 'palette') {
+                        addBlockToWorkspace(data.type, null, afterElement);
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            });
+        }
+
+        function addBlockToWorkspace(type, value = null, beforeElement = null) {
+            blockCount++;
+            const id = 'block_' + blockCount;
+
+            const block = document.createElement('div');
+            block.className = `workspace-block block-${type}`;
+            block.id = id;
+            block.setAttribute('draggable', 'true');
+            block.setAttribute('data-type', type);
+
+            let innerHTML = `<span class="drag-handle">☰</span>`;
+
+            if (type === 'base') {
+                innerHTML += `<span class="block-label">Base a</span>
+                    <select class="block-select select-val">
+                        <option value="0" ${value === '0' ? 'selected' : ''}>0° (Derecha)</option>
+                        <option value="45" ${value === '45' ? 'selected' : ''}>45°</option>
+                        <option value="90" ${value === '90' || !value ? 'selected' : ''}>90° (Adelante)</option>
+                        <option value="135" ${value === '135' ? 'selected' : ''}>135°</option>
+                        <option value="180" ${value === '180' ? 'selected' : ''}>180° (Izquierda)</option>
+                        <option value="225" ${value === '225' ? 'selected' : ''}>225°</option>
+                        <option value="270" ${value === '270' ? 'selected' : ''}>270° (Atrás)</option>
+                        <option value="315" ${value === '315' ? 'selected' : ''}>315°</option>
+                        <option value="360" ${value === '360' ? 'selected' : ''}>360°</option>
+                    </select>`;
+            } else if (type === 'hombro') {
+                innerHTML += `<span class="block-label">Hombro a</span>
+                    <select class="block-select select-val">
+                        <option value="0" ${value === '0' ? 'selected' : ''}>0° (Horizontal Der)</option>
+                        <option value="15" ${value === '15' ? 'selected' : ''}>15°</option>
+                        <option value="26" ${value === '26' ? 'selected' : ''}>26°</option>
+                        <option value="30" ${value === '30' ? 'selected' : ''}>30°</option>
+                        <option value="45" ${value === '45' || !value ? 'selected' : ''}>45° (Medio)</option>
+                        <option value="60" ${value === '60' ? 'selected' : ''}>60°</option>
+                        <option value="75" ${value === '75' ? 'selected' : ''}>75° (Alto)</option>
+                        <option value="90" ${value === '90' ? 'selected' : ''}>90° (Vertical)</option>
+                        <option value="105" ${value === '105' ? 'selected' : ''}>105°</option>
+                        <option value="120" ${value === '120' ? 'selected' : ''}>120°</option>
+                        <option value="135" ${value === '135' ? 'selected' : ''}>135°</option>
+                        <option value="150" ${value === '150' ? 'selected' : ''}>150°</option>
+                        <option value="165" ${value === '165' ? 'selected' : ''}>165°</option>
+                        <option value="180" ${value === '180' ? 'selected' : ''}>180° (Horizontal Izq)</option>
+                    </select>`;
+            } else if (type === 'codo') {
+                innerHTML += `<span class="block-label">Codo a</span>
+                    <select class="block-select select-val">
+                        <option value="-30" ${value === '-30' ? 'selected' : ''}>330° (Oblicuo)</option>
+                        <option value="0" ${value === '0' ? 'selected' : ''}>0° (Recto)</option>
+                        <option value="30" ${value === '30' ? 'selected' : ''}>30°</option>
+                        <option value="45" ${value === '45' ? 'selected' : ''}>45°</option>
+                        <option value="60" ${value === '60' ? 'selected' : ''}>60°</option>
+                        <option value="90" ${value === '90' || !value ? 'selected' : ''}>90° (Flexión)</option>
+                        <option value="120" ${value === '120' ? 'selected' : ''}>120°</option>
+                        <option value="145" ${value === '145' ? 'selected' : ''}>145° (Cerrado)</option>
+                    </select>`;
+            } else if (type === 'esperar') {
+                innerHTML += `<span class="block-label">Esperar</span>
+                    <select class="block-select select-val">
+                        <option value="1" ${value === '1' || !value ? 'selected' : ''}>1 s</option>
+                        <option value="2" ${value === '2' ? 'selected' : ''}>2 s</option>
+                        <option value="3" ${value === '3' ? 'selected' : ''}>3 s</option>
+                    </select>`;
+            } else if (type === 'coord_on') {
+                innerHTML += `<span class="block-label">Coord. ACTIVAR 🔗</span>`;
+            } else if (type === 'coord_off') {
+                innerHTML += `<span class="block-label">Coord. DESACTIVAR 🚫</span>`;
+            }
+
+            innerHTML += `<button class="block-delete" onclick="deleteBlock('${id}')">×</button>`;
+            block.innerHTML = innerHTML;
+
+            block.addEventListener('dragstart', (e) => {
+                if (running) { e.preventDefault(); return; }
+                block.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'workspace', id: id }));
+            });
+
+            block.addEventListener('dragend', () => {
+                block.classList.remove('dragging');
+            });
+
+            const workspace = document.getElementById('workspace');
+            if (beforeElement) {
+                workspace.insertBefore(block, beforeElement);
+            } else {
+                workspace.appendChild(block);
+            }
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.workspace-block:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function deleteBlock(id) {
+            if (running) return;
+            const element = document.getElementById(id);
+            if (element) element.remove();
+        }
+
+        function clearWorkspace() {
+            if (running) return;
+            document.getElementById('workspace').innerHTML = '';
+            hideFeedback();
+            document.getElementById('success-modal').style.display = 'none';
+            stopConfetti();
+        }
+
+        // --- 5. LÓGICA DE EJECUCIÓN SECUENCIAL ASÍNCRONA ---
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function animateMovement(targetB, targetS, targetC) {
+            return new Promise((resolve) => {
+                let dB = Math.abs(targetB - currentBase);
+                let dS = Math.abs(targetS - currentShoulder);
+                let dC = Math.abs(targetC - currentCodo);
+                if (dB < 1 && dS < 1 && dC < 1) {
+                    resolve();
+                    return;
+                }
+                moving = true;
+                startBase = currentBase;
+                startShoulder = currentShoulder;
+                startCodo = currentCodo;
+
+                targetBase = targetB;
+                targetShoulder = targetS;
+                targetCodo = targetC;
+
+                moveStartTime = performance.now();
+                movementResolve = resolve;
+            });
+        }
+
+        async function startSequenceExecution() {
+            if (running) return;
+            const workspace = document.getElementById('workspace');
+            const blocks = [...workspace.querySelectorAll('.workspace-block')];
+
+            if (blocks.length === 0) {
+                showFeedback("El espacio de trabajo está vacío. Arrastra bloques aquí para programar.", "error");
+                return;
+            }
+
+            running = true;
+            currentBlockIndex = 0;
+            collisionOccurred = false;
+            m4_visited_baja_derecha = false;
+            coordinated = false;
+            updateHUDReadings();
+
+            document.getElementById('btn-play').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            document.getElementById('btn-clear').disabled = true;
+            document.querySelectorAll('.mission-tab').forEach(b => b.disabled = true);
+            hideFeedback();
+            document.getElementById('success-modal').style.display = 'none';
+            stopConfetti();
+
+            workspace.querySelectorAll('select').forEach(sel => sel.disabled = true);
+            workspace.querySelectorAll('.block-delete').forEach(btn => btn.style.display = 'none');
+
+            
+
+            while (running && currentBlockIndex < blocks.length) {
+                blocks.forEach(b => b.classList.remove('running'));
+
+                let blockA = blocks[currentBlockIndex];
+                let typeA = blockA.getAttribute('data-type');
+                
+                // Agrupar movimientos consecutivos (Base + Hombro + Codo) si Coordinación = ON
+                let targetB = currentBase;
+                let targetS = currentShoulder;
+                let targetC = currentCodo;
+                let group = [];
+
+                if (coordinated && (typeA === 'base' || typeA === 'hombro' || typeA === 'codo')) {
+                    group.push(blockA);
+                    if (typeA === 'base') targetB = parseFloat(blockA.querySelector('select').value);
+                    if (typeA === 'hombro') targetS = parseFloat(blockA.querySelector('select').value);
+                    if (typeA === 'codo') targetC = parseFloat(blockA.querySelector('select').value);
+
+                    // Verificar bloque B
+                    if (currentBlockIndex + 1 < blocks.length) {
+                        let blockB = blocks[currentBlockIndex + 1];
+                        let typeB = blockB.getAttribute('data-type');
+                        if ((typeB === 'base' || typeB === 'hombro' || typeB === 'codo') && typeB !== typeA) {
+                            group.push(blockB);
+                            if (typeB === 'base') targetB = parseFloat(blockB.querySelector('select').value);
+                            if (typeB === 'hombro') targetS = parseFloat(blockB.querySelector('select').value);
+                            if (typeB === 'codo') targetC = parseFloat(blockB.querySelector('select').value);
+
+                            // Verificar bloque C
+                            if (currentBlockIndex + 2 < blocks.length) {
+                                let blockC = blocks[currentBlockIndex + 2];
+                                let typeC = blockC.getAttribute('data-type');
+                                if ((typeC === 'base' || typeC === 'hombro' || typeC === 'codo') && typeC !== typeA && typeC !== typeB) {
+                                    group.push(blockC);
+                                    if (typeC === 'base') targetB = parseFloat(blockC.querySelector('select').value);
+                                    if (typeC === 'hombro') targetS = parseFloat(blockC.querySelector('select').value);
+                                    if (typeC === 'codo') targetC = parseFloat(blockC.querySelector('select').value);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (group.length > 1) {
+                    group.forEach(b => b.classList.add('running'));
+                    showFeedback("Ejecutando movimiento coordinado simultáneo...", "info");
+                    await animateMovement(targetB, targetS, targetC);
+                    currentBlockIndex += group.length;
+                } else {
+                    blockA.classList.add('running');
+
+                    if (typeA === 'coord_on') {
+                        coordinated = true;
+                        updateHUDReadings();
+                        showFeedback("Coordinación ACTIVADA. Los movimientos de Base, Hombro y Codo serán simultáneos.", "info");
+                        await sleep(500);
+                        currentBlockIndex++;
+                    } else if (typeA === 'coord_off') {
+                        coordinated = false;
+                        updateHUDReadings();
+                        showFeedback("Coordinación DESACTIVADA. El brazo se moverá en cadena secuencial.", "info");
+                        await sleep(500);
+                        currentBlockIndex++;
+                    } else if (typeA === 'esperar') {
+                        let waitSec = parseInt(blockA.querySelector('select').value);
+                        showFeedback(`Pausando secuencia por ${waitSec} segundo(s)...`, "info");
+                        
+                        // Si estamos en Misión 4 y el robot está en la posición baja derecha, registrar la visita
+                        if (activeMission === 4 && Math.abs(currentBase - 45) < 2 && Math.abs(currentShoulder - 30) < 2 && Math.abs(currentCodo - (-30)) < 2) {
+                            m4_visited_baja_derecha = true;
+                        }
+
+                        await sleep(waitSec * 1000);
+                        currentBlockIndex++;
+                    } else if (typeA === 'base') {
+                        let valBase = parseFloat(blockA.querySelector('select').value);
+                        showFeedback("Rotando Base...", "info");
+                        await animateMovement(valBase, currentShoulder, currentCodo);
+                        currentBlockIndex++;
+                    } else if (typeA === 'hombro') {
+                        let valHombro = parseFloat(blockA.querySelector('select').value);
+                        showFeedback("Ajustando inclinación del Hombro...", "info");
+                        await animateMovement(currentBase, valHombro, currentCodo);
+                        currentBlockIndex++;
+                    } else if (typeA === 'codo') {
+                        let valCodo = parseFloat(blockA.querySelector('select').value);
+                        showFeedback("Ajustando flexión del Codo...", "info");
+                        await animateMovement(currentBase, currentShoulder, valCodo);
+                        currentBlockIndex++;
+                    }
+                }
+
+                if (collisionOccurred) {
+                    break;
+                }
+            }
+
+            blocks.forEach(b => b.classList.remove('running'));
+            workspace.querySelectorAll('select').forEach(sel => sel.disabled = false);
+            workspace.querySelectorAll('.block-delete').forEach(btn => btn.style.display = 'block');
+
+            document.getElementById('btn-play').disabled = false;
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('btn-clear').disabled = false;
+            document.querySelectorAll('.mission-tab').forEach(b => b.disabled = false);
+            running = false;
+
+            if (!collisionOccurred) {
+                checkMissionSuccess();
+            }
+        }
+
+        function stopSequenceExecution() {
+            if (!running) return;
+            running = false;
+            moving = false;
+            if (movementResolve) {
+                let res = movementResolve;
+                movementResolve = null;
+                res();
+            }
+            showFeedback("Ejecución detenida manualmente por el usuario.", "info");
+            resetRobotForMission(activeMission);
+        }
+
+        // --- 6. COMPROBACIÓN DE OBJETIVOS E HITOS ---
+        function triggerCollision() {
+            collisionOccurred = true;
+            moving = false;
+            running = false;
+            if (movementResolve) {
+                let res = movementResolve;
+                movementResolve = null;
+                res();
+            }
+
+            document.getElementById('collision-modal').style.display = 'flex';
+            showFeedback("¡Colisión detectada! El brazo ha chocado con la barrera roja central.", "error");
+        }
+
+        function dismissCollision() {
+            document.getElementById('collision-modal').style.display = 'none';
+            resetRobotForMission(activeMission);
+            hideFeedback();
+        }
+
+        function checkMissionSuccess() {
+            let config = missions[activeMission];
+            let baseClose = Math.abs(currentBase - config.target.base) < 2;
+            let shoulderClose = Math.abs(currentShoulder - config.target.hombro) < 2;
+            let codoClose = Math.abs(currentCodo - config.target.codo) < 2;
+
+            if (activeMission === 1) {
+                if (baseClose && shoulderClose && codoClose) {
+                    showSuccess("¡Felicidades! Has completado la Misión 1. Has aprendido cómo funciona la ejecución secuencial de tres motores.");
+                } else {
+                    showFeedback(`Movimiento completado. Sigue añadiendo bloques para llegar a la meta.`, "info");
+                }
+            } else if (activeMission === 2) {
+                if (baseClose && shoulderClose && codoClose) {
+                    if (coordinated) {
+                        showSuccess("¡Misión 2 Completada con éxito! El brazo ha llegado de manera coordinada simultánea a la Zona Alta Izquierda.");
+                    } else {
+                        showFeedback("¡Casi listo! Has visto cómo se mueve el brazo de forma secuencial (Coordinación = OFF) y cómo los motores actúan uno a uno. Para completar la misión con éxito, añade el bloque 'Coord. ON' al principio.", "error");
+                    }
+                } else {
+                    showFeedback(`Movimiento completado. Sigue añadiendo bloques para llegar a la meta.`, "info");
+                }
+            } else if (activeMission === 3) {
+                if (baseClose && shoulderClose && codoClose) {
+                    if (coordinated) {
+                        showSuccess("¡Misión 3 Completada! El brazo alcanzó la Zona Baja Derecha con la velocidad de servos coordinada y codo replegado.");
+                    } else {
+                        showFeedback("¡Excelente! Con Coordinación = OFF has observado el plegado secuencial. Para completar con éxito y trazar la trayectoria directa en paralelo, añade el bloque 'Coord. ON' al inicio.", "error");
+                    }
+                } else {
+                    showFeedback(`Intenta de nuevo. Debes alcanzar la Zona Baja Derecha (Base=45°, Hombro=30°, Codo=330°).`, "error");
+                }
+            } else if (activeMission === 4) {
+                if (baseClose && shoulderClose && codoClose) {
+                    if (m4_visited_baja_derecha) {
+                        if (coordinated) {
+                            showSuccess("¡Excelente! Has completado la Misión 4. El brazo ha visitado la zona baja, esperó 1s y lo llevó a la plataforma elevada en modo coordinado (ON).");
+                        } else {
+                            showFeedback("¡Muy bien! Has realizado la secuencia triple paso a paso (Coordinación = OFF). Para ver el movimiento coordinado fluido en paralelo y completarla con éxito, añade el bloque 'Coord. ON' al inicio.", "error");
+                        }
+                    } else {
+                        showFeedback("Misión no completada. Debes incluir en la secuencia el paso por la Zona Baja Derecha (-45°, 15°, 120°) y un bloque Esperar en esa posición antes de ir a la alta.", "error");
+                    }
+                } else {
+                    showFeedback(`Movimiento completado. Sigue añadiendo bloques para llegar a la meta.`, "info");
+                }
+            } else if (activeMission === 5) {
+                // Verificar la secuencia estricta
+                let expectedBase = [225, 135, 45, 315];
+                let expectedHombro = [0, 0, 0, 90];
+                let isValid = true;
+                
+                let expectedCodo = [-30, 90, -30, 90];
+                let program = Array.from(document.querySelectorAll('#workspace .workspace-block')).map(b => ({
+                    type: b.getAttribute('data-type'),
+                    value: b.querySelector('select') ? b.querySelector('select').value : null
+                }));
+                let bBlocks = program.filter(b => b.type === 'base').map(b => parseInt(b.value));
+                let hBlocks = program.filter(b => b.type === 'hombro').map(b => parseInt(b.value));
+                let cBlocks = program.filter(b => b.type === 'codo').map(b => parseInt(b.value));
+                
+                if (bBlocks.length < 4 || hBlocks.length < 4 || cBlocks.length < 4) isValid = false;
+                else {
+                    for(let i=0; i<4; i++) {
+                        if (bBlocks[i] !== expectedBase[i] || hBlocks[i] !== expectedHombro[i] || cBlocks[i] !== expectedCodo[i]) isValid = false;
+                    }
+                }
+
+                if (isValid) {
+                    showSuccess("¡Misión 5 Completada! Has logrado esquivar el muro de forma experta utilizando una secuencia precisa.");
+                } else {
+                    if (baseClose && shoulderClose && codoClose) {
+                        showFeedback("Has llegado a la meta, pero la secuencia no es la correcta. Revisa los pasos.", "error");
+                    } else {
+                        showFeedback("Movimiento completado. Sigue añadiendo bloques para llegar a la meta.", "info");
+                    }
+                }
+            }
+        }
+
+        function showSuccess(message) {
+            document.getElementById('success-message').textContent = message;
+            document.getElementById('success-modal').style.display = 'flex';
+            startConfetti();
+        }
+
+        function dismissSuccessModal() {
+            document.getElementById('success-modal').style.display = 'none';
+            stopConfetti();
+            resetRobotForMission(activeMission);
+        }
+
+        function advanceMission() {
+            document.getElementById('success-modal').style.display = 'none';
+            stopConfetti();
+            if (activeMission < 5) {
+                selectMission(activeMission + 1);
+            } else {
+                alert("¡Enhorabuena! Has completado todas las misiones del Bloque de Bloques del Codo.");
+                selectMission(1);
+            }
+        }
+
+        // --- 7. PANEL DE MENSAJES Y TELEMETRÍA ---
+        function showFeedback(text, type) {
+            const fb = document.getElementById('mission-feedback');
+            fb.textContent = text;
+            fb.className = `feedback-box ${type}`;
+            fb.style.display = 'block';
+        }
+
+        function hideFeedback() {
+            document.getElementById('mission-feedback').style.display = 'none';
+        }
+
+        function loadSolution() {
+            if (running) return;
+            const config = missions[activeMission];
+            if (!config || !config.solution) return;
+
+            clearWorkspace();
+            config.solution.forEach(bl => {
+                addBlockToWorkspace(bl.type, bl.value);
+            });
+            hideFeedback();
+        }
+
+        function updateHUDReadings() {
+            document.getElementById('hud-base').textContent = currentBase.toFixed(1) + '°';
+            const displayShoulder = currentShoulder < 0 ? 360 + currentShoulder : currentShoulder;
+            const displayCodo = currentCodo < 0 ? 360 + currentCodo : currentCodo;
+            document.getElementById('hud-hombro').textContent = displayShoulder.toFixed(1) + '°';
+            document.getElementById('hud-codo').textContent = displayCodo.toFixed(1) + '°';
+            document.getElementById('hud-coord-status').textContent = coordinated ? "ACTIVADA" : "DESACTIVADA";
+            document.getElementById('hud-coord-status').style.color = coordinated ? "#00ff88" : "#ff4444";
+            document.getElementById('hud-state').textContent = moving ? "Moviéndose..." : "Inmóvil";
+            document.getElementById('hud-state').style.color = moving ? "#ffcc00" : "#ffaa44";
+        }
+
+        // --- 8. MANEJO DEL SELECTOR DE MISIONES ---
+        function selectMission(id) {
+            if (running) return;
+            activeMission = id;
+            coordinated = false;
+
+            document.querySelectorAll('.mission-tab').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-m' + id).classList.add('active');
+
+            let config = missions[id];
+            document.getElementById('mission-title').textContent = config.title;
+            document.getElementById('mission-desc').textContent = config.desc;
+            document.getElementById('mission-reqs').textContent = config.reqs;
+
+            resetRobotForMission(id);
+            updateObstacleVisibility();
+            hideFeedback();
+            document.getElementById('success-modal').style.display = 'none';
+            stopConfetti();
+
+            // Control de visibilidad permanente del botón de solución
+            const btnSol = document.getElementById('btn-solution');
+            if (btnSol) {
+                btnSol.style.display = (config.solution && config.solution.length > 0) ? 'flex' : 'none';
+            }
+
+            const workspace = document.getElementById('workspace');
+            workspace.innerHTML = '';
+            if (config.preloaded && config.preloaded.length > 0) {
+                config.preloaded.forEach(bl => {
+                    addBlockToWorkspace(bl.type, bl.value);
+                });
+            }
+        }
+
+        function resetRobotForMission(id) {
+            clearTrails();
+            let config = missions[id];
+            currentBase = config.start.base;
+            currentShoulder = config.start.hombro;
+            currentCodo = config.start.codo;
+
+            targetBase = currentBase;
+            targetShoulder = currentShoulder;
+            targetCodo = currentCodo;
+
+            startBase = currentBase;
+            startShoulder = currentShoulder;
+            startCodo = currentCodo;
+
+            moving = false;
+
+            if (baseRotator) {
+                baseRotator.rotation.y = (90 - currentBase) * Math.PI / 180;
+            }
+            if (shoulderNode) {
+                shoulderNode.rotation.x = (90 - currentShoulder) * Math.PI / 180;
+            }
+            if (codoNode) {
+                codoNode.rotation.x = (currentShoulder - currentCodo) * Math.PI / 180;
+            }
+            if (codoPointerPivot && shoulderNode) {
+                codoPointerPivot.rotation.x = - shoulderNode.rotation.x;
+            }
+
+            updateHUDReadings();
+        }
+
+        // --- 9. CONFETTI (CANVAS NATIVO) ---
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const ctxConfetti = confettiCanvas.getContext('2d');
+        let confettiActive = false;
+        let confettiParticles = [];
+
+        function resizeConfettiCanvas() {
+            confettiCanvas.width = confettiCanvas.parentNode.clientWidth;
+            confettiCanvas.height = confettiCanvas.parentNode.clientHeight;
+        }
+
+        class ConfettiParticle {
+            constructor() {
+                this.x = Math.random() * confettiCanvas.width;
+                this.y = Math.random() * confettiCanvas.height - confettiCanvas.height;
+                this.size = Math.random() * 8 + 6;
+                this.color = `hsl(${Math.random() * 360}, 90%, 60%)`;
+                this.speedX = Math.random() * 4 - 2;
+                this.speedY = Math.random() * 5 + 3;
+                this.rotation = Math.random() * 360;
+                this.rotationSpeed = Math.random() * 10 - 5;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.rotation += this.rotationSpeed;
+                if (this.y > confettiCanvas.height) {
+                    this.y = -20;
+                    this.x = Math.random() * confettiCanvas.width;
+                }
+            }
+            draw() {
+                ctxConfetti.save();
+                ctxConfetti.translate(this.x, this.y);
+                ctxConfetti.rotate(this.rotation * Math.PI / 180);
+                ctxConfetti.fillStyle = this.color;
+                ctxConfetti.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctxConfetti.restore();
+            }
+        }
+
+        function startConfetti() {
+            resizeConfettiCanvas();
+            confettiActive = true;
+            confettiParticles = [];
+            for (let i = 0; i < 120; i++) {
+                confettiParticles.push(new ConfettiParticle());
+            }
+            animateConfetti();
+        }
+
+        function stopConfetti() {
+            confettiActive = false;
+            ctxConfetti.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+
+        function animateConfetti() {
+            if (!confettiActive) return;
+            ctxConfetti.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            confettiParticles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateConfetti);
+        }
+
+        window.addEventListener('resize', resizeConfettiCanvas);
+
+        // --- 10. INICIALIZACIÓN GENERAL ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initEngine();
+        });
+    </script>
+</body>
+</html>

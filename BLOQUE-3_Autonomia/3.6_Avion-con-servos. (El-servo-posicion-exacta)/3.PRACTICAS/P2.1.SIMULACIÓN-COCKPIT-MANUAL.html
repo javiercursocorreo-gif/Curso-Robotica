@@ -1,0 +1,1002 @@
+<!-- MEJORAS DE ESTA VERSIÓN:
+  - Práctica Rápida: Spawn a 220m (exactamente 8 segundos) de la pista a 100 km/h.
+  - Luces Estroboscópicas: Fila perpendicular de luces rojas intermitentes en la cabecera.
+  - Visibilidad Limpia: Eliminada la flecha GPS que bloqueaba el centro de la pantalla.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.2.SIMULADOR-VUELO</title>
+    <style>
+        body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; background: #000; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; user-select: none; touch-action: none; }
+        
+        header { height: 80px; flex-shrink: 0; background: rgba(0, 0, 0, 0.85); border-bottom: 2px solid #00f2ff; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; box-sizing: border-box; }
+        .header-titles { display: flex; flex-direction: column; width: 350px; }
+        header h1 { margin: 0; font-size: 22px; color: #00f2ff; letter-spacing: 3px; text-transform: uppercase; }
+        header h2 { margin: 5px 0 0 0; font-size: 14px; color: #aaaaaa; font-weight: normal; }
+        
+        #header-instructions { flex: 1; margin: 0 40px; background: rgba(0, 242, 255, 0.05); border: 1px solid rgba(0, 242, 255, 0.3); border-radius: 8px; padding: 10px 15px; font-size: 13px; color: #ccc; line-height: 1.5; box-shadow: inset 0 0 10px rgba(0,242,255,0.1); }
+        #header-instructions strong { color: #00f2ff; letter-spacing: 1px; font-size: 14px; }
+        #header-instructions span.man { color: #00bfa5; font-weight: bold; }
+        #header-instructions span.easy { color: #39ff14; font-weight: bold; }
+
+        #btn-reset { background: #B71C1C; color: #fff; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 6px; cursor: pointer; border: 2px solid #ff4444; transition: 0.2s; box-shadow: 0 0 10px rgba(255,0,0,0.4); white-space: nowrap; }
+        #btn-reset:hover { background: #ff4444; transform: scale(1.05); }
+
+        #canvas-container { flex: 1; position: relative; min-height: 0; overflow: hidden; background: #111; }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        /* HUD INSTRUMENTOS */
+        .hud-row { position: absolute; left: 0; width: 100%; display: flex; justify-content: center; gap: 18px; pointer-events: none; }
+        #hud-top { top: 80px; }
+        #hud-bottom { bottom: 130px; }
+        .inst-wrapper { display: flex; flex-direction: column; align-items: center; background: rgba(0,0,0,0); }
+        .inst-canvas { width: 115px; height: 115px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); }
+        .inst-label { margin-top: 5px; color: #00f2ff; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; text-shadow: 0 1px 3px #000; }
+
+        /* PANEL SERVOS */
+        #servo-panel { position: absolute; top: 82px; right: 16px; width: 210px; height: 185px; background: rgba(0, 0, 0, 0.80); border: 1px solid #333; border-radius: 10px; padding: 12px; box-sizing: border-box; pointer-events: none; display: flex; flex-direction: column; gap: 8px; z-index: 10;}
+        #servo-title { color: #00f2ff; font-size: 13px; letter-spacing: 3px; font-weight: bold; margin-bottom: 4px; }
+        .servo-row { display: flex; align-items: center; justify-content: space-between; }
+        .servo-name { color: #ccc; font-size: 13px; width: 40px; }
+        .servo-bar-container { width: 90px; height: 8px; background: #222; border-radius: 4px; position: relative; }
+        .servo-bar { position: absolute; top: 0; height: 100%; border-radius: 4px; background: #555; transition: width 0.1s, left 0.1s, background-color 0.2s; }
+        .servo-val { color: #555; font-size: 14px; width: 35px; text-align: right; font-variant-numeric: tabular-nums; }
+
+        #maneuver-indicator { position: absolute; top: 220px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.78); border-radius: 10px; padding: 8px 24px; border-left: 4px solid #1565C0; pointer-events: none; opacity: 0; transition: opacity 0.3s; text-align: center; z-index: 15; }
+        #maneuver-title { font-size: 20px; color: #00f2ff; font-weight: bold; margin-bottom: 2px; }
+        #maneuver-desc { font-size: 13px; color: #aaaaaa; }
+
+        #speed-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; background: radial-gradient(circle at 50% 50%, transparent 35%, rgba(180,0,0,1) 100%); opacity: 0; transition: opacity 0.5s; }
+        
+        /* 🕹️ CONTROLES VIRTUALES */
+        #virtual-controls { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 50; }
+        
+        #throttle-bg { position: absolute; left: 40px; top: 50%; transform: translateY(-50%); width: 60px; height: 350px; background: rgba(0, 20, 40, 0.7); border: 2px solid rgba(0, 242, 255, 0.4); border-radius: 30px; pointer-events: auto; cursor: ns-resize; display: flex; justify-content: center; box-shadow: 0 0 25px rgba(0,0,0,0.9); }
+        #throttle-track { position: absolute; top: 30px; bottom: 30px; width: 6px; background: #00f2ff; opacity: 0.6; border-radius: 3px; box-shadow: 0 0 10px #00f2ff; }
+        #throttle-knob { position: absolute; left: 5px; width: 50px; height: 70px; background: linear-gradient(180deg, #444, #111); border: 2px solid #00f2ff; border-radius: 12px; top: 250px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 5px; }
+        .t-grip { width: 25px; height: 4px; background: #777; border-radius: 2px; }
+        #throttle-label { position: absolute; bottom: -35px; width: 100%; text-align: center; color: #00f2ff; font-size: 14px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 5px #000;}
+
+        #joystick-bg { position: absolute; right: 50px; top: 50%; transform: translateY(-50%); width: 260px; height: 260px; background: radial-gradient(circle, rgba(0, 30, 60, 0.7) 0%, rgba(0,0,0,0.6) 100%); border: 3px solid rgba(0, 242, 255, 0.3); border-radius: 50%; pointer-events: auto; cursor: crosshair; box-shadow: inset 0 0 30px rgba(0,242,255,0.2), 0 0 25px rgba(0,0,0,0.9); }
+        #joystick-bg::before { content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(0, 242, 255, 0.2); transform: translateY(-50%); }
+        #joystick-bg::after { content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: rgba(0, 242, 255, 0.2); transform: translateX(-50%); }
+        #joystick-knob { position: absolute; left: 90px; top: 90px; width: 80px; height: 80px; background: radial-gradient(circle at 30% 30%, #666, #111); border: 3px solid #00f2ff; border-radius: 50%; box-shadow: 0 10px 25px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,242,255,0.6); pointer-events: none; transition: transform 0.1s ease-out; }
+
+        #crash-screen { position: absolute; inset: 0; z-index: 999; background: rgba(200, 0, 0, 0.85); display: none; flex-direction: column; justify-content: center; align-items: center; animation: shake 0.4s infinite; }
+        #crash-screen h1 { color: white; font-size: 60px; text-shadow: 0 0 20px #000; margin: 0; font-weight: bold; }
+        #crash-screen p { color: #fff; font-size: 24px; text-shadow: 0 0 10px #000; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; margin-top: 15px;}
+        @keyframes shake { 0% { transform: translate(2px, 2px) rotate(0deg); } 10% { transform: translate(-2px, -3px) rotate(-1deg); } 20% { transform: translate(-4px, 0px) rotate(1deg); } 30% { transform: translate(4px, 3px) rotate(0deg); } 40% { transform: translate(2px, -2px) rotate(1deg); } 50% { transform: translate(-2px, 3px) rotate(-1deg); } 60% { transform: translate(-4px, 2px) rotate(0deg); } 70% { transform: translate(4px, 2px) rotate(-1deg); } 80% { transform: translate(-2px, -2px) rotate(1deg); } 90% { transform: translate(2px, 3px) rotate(0deg); } 100% { transform: translate(2px, -3px) rotate(-1deg); } }
+
+        #controls-panel { height: 115px; flex-shrink: 0; background: rgba(0, 0, 0, 0.92); border-top: 2px solid #1a1a1a; overflow-x: auto; overflow-y: hidden; display: flex; align-items: center; gap: 6px; padding: 0 12px; box-sizing: border-box; }
+        .control-group { display: flex; gap: 6px; height: 100%; align-items: center; position: relative; padding-top: 15px; }
+        .group-label { position: absolute; top: 4px; left: 4px; font-size: 10px; color: #888; font-weight: bold; letter-spacing: 1px; }
+        .divider { width: 2px; height: 70%; background: #333; margin: 0 8px; flex-shrink: 0; }
+        .btn { flex-shrink: 0; width: 92px; height: 85px; border-radius: 8px; border: 1px solid #333; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: all 0.15s; box-sizing: border-box; padding: 2px; }
+        .btn:hover { filter: brightness(1.2); }
+        .btn.active { border: 2px solid #00f2ff; box-shadow: 0 0 8px rgba(0,242,255,0.3); filter: brightness(1.3); }
+        .btn.active.danger { border-color: #ff4444; box-shadow: 0 0 8px rgba(255,68,68,0.4); }
+        .btn-g1 { background: #0d1a33; } .btn-g2 { background: #1a0d33; } .btn-g3 { background: #330d0d; } .btn-g4 { background: #004d40; border-color: #00bfa5;} .btn-g5 { background: #0a3314; border-color: #39ff14;}
+        .btn-icon { font-size: 20px; } .btn-name { font-size: 10px; font-weight: bold; color: #ddd; text-align: center; line-height: 1.1; } .btn-key { font-size: 10px; color: #00f2ff; letter-spacing: 1px; margin-top: 2px; }
+        #controls-panel::-webkit-scrollbar { height: 10px; } #controls-panel::-webkit-scrollbar-track { background: #111; } #controls-panel::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; } #controls-panel::-webkit-scrollbar-thumb:hover { background: #666; }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="header-titles">
+            <h1>P2.2. SIMULADOR DE VUELO</h1>
+            <h2>CLASE 3.11 — ATERRIZAJE EXPRESS (8 SEGUNDOS)</h2>
+        </div>
+        
+        <div id="header-instructions">
+            <span class="easy">🟢 CÓMO USAR LA PRÁCTICA FÁCIL:</span><br>
+            1. Haz clic en <b>PRÁCTICA ATERR.</b> Te teletransportaremos a <b>8 segundos</b> exactos de la pista.<br>
+            2. La velocidad se reducirá. El avión se auto-alineará mágicamente con la pista (Efecto Imán).<br>
+            3. Busca las <b>luces rojas intermitentes</b>. Usa el ratón SÓLO para subir o bajar el morro y posarte suavemente.
+        </div>
+
+        <div id="btn-reset" onclick="resetSim()">🔄 REINICIAR</div>
+    </header>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div id="speed-overlay"></div>
+        
+        <!-- CONTROLES VIRTUALES -->
+        <div id="virtual-controls">
+            <div id="throttle-bg">
+                <div id="throttle-track"></div>
+                <div id="throttle-knob"><div class="t-grip"></div><div class="t-grip"></div><div class="t-grip"></div></div>
+                <div id="throttle-label">THRUST</div>
+            </div>
+            <div id="joystick-bg">
+                <div id="joystick-knob"></div>
+            </div>
+        </div>
+
+        <div id="crash-screen">
+            <h1>💥 AVIÓN ESTRELLADO 💥</h1>
+            <p id="crash-reason">Impacto brutal contra el terreno</p>
+        </div>
+        
+        <!-- HUD -->
+        <div class="hud-row" id="hud-top">
+            <div class="inst-wrapper"><canvas id="inst1" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">VELOCÍMETRO</div></div>
+            <div class="inst-wrapper"><canvas id="inst2" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">HORIZONTE</div></div>
+            <div class="inst-wrapper"><canvas id="inst3" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">ALTÍMETRO</div></div>
+            <div class="inst-wrapper"><canvas id="inst4" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">RPM HÉLICE</div></div>
+        </div>
+        <div class="hud-row" id="hud-bottom">
+            <div class="inst-wrapper"><canvas id="inst5" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">VARIÓMETRO</div></div>
+            <div class="inst-wrapper"><canvas id="inst6" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">BRÚJULA</div></div>
+            <div class="inst-wrapper"><canvas id="inst7" class="inst-canvas" width="115" height="115"></canvas><div class="inst-label">TURN COORD.</div></div>
+            <div class="inst-wrapper"><canvas id="inst8" class="inst-canvas" width="115" height="50" style="height:50px; margin-top:32px;"></canvas><div class="inst-label">DERRAPE</div></div>
+        </div>
+
+        <div id="servo-panel">
+            <div id="servo-title">SERVOS</div>
+            <div class="servo-row" id="srv-alL"><div class="servo-name">A.Izq</div><div class="servo-bar-container"><div class="servo-bar"></div></div><div class="servo-val">0°</div></div>
+            <div class="servo-row" id="srv-alR"><div class="servo-name">A.Der</div><div class="servo-bar-container"><div class="servo-bar"></div></div><div class="servo-val">0°</div></div>
+            <div class="servo-row" id="srv-elL"><div class="servo-name">E.Izq</div><div class="servo-bar-container"><div class="servo-bar"></div></div><div class="servo-val">0°</div></div>
+            <div class="servo-row" id="srv-elR"><div class="servo-name">E.Der</div><div class="servo-bar-container"><div class="servo-bar"></div></div><div class="servo-val">0°</div></div>
+            <div class="servo-row" id="srv-tim"><div class="servo-name">Timón</div><div class="servo-bar-container"><div class="servo-bar"></div></div><div class="servo-val">0°</div></div>
+        </div>
+
+        <div id="maneuver-indicator">
+            <div id="maneuver-title"></div>
+            <div id="maneuver-desc"></div>
+        </div>
+    </div>
+
+    <!-- BOTONERA SIMPLIFICADA -->
+    <div id="controls-panel">
+        <div class="control-group">
+            <div class="group-label" style="color:#39ff14;">AYUDA TOTAL</div>
+            <div class="btn btn-g5" id="btn-practica" onclick="setManiobra('practica')"><div class="btn-icon">🎮</div><div class="btn-name">PRÁCTICA ATERR.</div><div class="btn-key">(P)</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <div class="group-label" style="color:#00bfa5;">CONTROL TOTAL</div>
+            <div class="btn btn-g4" id="btn-vueloLibre" onclick="setManiobra('vueloLibre')"><div class="btn-icon">🕹️</div><div class="btn-name">VUELO MANUAL</div><div class="btn-key">(SPACE)</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <div class="group-label">PILOTO AUTOMÁTICO</div>
+            <div class="btn btn-g1" id="btn-arranque" onclick="setManiobra('arranque')"><div class="btn-icon">🔑</div><div class="btn-name">ARRANQUE</div><div class="btn-key">(1)</div></div>
+            <div class="btn btn-g1" id="btn-estable" onclick="setManiobra('estable')"><div class="btn-icon">✈️</div><div class="btn-name">ESTABLE</div><div class="btn-key">(2)</div></div>
+            <div class="btn btn-g1" id="btn-aproxAuto" onclick="setManiobra('aproxAuto')"><div class="btn-icon">🎯</div><div class="btn-name">APROX AUTO</div><div class="btn-key">(3)</div></div>
+            <div class="btn btn-g1" id="btn-aterrAuto" onclick="setManiobra('aterrAuto')"><div class="btn-icon">🛬</div><div class="btn-name">ATERR AUTO</div><div class="btn-key">(4)</div></div>
+            <div class="btn btn-g1" id="btn-frenada" onclick="setManiobra('frenada')"><div class="btn-icon">🛑</div><div class="btn-name">FRENADA</div><div class="btn-key">(5)</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <div class="group-label">ADVERSAS</div>
+            <div class="btn btn-g2" id="btn-vientoDer" onclick="setManiobra('vientoDer')"><div class="btn-icon">💨</div><div class="btn-name">VIENTO DER</div><div class="btn-key">(E)</div></div>
+            <div class="btn btn-g2" id="btn-vientoIzq" onclick="setManiobra('vientoIzq')"><div class="btn-icon">💨</div><div class="btn-name">VIENTO IZQ</div><div class="btn-key">(R)</div></div>
+            <div class="btn btn-g2" id="btn-turbSuave" onclick="setManiobra('turbSuave')"><div class="btn-icon">〰️</div><div class="btn-name">TURB SUAVE</div><div class="btn-key">(T)</div></div>
+            <div class="btn btn-g2" id="btn-turbFuerte" onclick="setManiobra('turbFuerte')"><div class="btn-icon">⚡</div><div class="btn-name">TURB FUERTE</div><div class="btn-key">(Y)</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="control-group">
+            <div class="group-label" style="color:#ff4444;">PELIGRO</div>
+            <div class="btn btn-g3" id="btn-espiral" onclick="setManiobra('espiral')"><div class="btn-icon">🌀</div><div class="btn-name">ESPIRAL</div><div class="btn-key">(D)</div></div>
+            <div class="btn btn-g3" id="btn-remontar" onclick="setManiobra('remontar')"><div class="btn-icon">⬆️</div><div class="btn-name">REMONTAR</div><div class="btn-key">(F)</div></div>
+        </div>
+    </div>
+
+    <script>
+        let engine, scene, camera, planeRoot;
+        let controlSurfaces = {};
+        let propRoot, propBlades = [], propDiscoMat = null;
+        let clouds = [], ilsRings = [];
+        let pipeline, glow;
+        
+        let targetAngles  = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+        let currentAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+        
+        let targetPitch = 0, targetBank = 0, targetYawRate = 0, targetVSpeed = 0, targetSpeed = 0;
+        let currentSpeed = 0, currentRPM = 0, targetRPM = 0;
+        
+        let turbulenceActive = false, turbulenceStrength = 0;
+        let spiralMode = false, spiralIntensity = 0;
+        
+        const CAM_Y_BASE = 0.8;
+        let camYOffset = 0;
+        let prevPlaneY = 1.54, smoothedVSpeed = 0;
+
+        let activeManeuver = null;
+        let remontarTimer = 0;
+        let isCrashed = false;
+
+        // ESTADO DE MANDOS VIRTUALES
+        let joyX = 0, joyY = 0; // -1 a 1
+        let throttleVal = 0;    // 0 a 1
+
+        const ctx = [];
+        for(let i=1; i<=8; i++) { ctx[i] = document.getElementById('inst'+i).getContext('2d'); }
+
+        async function initEngine() {
+            const canvas = document.getElementById('renderCanvas');
+            try {
+                if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+                    engine = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+                    await engine.initAsync();
+                } else {
+                    throw new Error("WebGPU fallback");
+                }
+            } catch(e) {
+                console.log("Usando WebGL por seguridad.");
+                engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            }
+            
+            createScene();
+            initVirtualControls();
+            resetSim();
+            
+            engine.runRenderLoop(() => {
+                try {
+                    if(scene) scene.render();
+                    drawInstruments();
+                    updateServoPanel();
+                } catch(err) {
+                    console.error("Render error:", err);
+                }
+            });
+            window.addEventListener('resize', () => engine.resize());
+        }
+
+        function initVirtualControls() {
+            const jBg = document.getElementById('joystick-bg');
+            const jKnob = document.getElementById('joystick-knob');
+            const tBg = document.getElementById('throttle-bg');
+            const tKnob = document.getElementById('throttle-knob');
+            
+            let isDraggingJoy = false;
+            let isDraggingThr = false;
+
+            // Joystick
+            const updateJoy = (e) => {
+                if(!isDraggingJoy) return;
+                const rect = jBg.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                let x = clientX - (rect.left + rect.width/2);
+                let y = clientY - (rect.top + rect.height/2);
+                
+                const radius = (rect.width/2) - 40; 
+                const dist = Math.sqrt(x*x + y*y);
+                if (dist > radius) { x = (x/dist)*radius; y = (y/dist)*radius; }
+                
+                jKnob.style.transform = `translate(${x}px, ${y}px)`;
+                
+                joyX = x / radius; 
+                joyY = y / radius; 
+            };
+
+            const resetJoy = () => {
+                isDraggingJoy = false;
+                jKnob.style.transform = `translate(0px, 0px)`;
+                joyX = 0; joyY = 0;
+            };
+
+            jBg.addEventListener('mousedown', (e) => { isDraggingJoy = true; jKnob.style.transition = 'none'; updateJoy(e); });
+            jBg.addEventListener('touchstart', (e) => { isDraggingJoy = true; jKnob.style.transition = 'none'; updateJoy(e); }, {passive:false});
+            window.addEventListener('mousemove', updateJoy);
+            window.addEventListener('touchmove', (e)=>{if(isDraggingJoy)e.preventDefault(); updateJoy(e);}, {passive: false});
+            window.addEventListener('mouseup', () => { if(isDraggingJoy) { jKnob.style.transition = 'transform 0.2s ease-out'; resetJoy(); }});
+            window.addEventListener('touchend', () => { if(isDraggingJoy) { jKnob.style.transition = 'transform 0.2s ease-out'; resetJoy(); }});
+
+            window.setThrottleUI = (val) => {
+                throttleVal = Math.max(0, Math.min(1, val));
+                const maxTravel = 260;
+                if(tKnob) tKnob.style.top = (maxTravel - (throttleVal * maxTravel) + 10) + 'px';
+            };
+
+            const updateThr = (e) => {
+                if(!isDraggingThr) return;
+                const rect = tBg.getBoundingClientRect();
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                let y = clientY - rect.top;
+                let val = 1.0 - ((y - 35) / 260);
+                window.setThrottleUI(val);
+            };
+
+            tBg.addEventListener('mousedown', (e) => { isDraggingThr = true; updateThr(e); });
+            tBg.addEventListener('touchstart', (e) => { isDraggingThr = true; updateThr(e); }, {passive:false});
+            window.addEventListener('mousemove', updateThr);
+            window.addEventListener('touchmove', (e)=>{if(isDraggingThr)e.preventDefault(); updateThr(e);}, {passive: false});
+            window.addEventListener('mouseup', () => { isDraggingThr = false; });
+            window.addEventListener('touchend', () => { isDraggingThr = false; });
+            
+            window.setThrottleUI(0);
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = BABYLON.Color4.FromHexString("#3A7BD5FF");
+            
+            scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+            scene.fogStart = 4000;
+            scene.fogEnd = 25000;
+            scene.fogColor = new BABYLON.Color3(0.6, 0.75, 0.95);
+
+            scene.createDefaultEnvironment({ createSkybox: true, skyboxSize: 3000, enableGroundMirror: false, groundYBias: 0.01 });
+            scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+            scene.environmentIntensity = 0.5;
+
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.5; hemi.groundColor = new BABYLON.Color3(0.2, 0.3, 0.15);
+            const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5,-1,0.8), scene);
+            sun.position = new BABYLON.Vector3(200, 300, -100); sun.intensity = 3.0;
+            
+            const shadowGen = new BABYLON.ShadowGenerator(1024, sun);
+            shadowGen.useBlurExponentialShadowMap = true;
+            glow = new BABYLON.GlowLayer("glow", scene); glow.intensity = 1.0;
+
+            buildEnvironment();
+            buildPlane(shadowGen);
+
+            pipeline = new BABYLON.DefaultRenderingPipeline("pip", true, scene, [camera]);
+            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.82; pipeline.bloomWeight = 0.4;
+            pipeline.fxaaEnabled = true; pipeline.imageProcessingEnabled = true; pipeline.imageProcessing.toneMappingEnabled = true;
+            pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+            pipeline.imageProcessing.exposure = 1.15; pipeline.imageProcessing.contrast = 1.15;
+            pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = 0.35; pipeline.sharpen.colorAmount = 1.0;
+            pipeline.vignetteEnabled = true; pipeline.vignetteWeight = 1.8;
+            pipeline.chromaticAberrationEnabled = true; pipeline.chromaticAberration.aberrationAmount = 0;
+
+            scene.onBeforeRenderObservable.add(() => {
+                const dt = Math.max(engine.getDeltaTime() / 1000, 0.0001);
+                const t = performance.now() / 1000;
+
+                if (isCrashed) return;
+
+                // --- 1. LÓGICA DE FÍSICAS (MANUAL, PRÁCTICA Y AUTO) ---
+                if (activeManeuver === 'vueloLibre' || activeManeuver === 'practica') {
+                    
+                    // Asignación base del Joystick a los alerones y timones
+                    targetAngles.elevIzq = joyY * 35;   
+                    targetAngles.elevDer = joyY * 35;
+                    targetAngles.aleronIzq = joyX * 35; 
+                    targetAngles.aleronDer = joyX * -35;
+                    targetAngles.timon = joyX * 25;     
+
+                    targetPitch = joyY * -0.35;         
+                    targetBank = joyX * -0.65;
+                    targetYawRate = (joyX * 0.3) + (planeRoot.rotation.z * -0.55);
+
+                    if (activeManeuver === 'practica') {
+                        // --- AYUDA 1: VELOCIDAD CAPADA LENTA ---
+                        let desiredSpeed = 100 + (joyY * 15); // Congelada en ~100 km/h (Cámara lenta)
+                        targetSpeed = desiredSpeed;
+                        targetRPM = 1200; // Motor suave
+                        
+                        // --- AYUDA 2: IMÁN LATERAL (AUTO-ALINEACIÓN) ---
+                        // El avión vuelve solo al centro de la pista (X=0)
+                        planeRoot.position.x = BABYLON.Scalar.Lerp(planeRoot.position.x, 0, 0.015);
+                        // El avión apunta siempre hacia adelante (Yaw=0)
+                        targetYawRate = -planeRoot.rotation.y * 1.5; 
+                        // Mantenemos las alas rectas aunque muevas el ratón hacia los lados
+                        targetBank = BABYLON.Scalar.Lerp(targetBank, 0, 0.2);
+                        targetAngles.aleronIzq = 0; targetAngles.aleronDer = 0; targetAngles.timon = 0;
+                        
+                    } else {
+                        // Vuelo manual hardcore
+                        targetRPM = 800 + (throttleVal * 1900);
+                        let desiredSpeed = throttleVal * 230;
+                        desiredSpeed += planeRoot.rotation.x * 120;
+                        targetSpeed = Math.max(0, desiredSpeed);
+                    }
+
+                    // FISICAS DE SUSTENTACIÓN Y EFECTO SUELO
+                    if (currentSpeed > 70) {
+                        let lift = (currentSpeed - 140) * 0.04;         
+                        let elevatorLift = targetPitch * -45;           
+                        let bankLoss = Math.abs(planeRoot.rotation.z) * 8; 
+                        
+                        targetVSpeed = lift + elevatorLift - bankLoss;
+
+                        // Efecto suelo salvavidas automático
+                        let alt = planeRoot.position.y - 1.54;
+                        if (alt < 15 && targetPitch > -0.1) {
+                            if (targetVSpeed < -1.5) {
+                                targetVSpeed = BABYLON.Scalar.Lerp(targetVSpeed, -0.8, 1.0 - (alt / 15)); // Frena a -0.8m/s
+                            }
+                        }
+                    } else {
+                        targetVSpeed -= 9.8 * dt; 
+                        targetPitch = BABYLON.Scalar.Lerp(targetPitch, 0.3, 0.02); 
+                    }
+                } 
+                else {
+                    // Piloto automático
+                    if (activeManeuver === 'aterrAuto') {
+                        if (planeRoot.position.y <= 1.54) { planeRoot.position.y = 1.54; targetVSpeed = 0; targetPitch = 0; targetAngles.elevIzq = 0; targetAngles.elevDer = 0; }
+                    } 
+                    else if (activeManeuver === 'frenada') {
+                        if (planeRoot.position.y <= 1.54) { planeRoot.position.y = 1.54; targetVSpeed = 0; targetPitch = 0; }
+                    } 
+                    else if (activeManeuver === 'remontar') {
+                        remontarTimer += dt;
+                        turbulenceActive = true; 
+                        turbulenceStrength = Math.max(0, 15 - remontarTimer*2.5);
+                        if (remontarTimer < 3.5) { targetPitch = -0.35; targetVSpeed = 25; targetSpeed = 160; } 
+                        else if (remontarTimer < 6.0) { targetPitch = BABYLON.Scalar.Lerp(targetPitch, 0, 0.02); targetVSpeed = BABYLON.Scalar.Lerp(targetVSpeed, 0, 0.03); }
+                        else { targetPitch = 0; targetVSpeed = 0; turbulenceActive = false; }
+                    }
+                }
+
+                // --- 2. INTEGRACIÓN FÍSICA Y TRIGONOMETRÍA 3D ---
+                let speedMs = currentSpeed * 0.277;
+                planeRoot.position.z += Math.cos(planeRoot.rotation.y) * speedMs * dt; 
+                planeRoot.position.x += Math.sin(planeRoot.rotation.y) * speedMs * dt;
+                planeRoot.position.y += targetVSpeed * dt;
+
+                // --- 3. COLISIONES ---
+                if (planeRoot.position.y <= 1.54) {
+                    planeRoot.position.y = 1.54;
+                    
+                    if (activeManeuver === 'vueloLibre' || activeManeuver === 'practica') {
+                        if (targetVSpeed < 0) {
+                            if (prevPlaneY > 1.6 && targetVSpeed < -8.5) {
+                                triggerCrash(`Aterrizaje brutal (${Math.abs(Math.round(targetVSpeed))} m/s)`);
+                            }
+                            targetVSpeed = 0; 
+                        }
+                        
+                        if (!isCrashed) {
+                            if (Math.abs(planeRoot.rotation.z) > 0.18) triggerCrash("El ala golpeó el asfalto (Alabeo excesivo)");
+                            else if (Math.abs(planeRoot.rotation.x) > 0.25) triggerCrash("Impacto de hélice o cola contra la pista");
+                            else if (currentSpeed > 80 && Math.abs(planeRoot.position.x) > 15) triggerCrash("Salida de pista a alta velocidad");
+                            else {
+                                targetBank = 0; 
+                                if(activeManeuver === 'practica' && currentSpeed > 5) targetSpeed -= 10*dt; // Autocorrección de frenada en práctica
+                            }
+                        }
+                    } else {
+                        const safe = ['apagado', 'arranque', 'frenada', 'aterrAuto'];
+                        if (activeManeuver && !safe.includes(activeManeuver)) triggerCrash("Impacto catastrófico contra el terreno");
+                        if (activeManeuver === 'aterrAuto' || activeManeuver === 'frenada') {
+                            targetVSpeed = 0; targetPitch = 0; targetAngles.elevIzq=0; targetAngles.elevDer=0;
+                        }
+                    }
+                }
+
+                let speedLerp = (activeManeuver === 'frenada' || activeManeuver === 'practica') ? 0.005 : (activeManeuver === 'vueloLibre' ? 0.015 : 0.03);
+                currentSpeed = BABYLON.Scalar.Lerp(currentSpeed, targetSpeed, speedLerp);
+                currentRPM   = BABYLON.Scalar.Lerp(currentRPM, targetRPM, 0.02);
+                
+                let vSpeedRaw = (planeRoot.position.y - prevPlaneY) / dt;
+                smoothedVSpeed = BABYLON.Scalar.Lerp(smoothedVSpeed, vSpeedRaw, 0.05);
+                prevPlaneY = planeRoot.position.y;
+
+                clouds.forEach(c => { 
+                    c.position.z -= 2 * dt; 
+                    if(c.position.z < planeRoot.position.z - 2500) c.position.z += 5000; 
+                    if(c.position.z > planeRoot.position.z + 2500) c.position.z -= 5000; 
+                    if(c.position.x < planeRoot.position.x - 2500) c.position.x += 5000; 
+                    if(c.position.x > planeRoot.position.x + 2500) c.position.x -= 5000; 
+                    if(c.position.y < planeRoot.position.y - 400) c.position.y += 800;
+                    if(c.position.y > planeRoot.position.y + 400) c.position.y -= 800;
+                });
+
+                if (propRoot) propRoot.rotation.z += (currentRPM / 100) * dt;
+                if (propDiscoMat) {
+                    const BLUR_START = 8, BLUR_FULL = 24;
+                    const spd = currentRPM / 100;
+                    const td = BABYLON.Scalar.Clamp((spd - BLUR_START) / (BLUR_FULL - BLUR_START), 0, 1);
+                    propDiscoMat.alpha = td * 0.05; 
+                    propBlades.forEach(p => { p.visibility = 1 - td; });
+                }
+
+                if (spiralMode) {
+                    spiralIntensity = Math.min(spiralIntensity + 0.2*dt, 1.0);
+                    targetBank = -1.5 * spiralIntensity; targetYawRate = 1.2 * spiralIntensity;
+                    targetVSpeed = -25 * spiralIntensity; targetSpeed = 160 + 120 * spiralIntensity;
+                    targetRPM = 2700 + 400 * spiralIntensity; camYOffset = -0.08 * spiralIntensity;
+                    pipeline.vignetteWeight = 1.8 + 1.5*spiralIntensity; pipeline.chromaticAberration.aberrationAmount = 40*spiralIntensity;
+                    glow.intensity = 0.8 + 1.0*spiralIntensity;
+                    camera.position.x = Math.sin(t*(10+spiralIntensity*8))*0.015*spiralIntensity;
+                    camera.position.y = CAM_Y_BASE - 0.08*spiralIntensity + Math.sin(t*15)*0.008*spiralIntensity;
+                    document.getElementById('speed-overlay').style.opacity = Math.min(Math.max(0, (currentSpeed - 200)/100), 0.6);
+                } else if (!turbulenceActive && activeManeuver !== 'remontar') {
+                    if (spiralIntensity > 0) {
+                        spiralIntensity = Math.max(0, spiralIntensity - 0.4*dt);
+                        pipeline.vignetteWeight = 1.8 + 1.2*spiralIntensity; pipeline.chromaticAberration.aberrationAmount = 35*spiralIntensity; glow.intensity = 0.8 + 0.7*spiralIntensity;
+                    }
+                    document.getElementById('speed-overlay').style.opacity = 0;
+                    if (targetBank !== 0 && targetPitch === 0 && targetAngles.aleronIzq === 10) camera.position.x = Math.sin(t*1.5)*0.008;
+                    else camera.position.x = BABYLON.Scalar.Lerp(camera.position.x, 0, 0.1);
+                }
+
+                if (turbulenceActive) {
+                    const osc = turbulenceStrength === 15 ? 3.5 : (turbulenceStrength > 0 ? turbulenceStrength/5 : 1);
+                    controlSurfaces.aleronIzq.rotation.x = Math.sin(t*8.3)*5*osc*Math.PI/180;
+                    controlSurfaces.aleronDer.rotation.x = -Math.sin(t*8.3)*5*osc*Math.PI/180;
+                    controlSurfaces.elevIzq.rotation.x   = Math.sin(t*9.1)*5*osc*Math.PI/180;
+                    controlSurfaces.elevDer.rotation.x   = -Math.sin(t*9.1)*5*osc*Math.PI/180;
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, targetPitch + Math.sin(t*7.2)*0.008*osc, 0.1);
+                    planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, targetBank + Math.sin(t*6.8)*0.006*osc, 0.1);
+                    if (activeManeuver !== 'arranque' && activeManeuver !== 'estable') planeRoot.rotation.y += targetYawRate * dt;
+                    camera.position.y = CAM_Y_BASE + Math.sin(t*14)*0.005*osc;
+                    camera.position.x = Math.sin(t*11)*0.004*osc;
+                } else {
+                    Object.keys(targetAngles).forEach(k => {
+                        currentAngles[k] = BABYLON.Scalar.Lerp(currentAngles[k], targetAngles[k], 0.05);
+                        if(controlSurfaces[k]) {
+                            if(k === 'timon') controlSurfaces[k].rotation.y = currentAngles[k] * Math.PI / 180;
+                            else controlSurfaces[k].rotation.x = currentAngles[k] * Math.PI / 180;
+                        }
+                    });
+
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, targetPitch, 0.04);
+                    planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, targetBank, 0.04);
+                    
+                    const autoAlignStates = ['arranque', 'estable', 'aproxAuto', 'aterrAuto', 'remontar'];
+                    if (autoAlignStates.includes(activeManeuver)) {
+                        let cy = planeRoot.rotation.y % (2 * Math.PI);
+                        if (cy > Math.PI) cy -= 2 * Math.PI;
+                        if (cy < -Math.PI) cy += 2 * Math.PI;
+                        planeRoot.rotation.y = BABYLON.Scalar.Lerp(cy, 0, 0.035);
+                    } else {
+                        planeRoot.rotation.y += targetYawRate * dt;
+                    }
+
+                    if (!spiralMode) camera.position.y = BABYLON.Scalar.Lerp(camera.position.y, CAM_Y_BASE + camYOffset, 0.06);
+                }
+            });
+        }
+
+        function triggerCrash(reason) {
+            isCrashed = true;
+            document.getElementById('crash-screen').style.display = 'flex';
+            document.getElementById('crash-reason').innerText = reason;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            targetSpeed = 0; currentSpeed = 0; targetRPM = 0; currentRPM = 0; targetVSpeed = 0;
+            document.getElementById('virtual-controls').style.display = 'none';
+            if(pipeline) { pipeline.vignetteWeight = 3.0; pipeline.chromaticAberration.aberrationAmount = 50; }
+        }
+
+        function resetSim() {
+            isCrashed = false;
+            document.getElementById('crash-screen').style.display = 'none';
+            if(pipeline) { pipeline.vignetteWeight = 1.8; pipeline.chromaticAberration.aberrationAmount = 0; glow.intensity = 1.0; }
+            document.getElementById('speed-overlay').style.opacity = 0;
+            document.getElementById('virtual-controls').style.display = 'none';
+            if(ilsRings.length > 0) ilsRings.forEach(r => r.isVisible = false);
+
+            if (planeRoot) { planeRoot.position.set(0, 1.54, -2000); planeRoot.rotation.set(0, 0, 0); }
+            
+            targetSpeed = 0; currentSpeed = 0; targetRPM = 0; currentRPM = 0; targetVSpeed = 0; targetPitch = 0; targetBank = 0; targetYawRate = 0; smoothedVSpeed = 0;
+            turbulenceActive = false; spiralMode = false; activeManeuver = 'apagado';
+            targetAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0}; currentAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+            
+            joyX = 0; joyY = 0; 
+            if(window.setThrottleUI) window.setThrottleUI(0);
+
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            const ind = document.getElementById('maneuver-indicator');
+            if(ind) {
+                document.getElementById('maneuver-title').innerText = "AVIÓN APAGADO";
+                document.getElementById('maneuver-title').style.color = "#aaaaaa";
+                document.getElementById('maneuver-desc').innerText = "Inicia la Práctica Fácil, Vuelo Manual o Piloto.";
+                ind.style.borderLeftColor = "#aaaaaa";
+                ind.style.opacity = '1';
+            }
+        }
+
+        function buildILS() {
+            const ilsMat = new BABYLON.StandardMaterial("ilsMat", scene);
+            ilsMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+            ilsMat.alpha = 0.8; 
+            ilsMat.disableLighting = true;
+            ilsMat.backFaceCulling = false;
+
+            for (let i = 0; i < 25; i++) {
+                let t = i / 24; 
+                let z = BABYLON.Scalar.Lerp(-7000, -2000, t); 
+                let y = BABYLON.Scalar.Lerp(400, 24, t); 
+                const ring = BABYLON.MeshBuilder.CreateTorus("ils_S_"+i, {diameter: 250 - (t*120), thickness: 6.0, tessellation: 32}, scene);
+                ring.position.set(0, y, z); ring.rotation.x = Math.PI / 2; ring.material = ilsMat; ring.isVisible = false;
+                ilsRings.push(ring);
+            }
+
+            for (let i = 0; i < 25; i++) {
+                let t = i / 24; 
+                let z = BABYLON.Scalar.Lerp(9000, 4000, t); 
+                let y = BABYLON.Scalar.Lerp(400, 24, t); 
+                const ring = BABYLON.MeshBuilder.CreateTorus("ils_N_"+i, {diameter: 250 - (t*120), thickness: 6.0, tessellation: 32}, scene);
+                ring.position.set(0, y, z); ring.rotation.x = Math.PI / 2; ring.material = ilsMat; ring.isVisible = false;
+                ilsRings.push(ring);
+            }
+
+            const beaconMat = new BABYLON.StandardMaterial("beaconMat", scene);
+            beaconMat.emissiveColor = new BABYLON.Color3(0, 1, 0.5);
+            beaconMat.alpha = 0.6;
+            beaconMat.disableLighting = true;
+
+            const beaconSouth = BABYLON.MeshBuilder.CreateCylinder("bS", {height: 3000, diameter: 20}, scene);
+            beaconSouth.position.set(0, 1500, -2000); beaconSouth.material = beaconMat; beaconSouth.isVisible = false;
+            ilsRings.push(beaconSouth);
+
+            const beaconNorth = BABYLON.MeshBuilder.CreateCylinder("bN", {height: 3000, diameter: 20}, scene);
+            beaconNorth.position.set(0, 1500, 4000); beaconNorth.material = beaconMat; beaconNorth.isVisible = false;
+            ilsRings.push(beaconNorth);
+        }
+
+        function buildEnvironment() {
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10000, height:10000, subdivisions:100}, scene);
+            const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+            for (let i=0; i<positions.length; i+=3) {
+                const x=positions[i], z=positions[i+2];
+                let y = (Math.sin(x*0.005)*Math.cos(z*0.005)*25) + (Math.sin(x*0.02)*Math.sin(z*0.02)*10) + (Math.random()*1.5);
+                let dist = Math.abs(x);
+                if (dist < 40 && z > -2500 && z < 4500) y = 0.0;
+                else if (dist < 100 && z > -2500 && z < 4500) y = BABYLON.Scalar.Lerp(0.0, y, (dist - 40) / 60);
+                positions[i+1] = y;
+            }
+            ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+            ground.createNormals(true); 
+            const gMat = new BABYLON.PBRMaterial("gMat", scene);
+            gMat.albedoColor = BABYLON.Color3.FromHexString("#2E6B2E"); gMat.roughness = 0.95; gMat.metallic = 0.0; ground.material = gMat;
+
+            const runwayBorder = BABYLON.MeshBuilder.CreatePlane("rwyBorder", {width: 26, height: 6020}, scene);
+            runwayBorder.rotation.x = Math.PI / 2;
+            runwayBorder.position = new BABYLON.Vector3(0, 0.49, 1000);
+            const borderMat = new BABYLON.StandardMaterial("bMat", scene);
+            borderMat.emissiveColor = new BABYLON.Color3(1, 0.4, 0);
+            borderMat.disableLighting = true;
+            runwayBorder.material = borderMat;
+
+            const runway = BABYLON.MeshBuilder.CreateBox("rwy", {width:20, height:0.02, depth:6000}, scene);
+            runway.position = new BABYLON.Vector3(0, 0.50, 1000);
+            runway.material = new BABYLON.PBRMaterial("rwyM", scene);
+            runway.material.albedoColor = BABYLON.Color3.FromHexString("#37474F"); runway.material.roughness = 0.9;
+            
+            const lMat = new BABYLON.StandardMaterial("lMat", scene);
+            lMat.emissiveColor = new BABYLON.Color3(1,1,1); lMat.disableLighting = true;
+            for (let z=-1900; z<3900; z+=16) {
+                const l = BABYLON.MeshBuilder.CreatePlane("l",{width:0.8, height:6},scene);
+                l.rotation.x = Math.PI/2; l.position = new BABYLON.Vector3(0, 0.52, z); l.material=lMat;
+            }
+
+            // LUCES ROJAS INTERMITENTES EN CABECERA DE PISTA
+            const thresholdMat = new BABYLON.StandardMaterial("tMat", scene);
+            thresholdMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+            thresholdMat.disableLighting = true;
+            
+            // Animación parpadeo estroboscópico (Estilo aeropuerto real)
+            scene.onBeforeRenderObservable.add(() => {
+                const time = performance.now();
+                if (time % 800 < 400) {
+                    thresholdMat.emissiveColor.set(1, 0, 0);
+                } else {
+                    thresholdMat.emissiveColor.set(0.1, 0, 0);
+                }
+            });
+
+            for (let x = -15; x <= 15; x += 3) {
+                // Cabecera Sur
+                let lS = BABYLON.MeshBuilder.CreateSphere("lS"+x, {diameter: 1.5}, scene);
+                lS.position.set(x, 0.5, -2000);
+                lS.material = thresholdMat;
+                
+                // Cabecera Norte
+                let lN = BABYLON.MeshBuilder.CreateSphere("lN"+x, {diameter: 1.5}, scene);
+                lN.position.set(x, 0.5, 4000);
+                lN.material = thresholdMat;
+            }
+
+            const cloudMat = new BABYLON.PBRMaterial("cMat", scene);
+            cloudMat.albedoColor = new BABYLON.Color3(1,1,1); cloudMat.alpha = 0.65; cloudMat.roughness=1.0; cloudMat.metallic=0.0; cloudMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND; cloudMat.backFaceCulling = false;
+            for (let c=0; c<350; c++) {
+                const cx = (Math.random()-0.5)*5000; const cy = 20 + Math.random()*1000; const cz = (Math.random()-0.5)*5000;
+                const cloudNode = new BABYLON.TransformNode("cloud"+c, scene); cloudNode.position = new BABYLON.Vector3(cx, cy, cz);
+                const numSph = 4 + Math.floor(Math.random()*4);
+                for (let s=0; s<numSph; s++) {
+                    const r = 10 + Math.random()*20;
+                    const sph = BABYLON.MeshBuilder.CreateSphere("cs"+c+"_"+s, {diameter:r*2, segments:8}, scene);
+                    sph.parent = cloudNode; sph.position = new BABYLON.Vector3((Math.random()-0.5)*r*2, (Math.random()-0.5)*r*0.5, (Math.random()-0.5)*r*2); sph.material = cloudMat;
+                }
+                clouds.push(cloudNode);
+            }
+            buildILS();
+        }
+
+        function createPBR(name, hex, r, m) {
+            const mat = new BABYLON.PBRMaterial(name, scene);
+            mat.albedoColor = BABYLON.Color3.FromHexString(hex); mat.roughness = r; mat.metallic = m; return mat;
+        }
+
+        function buildPlane(shadowGen) {
+            planeRoot = new BABYLON.TransformNode("planeRoot", scene);
+            const matWhite = createPBR("matW", "#F0F0F0", 0.2, 0.1); matWhite.clearCoat.isEnabled=true; matWhite.clearCoat.intensity=1.0;
+            const matWing = createPBR("matWing", "#E8EAF6", 0.3, 0.1); const matOrange = createPBR("matO", "#FF6F00", 0.3, 0.1); 
+            const matDark = createPBR("matD", "#212121", 0.8, 0.1); const matGear = createPBR("matG", "#455A64", 0.6, 0.8); 
+            
+            const fuseGrp = new BABYLON.TransformNode("p_fuse", scene); fuseGrp.parent = planeRoot;
+            const b1 = BABYLON.MeshBuilder.CreateCylinder("b1", {height:1.2, diameterTop:1.0, diameterBottom:1.2, tessellation:24}, scene); b1.position.z=1.4; b1.position.y=0.1; b1.rotation.x=Math.PI/2;
+            const b2 = BABYLON.MeshBuilder.CreateCylinder("b2", {height:1.6, diameterTop:1.2, diameterBottom:1.2, tessellation:24}, scene); b2.position.z=0; b2.position.y=0.1; b2.rotation.x=Math.PI/2;
+            const b3 = BABYLON.MeshBuilder.CreateCylinder("b3", {height:1.6, diameterTop:1.2, diameterBottom:0.8, tessellation:24}, scene); b3.position.z=-1.6; b3.position.y=0.1; b3.rotation.x=Math.PI/2;
+            const b4 = BABYLON.MeshBuilder.CreateCylinder("b4", {height:1.4, diameterTop:0.8, diameterBottom:0.4, tessellation:24}, scene); b4.position.z=-3.1; b4.position.y=0.15; b4.rotation.x=Math.PI/2;
+            const b5 = BABYLON.MeshBuilder.CreateCylinder("b5", {height:1.0, diameterTop:0.4, diameterBottom:0.1, tessellation:24}, scene); b5.position.z=-4.3; b5.position.y=0.2; b5.rotation.x=Math.PI/2;
+            [b1,b2,b3,b4,b5].forEach(b => { b.parent=fuseGrp; b.material=matWhite; shadowGen.addShadowCaster(b); });
+            
+            const alaIGrp = new BABYLON.TransformNode("p_alai",scene); alaIGrp.parent=planeRoot; alaIGrp.position=new BABYLON.Vector3(-0.6,0.3,0); alaIGrp.rotation.z=-5*Math.PI/180;
+            const wL = BABYLON.MeshBuilder.CreateCapsule("wL",{height:4.2,radius:0.8,tessellation:16},scene); wL.rotation.z=Math.PI/2; wL.scaling=new BABYLON.Vector3(0.08,1,1); wL.position.x=-2.0; wL.parent=alaIGrp; wL.material=matWing; shadowGen.addShadowCaster(wL);
+            const alerPivotI=new BABYLON.TransformNode("alerPivotI",scene); alerPivotI.parent=alaIGrp; alerPivotI.position=new BABYLON.Vector3(-2.5,0,-0.8);
+            const aleronI=BABYLON.MeshBuilder.CreateBox("alI",{width:0.4,height:1.8,depth:0.4},scene); aleronI.rotation.z=Math.PI/2; aleronI.scaling=new BABYLON.Vector3(0.15,1,1); aleronI.position.z=-0.2; aleronI.parent=alerPivotI; aleronI.material=matOrange; controlSurfaces.aleronIzq=alerPivotI;
+
+            const alaDGrp=new BABYLON.TransformNode("p_alad",scene); alaDGrp.parent=planeRoot; alaDGrp.position=new BABYLON.Vector3(0.6,0.3,0); alaDGrp.rotation.z=5*Math.PI/180;
+            const wR=BABYLON.MeshBuilder.CreateCapsule("wR",{height:4.2,radius:0.8,tessellation:16},scene); wR.rotation.z=Math.PI/2; wR.scaling=new BABYLON.Vector3(0.08,1,1); wR.position.x=2.0; wR.parent=alaDGrp; wR.material=matWing; shadowGen.addShadowCaster(wR);
+            const alerPivotD=new BABYLON.TransformNode("alerPivotD",scene); alerPivotD.parent=alaDGrp; alerPivotD.position=new BABYLON.Vector3(2.5,0,-0.8);
+            const aleronD=BABYLON.MeshBuilder.CreateBox("alD",{width:0.4,height:1.8,depth:0.4},scene); aleronD.rotation.z=Math.PI/2; aleronD.scaling=new BABYLON.Vector3(0.15,1,1); aleronD.position.z=-0.2; aleronD.parent=alerPivotD; aleronD.material=matOrange; controlSurfaces.aleronDer=alerPivotD;
+
+            const cHGrp=new BABYLON.TransformNode("p_colah",scene); cHGrp.parent=planeRoot; cHGrp.position=new BABYLON.Vector3(0,0.45,-4.2);
+            const chBox=BABYLON.MeshBuilder.CreateCapsule("ch",{height:3.4,radius:0.4,tessellation:16},scene); chBox.rotation.z=Math.PI/2; chBox.scaling=new BABYLON.Vector3(0.1,1,1); chBox.parent=cHGrp; chBox.material=matWing;
+            const elevPivotI=new BABYLON.TransformNode("elevPivotI",scene); elevPivotI.parent=cHGrp; elevPivotI.position=new BABYLON.Vector3(-0.8,0,-0.4);
+            const elI=BABYLON.MeshBuilder.CreateBox("elI",{width:0.5,height:1.4,depth:0.5},scene); elI.rotation.z=Math.PI/2; elI.scaling=new BABYLON.Vector3(0.1,1,1); elI.position.z=-0.25; elI.parent=elevPivotI; elI.material=matOrange; controlSurfaces.elevIzq=elevPivotI;
+            const elevPivotD=new BABYLON.TransformNode("elevPivotD",scene); elevPivotD.parent=cHGrp; elevPivotD.position=new BABYLON.Vector3(0.8,0,-0.4);
+            const elD=BABYLON.MeshBuilder.CreateBox("elD",{width:0.5,height:1.4,depth:0.5},scene); elD.rotation.z=Math.PI/2; elD.scaling=new BABYLON.Vector3(0.1,1,1); elD.position.z=-0.25; elD.parent=elevPivotD; elD.material=matOrange; controlSurfaces.elevDer=elevPivotD;
+
+            const cVGrp=new BABYLON.TransformNode("p_colav",scene); cVGrp.parent=planeRoot; cVGrp.position=new BABYLON.Vector3(0,0.5,-4.0);
+            const cvBox=BABYLON.MeshBuilder.CreateCapsule("cv",{height:1.6,radius:0.5,tessellation:16},scene); cvBox.scaling=new BABYLON.Vector3(0.1,1,1); cvBox.position.y=0.7; cvBox.position.z=-0.2; cvBox.parent=cVGrp; cvBox.material=matWing;
+            const timonPivot=new BABYLON.TransformNode("timonPivot",scene); timonPivot.parent=cVGrp; timonPivot.position=new BABYLON.Vector3(0,0.7,-0.7);
+            const tBox=BABYLON.MeshBuilder.CreateBox("tB",{width:0.6,height:1.3,depth:0.6},scene); tBox.scaling=new BABYLON.Vector3(0.1,1,1); tBox.position.z=-0.3; tBox.parent=timonPivot; tBox.material=matOrange; controlSurfaces.timon=timonPivot;
+
+            const motGrp=new BABYLON.TransformNode("p_motor",scene); motGrp.parent=planeRoot; motGrp.position=new BABYLON.Vector3(0,0.1,2.0);
+            const motor=BABYLON.MeshBuilder.CreateCylinder("mot",{diameter:1.1,height:0.8},scene); motor.rotation.x=Math.PI/2; motor.parent=motGrp; motor.material=matGear;
+            propRoot=new BABYLON.TransformNode("propRoot",scene); propRoot.parent=motGrp; propRoot.position.z=0.45;
+            const prop1=BABYLON.MeshBuilder.CreateCapsule("pr1",{height:3.4,radius:0.1,tessellation:12},scene); prop1.scaling=new BABYLON.Vector3(1,1,0.2); prop1.parent=propRoot; prop1.material=matDark;
+            const prop2=BABYLON.MeshBuilder.CreateCapsule("pr2",{height:3.4,radius:0.1,tessellation:12},scene); prop2.rotation.z=Math.PI/2; prop2.scaling=new BABYLON.Vector3(1,1,0.2); prop2.parent=propRoot; prop2.material=matDark;
+            
+            const propDisco=BABYLON.MeshBuilder.CreateCylinder("propDisco",{diameter:3.6,height:0.04,tessellation:48},scene); propDisco.parent=propRoot; propDisco.rotation.x=Math.PI/2;
+            const matDisco=new BABYLON.PBRMaterial("matDisco",scene); matDisco.albedoColor=new BABYLON.Color3(0,0,0); matDisco.alpha=0.0; matDisco.metallic=0; matDisco.roughness=0.5; matDisco.transparencyMode=BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND; propDisco.material=matDisco;
+            propBlades=[prop1,prop2]; propDiscoMat=matDisco;
+
+            const createServo=(id,parentPos,parentRotZ,posOffset,rotY)=>{
+                const sGrp=new BABYLON.TransformNode(id,scene); sGrp.parent=planeRoot; sGrp.position=parentPos.clone(); sGrp.rotation.z=parentRotZ;
+                const sw=new BABYLON.TransformNode("sw",scene); sw.parent=sGrp; sw.position=posOffset; sw.rotation.y=rotY;
+                const mBase=new BABYLON.PBRMaterial(id+"_base",scene); mBase.albedoColor=BABYLON.Color3.FromHexString("#B0BEC5"); mBase.metallic=0.8; mBase.roughness=0.4;
+                const mArm=new BABYLON.PBRMaterial(id+"_arm",scene); mArm.albedoColor=BABYLON.Color3.FromHexString("#00b0f0"); mArm.metallic=0.2; mArm.roughness=0.2;
+                const base=BABYLON.MeshBuilder.CreateBox("b",{width:0.25,height:0.2,depth:0.15},scene); base.parent=sw; base.position.y=0.1; base.material=mBase;
+                const aPivot=new BABYLON.TransformNode("ap",scene); aPivot.parent=sw; aPivot.position=new BABYLON.Vector3(0,0.25,0);
+                const arm=BABYLON.MeshBuilder.CreateBox("a",{width:0.06,height:0.25,depth:0.06},scene); arm.parent=aPivot; arm.position.y=0.1; arm.material=mArm;
+            };
+            createServo('s_alai', alaIGrp.position, alaIGrp.rotation.z, new BABYLON.Vector3(-2.5,0.1,-0.4), 0); createServo('s_alad', alaDGrp.position, alaDGrp.rotation.z, new BABYLON.Vector3(2.5,0.1,-0.4),  0); createServo('s_elevi',cHGrp.position, 0, new BABYLON.Vector3(-0.8,0.1,0), 0); createServo('s_elevd',cHGrp.position, 0, new BABYLON.Vector3(0.8,0.1,0), 0); createServo('s_timon',cVGrp.position, 0, new BABYLON.Vector3(0.1,1.0,-0.4), Math.PI/2);
+
+            camera = new BABYLON.FreeCamera("cockpit", new BABYLON.Vector3(0, CAM_Y_BASE, -0.2), scene); 
+            camera.rotation = new BABYLON.Vector3(0.08, 0, 0); 
+            camera.minZ = 0.05; 
+            camera.maxZ = 30000; 
+            camera.parent = planeRoot;
+
+            const frameMat = new BABYLON.PBRMaterial("frmM", scene); frameMat.albedoColor = BABYLON.Color3.FromHexString("#1a1a1a"); frameMat.roughness = 0.9; frameMat.metallic = 0.1;
+            
+            const jL = BABYLON.MeshBuilder.CreateBox("jL",{width:0.06,height:0.7,depth:0.06},scene); 
+            jL.parent=planeRoot; jL.position=new BABYLON.Vector3(-0.45,0.95,0.5); 
+            jL.rotation.z = -10 * Math.PI / 180; 
+            jL.material=frameMat;
+            
+            const jR = jL.clone("jR"); 
+            jR.position.x=0.45; jR.rotation.z = 10 * Math.PI / 180; 
+            jR.parent=planeRoot;
+            
+            const tSup = BABYLON.MeshBuilder.CreateBox("tSup",{width:0.84,height:0.06,depth:0.06},scene); 
+            tSup.parent=planeRoot; tSup.position=new BABYLON.Vector3(0,1.29,0.5); tSup.material=frameMat;
+            
+            const tInf = BABYLON.MeshBuilder.CreateBox("tInf",{width:1.08,height:0.06,depth:0.06},scene); 
+            tInf.parent=planeRoot; tInf.position=new BABYLON.Vector3(0,0.61,0.5); tInf.material=frameMat;
+            
+            const dashMat = new BABYLON.PBRMaterial("dashM", scene); dashMat.albedoColor = BABYLON.Color3.FromHexString("#111111"); dashMat.roughness=0.85; dashMat.metallic=0.2;
+            const dash = BABYLON.MeshBuilder.CreateBox("dash",{width:1.08,height:0.05,depth:0.45},scene); dash.parent=planeRoot; dash.position=new BABYLON.Vector3(0,0.55,0.72); dash.rotation.x=-0.3; dash.material=dashMat;
+        }
+
+        function drawBg(c) {
+            c.clearRect(0,0,115,115); c.beginPath(); c.arc(57.5, 57.5, 54, 0, Math.PI*2); c.fillStyle = "#0a0a0a"; c.fill();
+            const grad = c.createLinearGradient(0,0,115,115); grad.addColorStop(0,"#cccccc"); grad.addColorStop(1,"#444444");
+            c.lineWidth = 6; c.strokeStyle = grad; c.stroke();
+        }
+        function drawNeedle(c, angle, len, color="#fff", w=3) {
+            c.save(); c.translate(57.5, 57.5); c.rotate(angle); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -len); c.strokeStyle = color; c.lineWidth = w; c.shadowColor = "rgba(0,0,0,0.5)"; c.shadowBlur = 4; c.stroke(); c.beginPath(); c.arc(0,0,4,0,Math.PI*2); c.fillStyle=color; c.fill(); c.restore();
+        }
+
+        function drawInstruments() {
+            let c = ctx[1]; drawBg(c); c.save(); c.translate(57.5, 57.5);
+            for(let i=0; i<=300; i+=10) { let a = (i/300) * Math.PI * 1.5 - Math.PI*0.75; c.rotate(a); c.beginPath(); c.moveTo(0, -48); c.lineTo(0, i%50===0 ? -40 : -44); c.strokeStyle = "#ccc"; c.lineWidth = i%50===0 ? 2 : 1; c.stroke(); if(i%50===0) { c.fillStyle="#fff"; c.font="10px Arial"; c.textAlign="center"; c.fillText(i, 0, -30); } c.rotate(-a); }
+            c.restore(); drawNeedle(c, (currentSpeed/300)*Math.PI*1.5 - Math.PI*0.75, 45, "#fff", 2);
+            c.fillStyle="#fff"; c.font="12px Arial"; c.textAlign="center"; c.fillText(Math.round(currentSpeed)+" km/h", 57.5, 90);
+
+            c = ctx[2]; c.clearRect(0,0,115,115); c.save(); c.beginPath(); c.arc(57.5, 57.5, 54, 0, Math.PI*2); c.clip(); c.translate(57.5, 57.5); c.rotate(planeRoot.rotation.z); c.translate(0, -planeRoot.rotation.x * 50); 
+            let gSky = c.createLinearGradient(0, -100, 0, 0); gSky.addColorStop(0,"#1565C0"); gSky.addColorStop(1,"#42A5F5"); c.fillStyle = gSky; c.fillRect(-100, -100, 200, 100);
+            let gGnd = c.createLinearGradient(0, 0, 0, 100); gGnd.addColorStop(0,"#5D4037"); gGnd.addColorStop(1,"#8D6E63"); c.fillStyle = gGnd; c.fillRect(-100, 0, 200, 100);
+            c.beginPath(); c.moveTo(-100,0); c.lineTo(100,0); c.strokeStyle="#fff"; c.lineWidth=1; c.stroke(); c.restore();
+            const gBorder = c.createLinearGradient(0,0,115,115); gBorder.addColorStop(0,"#cccccc"); gBorder.addColorStop(1,"#444444"); c.beginPath(); c.arc(57.5, 57.5, 54, 0, Math.PI*2); c.lineWidth=6; c.strokeStyle = spiralIntensity > 0.6 && Math.floor(performance.now()/200)%2===0 ? "#ff0000" : gBorder; c.stroke();
+            c.beginPath(); c.moveTo(35, 57.5); c.lineTo(50, 57.5); c.moveTo(65, 57.5); c.lineTo(80, 57.5); c.strokeStyle="#FFD600"; c.lineWidth=2; c.stroke(); c.beginPath(); c.arc(57.5,57.5,2,0,Math.PI*2); c.fillStyle="#FFD600"; c.fill();
+
+            c = ctx[3]; drawBg(c); c.save(); c.translate(57.5, 57.5);
+            for(let i=0; i<10; i++) { let a = (i/10) * Math.PI*2; c.rotate(a); c.beginPath(); c.moveTo(0, -48); c.lineTo(0, -40); c.strokeStyle="#ccc"; c.lineWidth=2; c.stroke(); c.fillStyle="#fff"; c.font="12px Arial"; c.textAlign="center"; c.fillText(i, 0, -28); c.rotate(-a); }
+            c.fillStyle="#222"; c.fillRect(-20, 20, 40, 15); c.fillStyle="#fff"; c.font="10px Arial"; c.fillText("1013 hPa", 0, 31); c.restore();
+            let alt = Math.max(0, planeRoot.position.y * 4); drawNeedle(c, (alt/10000)*Math.PI*2, 30, "#fff", 4); drawNeedle(c, (alt/1000)*Math.PI*2, 45, "#fff", 2); 
+
+            c = ctx[4]; drawBg(c); c.save(); c.translate(57.5, 57.5);
+            for(let i=0; i<=30; i+=5) { let a = (i/30) * Math.PI * 1.5 - Math.PI*0.75; c.rotate(a); c.beginPath(); c.moveTo(0, -48); c.lineTo(0, -40); c.strokeStyle="#ccc"; c.lineWidth=2; c.stroke(); c.fillStyle="#fff"; c.font="10px Arial"; c.textAlign="center"; c.fillText(i, 0, -30); c.rotate(-a); }
+            c.restore(); drawNeedle(c, (currentRPM/3000)*Math.PI*1.5 - Math.PI*0.75, 45, "#fff", 2); c.fillStyle="#fff"; c.font="12px Arial"; c.textAlign="center"; c.fillText("RPM x100", 57.5, 90);
+
+            c = ctx[5]; drawBg(c); c.save(); c.translate(57.5, 57.5);
+            c.beginPath(); c.arc(0,0,48, -Math.PI/2, Math.PI/2); c.strokeStyle="rgba(255,255,255,0.2)"; c.lineWidth=4; c.stroke();
+            for(let i=-10; i<=10; i+=5) { let a = (i/10) * (Math.PI/2); c.rotate(a + Math.PI/2); c.beginPath(); c.moveTo(0,-48); c.lineTo(0,-42); c.strokeStyle="#ccc"; c.stroke(); c.fillStyle="#fff"; c.font="10px Arial"; c.textAlign="center"; c.fillText(Math.abs(i), 0, -32); c.rotate(-(a + Math.PI/2)); }
+            c.restore(); let vspd = Math.max(-10, Math.min(10, smoothedVSpeed)); drawNeedle(c, (vspd/10)*Math.PI/2 + Math.PI/2, 45, "#fff", 2);
+
+            c = ctx[6]; drawBg(c); c.save(); c.translate(57.5, 57.5);
+            let heading = -planeRoot.rotation.y; c.rotate(heading); const pts = ["N","NE","E","SE","S","SO","O","NO"];
+            for(let i=0; i<8; i++) { c.rotate(i * Math.PI/4); c.fillStyle= i===0 ? "#f00" : "#fff"; c.font="12px Arial"; c.textAlign="center"; c.fillText(pts[i], 0, -35); c.rotate(-i * Math.PI/4); }
+            c.restore(); c.beginPath(); c.moveTo(57.5, 10); c.lineTo(57.5, 25); c.strokeStyle="#FFD600"; c.lineWidth=3; c.stroke();
+            let hdgDeg = Math.floor((heading * 180 / Math.PI) % 360); if(hdgDeg < 0) hdgDeg += 360; c.fillStyle="#fff"; c.font="12px Arial"; c.textAlign="center"; c.fillText(hdgDeg+"°", 57.5, 90);
+
+            c = ctx[7]; drawBg(c); c.save(); c.translate(57.5, 57.5); c.rotate(-planeRoot.rotation.z); c.beginPath(); c.moveTo(-30,0); c.lineTo(30,0); c.moveTo(0,-10); c.lineTo(0,20); c.strokeStyle="#fff"; c.lineWidth=3; c.stroke(); c.restore();
+            let slipBall = -(currentAngles.timon * 0.8) - (currentAngles.aleronIzq * 0.25);
+            c.beginPath(); c.arc(57.5 + slipBall*0.5, 80, 6, 0, Math.PI*2); c.fillStyle="#222"; c.fill(); c.strokeStyle="#ccc"; c.stroke(); c.fillStyle="#fff"; c.font="10px Arial"; c.fillText("L", 30, 84); c.fillText("R", 85, 84);
+
+            c = ctx[8]; c.clearRect(0,0,115,50);
+            const gT = c.createLinearGradient(0,0,0,50); gT.addColorStop(0,"#999"); gT.addColorStop(1,"#555");
+            c.beginPath(); c.roundRect(5, 10, 105, 30, 15); c.fillStyle=gT; c.fill(); c.lineWidth=2; c.strokeStyle="#333"; c.stroke();
+            c.beginPath(); c.moveTo(45, 10); c.lineTo(45, 40); c.moveTo(70, 10); c.lineTo(70, 40); c.strokeStyle="#000"; c.stroke();
+            let ballX = Math.max(-40, Math.min(40, slipBall));
+            c.beginPath(); c.arc(57.5 + ballX, 25, 12, 0, Math.PI*2); c.fillStyle="#111"; c.fill(); c.beginPath(); c.arc(55 + ballX, 22, 3, 0, Math.PI*2); c.fillStyle="#fff"; c.fill();
+        }
+
+        function updateServoPanel() {
+            const map = [{id: 'srv-alL', val: currentAngles.aleronIzq}, {id: 'srv-alR', val: currentAngles.aleronDer}, {id: 'srv-elL', val: currentAngles.elevIzq}, {id: 'srv-elR', val: currentAngles.elevDer}, {id: 'srv-tim', val: currentAngles.timon}];
+            map.forEach(s => {
+                const row = document.getElementById(s.id); if(!row) return;
+                const bar = row.querySelector('.servo-bar'), valTxt = row.querySelector('.servo-val');
+                let v = Math.round(s.val); valTxt.innerText = (v>0?'+':'') + v + '°'; valTxt.style.color = v === 0 ? '#555' : '#FF6F00';
+                let w = Math.abs(v) / 45 * 45; bar.style.width = w + 'px'; bar.style.left = (v < 0 ? 45 - w : 45) + 'px'; bar.style.backgroundColor = v === 0 ? '#555' : '#FF6F00';
+            });
+        }
+
+        const maniobrasInfo = {
+            'practica': { e:'🎮', n:'PRÁCTICA FÁCIL', d:'Aterrizaje en 8 segundos (Teletransporte)', color:'#39ff14' },
+            'vueloLibre': { e:'🕹️', n:'VUELO MANUAL', d:'Acelera con el Thrust y tira del Joystick.', color:'#00bfa5' },
+            'arranque': { e:'🔑', n:'ARRANQUE', d:'Motor arrancando en cabecera de pista', color:'#1565C0' },
+            'estable': { e:'✈️', n:'ESTABLE', d:'Piloto Automático: Manteniendo altitud', color:'#1565C0' },
+            'aproxAuto': { e:'🎯', n:'APROX. AUTO', d:'Piloto Automático: Alineación y descenso', color:'#1565C0' },
+            'aterrAuto': { e:'🛬', n:'ATERR. AUTO', d:'Piloto Automático: Toque de pista suave', color:'#1565C0' },
+            'frenada': { e:'🛑', n:'FRENADA', d:'Aerofrenos aplicados hasta detenerse', color:'#1565C0' },
+            'vientoDer': { e:'💨', n:'VIENTO DER.', d:'Corrigiendo deriva lateral', color:'#6A1B9A' },
+            'vientoIzq': { e:'💨', n:'VIENTO IZQ.', d:'Corrigiendo deriva lateral', color:'#6A1B9A' },
+            'turbSuave': { e:'〰️', n:'TURB. SUAVE', d:'Baches de aire ligeros', color:'#6A1B9A' },
+            'turbFuerte': { e:'⚡', n:'TURB. FUERTE', d:'Agitación estructural severa', color:'#6A1B9A' },
+            'alabeoDer': { e:'🔄', n:'ALABEO DER.', d:'Viraje descoordinado (derrape)', color:'#B71C1C' },
+            'alabeoIzq': { e:'🔄', n:'ALABEO IZQ.', d:'Viraje descoordinado (derrape)', color:'#B71C1C' },
+            'espiral': { e:'🌀', n:'ESPIRAL', d:'¡Pérdida fatal! Usa REMONTAR', color:'#B71C1C' },
+            'remontar': { e:'⬆️', n:'REMONTAR', d:'Recuperación aerodinámica tensa', color:'#B71C1C' }
+        };
+
+        function setManiobra(id) {
+            if(isCrashed) return; 
+            document.querySelectorAll('.btn').forEach(b => { b.classList.remove('active'); if(b.id === 'btn-'+id) b.classList.add('active'); });
+
+            const info = maniobrasInfo[id];
+            if(info) {
+                const ind = document.getElementById('maneuver-indicator');
+                document.getElementById('maneuver-title').innerText = info.e + " " + info.n;
+                document.getElementById('maneuver-title').style.color = info.color === '#B71C1C' ? '#ff4444' : (info.color === '#6A1B9A' ? '#d05ce3' : (info.color === '#00bfa5' ? '#00bfa5' : (info.color === '#39ff14' ? '#39ff14' : '#00f2ff')));
+                document.getElementById('maneuver-desc').innerText = info.d;
+                ind.style.borderLeftColor = info.color;
+                ind.style.opacity = '0'; setTimeout(() => { ind.style.opacity = '1'; }, 50);
+            }
+
+            activeManeuver = id; turbulenceActive = false;
+            if(id !== 'espiral') spiralMode = false;
+            if(pipeline && id !== 'espiral') pipeline.chromaticAberration.aberrationAmount = 0;
+            
+            document.getElementById('virtual-controls').style.display = (id === 'vueloLibre' || id === 'practica') ? 'block' : 'none';
+            if (ilsRings.length > 0) ilsRings.forEach(r => r.isVisible = (id === 'vueloLibre' || id === 'practica'));
+
+            if(id !== 'vueloLibre' && id !== 'practica') targetAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+
+            switch(id) {
+                case 'practica':
+                    // Teletransporte mágico a zona de aproximación final (8 segundos de la pista)
+                    planeRoot.position.set(0, 25, -2250); 
+                    planeRoot.rotation.set(0, 0, 0);
+                    targetSpeed = 100; currentSpeed = 100; targetRPM = 1200;
+                    targetPitch = -0.05; targetBank = 0; targetYawRate = 0; targetVSpeed = -2.5; camYOffset = 0;
+                    joyX = 0; joyY = 0;
+                    if (window.setThrottleUI) window.setThrottleUI(0.2); // Acelerador bajo por defecto
+                    break;
+                case 'vueloLibre':
+                    if (planeRoot.position.y <= 2 && currentSpeed < 10) { targetVSpeed=0; planeRoot.rotation.y = 0; }
+                    break;
+                case 'arranque':
+                    if(planeRoot.position.y > 2) planeRoot.position.set(0, 1.54, -2000); 
+                    planeRoot.rotation.y = 0; targetPitch=0; targetBank=0; targetYawRate=0; targetVSpeed=0; targetSpeed=0; targetRPM=800; camYOffset=0;
+                    break;
+                case 'estable':
+                    if (planeRoot.position.y < 50) planeRoot.position.set(0, 200, 0);
+                    targetPitch=0; targetBank=0; targetYawRate=0; targetVSpeed=0; targetSpeed=160; targetRPM=2200; camYOffset=0;
+                    break;
+                case 'aproxAuto':
+                    planeRoot.position.set(0, 150, -3000); currentSpeed=160; planeRoot.rotation.y = 0;
+                    targetAngles.elevIzq=10; targetAngles.elevDer=10;
+                    targetPitch=0.08; targetBank=0; targetYawRate=0; targetVSpeed=-4.5; targetSpeed=128; targetRPM=1600; camYOffset=0;
+                    break;
+                case 'aterrAuto':
+                    planeRoot.position.x = 0; planeRoot.rotation.y = 0; 
+                    targetAngles.elevIzq=15; targetAngles.elevDer=15;
+                    targetPitch=0.05; targetBank=0; targetYawRate=0; targetVSpeed=-2.8; targetSpeed=95; targetRPM=1200; camYOffset=0;
+                    break;
+                case 'frenada':
+                    targetAngles.aleronIzq=-35; targetAngles.aleronDer=-35; targetAngles.elevIzq=35; targetAngles.elevDer=35;
+                    targetPitch=0; targetBank=0; targetYawRate=0; targetVSpeed=0; targetSpeed=0; targetRPM=0; camYOffset=0.04;
+                    break;
+                case 'vientoDer':
+                    targetAngles.aleronIzq=10; targetAngles.aleronDer=-10; targetAngles.timon=-10;
+                    targetPitch=0; targetBank=-0.11; targetYawRate=0; targetVSpeed=0; targetSpeed=155; targetRPM=2200; camYOffset=-0.02;
+                    break;
+                case 'vientoIzq':
+                    targetAngles.aleronIzq=-10; targetAngles.aleronDer=10; targetAngles.timon=10;
+                    targetPitch=0; targetBank=0.11; targetYawRate=0; targetVSpeed=0; targetSpeed=155; targetRPM=2200; camYOffset=-0.02;
+                    break;
+                case 'turbSuave':
+                    turbulenceActive=true; turbulenceStrength=5; targetRPM=2200; targetSpeed=155; targetPitch=0; targetBank=0; targetYawRate=0; targetVSpeed=0;
+                    break;
+                case 'turbFuerte':
+                    turbulenceActive=true; turbulenceStrength=15; targetRPM=2500; targetSpeed=145; targetPitch=0; targetBank=0; targetYawRate=0; targetVSpeed=0;
+                    if(pipeline) { pipeline.vignetteWeight = 2.5; pipeline.chromaticAberration.aberrationAmount = 8; }
+                    break;
+                case 'alabeoDer':
+                    targetAngles.aleronIzq=-35; targetAngles.aleronDer=35;
+                    targetPitch=0; targetBank=-0.68; targetYawRate=0; targetVSpeed=0; targetSpeed=155; targetRPM=2200; camYOffset=-0.06;
+                    break;
+                case 'alabeoIzq':
+                    targetAngles.aleronIzq=35; targetAngles.aleronDer=-35;
+                    targetPitch=0; targetBank=0.68; targetYawRate=0; targetVSpeed=0; targetSpeed=155; targetRPM=2200; camYOffset=-0.06;
+                    break;
+                case 'espiral':
+                    spiralMode=true; targetRPM=2700;
+                    targetAngles.aleronIzq=-35; targetAngles.aleronDer=35; targetAngles.elevIzq=-30; targetAngles.elevDer=-30; targetAngles.timon=25;
+                    break;
+                case 'remontar':
+                    remontarTimer = 0;
+                    targetAngles.elevIzq=20; targetAngles.elevDer=20;
+                    targetPitch=-0.35; targetBank=0; targetYawRate=0; targetVSpeed=25; targetSpeed=160; targetRPM=2400; camYOffset=0.05;
+                    if(pipeline) pipeline.vignetteWeight = 1.8;
+                    if(glow) glow.intensity = 0.8;
+                    break;
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            const map = {
+                'p' : 'practica', ' ' : 'vueloLibre', '1':'arranque', '2':'estable', '3':'aproxAuto', '4':'aterrAuto', '5':'frenada',
+                'e':'vientoDer', 'r':'vientoIzq', 't':'turbSuave', 'y':'turbFuerte',
+                'a':'alabeoDer', 's':'alabeoIzq', 'd':'espiral', 'f':'remontar'
+            };
+            const id = map[e.key.toLowerCase()];
+            if (id) setManiobra(id);
+
+            if (activeManeuver === 'vueloLibre') {
+                if (e.key === 'ArrowUp') {
+                    if (window.setThrottleUI) window.setThrottleUI(throttleVal + 0.05);
+                    e.preventDefault();
+                }
+                if (e.key === 'ArrowDown') {
+                    if (window.setThrottleUI) window.setThrottleUI(throttleVal - 0.05);
+                    e.preventDefault();
+                }
+            }
+        });
+
+        window.onload = () => initEngine();
+    </script>
+</body>
+</html>

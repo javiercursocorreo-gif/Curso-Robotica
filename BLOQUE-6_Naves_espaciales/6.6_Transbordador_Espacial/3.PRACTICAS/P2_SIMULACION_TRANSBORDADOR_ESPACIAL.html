@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6.6 SIMULACIÓN DE REENTRADA</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #87CEEB; /* Azul cielo por defecto, se sobrescribe en Babylon */
+        }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+        
+        /* GUI CSS overlay */
+        #uiContainer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        h1 { margin: 0; font-size: 2.5em; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #ff5500; }
+        p { margin: 5px 0; font-size: 1.2em; font-weight: bold; }
+        
+        #instructions {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            color: #fff;
+            text-shadow: 1px 1px 3px black;
+        }
+        .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            border-radius: 5px;
+            padding: 5px 15px;
+            margin: 0 5px;
+            font-weight: bold;
+            font-size: 1.2em;
+            backdrop-filter: blur(5px);
+        }
+
+        #loadingScreen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: #0a0a0a; color: #ff5500; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            font-size: 2em; z-index: 100; transition: opacity 0.8s ease; font-weight: bold;
+        }
+        .spinner { 
+            border: 6px solid rgba(255, 85, 0, 0.2); border-top: 6px solid #ff5500; 
+            border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-top: 30px; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <div>PREPARANDO REENTRADA...</div>
+        <div class="spinner"></div>
+    </div>
+    
+    <div id="uiContainer">
+        <h1>REENTRADA CRÍTICA</h1>
+        <p id="altimeter">ALTITUD: 50000 ft</p>
+        <p id="speedometer">VELOCIDAD: Mach 15</p>
+        <p id="statusMsg" style="color: #ffaa00; margin-top: 15px; font-size: 1.5em; animation: blink 1s infinite;">¡ESTRÉS TÉRMICO MÁXIMO!</p>
+    </div>
+
+    <div id="instructions">
+        <p>Alinea la nave con la pista:</p>
+        <div class="key">↑</div> <div class="key">↓</div> CABECEO (Inclinación)
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        // Variables de estado del vuelo
+        let isLanded = false;
+        let speedZ = 6.0; // Velocidad de avance
+        let speedY = -1.2; // Tasa de descenso para aterrizar en Z=3000
+        let currentRoll = 0;
+        let currentPitch = 0.1;
+
+        // Controles de teclado
+        const inputMap = {};
+        window.addEventListener("keydown", (e) => {
+            if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+                inputMap[e.code] = true;
+            }
+        });
+        window.addEventListener("keyup", (e) => {
+            if(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+                inputMap[e.code] = false;
+            }
+        });
+
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.02, 0.05, 0.1, 1);
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogColor = new BABYLON.Color3(0.6, 0.7, 0.8);
+            scene.fogDensity = 0.0001;
+
+            const ambientLight = new BABYLON.HemisphericLight("ambient", new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.7;
+            
+            const sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(-1, -0.5, -1), scene);
+            sunLight.intensity = 1.0;
+
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20000, height: 20000}, scene);
+            const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.2);
+            groundMat.specularColor = new BABYLON.Color3(0,0,0);
+            ground.material = groundMat;
+            ground.position.y = 0;
+
+            const runway = BABYLON.MeshBuilder.CreatePlane("runway", {width: 200, height: 8000}, scene);
+            runway.rotation.x = Math.PI / 2;
+            runway.position.y = 0.5;
+            runway.position.z = 4000;
+            const runwayMat = new BABYLON.StandardMaterial("runwayMat", scene);
+            runwayMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+            
+            const dt = new BABYLON.DynamicTexture("dt", {width: 512, height: 2048}, scene);
+            const ctx = dt.getContext();
+            ctx.fillStyle = "#222222";
+            ctx.fillRect(0, 0, 512, 2048);
+            ctx.fillStyle = "#ffffff";
+            for(let i=0; i<2048; i+=100) {
+                ctx.fillRect(246, i, 20, 50);
+            }
+            ctx.fillRect(20, 0, 10, 2048);
+            ctx.fillRect(482, 0, 10, 2048);
+            dt.update();
+            runwayMat.diffuseTexture = dt;
+            runwayMat.diffuseTexture.uScale = 1;
+            runwayMat.diffuseTexture.vScale = 20;
+            runway.material = runwayMat;
+
+            // Cámara estática observando la pista de forma OBLICUA
+            // Subimos la cámara (Y=80) y la alejamos un poco más (Z=4000)
+            const camera = new BABYLON.FreeCamera("camera", new BABYLON.Vector3(300, 80, 4000), scene);
+            // Bajamos el punto de mira (Y=0) para que enfoque más al suelo y se vea mucha más pista
+            camera.setTarget(new BABYLON.Vector3(0, 0, 2500)); 
+            camera.fov = 1.3;
+
+            // ESTRELLAS EN EL CIELO
+            const stars = new BABYLON.ParticleSystem("stars", 1500, scene);
+            // Textura circular suave para que no se vean cuadradas
+            stars.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/flare.png", scene);
+            stars.emitter = new BABYLON.Vector3(0, 0, 0); 
+            // Distribuir estrellas a lo ancho y a gran altura
+            stars.minEmitBox = new BABYLON.Vector3(-6000, 300, -1000); 
+            stars.maxEmitBox = new BABYLON.Vector3(6000, 4000, 8000); 
+            stars.color1 = new BABYLON.Color4(1, 1, 1, 1.0);
+            stars.color2 = new BABYLON.Color4(0.8, 0.9, 1, 0.8);
+            stars.colorDead = new BABYLON.Color4(1, 1, 1, 0);
+            // Tamaño reducido para que parezcan estrellas reales
+            stars.minSize = 4.0;
+            stars.maxSize = 10.0;
+            stars.minLifeTime = 999999;
+            stars.maxLifeTime = 999999;
+            stars.manualEmitCount = 1500;
+            stars.gravity = new BABYLON.Vector3(0, 0, 0);
+            stars.direction1 = new BABYLON.Vector3(0, 0, 0);
+            stars.direction2 = new BABYLON.Vector3(0, 0, 0);
+            stars.start();
+
+            const shuttlePivot = new BABYLON.TransformNode("shuttlePivot", scene);
+            shuttlePivot.position = new BABYLON.Vector3(0, 0, 0); 
+
+            // Carga del modelo definitivo con ruedas
+            const modelUrl = "../../../MODELOS/MODELOS%20NUEVOS%201/TRANSBORDADOR_ESPACIAL/the_space_shuttle-3/"; 
+            const modelFile = "scene.gltf";
+
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, modelFile, scene);
+                const rootMesh = result.meshes[0];
+                rootMesh.normalizeToUnitCube();
+                
+                // Escala GIGANTE para que se vea claramente
+                rootMesh.scaling.scaleInPlace(100); 
+                
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                        max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                    }
+                });
+                const center = BABYLON.Vector3.Center(min, max);
+                rootMesh.position.subtractInPlace(center);
+
+                // Posición de inicio ajustada
+                shuttlePivot.position = new BABYLON.Vector3(0, 400, 1000);
+
+                // Restaurar el nodo de offset para girar correctamente sin romper la malla GLTF original
+                const offsetNode = new BABYLON.TransformNode("offsetNode", scene);
+                offsetNode.parent = shuttlePivot;
+                
+                // Forzar la orientación de la nave. Si Math.PI apuntaba hacia atrás, 0 apuntará hacia adelante.
+                let yawOffset = 0;
+                offsetNode.rotation.y = yawOffset; 
+                
+                // Asegurarse de que TODAS las mallas principales heredan el giro (a veces meshes[0] no es la única)
+                result.meshes.forEach(m => {
+                    if (!m.parent) {
+                        m.parent = offsetNode;
+                    }
+                });
+
+                // Detener cualquier animación que traiga el modelo 3D de fábrica (que podría estar bloqueando el giro)
+                if (result.animationGroups && result.animationGroups.length > 0) {
+                    result.animationGroups.forEach(ag => ag.stop());
+                }
+
+                const fireSystem = new BABYLON.ParticleSystem("fire", 2000, scene);
+                fireSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Fire/Fire_SpriteSheet1_8x8.png", scene);
+                fireSystem.spriteCellWidth = 128;
+                fireSystem.spriteCellHeight = 128;
+                fireSystem.isAnimationSheetEnabled = true;
+                fireSystem.startSpriteCellID = 0;
+                fireSystem.endSpriteCellID = 63;
+                fireSystem.spriteCellChangeSpeed = 1;
+                
+                fireSystem.emitter = shuttlePivot; 
+                // Avanzar la zona de emisión del fuego MUCHO más adelante (Z positivo) para que cubra el morro y no se vea
+                fireSystem.minEmitBox = new BABYLON.Vector3(-15, -10, 15); 
+                fireSystem.maxEmitBox = new BABYLON.Vector3(15, 10, 50);
+                
+                fireSystem.color1 = new BABYLON.Color4(1, 0.6, 0, 0.9);
+                fireSystem.color2 = new BABYLON.Color4(1, 0.2, 0, 0.7);
+                fireSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+                
+                fireSystem.minSize = 25.0; // Fuego más grande para engullir el morro
+                fireSystem.maxSize = 45.0;
+                fireSystem.minLifeTime = 0.4;
+                fireSystem.maxLifeTime = 1.2;
+                fireSystem.emitRate = 1500;
+                
+                fireSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD;
+                fireSystem.gravity = new BABYLON.Vector3(0, 15, 0);
+                // Direccion forzada fuertemente hacia atras (-Z) simulando resistencia del aire
+                fireSystem.direction1 = new BABYLON.Vector3(-2, -1, -5);
+                fireSystem.direction2 = new BABYLON.Vector3(2, 2, -6);
+                fireSystem.minEmitPower = 20;
+                fireSystem.maxEmitPower = 50;
+                fireSystem.updateSpeed = 0.02;
+                
+                fireSystem.start();
+
+                // Variable para estado de accidente
+                let isCrashed = false;
+
+                scene.onBeforeRenderObservable.add(() => {
+                    if (!isLanded && !isCrashed) {
+                        if (inputMap["ArrowUp"]) currentPitch += 0.01;
+                        if (inputMap["ArrowDown"]) currentPitch -= 0.01;
+
+                        currentPitch = Math.max(-0.2, Math.min(0.4, currentPitch));
+                        
+                        // Corregido: el giro en X en BabylonJS debe ser negativo para apuntar el morro hacia arriba
+                        shuttlePivot.rotation.x = -currentPitch;
+
+                        shuttlePivot.position.z += speedZ;
+                        shuttlePivot.position.y += speedY + (currentPitch * 2);
+
+                        if (shuttlePivot.position.y < 200) {
+                            fireSystem.emitRate = Math.max(0, fireSystem.emitRate - 15);
+                            document.getElementById("statusMsg").innerText = "PLASMA DISIPADO - INICIANDO APROXIMACIÓN";
+                            document.getElementById("statusMsg").style.color = "#00ff00";
+                            document.getElementById("statusMsg").style.animation = "none";
+                        }
+
+                        // Toca el suelo
+                        if (shuttlePivot.position.y <= 25) { 
+                            if (currentPitch < -0.05) {
+                                // ¡CRASH! Si el morro apunta hacia abajo, se estrella
+                                isCrashed = true;
+                                document.getElementById("statusMsg").innerText = "¡COLISIÓN FATAL! NAVE DESTRUIDA.";
+                                document.getElementById("statusMsg").style.color = "#ff0000";
+                                speedZ = 0; // Se detiene en seco
+                                shuttlePivot.position.y = 25;
+                                
+                                // Explosión y fuego constante
+                                fireSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/PatrickRyanMS/BabylonJStextures/master/ParticleSystems/Fire/Fire_SpriteSheet1_8x8.png", scene);
+                                fireSystem.minSize = 40.0;
+                                fireSystem.maxSize = 80.0;
+                                fireSystem.direction1 = new BABYLON.Vector3(-10, 10, -10);
+                                fireSystem.direction2 = new BABYLON.Vector3(10, 25, 10);
+                                fireSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+                                fireSystem.emitRate = 3000;
+                                fireSystem.start();
+                            } else {
+                                // Aterrizaje normal
+                                isLanded = true;
+                                shuttlePivot.position.y = 25;
+                                fireSystem.stop();
+                                document.getElementById("statusMsg").innerText = "ATERRIZAJE EN PISTA. RODANDO...";
+                            }
+                        }
+                    } else if (isLanded) {
+                        // Posar el morro suavemente
+                        currentPitch *= 0.95;
+                        shuttlePivot.rotation.x = -currentPitch;
+                        shuttlePivot.rotation.z *= 0.90;
+                        
+                        // Frenado equilibrado: ni tan corto como antes ni tan largo que se salga de la pista
+                        speedZ *= 0.975;
+                        shuttlePivot.position.z += speedZ;
+
+                        if (speedZ < 0.1) {
+                            speedZ = 0;
+                            document.getElementById("statusMsg").innerText = "MISIÓN COMPLETADA. NAVE DETENIDA.";
+                        }
+                    } else if (isCrashed) {
+                        // Accidente: no se mueve más, solo arde
+                        speedZ = 0;
+                    }
+
+                    document.getElementById("altimeter").innerText = "ALTITUD: " + Math.max(0, Math.floor((shuttlePivot.position.y - 25) * 10)) + " m";
+                    document.getElementById("speedometer").innerText = "VELOCIDAD: " + Math.floor(speedZ * 100) + " km/h";
+                });
+
+                // Quitar pantalla de carga
+                const ls = document.getElementById("loadingScreen");
+                ls.style.opacity = "0";
+                setTimeout(() => ls.style.display = "none", 800);
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById("loadingScreen").innerHTML = "Error cargando el modelo.";
+            }
+
+            return scene;
+        };
+
+        createScene().then(scene => {
+            engine.runRenderLoop(() => { 
+                scene.render(); 
+            });
+        });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>

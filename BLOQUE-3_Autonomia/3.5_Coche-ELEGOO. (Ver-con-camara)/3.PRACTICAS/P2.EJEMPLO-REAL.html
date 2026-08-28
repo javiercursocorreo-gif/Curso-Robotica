@@ -1,0 +1,790 @@
+<!-- MEJORAS:
+- [DISTRIBUCIÓN EQUILIBRADA] Los elementos se han repartido por toda la longitud del circuito:
+    - Semáforo 1 (Z=-10, Carril Der)
+    - Obstáculo (Z=0, Carril Der)
+    - Paso de Cebra 1 (Z=10, Carril Der)
+    - Semáforo 2 (Z=10, Carril Izq)
+    - Paso de Cebra 2 (Z=0, Carril Izq)
+    - Semáforo 3 (Z=-10, Carril Izq)
+- [CORRECCIÓN DE COLISIONES] Se ha ajustado la distancia de frenado de seguridad (de 3.5 a 4.5 unidades) y se ha aumentado la tasa de desaceleración. Esto garantiza que el coche se detenga un par de metros *antes* de pisar las franjas del paso de cebra, permitiendo al humanoide cruzar holgadamente sin atravesar la geometría del vehículo.
+- [INDEPENDENCIA SEMÁFORO-CEBRA] Se han desvinculado por completo. Los humanoides solo cruzan por los dos pasos de cebra designados (sin semáforo), obligando al coche a usar su sensor de peatones, mientras que los semáforos controlan intersecciones separadas (usando el sensor de luz roja).
+- [ENTORNO URBANO] Generación procedural de rascacielos y bloques a ambos lados de la avenida.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL</title>
+    <style>
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            display: flex; flex-direction: column; height: 100vh;
+            background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #fff;
+        }
+
+        /* HEADER OBLIGATORIO */
+        header {
+            background: rgba(0, 0, 0, 0.85); border-bottom: 2px solid #00f2ff;
+            height: 70px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; z-index: 100; box-sizing: border-box; flex-shrink: 0;
+        }
+        header h1 { margin: 0; font-size: 24px; color: #00f2ff; letter-spacing: 5px; text-transform: uppercase; }
+        header h2 { margin: 0; font-size: 16px; color: #aaaaaa; font-weight: normal; }
+
+        /* LAYOUT FLEXBOX */
+        .main-container {
+            display: flex; flex: 1; min-width: 0; overflow: hidden; position: relative;
+        }
+        #canvas-container {
+            flex: 1; display: flex; min-width: 0; height: 100%; position: relative; overflow: hidden;
+        }
+        #renderCanvas {
+            width: 100%; height: 100%; display: block; outline: none;
+        }
+
+        /* PANEL DERECHA (380px) */
+        #ui-panel {
+            width: 380px; flex-shrink: 0; background: rgba(0, 0, 0, 0.88);
+            border-left: 1px solid #00f2ff; padding: 20px; box-sizing: border-box;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+        }
+        #ui-panel h3 {
+            margin: 0 0 10px 0; font-size: 20px; color: #fff; border-bottom: 1px solid #444; padding-bottom: 10px;
+        }
+
+        /* VISOR SIMULADO */
+        .visor-container {
+            width: 100%; height: 120px; background: #050a10; border: 1px solid #00f2ff;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            text-align: center; font-size: 22px; font-weight: bold; padding: 10px;
+            box-sizing: border-box; transition: color 0.3s;
+        }
+
+        /* INDICADORES */
+        .indicator-box {
+            background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 6px;
+            font-size: 18px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .indicator-row { display: flex; justify-content: space-between; align-items: center; }
+        .val-state { font-weight: bold; }
+        
+        /* SEMÁFORO UI */
+        .tl-ui { display: flex; gap: 8px; }
+        .tl-circle { width: 18px; height: 18px; border-radius: 50%; background: #222; border: 1px solid #444; }
+
+        /* BARRA VELOCIDAD */
+        .speed-bar-container {
+            width: 100%; height: 12px; background: #222; border-radius: 6px; overflow: hidden; margin-top: 5px;
+        }
+        .speed-bar-fill {
+            height: 100%; background: #00ff88; width: 0%; transition: width 0.1s, background 0.3s;
+        }
+
+        /* CONTROLES SLIDERS */
+        .control-group { display: flex; flex-direction: column; gap: 8px; font-size: 18px; }
+        .control-group input[type=range] { width: 100%; cursor: pointer; pointer-events: auto; }
+
+        /* BOTÓN RESET */
+        button.reset-btn {
+            height: 70px; background: #1a1a2e; border: 2px solid #00f2ff;
+            color: #00f2ff; font-size: 20px; font-weight: bold; text-transform: uppercase;
+            border-radius: 6px; cursor: pointer; pointer-events: auto; transition: background 0.2s; margin-top: auto;
+        }
+        button.reset-btn:hover { background: #00f2ff; color: #000; }
+
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>COCHE AUTÓNOMO ELEGOO</h1>
+            <h2>Distribución urbana — Prioridad peatonal y esquive inteligente</h2>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+        
+        <div id="ui-panel">
+            <h3>🚗 Coche en tiempo real</h3>
+            
+            <div id="ui-visor" class="visor-container" style="color: #00ff88;">
+                Carretera libre ✓
+            </div>
+
+            <div class="indicator-box">
+                <div class="indicator-row">
+                    <span>ESTADO:</span>
+                    <span id="ui-estado" class="val-state" style="color: #00ff88;">CIRCULANDO</span>
+                </div>
+                <div class="indicator-row" style="margin-top: 5px;">
+                    <span>Velocidad:</span>
+                    <span id="ui-vel-text">0 km/h</span>
+                </div>
+                <div class="speed-bar-container">
+                    <div id="ui-vel-bar" class="speed-bar-fill"></div>
+                </div>
+                <div class="indicator-row" style="margin-top: 10px; font-size: 16px; color:#ccc;">
+                    <span>Decisión:</span>
+                    <span id="ui-decision">Avanzando</span>
+                </div>
+            </div>
+
+            <div class="indicator-box">
+                <div class="indicator-row">
+                    <span>Semáforo:</span>
+                    <div class="tl-ui">
+                        <div id="ui-tl-red" class="tl-circle"></div>
+                        <div id="ui-tl-amb" class="tl-circle"></div>
+                        <div id="ui-tl-grn" class="tl-circle"></div>
+                    </div>
+                </div>
+                <div class="indicator-row" style="margin-top: 10px;">
+                    <span>Radar de cruce:</span>
+                    <span id="ui-peaton" style="color:#aaa;">Despejado</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Velocidad máxima: <span id="val-vmax">5.0</span></label>
+                <input type="range" id="sl-vmax" min="1" max="10" step="0.5" value="5.0">
+            </div>
+            
+            <div class="control-group">
+                <label>Rango de cámara: <span id="val-rango">8.0</span></label>
+                <input type="range" id="sl-rango" min="5" max="15" step="0.5" value="8.0">
+            </div>
+
+            <button class="reset-btn" id="btn-reset">Reiniciar Ruta</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        let scene, camera, shadowGen, glow;
+        let carGroup, haloMat, lidarCore;
+        let wheelPivots = []; 
+        let lucesSemaforo = [];
+        let peatonesData = [];
+        
+        // ESTADOS GLOBALES
+        let MAX_SPEED = 5.0;
+        let CAMERA_RANGE = 8.0;
+        let cocheSpeed = 0.0;
+        let targetSpeed = 5.0;
+        let estadoCoche = "CIRCULANDO";
+        let decisionText = "Manteniendo carril derecho";
+        
+        let timeGlobal = 0;
+        let tlCycleTime = 0;
+        let tlStateReal = "RED";
+        let hayPeatonCruzandoDerecha = false;
+        let hayPeatonCruzandoIzquierda = false;
+        
+        let waypoints = []; 
+        let currentWpIdx = 0;
+        let dodgeOffset = 0.0; 
+        let cameraTarget = new BABYLON.Vector3(0,0,0);
+
+        // UI Elementos
+        const uiVisor = document.getElementById('ui-visor');
+        const uiEstado = document.getElementById('ui-estado');
+        const uiVelText = document.getElementById('ui-vel-text');
+        const uiVelBar = document.getElementById('ui-vel-bar');
+        const uiDecision = document.getElementById('ui-decision');
+        const uiPeaton = document.getElementById('ui-peaton');
+        const uiTlR = document.getElementById('ui-tl-red');
+        const uiTlA = document.getElementById('ui-tl-amb');
+        const uiTlG = document.getElementById('ui-tl-grn');
+
+        function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+            
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.015;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI/2, Math.PI/3.5, 30, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 10;
+            camera.upperRadiusLimit = 60;
+
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 0.55;
+            hemi.groundColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight.intensity = 3.0;
+
+            shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.8;
+
+            const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+            pipeline.msaaSamples = 4;
+            pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.8; pipeline.bloomWeight = 0.35;
+            pipeline.vignetteEnabled = true; pipeline.vignetteWeight = 1.5;
+
+            scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+            scene.environmentIntensity = 0.6;
+
+            const ssao = new BABYLON.SSAO2RenderingPipeline("ssao", scene, { ssaoRatio: 0.5, blurRatio: 1.0 });
+            ssao.radius = 3.5; ssao.totalStrength = 1.2; ssao.samples = 16;
+            scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline("ssao", camera);
+
+            crearEntornoDobleCarril();
+            crearEdificios();
+            
+            // 3 Semáforos distanciados y correctamente orientados
+            crearSemaforo("sem1", 14.5, -10, 0);         // Carril Derecho (ve hacia -Z)
+            crearSemaforo("sem2", -14.5, 10, Math.PI);   // Carril Izquierdo (ve hacia +Z)
+            crearSemaforo("sem3", -14.5, -10, Math.PI);  // Carril Izquierdo (ve hacia +Z)
+            
+            // 2 Pasos de Cebra con peatones
+            crearPeatones();
+            
+            // 1 Obstáculo distanciado
+            crearObstaculo();
+            
+            crearCocheDelPuzzle();
+            generarWaypoints();
+
+            document.getElementById('sl-vmax').oninput = function() { MAX_SPEED = parseFloat(this.value); document.getElementById('val-vmax').innerText = MAX_SPEED.toFixed(1); };
+            document.getElementById('sl-rango').oninput = function() { CAMERA_RANGE = parseFloat(this.value); document.getElementById('val-rango').innerText = CAMERA_RANGE.toFixed(1); };
+            document.getElementById('btn-reset').onclick = resetSimulacion;
+        }
+
+        function crearEntornoDobleCarril() {
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 150, height: 150}, scene);
+            const groundMat = new BABYLON.PBRMaterial("gmat", scene);
+            groundMat.albedoColor = new BABYLON.Color3(0.06, 0.08, 0.06); 
+            groundMat.roughness = 0.9; groundMat.metallic = 0.0;
+            ground.material = groundMat; ground.receiveShadows = true;
+
+            const asfaltoMat = new BABYLON.PBRMaterial("asfalto", scene);
+            asfaltoMat.albedoColor = BABYLON.Color3.FromHexString("#1a1a1a");
+            asfaltoMat.roughness = 0.95; asfaltoMat.metallic = 0;
+
+            const baseAsfalto = BABYLON.MeshBuilder.CreateBox("baseAsf", {width: 26, height: 0.05, depth: 32}, scene);
+            baseAsfalto.position.y = 0.025; baseAsfalto.material = asfaltoMat; baseAsfalto.receiveShadows = true;
+
+            const curvaSupAsf = BABYLON.MeshBuilder.CreateCylinder("cSupAsf", {diameter: 26, height: 0.05}, scene);
+            curvaSupAsf.position = new BABYLON.Vector3(0, 0.025, 16); curvaSupAsf.material = asfaltoMat; curvaSupAsf.receiveShadows = true;
+            
+            const curvaInfAsf = BABYLON.MeshBuilder.CreateCylinder("cInfAsf", {diameter: 26, height: 0.05}, scene);
+            curvaInfAsf.position = new BABYLON.Vector3(0, 0.025, -16); curvaInfAsf.material = asfaltoMat; curvaInfAsf.receiveShadows = true;
+
+            const isletaMat = new BABYLON.PBRMaterial("islMat", scene);
+            isletaMat.albedoColor = BABYLON.Color3.FromHexString("#223322"); isletaMat.roughness = 0.9;
+            
+            const baseIsla = BABYLON.MeshBuilder.CreateBox("bIsla", {width: 6, height: 0.1, depth: 32}, scene);
+            baseIsla.position.y = 0.05; baseIsla.material = isletaMat; baseIsla.receiveShadows = true;
+            
+            const curvaSupIsla = BABYLON.MeshBuilder.CreateCylinder("cSupIsla", {diameter: 6, height: 0.1}, scene);
+            curvaSupIsla.position = new BABYLON.Vector3(0, 0.05, 16); curvaSupIsla.material = isletaMat; curvaSupIsla.receiveShadows = true;
+            
+            const curvaInfIsla = BABYLON.MeshBuilder.CreateCylinder("cInfIsla", {diameter: 6, height: 0.1}, scene);
+            curvaInfIsla.position = new BABYLON.Vector3(0, 0.05, -16); curvaInfIsla.material = isletaMat; curvaInfIsla.receiveShadows = true;
+
+            const lineMat = new BABYLON.PBRMaterial("lineas", scene);
+            lineMat.albedoColor = BABYLON.Color3.FromHexString("#eeeeee"); lineMat.roughness = 0.8; lineMat.metallic = 0;
+
+            // Líneas discontinuas de carriles
+            for(let z = -14; z <= 14; z += 2.5) {
+                let linD = BABYLON.MeshBuilder.CreateBox("lD", {width: 0.15, height: 0.08, depth: 1.2}, scene);
+                linD.position = new BABYLON.Vector3(8, 0.04, z); linD.material = lineMat;
+                let linI = BABYLON.MeshBuilder.CreateBox("lI", {width: 0.15, height: 0.08, depth: 1.2}, scene);
+                linI.position = new BABYLON.Vector3(-8, 0.04, z); linI.material = lineMat;
+            }
+            for(let a = 0; a <= Math.PI; a += 0.15) {
+                let linTop = BABYLON.MeshBuilder.CreateBox("lT", {width: 0.15, height: 0.08, depth: 1.0}, scene);
+                linTop.position = new BABYLON.Vector3(8 * Math.cos(a), 0.04, 16 + 8 * Math.sin(a));
+                linTop.rotation.y = -a; linTop.material = lineMat;
+                let linBot = BABYLON.MeshBuilder.CreateBox("lB", {width: 0.15, height: 0.08, depth: 1.0}, scene);
+                linBot.position = new BABYLON.Vector3(8 * Math.cos(a), 0.04, -16 - 8 * Math.sin(a));
+                linBot.rotation.y = a; linBot.material = lineMat;
+            }
+
+            // 2 PASOS DE CEBRA SEPARADOS
+            function crearPasoCebra(zPos, xStart, xEnd) {
+                let min = Math.min(xStart, xEnd);
+                let max = Math.max(xStart, xEnd);
+                for(let x = min; x <= max; x += 0.8) {
+                    const franja = BABYLON.MeshBuilder.CreateBox("cebra", {width: 0.4, height: 0.08, depth: 2.2}, scene);
+                    franja.position = new BABYLON.Vector3(x, 0.04, zPos);
+                    franja.rotation.y = Math.PI/2; franja.material = lineMat;
+                }
+            }
+            // Paso Cebra 1 (Carril Derecho, Z=10)
+            crearPasoCebra(10, 3.5, 12.5);
+            // Paso Cebra 2 (Carril Izquierdo, Z=0)
+            crearPasoCebra(0, -12.5, -3.5);
+        }
+
+        function crearEdificios() {
+            const mats = ["#1a2030", "#202535", "#15202a", "#1c2538"].map((c, i) => {
+                let m = new BABYLON.PBRMaterial("bMat"+i, scene);
+                m.albedoColor = BABYLON.Color3.FromHexString(c); m.roughness = 0.9; m.metallic = 0.1; return m;
+            });
+            
+            for (let side of [1, -1]) {
+                for (let z = -20; z <= 20; z += 12) {
+                    let h = 8 + Math.random() * 12;
+                    let b = BABYLON.MeshBuilder.CreateBox("edificio", {width: 6, height: h, depth: 7}, scene);
+                    b.position = new BABYLON.Vector3(side * 22, h/2, z);
+                    b.material = mats[Math.floor(Math.random() * mats.length)];
+                    shadowGen.addShadowCaster(b); b.receiveShadows = true;
+                }
+            }
+        }
+
+        function crearSemaforo(nombre, x, z, rotY) {
+            const semNode = new BABYLON.TransformNode(nombre, scene);
+            semNode.position = new BABYLON.Vector3(x, 0, z);
+            semNode.rotation.y = rotY; // 0 = mira hacia -Z, Math.PI = mira hacia +Z
+
+            const supMat = new BABYLON.PBRMaterial("supMat", scene);
+            supMat.albedoColor = BABYLON.Color3.FromHexString("#333344"); supMat.roughness = 0.8;
+
+            const poste = BABYLON.MeshBuilder.CreateBox("semP", {width: 0.2, height: 4.5, depth: 0.2}, scene);
+            poste.position.y = 2.25; poste.parent = semNode; poste.material = supMat; shadowGen.addShadowCaster(poste);
+
+            const carcasa = BABYLON.MeshBuilder.CreateBox("semC", {width: 0.4, height: 1.2, depth: 0.3}, scene);
+            carcasa.position = new BABYLON.Vector3(0, 4.0, 0); carcasa.parent = semNode;
+            
+            const carcasaMat = new BABYLON.PBRMaterial("carcMat", scene);
+            carcasaMat.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); carcasa.material = carcasaMat;
+
+            let mSR = new BABYLON.PBRMaterial("mSR", scene); mSR.albedoColor = new BABYLON.Color3(0,0,0);
+            let mSA = new BABYLON.PBRMaterial("mSA", scene); mSA.albedoColor = new BABYLON.Color3(0,0,0);
+            let mSV = new BABYLON.PBRMaterial("mSV", scene); mSV.albedoColor = new BABYLON.Color3(0,0,0);
+
+            // Colocamos las luces en la cara frontal (Z=-0.16) para que miren correctamente
+            let sR = BABYLON.MeshBuilder.CreateSphere("sr", {diameter: 0.22}, scene);
+            sR.parent = semNode; sR.position = new BABYLON.Vector3(0, 4.3, -0.16); sR.material = mSR;
+
+            let sA = BABYLON.MeshBuilder.CreateSphere("sa", {diameter: 0.22}, scene);
+            sA.parent = semNode; sA.position = new BABYLON.Vector3(0, 4.0, -0.16); sA.material = mSA;
+
+            let sV = BABYLON.MeshBuilder.CreateSphere("sv", {diameter: 0.22}, scene);
+            sV.parent = semNode; sV.position = new BABYLON.Vector3(0, 3.7, -0.16); sV.material = mSV;
+
+            lucesSemaforo.push({ red: mSR, amber: mSA, green: mSV });
+        }
+
+        // --- HUMANOIDES PROCEDURALES (Caminata Animatrónica) ---
+        function crearHumanoideProcedural(nombre, pos, matRopa, matPiel, matPantalon) {
+            const root = new BABYLON.TransformNode(nombre, scene); root.position = pos;
+
+            const torso = BABYLON.MeshBuilder.CreateCapsule(nombre+"_torso", {radius:0.22, height:0.7, tessellation:12}, scene);
+            torso.parent = root; torso.position.y = 1.05; torso.scaling.x = 0.85; torso.material = matRopa; shadowGen.addShadowCaster(torso);
+
+            const cabeza = BABYLON.MeshBuilder.CreateSphere(nombre+"_cabeza", {diameter:0.38, segments:10}, scene);
+            cabeza.parent = root; cabeza.position.y = 1.65; cabeza.material = matPiel; shadowGen.addShadowCaster(cabeza);
+
+            const cuello = BABYLON.MeshBuilder.CreateSphere(nombre+"_cuello", {diameter:0.16, segments:8}, scene);
+            cuello.parent = root; cuello.position.y = 1.42; cuello.material = matPiel;
+
+            // Brazo Izq
+            const hI = new BABYLON.TransformNode(nombre+"_hI", scene); hI.parent = root; hI.position = new BABYLON.Vector3(-0.28, 1.35, 0);
+            const heI = BABYLON.MeshBuilder.CreateSphere(nombre+"_heI", {diameter:0.15}, scene); heI.parent = hI; heI.material = matRopa;
+            const bI = BABYLON.MeshBuilder.CreateCapsule(nombre+"_bI", {radius:0.08, height:0.45, tessellation:8}, scene); bI.parent = hI; bI.position.y = -0.22; bI.material = matRopa;
+            const cI = new BABYLON.TransformNode(nombre+"_cI", scene); cI.parent = hI; cI.position.y = -0.45;
+            const ceI = BABYLON.MeshBuilder.CreateSphere(nombre+"_ceI", {diameter:0.12}, scene); ceI.parent = cI; ceI.material = matPiel;
+            const aI = BABYLON.MeshBuilder.CreateCapsule(nombre+"_aI", {radius:0.07, height:0.38, tessellation:8}, scene); aI.parent = cI; aI.position.y = -0.19; aI.material = matPiel;
+
+            // Brazo Der
+            const hD = new BABYLON.TransformNode(nombre+"_hD", scene); hD.parent = root; hD.position = new BABYLON.Vector3(0.28, 1.35, 0);
+            const heD = BABYLON.MeshBuilder.CreateSphere(nombre+"_heD", {diameter:0.15}, scene); heD.parent = hD; heD.material = matRopa;
+            const bD = BABYLON.MeshBuilder.CreateCapsule(nombre+"_bD", {radius:0.08, height:0.45, tessellation:8}, scene); bD.parent = hD; bD.position.y = -0.22; bD.material = matRopa;
+            const cD = new BABYLON.TransformNode(nombre+"_cD", scene); cD.parent = hD; cD.position.y = -0.45;
+            const ceD = BABYLON.MeshBuilder.CreateSphere(nombre+"_ceD", {diameter:0.12}, scene); ceD.parent = cD; ceD.material = matPiel;
+            const aD = BABYLON.MeshBuilder.CreateCapsule(nombre+"_aD", {radius:0.07, height:0.38, tessellation:8}, scene); aD.parent = cD; aD.position.y = -0.19; aD.material = matPiel;
+
+            // Pierna Izq
+            const cadI = new BABYLON.TransformNode(nombre+"_cadI", scene); cadI.parent = root; cadI.position = new BABYLON.Vector3(-0.13, 0.72, 0);
+            const muI = BABYLON.MeshBuilder.CreateCapsule(nombre+"_muI", {radius:0.11, height:0.42, tessellation:8}, scene); muI.parent = cadI; muI.position.y = -0.21; muI.material = matPantalon;
+            const rI = new BABYLON.TransformNode(nombre+"_rI", scene); rI.parent = cadI; rI.position.y = -0.42;
+            const esI = BABYLON.MeshBuilder.CreateCapsule(nombre+"_esI", {radius:0.09, height:0.40, tessellation:8}, scene); esI.parent = rI; esI.position.y = -0.20; esI.material = matPiel;
+            const pI = BABYLON.MeshBuilder.CreateSphere(nombre+"_pI", {diameter:0.18}, scene); pI.parent = rI; pI.position.y = -0.42; pI.scaling.z = 1.6; pI.material = matPiel; shadowGen.addShadowCaster(pI);
+
+            // Pierna Der
+            const cadD = new BABYLON.TransformNode(nombre+"_cadD", scene); cadD.parent = root; cadD.position = new BABYLON.Vector3(0.13, 0.72, 0);
+            const muD = BABYLON.MeshBuilder.CreateCapsule(nombre+"_muD", {radius:0.11, height:0.42, tessellation:8}, scene); muD.parent = cadD; muD.position.y = -0.21; muD.material = matPantalon;
+            const rD = new BABYLON.TransformNode(nombre+"_rD", scene); rD.parent = cadD; rD.position.y = -0.42;
+            const esD = BABYLON.MeshBuilder.CreateCapsule(nombre+"_esD", {radius:0.09, height:0.40, tessellation:8}, scene); esD.parent = rD; esD.position.y = -0.20; esD.material = matPiel;
+            const pD = BABYLON.MeshBuilder.CreateSphere(nombre+"_pD", {diameter:0.18}, scene); pD.parent = rD; pD.position.y = -0.42; pD.scaling.z = 1.6; pD.material = matPiel; shadowGen.addShadowCaster(pD);
+
+            return { root, hI, hD, cI: cadI, cD: cadD, rI, rD };
+        }
+
+        function animarHumanoide(hum, time, isWalking) {
+            if(isWalking) {
+                // Brazos en oposición a las piernas
+                hum.hI.rotation.x = Math.sin(time * 6) * 0.55; hum.hD.rotation.x = -Math.sin(time * 6) * 0.55;
+                hum.cI.rotation.x = -Math.sin(time * 6) * 0.65; hum.cD.rotation.x = Math.sin(time * 6) * 0.65;
+                hum.rI.rotation.x = Math.max(0, Math.sin(time * 6 + 0.5)) * 0.4;
+                hum.rD.rotation.x = Math.max(0, -Math.sin(time * 6 + 0.5)) * 0.4;
+            } else {
+                hum.hI.rotation.x = 0; hum.hD.rotation.x = 0; hum.cI.rotation.x = 0; hum.cD.rotation.x = 0;
+                hum.rI.rotation.x = 0; hum.rD.rotation.x = 0;
+            }
+        }
+
+        function crearPeatones() {
+            const ropaMat1 = new BABYLON.PBRMaterial("ropa1", scene); ropaMat1.albedoColor = BABYLON.Color3.FromHexString("#e07830"); ropaMat1.roughness = 0.8;
+            const ropaMat2 = new BABYLON.PBRMaterial("ropa2", scene); ropaMat2.albedoColor = BABYLON.Color3.FromHexString("#30b0e0"); ropaMat2.roughness = 0.8;
+            const pielMat = new BABYLON.PBRMaterial("piel", scene); pielMat.albedoColor = BABYLON.Color3.FromHexString("#f0c080"); pielMat.roughness = 0.6;
+            const pantMat = new BABYLON.PBRMaterial("pant", scene); pantMat.albedoColor = BABYLON.Color3.FromHexString("#333399"); pantMat.roughness = 0.9;
+
+            // Peatón 1 (Paso de Cebra Z=10, Carril Derecho)
+            const h1 = crearHumanoideProcedural("hum1", new BABYLON.Vector3(16, 0, 10), ropaMat1, pielMat, pantMat);
+            // Peatón 2 (Paso de Cebra Z=0, Carril Izquierdo)
+            const h2 = crearHumanoideProcedural("hum2", new BABYLON.Vector3(-16, 0, 0), ropaMat2, pielMat, pantMat);
+
+            peatonesData = [
+                { mesh: h1, z: 10, aceraX: 16, isletaX: 3.5, cycleOffset: 0 },
+                { mesh: h2, z: 0, aceraX: -16, isletaX: -3.5, cycleOffset: 7.5 }
+            ];
+        }
+
+        function crearObstaculo() {
+            const obsNode = new BABYLON.TransformNode("obstaculo", scene);
+            obsNode.position = new BABYLON.Vector3(10.5, 0, 0); // En el carril derecho, distanciado de las intersecciones
+
+            const obsMat = new BABYLON.PBRMaterial("obsMat", scene);
+            obsMat.albedoColor = BABYLON.Color3.FromHexString("#f5a800"); obsMat.roughness = 0.7;
+
+            const caja = BABYLON.MeshBuilder.CreateBox("cajaO", {width: 1.0, height: 0.8, depth: 1.0}, scene);
+            caja.parent = obsNode; caja.position.y = 0.4; caja.material = obsMat; shadowGen.addShadowCaster(caja);
+
+            const emiMat = new BABYLON.PBRMaterial("emiO", scene);
+            emiMat.albedoColor = new BABYLON.Color3(0,0,0); emiMat.emissiveColor = BABYLON.Color3.FromHexString("#ff4400").scale(0.8);
+
+            const tira = BABYLON.MeshBuilder.CreateBox("tira", {width: 1.1, height: 0.1, depth: 1.1}, scene);
+            tira.parent = obsNode; tira.position.y = 0.85; tira.material = emiMat;
+        }
+
+        function crearCocheDelPuzzle() {
+            carGroup = new BABYLON.TransformNode("coche", scene);
+
+            const matPaint = new BABYLON.PBRMaterial("matPaint", scene);
+            matPaint.albedoColor = BABYLON.Color3.FromHexString("#ff7700"); matPaint.metallic = 0.3; matPaint.roughness = 0.1;
+            matPaint.alpha = 0.55; matPaint.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            matPaint.clearCoat.isEnabled = true; matPaint.clearCoat.intensity = 1.0; matPaint.clearCoat.roughness = 0.05;
+
+            const matGlass = new BABYLON.PBRMaterial("matGlass", scene);
+            matGlass.albedoColor = new BABYLON.Color3(0.02, 0.02, 0.02); matGlass.metallic = 0.8; matGlass.roughness = 0.05;
+            matGlass.alpha = 0.85; matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+            const matInternalMetal = new BABYLON.PBRMaterial("matInternalMetal", scene);
+            matInternalMetal.albedoColor = BABYLON.Color3.FromHexString("#888888"); matInternalMetal.metallic = 1.0; matInternalMetal.roughness = 0.3;
+
+            const matDarkPlastic = new BABYLON.PBRMaterial("matDarkPlastic", scene);
+            matDarkPlastic.albedoColor = BABYLON.Color3.FromHexString("#111111"); matDarkPlastic.metallic = 0.1; matDarkPlastic.roughness = 0.8;
+
+            const matTire = new BABYLON.PBRMaterial("matTire", scene); matTire.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); matTire.roughness = 0.95;
+            const matRim = new BABYLON.PBRMaterial("matRim", scene); matRim.albedoColor = BABYLON.Color3.FromHexString("#999999"); matRim.metallic = 0.7; matRim.roughness = 0.2;
+
+            const matLidarGlow = new BABYLON.PBRMaterial("matLidarGlow", scene); matLidarGlow.emissiveColor = new BABYLON.Color3(0, 0.9, 1);
+            const matHeadlight = new BABYLON.PBRMaterial("matHeadlight", scene); matHeadlight.emissiveColor = new BABYLON.Color3(1, 0.96, 0.85);
+            const matTaillight = new BABYLON.PBRMaterial("matTaillight", scene); matTaillight.emissiveColor = new BABYLON.Color3(1, 0.05, 0.05);
+
+            // Carrocería
+            let baseInternal = BABYLON.MeshBuilder.CreateBox("baseInt", {width: 1.2, height: 0.1, depth: 3.4}, scene);
+            baseInternal.position.y = 0.25; baseInternal.material = matInternalMetal; baseInternal.parent = carGroup;
+            
+            let capot = BABYLON.MeshBuilder.CreateBox("capot", {width: 2.1, height: 0.3, depth: 1.2}, scene);
+            capot.position = new BABYLON.Vector3(0, 0.55, 1.1); capot.rotation.x = 0.05; capot.material = matPaint; capot.parent = carGroup; shadowGen.addShadowCaster(capot);
+            
+            let bumper = BABYLON.MeshBuilder.CreateBox("bumper", {width: 2.2, height: 0.2, depth: 0.4}, scene);
+            bumper.position = new BABYLON.Vector3(0, 0.3, 1.7); bumper.material = matPaint; bumper.parent = carGroup;
+
+            let cabin = BABYLON.MeshBuilder.CreateBox("cabin", {width: 2.1, height: 0.4, depth: 1.6}, scene);
+            cabin.position = new BABYLON.Vector3(0, 0.6, -0.3); cabin.material = matPaint; cabin.parent = carGroup; shadowGen.addShadowCaster(cabin);
+            
+            let techo = BABYLON.MeshBuilder.CreateBox("techo", {width: 1.8, height: 0.1, depth: 1.0}, scene);
+            techo.position = new BABYLON.Vector3(0, 0.95, -0.2); techo.material = matPaint; techo.parent = carGroup;
+            
+            let cola = BABYLON.MeshBuilder.CreateBox("cola", {width: 2.1, height: 0.35, depth: 1.0}, scene);
+            cola.position = new BABYLON.Vector3(0, 0.55, -1.3); cola.material = matPaint; cola.parent = carGroup;
+
+            let winF = BABYLON.MeshBuilder.CreateBox("winF", {width: 1.7, height: 0.08, depth: 0.6}, scene);
+            winF.rotation.x = 0.5; winF.position = new BABYLON.Vector3(0, 0.83, 0.4); winF.material = matGlass; winF.parent = carGroup;
+            
+            let winR = BABYLON.MeshBuilder.CreateBox("winR", {width: 1.7, height: 0.08, depth: 0.5}, scene);
+            winR.rotation.x = -0.5; winR.position = new BABYLON.Vector3(0, 0.83, -0.8); winR.material = matGlass; winR.parent = carGroup;
+
+            // Ruedas
+            function crearRuedaPivot(nombre, x, z, steerable) {
+                const pivot = new BABYLON.TransformNode(nombre, scene); 
+                pivot.parent = carGroup; pivot.position = new BABYLON.Vector3(x, 0.3, z);
+                const rotPivot = new BABYLON.TransformNode(nombre+"_rot", scene); rotPivot.parent = pivot;
+                
+                const tire = BABYLON.MeshBuilder.CreateCylinder("tire", {diameter: 0.65, height: 0.25, tessellation: 24}, scene);
+                tire.rotation.z = Math.PI / 2; tire.material = matTire; tire.parent = rotPivot; shadowGen.addShadowCaster(tire);
+                
+                const rim = BABYLON.MeshBuilder.CreateCylinder("rim", {diameter: 0.45, height: 0.27, tessellation: 16}, scene);
+                rim.rotation.z = Math.PI / 2; rim.material = matRim; rim.parent = rotPivot;
+                
+                wheelPivots.push({pivot: pivot, rotPivot: rotPivot, steerable: steerable});
+            }
+            crearRuedaPivot("RDI", -1.18, 1.15, true); crearRuedaPivot("RDD", 1.18, 1.15, true);
+            crearRuedaPivot("RTI", -1.18, -1.15, false); crearRuedaPivot("RTD", 1.18, -1.15, false);
+
+            // Lidar
+            lidarCore = BABYLON.MeshBuilder.CreateBox("coreS", {width: 0.35, height: 0.2, depth: 0.35}, scene);
+            lidarCore.position = new BABYLON.Vector3(0, 1.21, -0.2); lidarCore.material = matInternalMetal; lidarCore.parent = carGroup;
+            const laser = BABYLON.MeshBuilder.CreateBox("laserS", {width: 0.38, height: 0.08, depth: 0.38}, scene);
+            laser.position = new BABYLON.Vector3(0, 0, 0); laser.material = matLidarGlow; laser.parent = lidarCore;
+
+            // Halo Sensorial
+            haloMat = new BABYLON.PBRMaterial("haloM", scene);
+            haloMat.albedoColor = new BABYLON.Color3(0,0,0); haloMat.emissiveColor = new BABYLON.Color3(0, 0.9, 1);
+            haloMat.alpha = 0.4; haloMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            const halo = BABYLON.MeshBuilder.CreateTorus("halo", {diameter: 1.2, thickness: 0.04}, scene);
+            halo.parent = carGroup; halo.position = new BABYLON.Vector3(0, 0.1, 2.5);
+            halo.rotation.x = Math.PI/2; halo.material = haloMat;
+
+            // Faros
+            let faroI = BABYLON.MeshBuilder.CreateBox("faroI", {width: 0.6, height: 0.12, depth: 0.05}, scene);
+            faroI.position = new BABYLON.Vector3(-0.7, 0.55, 1.71); faroI.material = matHeadlight; faroI.parent = carGroup;
+            let faroD = BABYLON.MeshBuilder.CreateBox("faroD", {width: 0.6, height: 0.12, depth: 0.05}, scene);
+            faroD.position = new BABYLON.Vector3(0.7, 0.55, 1.71); faroD.material = matHeadlight; faroD.parent = carGroup;
+            let franjaRoja = BABYLON.MeshBuilder.CreateBox("franjaRoja", {width: 2.0, height: 0.12, depth: 0.05}, scene);
+            franjaRoja.position = new BABYLON.Vector3(0, 0.55, -1.81); franjaRoja.material = matTaillight; franjaRoja.parent = carGroup;
+
+            carGroup.position = new BABYLON.Vector3(10.5, 0, -16);
+            carGroup.rotation.y = 0;
+        }
+
+        // WAYPOINTS
+        function generarWaypoints() {
+            waypoints = [];
+            for(let z = -16; z <= 16; z += 1.0) {
+                waypoints.push({ pos: new BABYLON.Vector3(10.5, 0, z), norm: new BABYLON.Vector3(-1, 0, 0) });
+            }
+            for(let a = 0.1; a <= Math.PI; a += 0.15) {
+                waypoints.push({
+                    pos: new BABYLON.Vector3(10.5 * Math.cos(a), 0, 16 + 10.5 * Math.sin(a)),
+                    norm: new BABYLON.Vector3(-Math.cos(a), 0, -Math.sin(a)) 
+                });
+            }
+            for(let z = 16; z >= -16; z -= 1.0) {
+                waypoints.push({ pos: new BABYLON.Vector3(-10.5, 0, z), norm: new BABYLON.Vector3(1, 0, 0) });
+            }
+            for(let a = Math.PI + 0.1; a <= 2*Math.PI; a += 0.15) {
+                waypoints.push({
+                    pos: new BABYLON.Vector3(10.5 * Math.cos(a), 0, -16 + 10.5 * Math.sin(a)),
+                    norm: new BABYLON.Vector3(-Math.cos(a), 0, -Math.sin(a))
+                });
+            }
+        }
+
+        function resetSimulacion() {
+            carGroup.position = new BABYLON.Vector3(10.5, 0, -16);
+            carGroup.rotation.y = 0;
+            currentWpIdx = 0; cocheSpeed = 0; estadoCoche = "CIRCULANDO"; dodgeOffset = 0;
+            tlCycleTime = 0; timeGlobal = 0;
+        }
+
+        // --- BUCLE PRINCIPAL ---
+        initScene();
+
+        scene.onBeforeRenderObservable.add(() => {
+            const dt = engine.getDeltaTime() / 1000;
+            timeGlobal += dt;
+            
+            // Lógica Semáforos (Sincronizados, Ciclo 12s)
+            tlCycleTime = (tlCycleTime + dt) % 12.0;
+            uiTlR.style.background = "#222"; uiTlA.style.background = "#222"; uiTlG.style.background = "#222";
+            
+            let colorR = new BABYLON.Color3(0,0,0);
+            let colorA = new BABYLON.Color3(0,0,0);
+            let colorV = new BABYLON.Color3(0,0,0);
+
+            if (tlCycleTime < 5.0) {
+                tlStateReal = "RED"; colorR = new BABYLON.Color3(1, 0, 0); uiTlR.style.background = "#ff4444";
+            } else if (tlCycleTime < 6.0 || tlCycleTime > 11.0) {
+                tlStateReal = "AMBER"; colorA = new BABYLON.Color3(1, 0.7, 0); uiTlA.style.background = "#ffaa00";
+            } else {
+                tlStateReal = "GREEN"; colorV = new BABYLON.Color3(0, 1, 0); uiTlG.style.background = "#00ff88";
+            }
+
+            lucesSemaforo.forEach(s => {
+                s.red.emissiveColor = colorR; s.amber.emissiveColor = colorA; s.green.emissiveColor = colorV;
+            });
+
+            // Lógica Peatones (Procedurales)
+            hayPeatonCruzandoDerecha = false;
+            hayPeatonCruzandoIzquierda = false;
+
+            peatonesData.forEach(pd => {
+                let cycle = (timeGlobal + pd.cycleOffset) % 15.0;
+                let pX = pd.aceraX;
+                let isWalking = false;
+                let dir = Math.sign(pd.isletaX - pd.aceraX);
+                
+                if (cycle < 4.0) {
+                    pX = pd.aceraX; pd.mesh.root.rotation.y = dir > 0 ? Math.PI/2 : -Math.PI/2;
+                } else if (cycle < 7.5) {
+                    let t = (cycle - 4.0) / 3.5;
+                    pX = BABYLON.Scalar.Lerp(pd.aceraX, pd.isletaX, t);
+                    pd.mesh.root.rotation.y = dir > 0 ? Math.PI/2 : -Math.PI/2;
+                    isWalking = true;
+                } else if (cycle < 11.5) {
+                    pX = pd.isletaX; pd.mesh.root.rotation.y = dir > 0 ? -Math.PI/2 : Math.PI/2;
+                } else {
+                    let t = (cycle - 11.5) / 3.5;
+                    pX = BABYLON.Scalar.Lerp(pd.isletaX, pd.aceraX, t);
+                    pd.mesh.root.rotation.y = dir > 0 ? -Math.PI/2 : Math.PI/2;
+                    isWalking = true;
+                }
+                
+                pd.mesh.root.position.x = pX;
+                animarHumanoide(pd.mesh, timeGlobal, isWalking);
+
+                if (isWalking) {
+                    if (pd.z === 10) hayPeatonCruzandoDerecha = true;
+                    if (pd.z === 0) hayPeatonCruzandoIzquierda = true;
+                }
+            });
+
+            // --- LÓGICA DE DETECCIÓN EXACTA ---
+            let distSemaforo = 999;
+            let distPeaton = 999;
+            let distObs = 999;
+            let carX = carGroup.position.x;
+            let carZ = carGroup.position.z;
+
+            let peatonCruzando = (carX > 0) ? hayPeatonCruzandoDerecha : hayPeatonCruzandoIzquierda;
+            
+            if (carX > 0) { // Carril Derecho (+Z)
+                if (carZ < -10) distSemaforo = -10 - carZ;
+                if (carZ > -10 && carZ < 4) distObs = 0 - carZ;
+                if (carZ < 10) distPeaton = 10 - carZ;
+            } else { // Carril Izquierdo (-Z)
+                if (carZ > 10) distSemaforo = carZ - 10;
+                else if (carZ > -10) distSemaforo = carZ - (-10);
+                if (carZ > 0) distPeaton = carZ - 0;
+            }
+
+            uiPeaton.innerText = peatonCruzando ? "Cruzando paso de cebra" : "Despejado";
+
+            let newState = "CIRCULANDO";
+            targetSpeed = MAX_SPEED;
+            let esquivandoActivo = false;
+            
+            // Prioridad 1: Peatón en su carril (Se detiene a 4.5 unidades de distancia mínima para no invadir la cebra)
+            if (peatonCruzando && distPeaton > 0 && distPeaton < CAMERA_RANGE) {
+                newState = "DETECTANDO_PEATÓN";
+                if (distPeaton < 4.5 || cocheSpeed < 0.5) { newState = "ESPERANDO_CRUCE"; targetSpeed = 0; }
+                else { newState = "FRENANDO_PEATÓN"; targetSpeed = 0; }
+            } 
+            // Prioridad 2: Semáforo (Se detiene a 4.5 unidades para dejar espacio seguro)
+            else if ((tlStateReal === "RED" || tlStateReal === "AMBER") && distSemaforo > 0 && distSemaforo < CAMERA_RANGE) {
+                newState = "DETECTANDO_SEMAFORO_ROJO";
+                if (distSemaforo < 4.5 || cocheSpeed < 0.5) { newState = "ESPERANDO_VERDE"; targetSpeed = 0; }
+                else { newState = "FRENANDO_SEMAFORO"; targetSpeed = 0; }
+            }
+            // Prioridad 3: Obstáculo (Maniobra lateral a un radio holgado)
+            else if (carX > 0 && distObs > -4.0 && distObs < CAMERA_RANGE) {
+                newState = "DETECTANDO_OBSTÁCULO";
+                if (distObs < CAMERA_RANGE - 1.0) {
+                    newState = "ESQUIVANDO";
+                    esquivandoActivo = true;
+                    targetSpeed = MAX_SPEED * 0.75;
+                }
+            }
+
+            estadoCoche = newState;
+            
+            // Visual Feedback UI
+            let hc = new BABYLON.Color3(0, 0.9, 1);
+            let visorColor = "#00ff88"; let visorText = "Carretera libre ✓";
+            
+            if (estadoCoche.includes("DETECTANDO") || estadoCoche === "ESQUIVANDO") {
+                hc = new BABYLON.Color3(1, 0.6, 0); visorColor = "#ffaa00";
+            } else if (estadoCoche.includes("FRENANDO") || estadoCoche.includes("ESPERANDO")) {
+                hc = new BABYLON.Color3(1, 0, 0); visorColor = "#ff4444";
+            }
+            
+            haloMat.emissiveColor = hc.scale(0.8 + 0.2 * Math.sin(timeGlobal * 15));
+
+            if (estadoCoche.includes("SEMAFORO") || estadoCoche === "ESPERANDO_VERDE") {
+                visorText = "🔴 Semáforo en rojo"; decisionText = "🛑 Frenando en intersección";
+            } else if (estadoCoche.includes("PEATÓN") || estadoCoche === "ESPERANDO_CRUCE") {
+                visorText = "⚠ Peatón detectado"; decisionText = "🛑 Cediendo paso a peatón";
+            } else if (estadoCoche.includes("OBSTÁCULO") || estadoCoche === "ESQUIVANDO") {
+                visorText = "⚠ Obstáculo en carril"; decisionText = "🔄 Cambiando al carril izquierdo";
+            } else {
+                decisionText = "▶ Manteniendo carril";
+            }
+
+            uiVisor.style.color = visorColor; uiVisor.innerText = visorText;
+            uiEstado.style.color = visorColor; uiEstado.innerText = estadoCoche.replace("_", " ");
+            uiDecision.innerText = decisionText;
+
+            // --- FÍSICA Y MOVIMIENTO DEL COCHE ---
+            // Aumentado el Lerp a 3.5 para que frene con firmeza y respete el margen
+            cocheSpeed = BABYLON.Scalar.Lerp(cocheSpeed, targetSpeed, 3.5 * dt);
+            
+            let targetDodge = esquivandoActivo ? 5.0 : 0.0;
+            dodgeOffset = BABYLON.Scalar.Lerp(dodgeOffset, targetDodge, 2.5 * dt);
+
+            let wp = waypoints[currentWpIdx];
+            let targetPos = wp.pos.clone().add(wp.norm.scale(dodgeOffset));
+
+            let dx = targetPos.x - carGroup.position.x;
+            let dz = targetPos.z - carGroup.position.z;
+            let targetAngle = Math.atan2(dx, dz);
+            
+            let diff = targetAngle - carGroup.rotation.y;
+            while(diff < -Math.PI) diff += 2*Math.PI;
+            while(diff > Math.PI) diff -= 2*Math.PI;
+            carGroup.rotation.y += diff * 4.5 * dt;
+
+            carGroup.position.x += Math.sin(carGroup.rotation.y) * cocheSpeed * dt;
+            carGroup.position.z += Math.cos(carGroup.rotation.y) * cocheSpeed * dt;
+
+            let distToWp = BABYLON.Vector3.Distance(carGroup.position, targetPos);
+            if (distToWp < 2.0 && cocheSpeed > 0.1) {
+                currentWpIdx = (currentWpIdx + 1) % waypoints.length;
+            }
+
+            let rotRueda = (cocheSpeed * dt) / 0.32;
+            wheelPivots.forEach(w => {
+                w.rotPivot.rotation.x += rotRueda; 
+                if (w.steerable) w.pivot.rotation.y = diff * 1.5;
+            });
+
+            lidarCore.rotation.y += 8.0 * dt;
+
+            cameraTarget = BABYLON.Vector3.Lerp(cameraTarget, carGroup.position, 4.0 * dt);
+            camera.setTarget(cameraTarget);
+
+            let simKmh = cocheSpeed * 12;
+            uiVelText.innerText = Math.round(simKmh) + " km/h";
+            uiVelBar.style.width = Math.min(100, (cocheSpeed / 10) * 100) + "%";
+            
+            if(cocheSpeed < 0.5) uiVelBar.style.background = "#ff4444";
+            else if(cocheSpeed < targetSpeed - 0.5) uiVelBar.style.background = "#ffaa00";
+            else uiVelBar.style.background = "#00ff88";
+        });
+
+        engine.runRenderLoop(() => scene.render());
+        window.addEventListener("resize", () => engine.resize());
+    </script>
+</body>
+</html>

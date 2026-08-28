@@ -1,0 +1,1181 @@
+<!-- MEJORAS VERSIÓN 6 (REGULADOR DE VELOCIDAD):
+- [Selector de Velocidad]: Se ha implementado un slider (input range) en el panel lateral que permite al alumno ajustar la velocidad del robot en tiempo real (de 2.0 a 12.0 m/s). 
+- [Velocidad Base Ajustada]: Se ha reducido la velocidad inicial por defecto de 7.0 a 5.0 para que el control con el joystick sea mucho más suave y manejable desde el principio.
+- [Sincronización Física]: La velocidad de rotación de las ruedas se escala automáticamente y de forma matemática al valor seleccionado en el slider, manteniendo el realismo de la tracción.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.BLOQUES V6</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            user-select: none;
+        }
+
+        #header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #00f2ff;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            position: relative;
+            z-index: 100;
+            justify-content: space-between;
+        }
+
+        #header-title {
+            font-size: 24px;
+            color: #00f2ff;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        #header-subtitle {
+            font-size: 16px;
+            color: #aaaaaa;
+        }
+
+        #main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        #canvas-container {
+            position: relative;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+        }
+
+        #ui-panel {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.85);
+            border-left: 1px solid #00f2ff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            color: white;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .panel-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .m-btn {
+            background: #444;
+            color: #aaa;
+            border: none;
+            padding: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1;
+            transition: 0.2s;
+        }
+        .m-btn:hover { filter: brightness(1.2); }
+
+        .reset-btn {
+            background: transparent;
+            color: #ff4444;
+            border: 2px solid #ff4444;
+            height: 60px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.2s;
+            margin-top: auto;
+        }
+        .reset-btn:hover { background: rgba(255, 68, 68, 0.2); }
+
+        input[type=range] {
+            width: 100%;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #00f2ff;
+        }
+
+        /* JOYSTICK TOTALMENTE RESTRINGIDO */
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #00f2ff;
+            border-radius: 50%;
+            z-index: 10;
+            touch-action: none;
+            box-sizing: border-box;
+        }
+
+        #joystick-knob {
+            position: absolute;
+            top: 35px;
+            left: 35px;
+            width: 50px;
+            height: 50px;
+            background: #00f2ff;
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 15px #00f2ff;
+            box-sizing: border-box;
+        }
+
+        #float-label {
+            position: absolute;
+            display: none;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #00f2ff;
+            color: #00f2ff;
+            padding: 8px 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 50;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.4);
+            transform: translate(-50%, -100%);
+            margin-top: -30px;
+        }
+
+        #modal-container {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal-content {
+            background: #1a1a2e;
+            border: 2px solid #00f2ff;
+            padding: 40px;
+            border-radius: 10px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.4);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div>
+            <div id="header-title">ROBOT REPARTIDOR v6</div>
+            <div id="header-subtitle">Conduce el robot, visita los Puntos y observa a los vecinos</div>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            
+            <div id="joystick-container">
+                <div id="joystick-knob"></div>
+            </div>
+
+            <div id="float-label">¡SUELTA AQUÍ!</div>
+            
+            <div id="modal-container">
+                <div id="modal-content">
+                    <h1 id="modal-title" style="color:#00f2ff; margin-top:0; font-size:32px;">¡Misión Completada!</h1>
+                    <p id="modal-text" style="color:#fff; font-size:22px; line-height:1.5;"></p>
+                    <button onclick="nextMission()" style="background:#00f2ff; color:#000; border:none; padding:0 40px; font-size:22px; font-weight:bold; border-radius:5px; cursor:pointer; margin-top:30px; height:70px; width:100%; transition:0.2s;">SIGUIENTE MISIÓN</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ui-panel">
+            <div class="panel-section" style="padding-bottom:5px;">
+                <div id="timer-display" style="font-size:36px; color:#ffcc00; font-weight:bold; text-align:center; letter-spacing:2px; display:none;">00:00</div>
+            </div>
+
+            <div class="panel-section">
+                <div style="color:#00f2ff; font-weight:bold; font-size:20px; margin-bottom:10px;">[MISIÓN ACTIVA]</div>
+                <div id="mission-desc" style="font-size:18px; color:#ddd; line-height:1.4;"></div>
+            </div>
+
+            <!-- REGULADOR DE VELOCIDAD -->
+            <div class="panel-section">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <span style="color:#00f2ff; font-weight:bold; font-size:18px;">[VELOCIDAD]</span>
+                    <span id="speed-val" style="color:white; font-weight:bold; font-size:18px;">5.0 m/s</span>
+                </div>
+                <input type="range" id="speed-slider" min="2" max="12" step="0.5" value="5">
+            </div>
+
+            <div class="panel-section">
+                <div style="color:#00f2ff; font-weight:bold; font-size:20px; margin-bottom:10px;">[TAREA GUARDADA]</div>
+                <div id="task-desc" style="font-size:22px; color:#00f2ff; font-weight:bold;">Conduciendo libremente</div>
+            </div>
+
+            <div class="panel-section">
+                <div style="color:#00f2ff; font-weight:bold; font-size:20px; margin-bottom:10px;">[ENTREGAS]</div>
+                <div id="deliveries-list" style="font-size:18px;"></div>
+            </div>
+
+            <div class="panel-section" style="margin-top:auto;">
+                <div style="color:#00f2ff; font-weight:bold; font-size:18px; margin-bottom:10px;">[PROXIMIDAD]</div>
+                <div style="width:100%; height:20px; background:#222; border:1px solid #00f2ff; position:relative; border-radius:10px; overflow:hidden;">
+                    <div id="prox-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #00f2ff, #00ffaa); transition:width 0.1s;"></div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div style="color:#00f2ff; font-weight:bold; font-size:18px; margin-bottom:10px; text-align:center;">MISIONES</div>
+                <div style="display:flex; gap:6px;">
+                    <button class="m-btn" onclick="startMission(1)">1</button>
+                    <button class="m-btn" onclick="startMission(2)">2</button>
+                    <button class="m-btn" onclick="startMission(3)">3</button>
+                    <button class="m-btn" onclick="startMission(4)">4</button>
+                    <button class="m-btn" onclick="startMission(5)">5</button>
+                </div>
+            </div>
+
+            <button class="reset-btn" onclick="resetMission()">REINICIAR MISIÓN</button>
+        </div>
+    </div>
+
+<script>
+// CONTROL DE VELOCIDAD
+let globalRobotSpeed = 5.0; // Velocidad reducida por defecto
+const speedSlider = document.getElementById('speed-slider');
+const speedVal = document.getElementById('speed-val');
+
+speedSlider.addEventListener('input', (e) => {
+    globalRobotSpeed = parseFloat(e.target.value);
+    speedVal.innerText = globalRobotSpeed.toFixed(1) + " m/s";
+});
+
+
+// LÓGICA DEL JOYSTICK GARANTIZADA
+const jContainer = document.getElementById('joystick-container');
+const jKnob = document.getElementById('joystick-knob');
+let joystickActive = false;
+let jx = 0, jy = 0;
+const maxDist = 35; 
+
+jContainer.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    joystickActive = true;
+    jContainer.setPointerCapture(e.pointerId);
+    jKnob.style.transition = 'none';
+    handleMove(e);
+});
+
+jContainer.addEventListener('pointermove', (e) => {
+    if (!joystickActive) return;
+    e.preventDefault();
+    handleMove(e);
+});
+
+jContainer.addEventListener('pointerup', (e) => {
+    if (!joystickActive) return;
+    e.preventDefault();
+    joystickActive = false;
+    jContainer.releasePointerCapture(e.pointerId);
+    jx = 0; jy = 0;
+    jKnob.style.transition = 'top 0.2s, left 0.2s';
+    updateKnob();
+});
+
+function handleMove(e) {
+    const rect = jContainer.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    
+    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), maxDist);
+    const angle = Math.atan2(dy, dx);
+    
+    jx = (Math.cos(angle) * dist) / maxDist; 
+    jy = (Math.sin(angle) * dist) / maxDist; 
+    updateKnob();
+}
+
+function updateKnob() {
+    jKnob.style.left = (jx * maxDist + 35) + 'px';
+    jKnob.style.top = (jy * maxDist + 35) + 'px';
+}
+
+
+// VARIABLES GLOBALES BABYLON
+let engine, scene, camera, shadowGen;
+let robot, chassis, wheels = [], boxLidPivot, robotPackage;
+let whLight, pivotWH, whDoorOpen = false;
+let colliders = [], obstacles = [];
+let neighbors = [], packageMats = [];
+let currentMission = 1, missionState = 0; // 0:init, 1:playing, 2:done
+let totalDistance = 0, timer = 0, timerInterval = null, robotStarted = false;
+let warehousePos;
+
+let robotState = "DRIVING";
+let activeDelivery = null; 
+
+let points = [
+    { id: 1, pos: new BABYLON.Vector3(-8.5, 0, 10), bColor: "#FF2222", delivered: false }, 
+    { id: 2, pos: new BABYLON.Vector3(8.5, 0, 10), bColor: "#22FF22", delivered: false }, 
+    { id: 3, pos: new BABYLON.Vector3(-8.5, 0, -10), bColor: "#2222FF", delivered: false }, 
+    { id: 4, pos: new BABYLON.Vector3(8.5, 0, -10), bColor: "#FFFF22", delivered: false }, 
+];
+
+const canvas = document.getElementById('renderCanvas');
+engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+
+function createPBR(name, colorHex, roughness = 0.8, metallic = 0) {
+    const mat = new BABYLON.PBRMaterial(name, scene);
+    mat.albedoColor = BABYLON.Color3.FromHexString(colorHex);
+    mat.roughness = roughness;
+    mat.metallic = metallic;
+    return mat;
+}
+
+function createScene() {
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+    
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogDensity = 0.035;
+    scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+    camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 4, Math.PI / 3.5, 30, BABYLON.Vector3.Zero(), scene);
+    camera.lowerRadiusLimit = camera.upperRadiusLimit = 30; 
+
+    const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.6;
+    hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+    dirLight.position = new BABYLON.Vector3(15, 25, 15);
+    dirLight.intensity = 3.0;
+
+    shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+    shadowGen.useBlurExponentialShadowMap = true;
+
+    const glow = new BABYLON.GlowLayer("glow", scene);
+    glow.intensity = 0.8;
+
+    const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+    pipeline.bloomEnabled = true;
+    pipeline.bloomThreshold = 0.8;
+    pipeline.bloomWeight = 0.4;
+    pipeline.bloomKernel = 64;
+    pipeline.bloomScale = 0.5;
+    pipeline.msaaSamples = 4;
+    pipeline.vignetteEnabled = true;
+    pipeline.vignetteWeight = 1.5;
+
+    warehousePos = new BABYLON.Vector3(0, 0, 0);
+    packageMats = points.map((p, i) => createPBR("packMat" + i, p.bColor, 0.7, 0.1));
+
+    buildEnvironment();
+    buildWarehouse();
+    buildRobot();
+    buildObstacles();
+
+    scene.onBeforeRenderObservable.add(gameLoop);
+
+    return scene;
+}
+
+function buildEnvironment() {
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 40, height: 40 }, scene);
+    ground.material = createPBR("groundMat", "#1a1a1a", 0.9, 0);
+    ground.receiveShadows = true;
+
+    const sMat = createPBR("sMat", "#2a2a3a", 0.9, 0);
+    function createSidewalk(x, z) {
+        const s = BABYLON.MeshBuilder.CreateBox("sw", { width: 12, height: 0.1, depth: 12 }, scene);
+        s.position = new BABYLON.Vector3(x, 0.05, z);
+        s.material = sMat;
+        s.receiveShadows = true;
+    }
+    createSidewalk(-10, 10); createSidewalk(10, 10);
+    createSidewalk(-10, -10); createSidewalk(10, -10);
+
+    const skinMat = createPBR("skin", "#FFDCB1", 0.7, 0.0);
+    const pantsMat = createPBR("pants", "#333333", 0.9, 0.0);
+
+    points.forEach((p, i) => {
+        const bx = p.pos.x > 0 ? 12 : -12;
+        const bz = p.pos.z;
+        const isRight = bx > 0;
+        
+        const b = BABYLON.MeshBuilder.CreateBox("b" + i, {width: 4, height: 5, depth: 4}, scene);
+        b.position = new BABYLON.Vector3(bx, 2.5, bz);
+        b.material = createPBR("bMat"+i, p.bColor, 0.6, 0);
+        shadowGen.addShadowCaster(b);
+        b.receiveShadows = true;
+        colliders.push(b);
+
+        const holeX = isRight ? bx - 1.95 : bx + 1.95;
+        const hole = BABYLON.MeshBuilder.CreateBox("hole"+i, {width: 0.1, height: 2.2, depth: 1.2}, scene);
+        hole.position = new BABYLON.Vector3(holeX, 1.1, bz);
+        hole.material = createPBR("holeMat"+i, "#000000", 1.0, 0);
+
+        const doorX = isRight ? bx - 2.05 : bx + 2.05;
+        const hDoor = BABYLON.MeshBuilder.CreateBox("hDoor"+i, {width: 0.15, height: 2.2, depth: 1.3}, scene);
+        hDoor.position = new BABYLON.Vector3(doorX, 1.1, bz);
+        hDoor.material = createPBR("dMat"+i, "#aaaaaa", 0.6, 0.2);
+        shadowGen.addShadowCaster(hDoor);
+        
+        p.doorMesh = hDoor;
+
+        const nGroup = new BABYLON.TransformNode("neighbor"+i, scene);
+        
+        const torso = BABYLON.MeshBuilder.CreateBox("torso", {width: 0.5, height: 0.7, depth: 0.3}, scene);
+        torso.parent = nGroup;
+        torso.position.y = 1.05;
+        torso.material = packageMats[i]; 
+        shadowGen.addShadowCaster(torso);
+
+        const head = BABYLON.MeshBuilder.CreateSphere("nHead", {diameter: 0.4}, scene);
+        head.parent = nGroup;
+        head.position.y = 1.6;
+        head.material = skinMat;
+        shadowGen.addShadowCaster(head);
+
+        const buildLimb = (name, w, h, d, px, py, pz, mat) => {
+            const pivot = new BABYLON.TransformNode(name+"Pivot", scene);
+            pivot.parent = nGroup;
+            pivot.position.set(px, py, pz);
+            const mesh = BABYLON.MeshBuilder.CreateBox(name, {width: w, height: h, depth: d}, scene);
+            mesh.parent = pivot;
+            mesh.position.y = -h / 2 + 0.05; 
+            mesh.material = mat;
+            shadowGen.addShadowCaster(mesh);
+            return pivot;
+        };
+
+        const armL = buildLimb("armL", 0.15, 0.6, 0.15, -0.35, 1.35, 0, skinMat);
+        const armR = buildLimb("armR", 0.15, 0.6, 0.15,  0.35, 1.35, 0, skinMat);
+        const legL = buildLimb("legL", 0.2,  0.7, 0.2,  -0.15, 0.7,  0, pantsMat);
+        const legR = buildLimb("legR", 0.2,  0.7, 0.2,   0.15, 0.7,  0, pantsMat);
+
+        const heldPack = BABYLON.MeshBuilder.CreateBox("heldPack"+i, {width: 0.4, height: 0.3, depth: 0.4}, scene);
+        heldPack.parent = nGroup;
+        heldPack.position.set(0, 1.15, 0.35);
+        heldPack.material = packageMats[i];
+        heldPack.isVisible = false;
+        shadowGen.addShadowCaster(heldPack);
+
+        nGroup.limbs = { armL, armR, legL, legR };
+        nGroup.heldPackage = heldPack;
+        nGroup.hasPackage = false;
+        nGroup.doorOpen = false;
+        nGroup.doorPos = { x: isRight ? bx - 1.5 : bx + 1.5, z: bz };
+        
+        nGroup.position.set(nGroup.doorPos.x, 0, nGroup.doorPos.z);
+        nGroup.rotation.y = isRight ? -Math.PI/2 : Math.PI/2;
+        nGroup.setEnabled(false);
+        neighbors.push(nGroup);
+        
+        p.neighbor = nGroup;
+
+        // Discos en el suelo
+        const disk = BABYLON.MeshBuilder.CreateCylinder("disk", { diameter: 2.5, height: 0.1 }, scene);
+        disk.position = p.pos.clone();
+        disk.position.y = 0.06;
+        const dMat = createPBR("diskMat"+i, p.bColor, 0.5, 0.2);
+        dMat.emissiveColor = BABYLON.Color3.FromHexString(p.bColor);
+        dMat.emissiveIntensity = 0.05;
+        disk.material = dMat;
+        disk.receiveShadows = true;
+        p.mat = dMat;
+
+        // ETIQUETAS 3D FLOTANTES SUPER CLARAS
+        const labelPlane = BABYLON.MeshBuilder.CreatePlane("label" + i, {width: 4, height: 1.5}, scene);
+        labelPlane.position = p.pos.clone();
+        labelPlane.position.y = 3.5;
+        labelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+        
+        const dtTex = new BABYLON.DynamicTexture("dt" + i, {width: 256, height: 128}, scene, false);
+        dtTex.hasAlpha = true;
+        dtTex.drawText("PUNTO " + p.id, null, 80, "bold 45px Arial", p.bColor, "transparent", true);
+        
+        const lMat = new BABYLON.StandardMaterial("mat" + i, scene);
+        lMat.diffuseTexture = dtTex;
+        lMat.emissiveTexture = dtTex;
+        lMat.disableLighting = true;
+        lMat.useAlphaFromDiffuseTexture = true;
+        labelPlane.material = lMat;
+    });
+}
+
+function buildWarehouse() {
+    const whGroup = new BABYLON.TransformNode("whGroup", scene);
+    const whMat = createPBR("whMat", "#FF6B35", 0.6, 0.1);
+
+    const wallsData = [
+        { w: 4, h: 3, d: 0.2, x: 0, y: 1.5, z: -2 },
+        { w: 0.2, h: 3, d: 4, x: -2, y: 1.5, z: 0 },
+        { w: 0.2, h: 3, d: 4, x: 2, y: 1.5, z: 0 },
+        { w: 0.5, h: 3, d: 0.2, x: -1.75, y: 1.5, z: 2 },
+        { w: 0.5, h: 3, d: 0.2, x: 1.75, y: 1.5, z: 2 },
+        { w: 4.2, h: 0.2, d: 4.2, x: 0, y: 3.1, z: 0 }
+    ];
+
+    wallsData.forEach(wd => {
+        const w = BABYLON.MeshBuilder.CreateBox("w", { width: wd.w, height: wd.h, depth: wd.d }, scene);
+        w.position = new BABYLON.Vector3(wd.x, wd.y, wd.z);
+        w.parent = whGroup;
+        w.material = whMat;
+        shadowGen.addShadowCaster(w);
+        colliders.push(w);
+    });
+
+    pivotWH = new BABYLON.TransformNode("pivotWH", scene);
+    pivotWH.position = new BABYLON.Vector3(0, 0, 2.1);
+    
+    const whDoor = BABYLON.MeshBuilder.CreateBox("whDoor", { width: 3.0, height: 3, depth: 0.1 }, scene);
+    whDoor.parent = pivotWH;
+    whDoor.position.y = 1.5;
+    whDoor.material = createPBR("whdMat", "#222222", 0.7, 0);
+    shadowGen.addShadowCaster(whDoor);
+
+    whLight = new BABYLON.PointLight("whLight", new BABYLON.Vector3(0, 1.5, 0), scene);
+    whLight.diffuse = BABYLON.Color3.FromHexString("#fff3c4");
+    whLight.intensity = 0;
+
+    // Etiqueta 3D para el Almacén
+    const whLabelPlane = BABYLON.MeshBuilder.CreatePlane("whLabel", {width: 5, height: 2}, scene);
+    whLabelPlane.position = new BABYLON.Vector3(0, 4.5, 0);
+    whLabelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+    const whDt = new BABYLON.DynamicTexture("whDt", {width: 512, height: 256}, scene, false);
+    whDt.hasAlpha = true;
+    whDt.drawText("ALMACÉN", null, 140, "bold 60px Arial", "#FF6B35", "transparent", true);
+    const whLMat = new BABYLON.StandardMaterial("whLMat", scene);
+    whLMat.diffuseTexture = whDt;
+    whLMat.emissiveTexture = whDt;
+    whLMat.disableLighting = true;
+    whLMat.useAlphaFromDiffuseTexture = true;
+    whLabelPlane.material = whLMat;
+}
+
+function buildObstacles() {
+    const oMat = createPBR("oMat", "#cc2222", 0.5, 0.1);
+    const poses = [
+        { x: 0, y: 1, z: 5, w: 4, h: 2, d: 1 },
+        { x: -5, y: 1, z: 0, w: 1, h: 2, d: 4 },
+        { x: 5, y: 1, z: 0, w: 1, h: 2, d: 4 }
+    ];
+
+    poses.forEach(p => {
+        const o = BABYLON.MeshBuilder.CreateBox("obs", { width: p.w, height: p.h, depth: p.d }, scene);
+        o.position = new BABYLON.Vector3(p.x, p.y, p.z);
+        o.material = oMat;
+        shadowGen.addShadowCaster(o);
+        colliders.push(o);
+        obstacles.push(o);
+    });
+}
+
+function buildRobot() {
+    robot = new BABYLON.TransformNode("robot", scene);
+    
+    // El chasis es nuestra caja de colisión principal
+    chassis = BABYLON.MeshBuilder.CreateBox("chassis", {width: 1.2, height: 0.25, depth: 1.8}, scene);
+    chassis.parent = robot;
+    chassis.position.y = 0.3;
+    chassis.material = createPBR("chassisMat", "#FF6B35", 0.2, 0.3);
+    chassis.material.clearCoat.isEnabled = true;
+    chassis.material.clearCoat.intensity = 1.0;
+    shadowGen.addShadowCaster(chassis);
+
+    const hlMat = createPBR("hlMat", "#ffffff", 0.1, 0.1);
+    hlMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    
+    const hlL = BABYLON.MeshBuilder.CreateBox("hlL", {width:0.15, height:0.1, depth:0.1}, scene);
+    hlL.parent = chassis;
+    hlL.position.set(-0.4, 0.05, 0.9);
+    hlL.material = hlMat;
+    
+    const hlR = BABYLON.MeshBuilder.CreateBox("hlR", {width:0.15, height:0.1, depth:0.1}, scene);
+    hlR.parent = chassis;
+    hlR.position.set(0.4, 0.05, 0.9);
+    hlR.material = hlMat;
+
+    const boxBase = BABYLON.MeshBuilder.CreateBox("boxBase", {width: 1.0, height: 0.6, depth: 1.2}, scene);
+    boxBase.parent = robot;
+    boxBase.position.set(0, 0.725, 0);
+    boxBase.material = createPBR("boxMat", "#00BFA5", 0.3, 0.1);
+    shadowGen.addShadowCaster(boxBase);
+
+    boxLidPivot = new BABYLON.TransformNode("boxLidPivot", scene);
+    boxLidPivot.parent = boxBase;
+    boxLidPivot.position.set(0, 0.3, -0.6);
+
+    const boxLid = BABYLON.MeshBuilder.CreateBox("boxLid", {width: 1.0, height: 0.15, depth: 1.2}, scene);
+    boxLid.parent = boxLidPivot;
+    boxLid.position.set(0, 0.075, 0.6);
+    boxLid.material = boxBase.material;
+    shadowGen.addShadowCaster(boxLid);
+
+    robotPackage = BABYLON.MeshBuilder.CreateBox("robotPackage", {width: 0.6, height: 0.35, depth: 0.6}, scene);
+    robotPackage.parent = boxBase;
+    robotPackage.position.set(0, 0.15, 0);
+    robotPackage.material = packageMats[0]; 
+    robotPackage.isVisible = false;
+    shadowGen.addShadowCaster(robotPackage);
+
+    const sensor = BABYLON.MeshBuilder.CreateBox("sensor", {width: 0.5, height: 0.15, depth: 0.15}, scene);
+    sensor.parent = robot;
+    sensor.position.set(0, 0.5, 0.95);
+    const sensorMat = createPBR("sensorMat", "#FFD700", 0.3, 0.8);
+    sensorMat.emissiveColor = BABYLON.Color3.FromHexString("#FFD700");
+    sensor.material = sensorMat;
+    shadowGen.addShadowCaster(sensor);
+
+    const antenna = BABYLON.MeshBuilder.CreateCylinder("antenna", {diameter: 0.04, height: 0.7}, scene);
+    antenna.parent = robot;
+    antenna.position.set(0.4, 1.2, -0.6);
+    antenna.material = createPBR("antMat", "#8A2BE2", 0.4, 0.5);
+    shadowGen.addShadowCaster(antenna);
+
+    const wPos = [[-0.65, 0.2, 0.6], [0.65, 0.2, 0.6], [-0.65, 0.2, -0.6], [0.65, 0.2, -0.6]];
+    const wMat = createPBR("wMat", "#222222", 0.9, 0.0);
+    
+    wPos.forEach((p, idx) => {
+        const pivot = new BABYLON.TransformNode("wPivot" + idx, scene);
+        pivot.parent = robot;
+        pivot.position.set(p[0], p[1], p[2]);
+        const w = BABYLON.MeshBuilder.CreateCylinder("w", {diameter: 0.4, height: 0.15}, scene);
+        w.parent = pivot;
+        w.rotation.z = Math.PI / 2;
+        w.material = wMat;
+        shadowGen.addShadowCaster(w);
+        wheels.push({ pivot, w });
+    });
+}
+
+function moveEntityTowards(entity, tx, tz, speed, deltaTime, isRobot = false, stopDist = 0.05) {
+    const targetPos = new BABYLON.Vector3(tx, entity.position.y, tz);
+    const dist = BABYLON.Vector3.Distance(entity.position, targetPos);
+    
+    if (dist > stopDist) {
+        const dir = targetPos.subtract(entity.position).normalize();
+        entity.position.addInPlace(dir.scale(speed * deltaTime));
+
+        const targetAngle = Math.atan2(dir.x, dir.z);
+        let currentAngle = entity.rotation.y;
+        let diff = targetAngle - currentAngle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        entity.rotation.y += diff * 12 * deltaTime;
+
+        if (!isRobot && entity.limbs) {
+            const t = performance.now() * 0.012;
+            if (entity.hasPackage) {
+                entity.limbs.armL.rotation.x = -1.2;
+                entity.limbs.armR.rotation.x = -1.2;
+            } else {
+                entity.limbs.armL.rotation.x = Math.sin(t) * 0.8;
+                entity.limbs.armR.rotation.x = Math.sin(t + Math.PI) * 0.8;
+            }
+            entity.limbs.legL.rotation.x = Math.sin(t + Math.PI) * 0.8;
+            entity.limbs.legR.rotation.x = Math.sin(t) * 0.8;
+        }
+        return { reached: false, dist: dist };
+    }
+    
+    if (!isRobot && entity.limbs) {
+        if (entity.hasPackage) {
+            entity.limbs.armL.rotation.x = -1.2;
+            entity.limbs.armR.rotation.x = -1.2;
+        } else {
+            entity.limbs.armL.rotation.x = 0;
+            entity.limbs.armR.rotation.x = 0;
+        }
+        entity.limbs.legL.rotation.x = 0;
+        entity.limbs.legR.rotation.x = 0;
+    }
+    return { reached: true, dist: Math.max(0, dist - stopDist) };
+}
+
+function gameLoop() {
+    const dt = engine.getDeltaTime() / 1000;
+    camera.target = BABYLON.Vector3.Lerp(camera.target, robot.position, 0.05);
+
+    points.forEach(p => {
+        const targetY = p.neighbor.doorOpen ? 3.3 : 1.1;
+        p.doorMesh.position.y += (targetY - p.doorMesh.position.y) * 4 * dt;
+    });
+
+    if (missionState !== 1) return;
+
+    if (robotState === "DRIVING") {
+        const viewMatrix = camera.getViewMatrix();
+        const transformMatrix = viewMatrix.clone().invert();
+        const fw = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(0, 0, 1), transformMatrix);
+        fw.y = 0; fw.normalize();
+        const rw = BABYLON.Vector3.TransformNormal(new BABYLON.Vector3(1, 0, 0), transformMatrix);
+        rw.y = 0; rw.normalize();
+
+        const moveDir = rw.scale(jx).add(fw.scale(-jy));
+        const mag = moveDir.length();
+
+        if (mag > 0.01) {
+            if (!robotStarted) {
+                robotStarted = true;
+                openWarehouseDoor();
+                if (currentMission === 5) startTimer();
+            }
+
+            moveDir.normalize();
+            
+            // SE APLICA LA VELOCIDAD SELECCIONADA EN EL SLIDER
+            const speed = globalRobotSpeed;
+            const velocity = moveDir.scale(speed * mag * dt);
+            
+            const tAngle = Math.atan2(moveDir.x, moveDir.z);
+            let diff = tAngle - robot.rotation.y;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+            while(diff > Math.PI) diff -= Math.PI * 2;
+            robot.rotation.y += diff * 0.15;
+
+            wheels.forEach(w => {
+                // Sincronizar giro de ruedas con la velocidad real
+                w.w.rotation.x += (speed * mag * dt) * 4;
+                if(w.pivot.position.z > 0) w.pivot.rotation.y = diff * 0.6;
+            });
+
+            const oldPos = robot.position.clone();
+            robot.position.addInPlace(velocity);
+            
+            chassis.computeWorldMatrix(true);
+            let hasCollision = false;
+            for (let c of colliders) {
+                if (c.isEnabled() && chassis.intersectsMesh(c, false)) {
+                    hasCollision = true;
+                    break;
+                }
+            }
+
+            if (hasCollision) {
+                robot.position = oldPos;
+                robot.position.addInPlace(velocity.scale(-0.5)); 
+            } else if (currentMission === 3) {
+                totalDistance += velocity.length();
+            }
+        } else {
+            wheels.forEach(w => {
+                if(w.pivot.position.z > 0) w.pivot.rotation.y *= 0.8;
+            });
+        }
+
+        checkDeliveries();
+
+    } else if (robotState === "DELIVERING" && activeDelivery) {
+        let d = activeDelivery;
+        let n = d.point.neighbor;
+        
+        switch(d.state) {
+            case 0:
+                document.getElementById('task-desc').innerText = "TAREA: Abriendo Puerta...";
+                n.doorOpen = true;
+                d.timer += dt;
+                if (d.timer > 1.0) {
+                    d.state = 1;
+                    n.setEnabled(true);
+                    n.position.set(n.doorPos.x, 0, n.doorPos.z);
+                }
+                break;
+                
+            case 1:
+                document.getElementById('task-desc').innerText = "TAREA: Cliente Acercándose...";
+                let moveN = moveEntityTowards(n, robot.position.x, robot.position.z, 3.5, dt, false, 1.4);
+                if (moveN.reached) {
+                    d.state = 2;
+                    d.timer = 0;
+                    robotPackage.material = packageMats[d.point.id - 1];
+                    robotPackage.isVisible = true;
+                }
+                break;
+                
+            case 2:
+                document.getElementById('task-desc').innerText = "TAREA: Entregando Paquete...";
+                d.timer += dt;
+                if (d.timer < 1) {
+                    boxLidPivot.rotation.x = -(Math.PI / 2.2) * d.timer;
+                } else if (d.timer < 2) {
+                    boxLidPivot.rotation.x = -(Math.PI / 2.2) * (2 - d.timer);
+                    if (robotPackage.isVisible) {
+                        robotPackage.isVisible = false;
+                        n.hasPackage = true;
+                        n.heldPackage.isVisible = true;
+                    }
+                } else {
+                    boxLidPivot.rotation.x = 0;
+                    d.state = 3;
+                }
+                break;
+                
+            case 3:
+                document.getElementById('task-desc').innerText = "TAREA: Finalizando Entrega...";
+                let moveR = moveEntityTowards(n, n.doorPos.x, n.doorPos.z, 3.5, dt, false, 0.1);
+                if (moveR.reached) {
+                    n.setEnabled(false);
+                    n.doorOpen = false;
+                    d.state = 4;
+                }
+                break;
+                
+            case 4:
+                d.point.delivered = true;
+                d.point.mat.emissiveColor = new BABYLON.Color3(0, 1, 0);
+                d.point.mat.emissiveIntensity = 0.8;
+                createConfetti(d.point.pos);
+                updateDeliveriesUI();
+                checkMissionProgress();
+                
+                robotState = "DRIVING";
+                activeDelivery = null;
+                break;
+        }
+    }
+}
+
+function checkDeliveries() {
+    let activePoint = null;
+    let minDst = 999;
+    
+    points.forEach(p => {
+        let isTarget = false;
+        if (currentMission === 1 && p.id === 1 && !p.delivered) isTarget = true;
+        if (currentMission === 2) {
+            if (p.id === 2 && !p.delivered) isTarget = true;
+            if (p.id === 3 && points[1].delivered && !p.delivered) isTarget = true;
+        }
+        if (currentMission === 3 && (p.id === 1 || p.id === 4) && !p.delivered) isTarget = true;
+        if (currentMission >= 4 && !p.delivered) isTarget = true;
+        
+        if (isTarget) {
+            p.mat.emissiveIntensity = 0.15 + Math.sin(performance.now() * 0.005) * 0.1;
+            const dst = BABYLON.Vector3.Distance(robot.position, p.pos);
+            if (dst < minDst) { minDst = dst; activePoint = p; }
+        } else {
+            p.mat.emissiveIntensity = p.delivered ? 0.3 : 0.05;
+        }
+    });
+
+    let targetWarehouse = false;
+    if (currentMission === 2 && points[1].delivered && points[2].delivered) targetWarehouse = true;
+    if (currentMission === 5 && points.every(p => p.delivered)) targetWarehouse = true;
+
+    if (activePoint && minDst < 4 && !targetWarehouse) {
+        document.getElementById('task-desc').innerText = "IR A PUNTO " + activePoint.id;
+        document.getElementById('task-desc').style.color = "#ffcc00";
+        showFloatLabel(activePoint.pos, "¡SUELTA AQUÍ!");
+        
+        let prox = Math.max(0, Math.min(100, 100 - (minDst - 1.5) * 40));
+        document.getElementById('prox-bar').style.width = prox + "%";
+        
+        if (prox >= 100 && !activePoint.delivered && robotState === "DRIVING") {
+            robotState = "DELIVERING";
+            activeDelivery = { point: activePoint, state: 0, timer: 0 };
+            hideFloatLabel();
+        }
+    } else if (targetWarehouse) {
+        const dstToWh = BABYLON.Vector3.Distance(robot.position, warehousePos);
+        document.getElementById('task-desc').innerText = "VOLVER AL ALMACÉN";
+        document.getElementById('task-desc').style.color = "#ffcc00";
+        
+        let prox = Math.max(0, Math.min(100, 100 - (dstToWh - 2) * 30));
+        document.getElementById('prox-bar').style.width = prox + "%";
+        
+        if (dstToWh < 4 && !whDoorOpen) openWarehouseDoor();
+        if (prox >= 100) completeMission();
+    } else {
+        document.getElementById('task-desc').innerText = "Conduciendo libremente";
+        document.getElementById('task-desc').style.color = "#00f2ff";
+        document.getElementById('prox-bar').style.width = "0%";
+        hideFloatLabel();
+        
+        if (currentMission === 2 && !points[1].delivered) {
+            if (BABYLON.Vector3.Distance(robot.position, points[2].pos) < 3) {
+                showFloatLabel(points[2].pos, "¡Casi! Primero el Punto 2.");
+            }
+        }
+    }
+}
+
+function startMission(mId) {
+    currentMission = mId;
+    
+    document.querySelectorAll('.m-btn').forEach((btn, idx) => {
+        let id = idx + 1;
+        if (id < currentMission) {
+            btn.style.background = '#00f2ff'; btn.style.color = '#000';
+        } else if (id === currentMission) {
+            btn.style.background = '#ffcc00'; btn.style.color = '#000';
+        } else {
+            btn.style.background = '#444'; btn.style.color = '#aaa';
+        }
+    });
+    
+    const desc = document.getElementById('mission-desc');
+    if (mId === 1) desc.innerText = "Conduce el robot por el barrio con el joystick. Lleva el paquete al Punto 1.";
+    if (mId === 2) desc.innerText = "Entrega en el Punto 2 y luego en el Punto 3. Vuelve al Almacén al final.";
+    if (mId === 3) desc.innerText = "Entrega en los Puntos 1 y 4. Intenta hacer la ruta más corta posible.";
+    if (mId === 4) desc.innerText = "Entrega en los 4 puntos. Cuidado — hay una zona de obras bloqueada en el centro.";
+    if (mId === 5) desc.innerText = "Entrega en los 4 puntos lo más rápido que puedas. Tu tiempo quedará registrado.";
+
+    const timerDisp = document.getElementById('timer-display');
+    timerDisp.style.display = mId === 5 ? "block" : "none";
+
+    obstacles.forEach(o => o.setEnabled(mId === 4));
+    resetMission();
+}
+
+function resetMission() {
+    missionState = 1;
+    robotStarted = false;
+    robotState = "DRIVING";
+    activeDelivery = null;
+    totalDistance = 0;
+    timer = 0;
+    clearInterval(timerInterval);
+    document.getElementById('timer-display').innerText = "00:00";
+
+    points.forEach(p => {
+        p.delivered = false;
+        p.mat.emissiveColor = BABYLON.Color3.FromHexString(p.bColor);
+        p.mat.emissiveIntensity = 0.05;
+        p.neighbor.doorOpen = false;
+        p.neighbor.setEnabled(false);
+        p.neighbor.hasPackage = false;
+        p.neighbor.heldPackage.isVisible = false;
+    });
+
+    robot.position = new BABYLON.Vector3(0, 0.1, 0);
+    robot.rotation.y = 0;
+    robot.scaling = new BABYLON.Vector3(1, 1, 1);
+    
+    boxLidPivot.rotation.x = 0;
+    robotPackage.isVisible = false;
+    
+    whDoorOpen = false;
+    whLight.intensity = 0;
+    if(scene.whObserver) scene.onBeforeRenderObservable.remove(scene.whObserver);
+    pivotWH.rotation.x = 0;
+
+    updateDeliveriesUI();
+    hideFloatLabel();
+    document.getElementById('modal-container').style.display = 'none';
+    scene.onBeforeRenderObservable.removeCallback(spinRobot);
+}
+
+function updateDeliveriesUI() {
+    const list = document.getElementById('deliveries-list');
+    list.innerHTML = '';
+    points.forEach(p => {
+        let show = false;
+        if (currentMission === 1 && p.id === 1) show = true;
+        if (currentMission === 2 && (p.id === 2 || p.id === 3)) show = true;
+        if (currentMission === 3 && (p.id === 1 || p.id === 4)) show = true;
+        if (currentMission >= 4) show = true;
+        
+        if (show) {
+            let icon = p.delivered ? '✅' : '⬜';
+            let isTarget = false;
+            if (currentMission === 1 && p.id === 1 && !p.delivered) isTarget = true;
+            if (currentMission === 2 && p.id === 2 && !p.delivered) isTarget = true;
+            if (currentMission === 2 && p.id === 3 && points[1].delivered && !p.delivered) isTarget = true;
+            if (currentMission === 3 && !p.delivered) isTarget = true;
+            if (currentMission >= 4 && !p.delivered) isTarget = true;
+            
+            let bg = isTarget ? 'rgba(0, 242, 255, 0.15)' : 'rgba(255,255,255,0.05)';
+            let border = isTarget ? '1px solid #ffcc00' : '1px solid transparent';
+            
+            list.innerHTML += `<div style="padding:8px 12px; margin-bottom:8px; background:${bg}; border:${border}; border-radius:5px; display:flex; justify-content:space-between;">
+                <span>${icon} Punto ${p.id}</span>
+                <span style="color:${p.bColor}; font-size:20px;">■</span>
+            </div>`;
+        }
+    });
+}
+
+function checkMissionProgress() {
+    if (currentMission === 1 && points[0].delivered) completeMission();
+    if (currentMission === 3 && points[0].delivered && points[3].delivered) completeMission();
+    if (currentMission === 4 && points.every(p => p.delivered)) completeMission();
+}
+
+function completeMission() {
+    if (missionState === 2) return;
+    missionState = 2;
+    clearInterval(timerInterval);
+    
+    const title = document.getElementById('modal-title');
+    const text = document.getElementById('modal-text');
+    
+    if (currentMission === 1) {
+        title.innerText = "¡Lo has conseguido!";
+        text.innerText = "Cuando el robot llegó al Punto 1, el control manual se pausó, el vecino salió y el robot entregó el paquete automáticamente.";
+    } else if (currentMission === 2) {
+        title.innerText = "¡Excelente!";
+        text.innerText = "Has respetado el orden de entrega y el robot ha vuelto sano y salvo al almacén.";
+    } else if (currentMission === 3) {
+        title.innerText = "¡Ruta Completada!";
+        text.innerHTML = `Has entregado en ambos puntos de forma eficiente.<br><br>
+        Distancia recorrida: <b style="color:#00f2ff">${totalDistance.toFixed(1)} metros</b><br>
+        Ruta óptima teórica: <b style="color:#ffcc00">~45.0 metros</b>`;
+    } else if (currentMission === 4) {
+        title.innerText = "¡Obstáculo Superado!";
+        text.innerText = "Has encontrado una ruta alternativa inteligente para bordear la zona de obras. ¡Buen trabajo!";
+    } else if (currentMission === 5) {
+        title.innerText = "¡Misión Contrarreloj!";
+        text.innerHTML = `Has completado las 4 entregas y vuelto al Almacén en un tiempo récord de:<br>
+        <span style="font-size:40px; color:#ffcc00; font-weight:bold; display:block; margin:20px 0;">${formatTime(timer)}</span>
+        ¿Puedes mejorar tu estrategia y batir tu propio récord?`;
+        document.querySelector('#modal-content button').innerText = "INTENTAR DE NUEVO";
+        
+        points.forEach(p => {
+            p.mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+            p.mat.emissiveIntensity = 0.8;
+            createConfetti(p.pos);
+        });
+        scene.onBeforeRenderObservable.add(spinRobot);
+    }
+
+    setTimeout(() => {
+        document.getElementById('modal-container').style.display = 'flex';
+    }, 1500);
+}
+
+function showFloatLabel(pos, text) {
+    const posInView = BABYLON.Vector3.Project(
+        pos,
+        BABYLON.Matrix.Identity(),
+        scene.getTransformMatrix(),
+        camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+    );
+    const lbl = document.getElementById('float-label');
+    lbl.style.display = 'block';
+    lbl.innerText = text;
+    lbl.style.left = posInView.x + 'px';
+    lbl.style.top = posInView.y + 'px';
+}
+
+function hideFloatLabel() {
+    document.getElementById('float-label').style.display = 'none';
+}
+
+function openWarehouseDoor() {
+    whDoorOpen = true;
+    whLight.intensity = 1.5;
+    if (scene.whObserver) scene.onBeforeRenderObservable.remove(scene.whObserver);
+    let t = 0;
+    let startRot = pivotWH.rotation.x;
+    scene.whObserver = scene.onBeforeRenderObservable.add(() => {
+        t += 0.04;
+        if (t >= 1) {
+            pivotWH.rotation.x = Math.PI / 2;
+            scene.onBeforeRenderObservable.remove(scene.whObserver);
+            scene.whObserver = null;
+        } else {
+            pivotWH.rotation.x = BABYLON.Scalar.Lerp(startRot, Math.PI / 2, t);
+        }
+    });
+}
+
+function createConfetti(pos) {
+    const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff"];
+    for (let i = 0; i < 35; i++) {
+        const s = BABYLON.MeshBuilder.CreateSphere("c", { diameter: 0.3 }, scene);
+        s.position = pos.clone();
+        s.position.y = 0.5;
+        const mat = new BABYLON.PBRMaterial("cm", scene);
+        mat.albedoColor = BABYLON.Color3.FromHexString(colors[Math.floor(Math.random() * colors.length)]);
+        mat.emissiveColor = mat.albedoColor;
+        s.material = mat;
+        
+        const velocity = new BABYLON.Vector3((Math.random() - 0.5) * 8, Math.random() * 8 + 2, (Math.random() - 0.5) * 8);
+        
+        let life = 0;
+        const obs = scene.onBeforeRenderObservable.add(() => {
+            life += 0.02;
+            s.position.addInPlace(velocity.scale(0.016));
+            velocity.y -= 9.8 * 0.016;
+            s.scaling.scaleInPlace(0.95);
+            if (life > 1) {
+                scene.onBeforeRenderObservable.removeCallback(obs);
+                s.dispose();
+            }
+        });
+    }
+}
+
+function startTimer() {
+    timer = 0;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (missionState === 1) {
+            timer++;
+            document.getElementById('timer-display').innerText = formatTime(timer);
+        }
+    }, 1000);
+}
+
+function formatTime(s) {
+    let m = Math.floor(s / 60);
+    let sec = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (sec < 10 ? "0" : "") + sec;
+}
+
+function spinRobot() {
+    robot.rotation.y += 0.08;
+}
+
+function nextMission() {
+    if (currentMission === 5) {
+        startMission(5);
+        document.querySelector('#modal-content button').innerText = "SIGUIENTE MISIÓN";
+    } else {
+        startMission(currentMission + 1);
+    }
+}
+
+createScene();
+engine.runRenderLoop(() => { scene.render(); });
+window.addEventListener('resize', () => { engine.resize(); });
+startMission(1);
+
+</script>
+</body>
+</html>

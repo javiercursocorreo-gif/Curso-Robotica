@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 3.1 — Construcción del Coche Autoaparcante ELEGOO (Gold V8)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        
+        /* PANEL LATERAL DE PIEZAS (Estilo Gold V8) */
+        #ui-panel {
+            width: 400px;
+            flex-shrink: 0;
+            background: rgba(12, 16, 24, 0.96);
+            border-right: 2px solid #00f2ff;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 10;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+        }
+        #ui-panel::-webkit-scrollbar { width: 6px; }
+        #ui-panel::-webkit-scrollbar-thumb { background: #00f2ff; border-radius: 3px; }
+
+        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px; margin-bottom: 4px; }
+        .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: #00f2ff; font-weight: 700; }
+        h1 { font-size: 1.35rem; font-weight: 700; color: #fff; margin-top: 4px; }
+        .subtitle { font-size: 0.82rem; color: #8a9ba8; margin-top: 4px; line-height: 1.3; }
+
+        .progress-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; margin-bottom: 6px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #00f2ff, #0066ff); transition: width 0.4s ease; box-shadow: 0 0 12px rgba(0,242,255,0.5); }
+
+        .panel-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: #00f2ff; font-weight: 700; margin-top: 4px; }
+
+        .piece-btn {
+            background: rgba(255,255,255,0.03);
+            border: 2px dashed rgba(0, 242, 255, 0.4);
+            border-radius: 12px;
+            color: #fff;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: grab;
+            transition: all 0.25s ease;
+            text-align: left;
+        }
+        .piece-btn:hover {
+            border-color: #00f2ff;
+            background: rgba(0, 242, 255, 0.12);
+            transform: translateX(4px);
+            box-shadow: 0 4px 15px rgba(0,242,255,0.2);
+        }
+        .piece-btn:active { cursor: grabbing; }
+        
+        .piece-btn.installed {
+            background: rgba(0, 255, 136, 0.08);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            color: #6a7b8c;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .piece-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .piece-desc { font-size: 0.75rem; color: #8a9ba8; line-height: 1.3; }
+        
+        .installed .piece-title { color: #00ff88; }
+        .badge-status { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #fff; }
+        .installed .badge-status { background: #00ff88; color: #06090e; font-weight: 700; }
+
+        /* CONTENEDOR PRINCIPAL */
+        #canvas-container { flex: 1; position: relative; transition: box-shadow 0.3s ease; }
+        #canvas-container.drop-hover { box-shadow: inset 0 0 60px rgba(0, 242, 255, 0.6); }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        /* BANNER NO INVASIVO (Regla 1.4 Gold V8) */
+        .instruction-banner {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(12, 18, 28, 0.95); border: 1px solid #00f2ff; border-radius: 30px;
+            padding: 14px 28px; font-weight: 600; font-size: 0.95rem; color: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,242,255,0.3); z-index: 20;
+            display: flex; align-items: center; gap: 16px; transition: all 0.4s ease;
+        }
+        .instruction-banner.completed {
+            background: linear-gradient(135deg, rgba(12, 28, 22, 0.96), rgba(8, 18, 28, 0.96));
+            border-color: #00ff88; box-shadow: 0 10px 35px rgba(0,0,0,0.9), 0 0 25px rgba(0,255,136,0.4);
+        }
+        .btn-restart {
+            background: #00ff88; color: #06090e; border: none; padding: 8px 18px;
+            border-radius: 20px; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            transition: all 0.25s ease; box-shadow: 0 0 12px rgba(0,255,136,0.5); pointer-events: auto;
+        }
+        .btn-restart:hover { transform: scale(1.06); background: #fff; }
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <div class="header">
+            <div class="tag">Clase 3.1 · Práctica 1</div>
+            <h1>Ensamblaje Autoaparcante</h1>
+            <div class="subtitle">Arrastra las 15 piezas al escenario para construir el vehículo ELEGOO inteligente con sensórica completa.</div>
+        </div>
+        
+        <div class="progress-box">
+            <div class="progress-label">
+                <span>Progreso de Montaje</span>
+                <span id="progress-txt">0 / 15</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+
+        <div class="panel-title">Componentes (Arrastrar al lienzo)</div>
+        
+        <button class="piece-btn" id="btn-body" draggable="true" title="Chasis y carrocería translúcida ELEGOO.">
+            <div class="piece-title"><span>🚙 1. Carrocería y Chasis</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Estructura translúcida con paquete de baterías y base metálica</div>
+        </button>
+        <button class="piece-btn" id="btn-windshield" draggable="true" title="Cristales ahumados y cabina.">
+            <div class="piece-title"><span>🪟 2. Cristales y Techo</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Parabrisas, ventanillas y techo de la cabina protectora</div>
+        </button>
+        <button class="piece-btn" id="btn-wheel_fl" draggable="true" title="Rueda delantera izquierda con dirección.">
+            <div class="piece-title"><span>🛞 3. Rueda Delant. Izq.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Neumático de caucho y llanta con eje de giro direccional</div>
+        </button>
+        <button class="piece-btn" id="btn-wheel_fr" draggable="true" title="Rueda delantera derecha con dirección.">
+            <div class="piece-title"><span>🛞 4. Rueda Delant. Der.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Neumático de caucho y llanta con eje de giro direccional</div>
+        </button>
+        <button class="piece-btn" id="btn-wheel_rl" draggable="true" title="Rueda trasera izquierda motriz.">
+            <div class="piece-title"><span>🛞 5. Rueda Tras. Izq.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Rueda motriz trasera conectada al motor de tracción</div>
+        </button>
+        <button class="piece-btn" id="btn-wheel_rr" draggable="true" title="Rueda trasera derecha motriz.">
+            <div class="piece-title"><span>🛞 6. Rueda Tras. Der.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Rueda motriz trasera conectada al motor de tracción</div>
+        </button>
+        <button class="piece-btn" id="btn-motor" draggable="true" title="Bloque de motor eléctrico y ejes.">
+            <div class="piece-title"><span>⚙️ 7. Motor y Ejes</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Motores eléctricos DC y ejes de transmisión mecánica</div>
+        </button>
+        <button class="piece-btn" id="btn-sensor_ll" draggable="true" title="Sensor ultrasónico lateral izquierdo.">
+            <div class="piece-title"><span>📡 8. Sensor Lat. Izq.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Mide la distancia al coche aparcado en el flanco izquierdo</div>
+        </button>
+        <button class="piece-btn" id="btn-sensor_lr" draggable="true" title="Sensor ultrasónico lateral derecho.">
+            <div class="piece-title"><span>📡 9. Sensor Lat. Der.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Mide la longitud del hueco libre al circular por la derecha</div>
+        </button>
+        <button class="piece-btn" id="btn-sensor_f" draggable="true" title="Sensor frontal de proximidad.">
+            <div class="piece-title"><span>🛡️ 10. Sensor Frontal</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Evita colisiones frontales y centra el coche en la plaza</div>
+        </button>
+        <button class="piece-btn" id="btn-sensor_r" draggable="true" title="Sensor trasero de maniobra.">
+            <div class="piece-title"><span>🛡️ 11. Sensor Trasero</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Guía el retroceso milimétrico para no golpear atrás</div>
+        </button>
+        <button class="piece-btn" id="btn-cam_r" draggable="true" title="Cámara de visión artificial.">
+            <div class="piece-title"><span>📷 12. Cámara Frontal/Tras.</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Módulo de visión con lente emisiva y anillo de estado</div>
+        </button>
+        <button class="piece-btn" id="btn-dir_mod" draggable="true" title="Módulo de dirección asistida.">
+            <div class="piece-title"><span>🎛️ 13. Mód. de Dirección</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Servomotor EPS que controla el ángulo del volante automático</div>
+        </button>
+        <button class="piece-btn" id="btn-screen" draggable="true" title="Pantalla de salpicadero.">
+            <div class="piece-title"><span>🖥️ 14. Pantalla de Aviso</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Display informativo que muestra decisiones del sistema</div>
+        </button>
+        <button class="piece-btn" id="btn-brain" draggable="true" title="Cerebro electrónico ECU.">
+            <div class="piece-title"><span>🧠 15. Módulo de Control</span><span class="badge-status">Arrastrar</span></div>
+            <div class="piece-desc">Microcontrolador central que procesa la lógica SI / SI NO</div>
+        </button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div class="instruction-banner" id="banner">👉 Arrastra la <b>Carrocería y Chasis</b> desde el panel lateral hacia el escenario 3D</div>
+    </div>
+
+    <script>
+        window.addEventListener("DOMContentLoaded", function() {
+            const canvas = document.getElementById("renderCanvas");
+            const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+            
+            let scene, camera, shadowGen, glow;
+            let cocheGroup;
+            let camAngle = -Math.PI / 4;
+            let completado = false;
+
+            const instaladas = {
+                body: false, windshield: false, wheel_fl: false, wheel_fr: false, wheel_rl: false, wheel_rr: false,
+                motor: false, sensor_ll: false, sensor_lr: false, sensor_f: false, sensor_r: false, cam_r: false,
+                dir_mod: false, screen: false, brain: false
+            };
+
+            const createScene = function() {
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.06, 0.08, 0.12, 1.0);
+                glow = new BABYLON.GlowLayer("glow", scene);
+                glow.intensity = 0.75;
+
+                // 1. Cámara Orbital (Rotación continua libre según Regla Gold V8 1.1)
+                camera = new BABYLON.ArcRotateCamera("cam", camAngle, Math.PI / 2.8, 4.5, new BABYLON.Vector3(0, 0.5, 0), scene);
+                camera.attachControl(canvas, true);
+                camera.lowerRadiusLimit = 2.0; camera.upperRadiusLimit = 8.0;
+                camera.wheelPrecision = 40;
+
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 0.85; hemiLight.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+
+                const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(5, 12, 5); dirLight.intensity = 2.4;
+
+                shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                // Suelo PBR con cuadrícula
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+                const matGround = new BABYLON.PBRMaterial("matG", scene);
+                matGround.albedoColor = new BABYLON.Color3(0.1, 0.12, 0.16);
+                matGround.roughness = 0.7; matGround.metallic = 0.1;
+                ground.material = matGround; ground.receiveShadows = true;
+
+                for (let i = -8; i <= 8; i += 1) {
+                    const lX = BABYLON.MeshBuilder.CreateLines("gx_" + i, {points: [new BABYLON.Vector3(-8, 0.001, i), new BABYLON.Vector3(8, 0.001, i)]}, scene);
+                    lX.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+                    const lZ = BABYLON.MeshBuilder.CreateLines("gz_" + i, {points: [new BABYLON.Vector3(i, 0.001, -8), new BABYLON.Vector3(i, 0.001, 8)]}, scene);
+                    lZ.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+                }
+
+                // Anillo guía de ensamblaje en el suelo
+                const centerRing = BABYLON.MeshBuilder.CreateTorus("cRing", {diameter: 1.2, thickness: 0.01, tessellation: 32}, scene);
+                centerRing.position.y = 0.005;
+                const matRing = new BABYLON.PBRMaterial("matRing", scene);
+                matRing.emissiveColor = new BABYLON.Color3(0.0, 0.8, 1.0);
+                centerRing.material = matRing;
+
+                cocheGroup = new BABYLON.TransformNode("cocheGroup", scene);
+                scene.cocheGroup = cocheGroup;
+                scene.wheelPivots = [];
+
+                // ROTACIÓN CONTINUA LIBRE EN TODAS LAS DIRECCIONES (Regla 1.1 Gold V8)
+                scene.onBeforeRenderObservable.add(() => {
+                    camera.alpha += 0.003; // Gira continuamente en 360° antes y después del montaje
+                    if (completado) {
+                        scene.wheelPivots.forEach(p => p.rotation.x += 0.06);
+                        const t = performance.now() / 1000;
+                        cocheGroup.position.y = 0.04 * Math.sin(t * 2.5);
+                    }
+                });
+
+                return scene;
+            };
+
+            const sceneObj = createScene();
+
+            // 2. MATERIALES PBR OFICIALES (SKILL ELEGOO BABYLON)
+            const matPaint = new BABYLON.PBRMaterial("matPaint", sceneObj);
+            matPaint.albedoColor = BABYLON.Color3.FromHexString("#ff7700"); // Naranja ELEGOO
+            matPaint.metallic = 0.3; matPaint.roughness = 0.1;
+            matPaint.alpha = 0.55; // Translúcida para ver interior
+            matPaint.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            matPaint.clearCoat.isEnabled = true; matPaint.clearCoat.intensity = 1.0; matPaint.clearCoat.roughness = 0.05;
+
+            const matGlass = new BABYLON.PBRMaterial("matGlass", sceneObj);
+            matGlass.albedoColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+            matGlass.metallic = 0.8; matGlass.roughness = 0.05;
+            matGlass.alpha = 0.85; matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+            const matInternalMetal = new BABYLON.PBRMaterial("matInternalMetal", sceneObj);
+            matInternalMetal.albedoColor = BABYLON.Color3.FromHexString("#888888");
+            matInternalMetal.metallic = 1.0; matInternalMetal.roughness = 0.3;
+
+            const matBattery = new BABYLON.PBRMaterial("matBattery", sceneObj);
+            matBattery.albedoColor = BABYLON.Color3.FromHexString("#222222");
+            matBattery.metallic = 0.4; matBattery.roughness = 0.6;
+
+            const matBatteryLed = new BABYLON.PBRMaterial("matBatteryLed", sceneObj);
+            matBatteryLed.emissiveColor = new BABYLON.Color3(0, 0.4, 0.8);
+
+            const matDarkPlastic = new BABYLON.PBRMaterial("matDarkPlastic", sceneObj);
+            matDarkPlastic.albedoColor = BABYLON.Color3.FromHexString("#111111");
+            matDarkPlastic.metallic = 0.1; matDarkPlastic.roughness = 0.8;
+
+            const matTire = new BABYLON.PBRMaterial("matTire", sceneObj);
+            matTire.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); matTire.roughness = 0.95;
+
+            const matRim = new BABYLON.PBRMaterial("matRim", sceneObj);
+            matRim.albedoColor = BABYLON.Color3.FromHexString("#999999"); matRim.metallic = 0.7; matRim.roughness = 0.2;
+
+            const matSensor = new BABYLON.PBRMaterial("matSensor", sceneObj);
+            matSensor.albedoColor = BABYLON.Color3.FromHexString("#ffaa00"); matSensor.metallic = 0.5; matSensor.roughness = 0.3;
+            matSensor.emissiveColor = new BABYLON.Color3(0.2, 0.1, 0);
+
+            const matBrain = new BABYLON.PBRMaterial("matBrain", sceneObj);
+            matBrain.albedoColor = BABYLON.Color3.FromHexString("#ff0055"); matBrain.metallic = 0.6; matBrain.roughness = 0.2;
+            matBrain.emissiveColor = new BABYLON.Color3(0.3, 0, 0.1);
+
+            const matScreen = new BABYLON.PBRMaterial("matScreen", sceneObj);
+            matScreen.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            matScreen.emissiveColor = new BABYLON.Color3(0, 0.8, 0.5);
+
+            sceneObj.matDict = { matPaint, matGlass, matInternalMetal, matBattery, matBatteryLed, matDarkPlastic, matTire, matRim, matSensor, matBrain, matScreen };
+
+            // 3. CONSTRUCTORES DE PIEZAS (SKILL ELEGOO)
+            function buildWheel(name, pos) {
+                const pivot = new BABYLON.TransformNode(name, sceneObj);
+                pivot.parent = cocheGroup; pivot.position = pos;
+                const rotPivot = new BABYLON.TransformNode(name + "_rot", sceneObj);
+                rotPivot.parent = pivot;
+
+                const tire = BABYLON.MeshBuilder.CreateCylinder("tire_"+name, {diameter:0.65, height:0.25, tessellation:24}, sceneObj);
+                tire.rotation.z = Math.PI / 2; tire.material = matTire; tire.parent = rotPivot; shadowGen.addShadowCaster(tire);
+
+                const rim = BABYLON.MeshBuilder.CreateCylinder("rim_"+name, {diameter:0.45, height:0.27, tessellation:16}, sceneObj);
+                rim.rotation.z = Math.PI / 2; rim.material = matRim; rim.parent = rotPivot;
+
+                const spoke1 = BABYLON.MeshBuilder.CreateBox("sp1_"+name, {width:0.28, height:0.43, depth:0.06}, sceneObj);
+                spoke1.material = matDarkPlastic; spoke1.parent = rotPivot;
+                const spoke2 = BABYLON.MeshBuilder.CreateBox("sp2_"+name, {width:0.28, height:0.06, depth:0.43}, sceneObj);
+                spoke2.material = matDarkPlastic; spoke2.parent = rotPivot;
+
+                sceneObj.wheelPivots.push(rotPivot);
+                return pivot;
+            }
+
+            function buildPiece(id) {
+                const root = new BABYLON.TransformNode("node_" + id, sceneObj);
+                root.parent = cocheGroup;
+                const m = sceneObj.matDict;
+
+                switch(id) {
+                    case "body":
+                        const skirt = BABYLON.MeshBuilder.CreateBox("skirt", {width:2.3, height:0.1, depth:3.8}, sceneObj);
+                        skirt.position.y = 0.1; skirt.material = m.matDarkPlastic; skirt.parent = root; shadowGen.addShadowCaster(skirt);
+                        const baseInt = BABYLON.MeshBuilder.CreateBox("baseInt", {width:1.2, height:0.1, depth:3.4}, sceneObj);
+                        baseInt.position.y = 0.15; baseInt.material = m.matInternalMetal; baseInt.parent = root;
+                        const bat = BABYLON.MeshBuilder.CreateBox("bat", {width:1.0, height:0.2, depth:1.5}, sceneObj);
+                        bat.position = new BABYLON.Vector3(0, 0.3, 0); bat.material = m.matBattery; bat.parent = root;
+                        // Capó frontal
+                        const capot = BABYLON.MeshBuilder.CreateBox("capot", {width:2.1, height:0.3, depth:1.2}, sceneObj);
+                        capot.position = new BABYLON.Vector3(0, 0.45, 1.3); capot.rotation.x = 0.05; capot.material = m.matPaint; capot.parent = root; glow.addExcludedMesh(capot);
+                        const bumper = BABYLON.MeshBuilder.CreateBox("bumper", {width:2.2, height:0.2, depth:0.4}, sceneObj);
+                        bumper.position = new BABYLON.Vector3(0, 0.25, 1.7); bumper.material = m.matPaint; bumper.parent = root;
+                        // Maletero y trasera
+                        const maletero = BABYLON.MeshBuilder.CreateBox("maletero", {width:2.1, height:0.3, depth:1.2}, sceneObj);
+                        maletero.position = new BABYLON.Vector3(0, 0.45, -1.3); maletero.rotation.x = -0.05; maletero.material = m.matPaint; maletero.parent = root; glow.addExcludedMesh(maletero);
+                        const bumperR = BABYLON.MeshBuilder.CreateBox("bumperR", {width:2.2, height:0.2, depth:0.4}, sceneObj);
+                        bumperR.position = new BABYLON.Vector3(0, 0.25, -1.7); bumperR.material = m.matPaint; bumperR.parent = root;
+                        // Luces traseras (Pilotos LED rojos en la trasera)
+                        const matTail = new BABYLON.PBRMaterial("matTail", sceneObj);
+                        matTail.emissiveColor = new BABYLON.Color3(0.9, 0.05, 0.05); matTail.roughness = 0.2;
+                        const tailL = BABYLON.MeshBuilder.CreateBox("tailL", {width:0.4, height:0.12, depth:0.05}, sceneObj);
+                        tailL.position = new BABYLON.Vector3(-0.7, 0.35, -1.88); tailL.material = matTail; tailL.parent = root;
+                        const tailR = BABYLON.MeshBuilder.CreateBox("tailR", {width:0.4, height:0.12, depth:0.05}, sceneObj);
+                        tailR.position = new BABYLON.Vector3(0.7, 0.35, -1.88); tailR.material = matTail; tailR.parent = root;
+                        break;
+                    case "windshield":
+                        const cabin = BABYLON.MeshBuilder.CreateBox("cabin", {width:2.1, height:0.4, depth:1.6}, sceneObj);
+                        cabin.position = new BABYLON.Vector3(0, 0.7, 0); cabin.material = m.matPaint; cabin.parent = root; glow.addExcludedMesh(cabin);
+                        const techo = BABYLON.MeshBuilder.CreateBox("techo", {width:1.8, height:0.1, depth:1.0}, sceneObj);
+                        techo.position = new BABYLON.Vector3(0, 0.92, -0.1); techo.material = m.matPaint; techo.parent = root;
+                        const winF = BABYLON.MeshBuilder.CreateBox("winF", {width:1.7, height:0.08, depth:0.6}, sceneObj);
+                        winF.rotation.x = 0.5; winF.position = new BABYLON.Vector3(0, 0.83, 0.4); winF.material = m.matGlass; winF.parent = root; glow.addExcludedMesh(winF);
+                        const winR = BABYLON.MeshBuilder.CreateBox("winR", {width:1.7, height:0.08, depth:0.5}, sceneObj);
+                        winR.rotation.x = -0.5; winR.position = new BABYLON.Vector3(0, 0.83, -0.8); winR.material = m.matGlass; winR.parent = root; glow.addExcludedMesh(winR);
+                        break;
+                    case "wheel_fl": return buildWheel("wheel_fl", new BABYLON.Vector3(-1.18, 0.3, 1.15));
+                    case "wheel_fr": return buildWheel("wheel_fr", new BABYLON.Vector3(1.18, 0.3, 1.15));
+                    case "wheel_rl": return buildWheel("wheel_rl", new BABYLON.Vector3(-1.18, 0.3, -1.15));
+                    case "wheel_rr": return buildWheel("wheel_rr", new BABYLON.Vector3(1.18, 0.3, -1.15));
+                    case "motor":
+                        const ejeD = BABYLON.MeshBuilder.CreateBox("ejeD", {width:2.4, height:0.12, depth:0.12}, sceneObj);
+                        ejeD.position = new BABYLON.Vector3(0, 0.25, 1.0); ejeD.material = m.matInternalMetal; ejeD.parent = root;
+                        const motD = BABYLON.MeshBuilder.CreateBox("motD", {width:0.6, height:0.3, depth:0.4}, sceneObj);
+                        motD.position = new BABYLON.Vector3(0, 0.3, 0.9); motD.material = m.matInternalMetal; motD.parent = root;
+                        const ejeT = BABYLON.MeshBuilder.CreateBox("ejeT", {width:2.4, height:0.12, depth:0.12}, sceneObj);
+                        ejeT.position = new BABYLON.Vector3(0, 0.25, -1.0); ejeT.material = m.matInternalMetal; ejeT.parent = root;
+                        const motT = BABYLON.MeshBuilder.CreateBox("motT", {width:0.7, height:0.35, depth:0.45}, sceneObj);
+                        motT.position = new BABYLON.Vector3(0, 0.3, -0.95); motT.material = m.matInternalMetal; motT.parent = root;
+                        break;
+                    case "sensor_ll":
+                        const sll = BABYLON.MeshBuilder.CreateBox("sll", {width:0.15, height:0.15, depth:0.15}, sceneObj);
+                        sll.position = new BABYLON.Vector3(-1.16, 0.5, 0.2); sll.material = m.matSensor; sll.parent = root; shadowGen.addShadowCaster(sll);
+                        break;
+                    case "sensor_lr":
+                        const slr = BABYLON.MeshBuilder.CreateBox("slr", {width:0.15, height:0.15, depth:0.15}, sceneObj);
+                        slr.position = new BABYLON.Vector3(1.16, 0.5, 0.2); slr.material = m.matSensor; slr.parent = root; shadowGen.addShadowCaster(slr);
+                        break;
+                    case "sensor_f":
+                        const sf = BABYLON.MeshBuilder.CreateBox("sf", {width:0.8, height:0.12, depth:0.12}, sceneObj);
+                        sf.position = new BABYLON.Vector3(0, 0.3, 1.9); sf.material = m.matSensor; sf.parent = root; shadowGen.addShadowCaster(sf);
+                        break;
+                    case "sensor_r":
+                        const sr = BABYLON.MeshBuilder.CreateBox("sr", {width:0.8, height:0.12, depth:0.12}, sceneObj);
+                        sr.position = new BABYLON.Vector3(0, 0.3, -1.9); sr.material = m.matSensor; sr.parent = root; shadowGen.addShadowCaster(sr);
+                        break;
+                    case "cam_r":
+                        const sop = BABYLON.MeshBuilder.CreateBox("sop", {width:0.4, height:0.12, depth:0.12}, sceneObj);
+                        sop.position = new BABYLON.Vector3(0, 1.0, 0.5); sop.material = m.matDarkPlastic; sop.parent = root;
+                        const carc = BABYLON.MeshBuilder.CreateBox("carc", {width:0.28, height:0.18, depth:0.14}, sceneObj);
+                        carc.position = new BABYLON.Vector3(0, 1.06, 0.55); carc.material = m.matDarkPlastic; carc.parent = root;
+                        const len = BABYLON.MeshBuilder.CreateSphere("len", {diameter:0.1}, sceneObj);
+                        len.position = new BABYLON.Vector3(0, 1.06, 0.63); len.material = m.matGlass; len.parent = root;
+                        break;
+                    case "dir_mod":
+                        const dir = BABYLON.MeshBuilder.CreateBox("dir", {width:0.5, height:0.4, depth:0.4}, sceneObj);
+                        dir.position = new BABYLON.Vector3(0, 0.45, 1.1); dir.material = m.matSensor; dir.parent = root;
+                        break;
+                    case "screen":
+                        const scr = BABYLON.MeshBuilder.CreateBox("scr", {width:0.6, height:0.3, depth:0.05}, sceneObj);
+                        scr.position = new BABYLON.Vector3(0, 0.78, 0.5); scr.rotation.x = -0.3; scr.material = m.matScreen; scr.parent = root;
+                        break;
+                    case "brain":
+                        const br = BABYLON.MeshBuilder.CreateBox("br", {width:0.6, height:0.25, depth:0.6}, sceneObj);
+                        br.position = new BABYLON.Vector3(0, 0.5, -0.2); br.material = m.matBrain; br.parent = root; shadowGen.addShadowCaster(br);
+                        break;
+                }
+                return root;
+            }
+
+            // SISTEMA DE PARTÍCULAS (Regla Gold V8 1.3)
+            const createSnapSparkles = function(pos) {
+                const ps = new BABYLON.ParticleSystem("sparkles", 50, sceneObj);
+                ps.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/environments/flare.png", sceneObj);
+                ps.emitter = pos;
+                ps.minEmitBox = new BABYLON.Vector3(-0.1, -0.1, -0.1); ps.maxEmitBox = new BABYLON.Vector3(0.1, 0.1, 0.1);
+                ps.color1 = new BABYLON.Color4(0, 0.95, 1, 1); ps.color2 = new BABYLON.Color4(0, 0.5, 1, 1); ps.colorDead = new BABYLON.Color4(0, 0, 0.2, 0);
+                ps.minSize = 0.04; ps.maxSize = 0.1; ps.minLifeTime = 0.25; ps.maxLifeTime = 0.45;
+                ps.emitRate = 250; ps.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+                ps.gravity = new BABYLON.Vector3(0, -1.0, 0);
+                ps.targetStopDuration = 0.35;
+                ps.disposeOnStop = true;
+                ps.start();
+            };
+
+            // 4. DRAG & DROP HTML5 NATIF AL CANVAS 3D (Regla Gold V8 1.1)
+            const canvasContainer = document.getElementById("canvas-container");
+            document.querySelectorAll(".piece-btn").forEach(btn => {
+                btn.addEventListener("dragstart", (e) => {
+                    e.dataTransfer.setData("pieza-id", btn.id.replace("btn-", ""));
+                });
+            });
+
+            canvasContainer.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                canvasContainer.classList.add("drop-hover");
+            });
+
+            canvasContainer.addEventListener("dragleave", () => {
+                canvasContainer.classList.remove("drop-hover");
+            });
+
+            canvasContainer.addEventListener("drop", (e) => {
+                e.preventDefault();
+                canvasContainer.classList.remove("drop-hover");
+                const id = e.dataTransfer.getData("pieza-id");
+                if (id) installPiece(id);
+            });
+
+            function installPiece(id) {
+                if (instaladas[id]) return;
+                instaladas[id] = true;
+
+                const btn = document.getElementById("btn-" + id);
+                if (btn) {
+                    btn.classList.add("installed");
+                    btn.setAttribute("draggable", "false");
+                    btn.querySelector(".badge-status").innerText = "Ensamblado";
+                }
+
+                const node = buildPiece(id);
+                if (node) {
+                    createSnapSparkles(new BABYLON.Vector3(0, 0.5, 0));
+
+                    // Animación Pop-In
+                    node.scaling = new BABYLON.Vector3(0.01, 0.01, 0.01);
+                    let t0 = performance.now();
+                    const popAnim = () => {
+                        const p = Math.min((performance.now() - t0) / 450, 1);
+                        const ease = Math.sin(p * Math.PI / 2);
+                        node.scaling = new BABYLON.Vector3(ease, ease, ease);
+                        if (p >= 1) {
+                            node.scaling = new BABYLON.Vector3(1, 1, 1);
+                            sceneObj.onBeforeRenderObservable.removeCallback(popAnim);
+                        }
+                    };
+                    sceneObj.onBeforeRenderObservable.add(popAnim);
+                }
+
+                // Actualizar progreso
+                const completadas = Object.values(instaladas).filter(Boolean).length;
+                const pct = Math.round((completadas / 15) * 100);
+                document.getElementById("progress-fill").style.width = pct + "%";
+                document.getElementById("progress-txt").innerText = `${completadas} / 15`;
+
+                if (completadas < 15) {
+                    const pendientes = Object.keys(instaladas).filter(k => !instaladas[k]);
+                    const nombres = {
+                        body: "Carrocería y Chasis", windshield: "Cristales y Techo", wheel_fl: "Rueda Delant. Izq.",
+                        wheel_fr: "Rueda Delant. Der.", wheel_rl: "Rueda Tras. Izq.", wheel_rr: "Rueda Tras. Der.",
+                        motor: "Motor y Ejes", sensor_ll: "Sensor Lat. Izq.", sensor_lr: "Sensor Lat. Der.",
+                        sensor_f: "Sensor Frontal", sensor_r: "Sensor Trasero", cam_r: "Cámara Frontal/Tras.",
+                        dir_mod: "Mód. de Dirección", screen: "Pantalla de Aviso", brain: "Módulo de Control"
+                    };
+                    if (pendientes[0]) document.getElementById("banner").innerHTML = `👉 Arrastra al escenario: <b>${nombres[pendientes[0]]}</b>`;
+                } else {
+                    completado = true;
+                    const cRing = sceneObj.getMeshByName("cRing");
+                    if (cRing) cRing.dispose();
+                    const banner = document.getElementById("banner");
+                    banner.classList.add("completed");
+                    banner.innerHTML = `<span>✨ <b>¡Coche Autoaparcante ELEGOO Ensamblado y Operativo!</b> Listo para programar en P2.</span> <button class="btn-restart" onclick="location.reload()">🔄 Reiniciar Montaje</button>`;
+                }
+            }
+
+            engine.runRenderLoop(function() { sceneObj.render(); });
+            window.addEventListener("resize", function() { engine.resize(); });
+        });
+    </script>
+</body>
+</html>

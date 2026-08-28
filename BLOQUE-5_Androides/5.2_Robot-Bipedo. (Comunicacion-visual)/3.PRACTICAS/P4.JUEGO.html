@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P4. Reto de Inteligencia Física y Comunicación Visual — Tesla Optimus Gen 3</title>
+    <style>
+        :root {
+            --bg-body: #0d111a;
+            --bg-panel: #161b28;
+            --bg-card: #1e2536;
+            --text-main: #f4f6f9;
+            --text-muted: #9ba3b4;
+            --accent-cyan: #00f2ff;
+            --accent-blue: #008a99;
+            --accent-gold: #ffb700;
+            --accent-green: #00e575;
+            --accent-red: #ff3b5c;
+            --border-color: #2c364e;
+            --font-stack: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* BARRA DE NAVEGACIÓN SUPERIOR */
+        #progress-bar {
+            background: #080a0f;
+            border-bottom: 2px solid var(--accent-cyan);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.15);
+        }
+
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-steps {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-cyan);
+            color: #080a0f;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(0, 242, 255, 0.5);
+        }
+
+        .nav-btn.completed {
+            background: var(--accent-blue);
+            color: #ffffff;
+            border-color: var(--accent-cyan);
+        }
+
+        /* CONTENEDOR PRINCIPAL */
+        .container {
+            max-width: 1000px;
+            margin: 24px auto;
+            padding: 0 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-screen {
+            display: none;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .game-screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* PORTADA DE BIENVENIDA (ESTILO 3.3) */
+        .welcome-header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .welcome-emojis {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 10px rgba(0, 242, 255, 0.3));
+        }
+
+        .welcome-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-subtitle {
+            font-size: 1.15rem;
+            color: var(--accent-cyan);
+            max-width: 750px;
+            margin: 0 auto 24px;
+            line-height: 1.6;
+        }
+
+        .badges-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+
+        .badge {
+            background: var(--bg-card);
+            border: 1px solid var(--accent-blue);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: #080a0f;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0, 242, 255, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 8px 28px rgba(0, 242, 255, 0.6);
+        }
+
+        /* ENCABEZADOS DE MINIJUEGO */
+        .game-title {
+            font-size: 1.6rem;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .game-instructions {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        /* BOTONES COMUNES Y BYPASS SOLUCIÓN */
+        .btn-action {
+            background: var(--accent-blue);
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 16px;
+        }
+
+        .btn-action:hover {
+            background: var(--accent-cyan);
+            color: #080a0f;
+        }
+
+        .btn-solucion {
+            background: var(--accent-gold);
+            color: #080a0f;
+            border: 2px solid #ffffff;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-left: 12px;
+            box-shadow: 0 0 10px rgba(255, 183, 0, 0.4);
+            transition: all 0.2s;
+        }
+
+        .btn-solucion:hover {
+            background: #ffcc00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 183, 0, 0.7);
+        }
+
+        /* ESTILOS TRIVIAL */
+        .trivial-question {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: var(--bg-card);
+            padding: 20px;
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 8px;
+            line-height: 1.4;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            color: var(--text-main);
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .option-btn:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 242, 255, 0.05);
+        }
+
+        .option-btn.correct {
+            border-color: var(--accent-green);
+            background: rgba(0, 229, 117, 0.15);
+            color: var(--accent-green);
+            font-weight: 700;
+        }
+
+        .option-btn.wrong {
+            border-color: var(--accent-red);
+            background: rgba(255, 59, 92, 0.15);
+            color: var(--accent-red);
+        }
+
+        /* ESTILOS ORDENAR SECUENCIA (DRAG & DROP) */
+        .seq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .seq-item {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .seq-item:active {
+            cursor: grabbing;
+            transform: scale(0.99);
+        }
+
+        .seq-item.drag-over {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 242, 255, 0.1);
+        }
+
+        .seq-handle {
+            font-size: 1.4rem;
+            color: var(--accent-cyan);
+        }
+
+        /* ESTILOS GLOSARIO (EMPAREJAR) */
+        .glossary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .glossary-grid { grid-template-columns: 1fr; }
+        }
+
+        .glossary-column {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .glossary-item {
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .glossary-item:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .glossary-item.selected {
+            border-color: var(--accent-gold);
+            background: rgba(255, 183, 0, 0.15);
+        }
+
+        .glossary-item.matched {
+            border-color: var(--accent-green);
+            background: rgba(0, 229, 117, 0.1);
+            cursor: default;
+            opacity: 0.85;
+        }
+
+        .match-tag {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+
+        /* ESTILOS RETO FINAL CON HUD Y CANVAS */
+        .reto-hud {
+            background: #080a0f;
+            border: 2px solid var(--accent-cyan);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+
+        .hud-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .hud-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .hud-metric {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .hud-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .hud-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+        }
+
+        #reto-canvas {
+            background: #10141e;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 100%;
+            height: 180px;
+            display: block;
+        }
+
+        .reto-case {
+            background: var(--bg-card);
+            border-left: 4px solid var(--accent-cyan);
+            padding: 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        /* PANTALLA FINAL */
+        .final-header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .final-trophy {
+            font-size: 5rem;
+            margin-bottom: 16px;
+            animation: bounce 1s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-12px); }
+        }
+
+        .score-display {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            margin: 16px 0;
+            filter: drop-shadow(0 0 10px rgba(255, 183, 0, 0.5));
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA DE NAVEGACIÓN -->
+    <nav id="progress-bar">
+        <div class="nav-brand">🤖 OPTIMUS GEN 3 · RETO BIOMIMÉTICO</div>
+        <div class="nav-steps">
+            <button class="nav-btn active" onclick="goGame(0)">1. Inicio</button>
+            <button class="nav-btn" onclick="goGame(1)">2. Trivial</button>
+            <button class="nav-btn" onclick="goGame(2)">3. Ordenar</button>
+            <button class="nav-btn" onclick="goGame(3)">4. Glosario</button>
+            <button class="nav-btn" onclick="goGame(4)">5. Reto Final</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- PANTALLA 0: PORTADA DE BIENVENIDA -->
+        <section id="pant-0" class="game-screen active">
+            <div class="welcome-header">
+                <div class="welcome-emojis">🤖🦾🧭</div>
+                <h1 class="welcome-title">Reto de Inteligencia Física y Comunicación Visual</h1>
+                <p class="welcome-subtitle">
+                    ¡Bienvenidos a la sala de ingeniería! Hoy nos pondremos en la piel de los arquitectos biomecánicos del <b>Tesla Optimus Gen 3 (V3)</b>. Aprenderemos cómo logra caminar sin caerse mediante el Punto de Momento Cero (ZMP), por qué sus manos de 22 grados de libertad se accionan por tendones desde el antebrazo y cómo se comunica con nosotros a través de su Visor FSD y Halo LED Cian.
+                </p>
+                <div class="badges-container">
+                    <span class="badge">🧠 4 Minijuegos Interactivos</span>
+                    <span class="badge">💡 Botones de Solución Directa</span>
+                    <span class="badge">⚡ Telemetría y Canvas 2D en Vivo</span>
+                    <span class="badge">🎖️ Certificado de Inteligencia Física</span>
+                </div>
+                <button class="start-btn" onclick="goGame(1)">¡EMPEZAR EL RETO!</button>
+            </div>
+        </section>
+
+        <!-- PANTALLA 1: TRIVIAL -->
+        <section id="pant-1" class="game-screen">
+            <h2 class="game-title">🎯 Minijuego 1: Trivial de Ingeniería Biomimética</h2>
+            <p class="game-instructions">Responde correctamente a las 5 preguntas sobre la anatomía y funcionamiento del Tesla Optimus Gen 3. Si te bloqueas o quieres avanzar rápido, pulsa el botón amarillo "VER SOLUCIÓN 💡".</p>
+            
+            <div id="trivial-container"></div>
+
+            <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="trivial-status" style="font-weight: 700; color: var(--accent-cyan);">Pregunta 1 de 5</span>
+                <div>
+                    <button class="btn-solucion" onclick="solveTrivial()">VER SOLUCIÓN 💡</button>
+                    <button class="btn-action" id="trivial-next-btn" style="display: none;" onclick="nextTrivial()">Siguiente Pregunta ➔</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- PANTALLA 2: ORDENAR SECUENCIA -->
+        <section id="pant-2" class="game-screen">
+            <h2 class="game-title">📦 Minijuego 2: Secuencia de Locomoción ZMP y Manipulación</h2>
+            <p class="game-instructions">Arrastra y suelta (o haz clic para intercambiar) los 4 pasos para ordenarlos en la secuencia cronológica correcta de un desvío y manipulación fina en la fábrica.</p>
+            
+            <div class="seq-list" id="seq-list"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <span id="seq-feedback" style="font-weight: 700;"></span>
+                <div>
+                    <button class="btn-solucion" onclick="solveSeq()">VER SOLUCIÓN 💡</button>
+                    <button class="btn-action" onclick="checkSeq()">Comprobar Orden ✓</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- PANTALLA 3: GLOSARIO EMPAREJAR -->
+        <section id="pant-3" class="game-screen">
+            <h2 class="game-title">🔗 Minijuego 3: Glosario Técnico del Optimus Gen 3</h2>
+            <p class="game-instructions">Haz clic en un término técnico de la columna izquierda y luego en su definición correcta de la columna derecha para formar las 5 parejas exactas.</p>
+            
+            <div class="glossary-grid">
+                <div class="glossary-column" id="glossary-terms"></div>
+                <div class="glossary-column" id="glossary-defs"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <span id="glossary-feedback" style="font-weight: 700; color: var(--accent-cyan);">Parejas conectadas: 0 / 5</span>
+                <button class="btn-solucion" onclick="solveGlossary()">VER SOLUCIÓN 💡</button>
+            </div>
+        </section>
+
+        <!-- PANTALLA 4: RETO FINAL CON HUD -->
+        <section id="pant-4" class="game-screen">
+            <h2 class="game-title">⚡ Minijuego 4: Reto de Telemetría y Comunicación Visual</h2>
+            <p class="game-instructions">Toma el control algorítmico frente a 4 situaciones reales en el taller. Observa cómo el HUD superior y el radar animado en el Canvas 2D actualizan la estabilidad del robot y su halo LED cian en tiempo real.</p>
+            
+            <div class="reto-hud">
+                <div class="hud-grid">
+                    <div class="hud-metric">
+                        <div class="hud-label">Estabilidad ZMP</div>
+                        <div class="hud-value" id="hud-zmp">100% ESTABLE</div>
+                    </div>
+                    <div class="hud-metric">
+                        <div class="hud-label">Mano 22-DOF</div>
+                        <div class="hud-value" id="hud-hand">LISTA / REPOSO</div>
+                    </div>
+                    <div class="hud-metric">
+                        <div class="hud-label">Halo LED Visor</div>
+                        <div class="hud-value" id="hud-halo" style="color: var(--accent-cyan);">CIAN CONSTANTE</div>
+                    </div>
+                    <div class="hud-metric">
+                        <div class="hud-label">Batería SoC Torso</div>
+                        <div class="hud-value" id="hud-bat">2.3 kWh (98%)</div>
+                    </div>
+                </div>
+                <canvas id="reto-canvas" width="900" height="180"></canvas>
+            </div>
+
+            <div class="reto-case" id="reto-case-text">Cargando caso práctico...</div>
+            <div class="options-grid" id="reto-options"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px;">
+                <span id="reto-status" style="font-weight: 700; color: var(--accent-cyan);">Caso 1 de 4</span>
+                <button class="btn-solucion" onclick="solveReto()">VER SOLUCIÓN 💡</button>
+            </div>
+        </section>
+
+        <!-- PANTALLA 5: CERTIFICACIÓN FINAL -->
+        <section id="pant-final" class="game-screen">
+            <div class="final-header">
+                <div class="final-trophy">🏆🦾🎖️</div>
+                <h1 class="welcome-title">¡Enhorabuena, Arquitecto Biomecánico!</h1>
+                <p class="welcome-subtitle">Has superado con éxito todos los desafíos de Inteligencia Física, Locomoción ZMP, Actuación por Tendones y Comunicación Visual del <b>Tesla Optimus Gen 3</b>.</p>
+                
+                <div class="score-display" id="final-score">Puntuación: 120 / 120</div>
+                
+                <p style="color: var(--text-muted); max-width: 650px; margin: 0 auto 30px; line-height: 1.6; font-size: 1.05rem;">
+                    Ya dominas por qué los actuadores remotos en el antebrazo aligeran la mano, cómo los sensores de presión plantar evitan caídas y por qué el Halo LED cian es esencial para una convivencia armónica entre personas y robots.
+                </p>
+
+                <button class="start-btn" onclick="goGame(0)">🔄 Reiniciar Reto Biomimético</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // VARIABLES GLOBALES DE ESTADO
+        let currentScreen = 0;
+        let score = 0;
+
+        // 1. DATOS TRIVIAL
+        const trivialData = [
+            {
+                q: "¿Por qué el Tesla Optimus Gen 3 aloja los 25 motores de cada mano en el antebrazo en lugar de ponerlos dentro de los dedos?",
+                options: [
+                    "Para aligerar la mano, reducir su inercia motriz y mover los dedos a gran velocidad mediante cables tendinosos en la muñeca.",
+                    "Porque en los dedos no hay suficiente voltaje y se calentarían los circuitos al tocar el agua.",
+                    "Para que los brazos pesen exactamente 50 kg y el robot no pueda levantar los codos."
+                ],
+                correct: 0
+            },
+            {
+                q: "¿Qué función principal cumple el Halo LED brillante de color cian que rodea el mentón y cuello del Visor FSD?",
+                options: [
+                    "Iluminar el suelo por la noche para que las cámaras infrarrojas no necesiten batería.",
+                    "Emitir señales visuales claras sobre su estado operativo y alertas de cortesía sin recurrir a un rostro humano artificial inquietante.",
+                    "Servir como antena de radio de alta frecuencia para conectar con satélites espaciales."
+                ],
+                correct: 1
+            },
+            {
+                q: "¿Dónde se encuentra ubicado el supercomputador físico FSD + IA del robot y su paquete de baterías integrado de ~2.3 kWh?",
+                options: [
+                    "Dentro de las zapatillas deportivas para bajar el centro de gravedad al suelo.",
+                    "En la coraza superior del torso pectoral blanco y en el abdomen negro mate, con refrigeración líquida optimizada.",
+                    "En una mochila externa con cables que el robot debe arrastrar en un carrito por toda la fábrica."
+                ],
+                correct: 1
+            },
+            {
+                q: "¿Cómo logra el Optimus Gen 3 mantenerse en equilibrio al caminar sobre dos piernas o balancearse en una sola pierna (*ZMP*)?",
+                options: [
+                    "Calculando continuamente el Punto de Momento Cero mediante sensores de fuerza y par plantares en sus zapatillas y actuadores lineales en los gemelos.",
+                    "Usando dos ruedas ocultas debajo de los talones que se despliegan cuando el robot empieza a caerse.",
+                    "Girando la cabeza en círculos a 1000 revoluciones por minuto para crear un efecto giroscópico."
+                ],
+                correct: 0
+            },
+            {
+                q: "¿Cuántos grados de libertad (DoF) articulares posee cada una de las manos biomiméticas dextrales de este robot?",
+                options: [
+                    "5 grados de libertad (uno para abrir y cerrar cada dedo como una pinza simple).",
+                    "22 grados de libertad accionados por tendones con sensores táctiles de alta sensibilidad en las yemas.",
+                    "100 grados de libertad hidráulicos que requieren una manguera externa conectada al techo."
+                ],
+                correct: 1
+            }
+        ];
+        let currentTrivialIdx = 0;
+
+        // 2. DATOS SECUENCIA
+        const seqData = [
+            "1. Percepción FSD: El Visor 3D detecta un obstáculo y una pieza frágil, parpadeando su halo cian en señal de reconocimiento.",
+            "2. Cálculo y Equilibrio ZMP: El SoC en el torso calcula la presión plantar e impulsa los actuadores lineales del gemelo para estabilizar la postura.",
+            "3. Tracción Tendinosa: Los motores del antebrazo tensan los cables de acero por la muñeca para curvar las 22 articulaciones de la mano con fuerza calibrada.",
+            "4. Transporte y Cortesía: El robot camina a 5 km/h manteniendo el centro de masa estable y el halo LED cian encendido para avisar al operario."
+        ];
+        let currentSeq = [];
+
+        // 3. DATOS GLOSARIO
+        const glossaryPairs = [
+            { id: 'A', term: 'Visor FSD Espejo', def: 'Casco negro brillante sin rostro que oculta cámaras 3D y evita el "valle inquietante"' },
+            { id: 'B', term: 'Mano Dextral 22-DOF', def: 'Extremidad articulada con sensores de tacto en las yemas para manipulación industrial fina' },
+            { id: 'C', term: 'Actuación por Tendones', def: 'Arquitectura que ubica los motores en el antebrazo y mueve los dedos mediante cables de acero' },
+            { id: 'D', term: 'Equilibrio Plantar ZMP', def: 'Cálculo de presión en la suela del pie para evitar caídas al caminar o balancearse sobre una pierna' },
+            { id: 'E', term: 'SoC FSD en Torso', def: 'Supercomputador de IA física y batería de 2.3 kWh integrados en el pecho y abdomen' }
+        ];
+        let selectedTerm = null;
+        let matchedPairs = 0;
+        let termColors = { 'A': '#00f2ff', 'B': '#ffb700', 'C': '#00e575', 'D': '#ff3b5c', 'E': '#008a99' };
+
+        // 4. DATOS RETO FINAL
+        const retoData = [
+            {
+                case: "Caso 1: El Optimus transporta una bandeja con un chip industrial delicado por un pasillo por donde corre de imprevisto un técnico humano. ¿Qué decisión de Inteligencia Física y Comunicación Visual debe ejecutar el robot?",
+                options: [
+                    "Frenar con un tirón brusco y apagar todas las luces de su cabeza para no molestar al técnico.",
+                    "Decelerar progresivamente con sus actuadores de gemelo para no derramar ni soltar la pieza, desviar su trayectoria 30° e hacer parpadear su Halo LED cian en señal de cesión de paso.",
+                    "Acelerar a 15 km/h en línea recta haciendo sonar una bocina de alarma de 120 decibelios."
+                ],
+                correct: 1,
+                hud: { zmp: "100% ESTABLE", hand: "PRECISIÓN 12 N·cm", halo: "PARPADEO CIAN / CESIÓN", bat: "2.3 kWh (97%)" },
+                animState: "evasion"
+            },
+            {
+                case: "Caso 2: El robot debe insertar un pasador metálico minúsculo de 2 milímetros en una placa electrónica de alta precisión. ¿Qué orden envía el supercomputador del torso a los brazos?",
+                options: [
+                    "Bloquear la muñeca y golpear el pasador hacia abajo con todo el peso del brazo de 57 kg.",
+                    "Activar los motores del antebrazo para tensar milimétricamente los cables tendinosos de los dedos pulgar e índice, utilizando la retroalimentación táctil de las yemas para encajarlo sin romper nada.",
+                    "Soltar la pieza desde 50 centímetros de altura para que caiga por gravedad dentro del agujero."
+                ],
+                correct: 1,
+                hud: { zmp: "BIPEDESTACIÓN FIRME", hand: "TENDONES 22-DOF ACTIVOS", halo: "CIAN CONSTANTE", bat: "2.3 kWh (96%)" },
+                animState: "tendones"
+            },
+            {
+                case: "Caso 3: El suelo del taller ha quedado ligeramente resbaladizo debido a un vertido de aceite lubricante y el Optimus debe pasar por ahí cargando una caja de 15 kg. ¿Cómo reacciona el control plantar ZMP?",
+                options: [
+                    "Los sensores plantares de fuerza detectan pérdida de adherencia; el algoritmo ZMP reduce la velocidad de paso, flexiona las rodilleras flotantes y ajusta el ángulo del tobillo 500 veces por segundo para evitar el resbalón.",
+                    "El robot salta en el aire con ambas piernas para pasar volando por encima del charco de aceite.",
+                    "Se detiene indefinidamente y apaga su batería principal hasta que el suelo esté completamente seco."
+                ],
+                correct: 0,
+                hud: { zmp: "CORRECCIÓN ZMP ACTIVA", hand: "SUJECIÓN 15 KG OK", halo: "ALERTA AMARILLA / CIAN", bat: "2.3 kWh (95%)" },
+                animState: "zmp"
+            },
+            {
+                case: "Caso 4: Al finalizar su turno de 4 horas intensivas en la línea de montaje, la telemetría térmica indica un aumento de temperatura en el SoC FSD del pecho y la batería alcanza el 15%. ¿Cuál es el protocolo?",
+                options: [
+                    "Seguir trabajando a máxima velocidad hasta que los motores echen humo por sobrecalentamiento.",
+                    "Activar el circuito de refrigeración líquida interna en el torso, iluminar el Halo del Visor en pulso suave de retorno y desplazarse de forma autónoma a 4 km/h hacia su base de recarga inductiva.",
+                    "Desmontarse las dos piernas y quedarse sentado en el suelo del taller hasta el día siguiente."
+                ],
+                correct: 1,
+                hud: { zmp: "MARCHA DE RETORNO", hand: "REPOSO DESCARGADO", halo: "PULSO RETORNO / RECARGA", bat: "0.35 kWh (15%) -> CARGANDO" },
+                animState: "retorno"
+            }
+        ];
+        let currentRetoIdx = 0;
+
+        // NAVEGACIÓN GENERAL
+        function goGame(screenIdx) {
+            document.querySelectorAll('.game-screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach((b, idx) => {
+                b.classList.remove('active');
+                if (idx < screenIdx && idx > 0) b.classList.add('completed');
+            });
+
+            currentScreen = screenIdx;
+            if (screenIdx === 0) {
+                document.getElementById('pant-0').classList.add('active');
+                document.querySelectorAll('.nav-btn')[0].classList.add('active');
+            } else if (screenIdx === 1) {
+                document.getElementById('pant-1').classList.add('active');
+                document.querySelectorAll('.nav-btn')[1].classList.add('active');
+                initTrivial();
+            } else if (screenIdx === 2) {
+                document.getElementById('pant-2').classList.add('active');
+                document.querySelectorAll('.nav-btn')[2].classList.add('active');
+                initSeq();
+            } else if (screenIdx === 3) {
+                document.getElementById('pant-3').classList.add('active');
+                document.querySelectorAll('.nav-btn')[3].classList.add('active');
+                initGlossary();
+            } else if (screenIdx === 4) {
+                document.getElementById('pant-4').classList.add('active');
+                document.querySelectorAll('.nav-btn')[4].classList.add('active');
+                initReto();
+            } else if (screenIdx === 5) {
+                document.getElementById('pant-final').classList.add('active');
+                document.getElementById('final-score').textContent = `Puntuación: ${score} / 120`;
+            }
+        }
+
+        // LÓGICA TRIVIAL
+        function initTrivial() {
+            currentTrivialIdx = 0;
+            renderTrivialQuestion();
+        }
+
+        function renderTrivialQuestion() {
+            const item = trivialData[currentTrivialIdx];
+            const container = document.getElementById('trivial-container');
+            document.getElementById('trivial-status').textContent = `Pregunta ${currentTrivialIdx + 1} de ${trivialData.length}`;
+            document.getElementById('trivial-next-btn').style.display = 'none';
+
+            let html = `<div class="trivial-question">${item.q}</div><div class="options-grid">`;
+            item.options.forEach((opt, idx) => {
+                html += `<button class="option-btn" onclick="checkTrivial(${idx})"><span>${opt}</span></button>`;
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        function checkTrivial(idx) {
+            const item = trivialData[currentTrivialIdx];
+            const btns = document.querySelectorAll('#trivial-container .option-btn');
+            
+            btns.forEach(b => b.style.pointerEvents = 'none');
+            if (idx === item.correct) {
+                btns[idx].classList.add('correct');
+                score += 8;
+                document.getElementById('trivial-next-btn').style.display = 'inline-block';
+            } else {
+                btns[idx].classList.add('wrong');
+                btns[item.correct].classList.add('correct');
+                document.getElementById('trivial-next-btn').style.display = 'inline-block';
+            }
+        }
+
+        function nextTrivial() {
+            if (currentTrivialIdx < trivialData.length - 1) {
+                currentTrivialIdx++;
+                renderTrivialQuestion();
+            } else {
+                goGame(2);
+            }
+        }
+
+        function solveTrivial() {
+            const item = trivialData[currentTrivialIdx];
+            const btns = document.querySelectorAll('#trivial-container .option-btn');
+            btns.forEach((b, idx) => {
+                b.style.pointerEvents = 'none';
+                if (idx === item.correct) b.classList.add('correct');
+            });
+            document.getElementById('trivial-next-btn').style.display = 'inline-block';
+        }
+
+        // LÓGICA SECUENCIA
+        function initSeq() {
+            currentSeq = [...seqData].sort(() => Math.random() - 0.5);
+            renderSeq();
+        }
+
+        function renderSeq() {
+            const list = document.getElementById('seq-list');
+            list.innerHTML = '';
+            currentSeq.forEach((txt, idx) => {
+                const div = document.createElement('div');
+                div.className = 'seq-item';
+                div.draggable = true;
+                div.innerHTML = `<span class="seq-handle">☰</span><span>${txt}</span>`;
+                
+                div.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', idx));
+                div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
+                div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+                div.addEventListener('drop', e => {
+                    e.preventDefault();
+                    div.classList.remove('drag-over');
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    const toIdx = idx;
+                    const moved = currentSeq.splice(fromIdx, 1)[0];
+                    currentSeq.splice(toIdx, 0, moved);
+                    renderSeq();
+                });
+                list.appendChild(div);
+            });
+            document.getElementById('seq-feedback').textContent = '';
+        }
+
+        function checkSeq() {
+            let correct = true;
+            currentSeq.forEach((txt, idx) => {
+                if (txt !== seqData[idx]) correct = false;
+            });
+            if (correct) {
+                document.getElementById('seq-feedback').textContent = '¡Secuencia de Locomoción ZMP perfecta!';
+                document.getElementById('seq-feedback').style.color = 'var(--accent-green)';
+                score += 20;
+                setTimeout(() => goGame(3), 1500);
+            } else {
+                document.getElementById('seq-feedback').textContent = 'El orden aún no es exacto. ¡Inténtalo de nuevo o pulsa Ver Solución!';
+                document.getElementById('seq-feedback').style.color = 'var(--accent-red)';
+            }
+        }
+
+        function solveSeq() {
+            currentSeq = [...seqData];
+            renderSeq();
+            document.getElementById('seq-feedback').textContent = '¡Secuencia resuelta y ordenada automáticamente!';
+            document.getElementById('seq-feedback').style.color = 'var(--accent-gold)';
+            setTimeout(() => goGame(3), 1800);
+        }
+
+        // LÓGICA GLOSARIO
+        function initGlossary() {
+            matchedPairs = 0;
+            selectedTerm = null;
+            const termsContainer = document.getElementById('glossary-terms');
+            const defsContainer = document.getElementById('glossary-defs');
+            termsContainer.innerHTML = '';
+            defsContainer.innerHTML = '';
+
+            const terms = [...glossaryPairs].sort(() => Math.random() - 0.5);
+            const defs = [...glossaryPairs].sort(() => Math.random() - 0.5);
+
+            terms.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'glossary-item';
+                div.dataset.id = item.id;
+                div.innerHTML = `<span><b>${item.term}</b></span><span class="match-tag" style="background:${termColors[item.id]}; color:#000;">Par ${item.id}</span>`;
+                div.onclick = () => selectTerm(div, item.id);
+                termsContainer.appendChild(div);
+            });
+
+            defs.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'glossary-item';
+                div.dataset.id = item.id;
+                div.innerHTML = `<span>${item.def}</span><span class="match-tag" style="background:#2c364e; color:#fff;">¿Par?</span>`;
+                div.onclick = () => selectDef(div, item.id);
+                defsContainer.appendChild(div);
+            });
+            document.getElementById('glossary-feedback').textContent = 'Parejas conectadas: 0 / 5';
+        }
+
+        function selectTerm(el, id) {
+            if (el.classList.contains('matched')) return;
+            document.querySelectorAll('#glossary-terms .glossary-item').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedTerm = { el, id };
+        }
+
+        function selectDef(el, id) {
+            if (el.classList.contains('matched') || !selectedTerm) return;
+            if (selectedTerm.id === id) {
+                selectedTerm.el.classList.remove('selected');
+                selectedTerm.el.classList.add('matched');
+                el.classList.add('matched');
+                el.querySelector('.match-tag').style.background = termColors[id];
+                el.querySelector('.match-tag').style.color = '#000';
+                el.querySelector('.match-tag').textContent = `Par ${id} ✓`;
+                selectedTerm = null;
+                matchedPairs++;
+                score += 8;
+                document.getElementById('glossary-feedback').textContent = `Parejas conectadas: ${matchedPairs} / 5`;
+                if (matchedPairs === 5) setTimeout(() => goGame(4), 1500);
+            } else {
+                el.style.borderColor = 'var(--accent-red)';
+                setTimeout(() => el.style.borderColor = 'var(--border-color)', 500);
+            }
+        }
+
+        function solveGlossary() {
+            document.querySelectorAll('#glossary-terms .glossary-item').forEach(tEl => {
+                tEl.classList.add('matched');
+                const id = tEl.dataset.id;
+                document.querySelectorAll('#glossary-defs .glossary-item').forEach(dEl => {
+                    if (dEl.dataset.id === id) {
+                        dEl.classList.add('matched');
+                        dEl.querySelector('.match-tag').style.background = termColors[id];
+                        dEl.querySelector('.match-tag').style.color = '#000';
+                        dEl.querySelector('.match-tag').textContent = `Par ${id} ✓`;
+                    }
+                });
+            });
+            matchedPairs = 5;
+            document.getElementById('glossary-feedback').textContent = '¡Glosario completado automáticamente!';
+            document.getElementById('glossary-feedback').style.color = 'var(--accent-gold)';
+            setTimeout(() => goGame(4), 1800);
+        }
+
+        // LÓGICA RETO FINAL Y CANVAS 2D PROCEDURAL
+        let animFrameId = null;
+        let radarAngle = 0;
+        let robotX = 150;
+        let targetX = 750;
+
+        function initReto() {
+            currentRetoIdx = 0;
+            renderRetoCase();
+            startCanvasAnimation();
+        }
+
+        function renderRetoCase() {
+            const item = retoData[currentRetoIdx];
+            document.getElementById('reto-case-text').textContent = item.case;
+            document.getElementById('reto-status').textContent = `Caso ${currentRetoIdx + 1} de ${retoData.length}`;
+            
+            // Actualizar HUD
+            document.getElementById('hud-zmp').textContent = item.hud.zmp;
+            document.getElementById('hud-hand').textContent = item.hud.hand;
+            document.getElementById('hud-halo').textContent = item.hud.halo;
+            document.getElementById('hud-bat').textContent = item.hud.bat;
+
+            const container = document.getElementById('reto-options');
+            let html = '';
+            item.options.forEach((opt, idx) => {
+                html += `<button class="option-btn" onclick="checkReto(${idx})"><span>${opt}</span></button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function checkReto(idx) {
+            const item = retoData[currentRetoIdx];
+            const btns = document.querySelectorAll('#reto-options .option-btn');
+            btns.forEach(b => b.style.pointerEvents = 'none');
+
+            if (idx === item.correct) {
+                btns[idx].classList.add('correct');
+                score += 5;
+                setTimeout(() => nextReto(), 1600);
+            } else {
+                btns[idx].classList.add('wrong');
+                btns[item.correct].classList.add('correct');
+                setTimeout(() => nextReto(), 2000);
+            }
+        }
+
+        function nextReto() {
+            if (currentRetoIdx < retoData.length - 1) {
+                currentRetoIdx++;
+                renderRetoCase();
+            } else {
+                goGame(5);
+            }
+        }
+
+        function solveReto() {
+            const item = retoData[currentRetoIdx];
+            const btns = document.querySelectorAll('#reto-options .option-btn');
+            btns.forEach((b, idx) => {
+                b.style.pointerEvents = 'none';
+                if (idx === item.correct) b.classList.add('correct');
+            });
+            setTimeout(() => nextReto(), 1600);
+        }
+
+        function startCanvasAnimation() {
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            const canvas = document.getElementById('reto-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Fondo y grilla del taller
+                ctx.strokeStyle = '#1e2536';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < canvas.width; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += 40) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
+
+                const item = retoData[currentRetoIdx] || retoData[0];
+                radarAngle += 0.05;
+                if (robotX < 700) robotX += 1.2; else robotX = 150;
+
+                // Dibujar Robot Optimus en Canvas (Vista lateral / isométrica simplificada)
+                ctx.save();
+                ctx.translate(robotX, 110);
+                
+                // Sombra ZMP plantar
+                ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+                ctx.beginPath(); ctx.ellipse(0, 40, 35, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+                // Piernas blancas con actuadores negros
+                ctx.fillStyle = '#f4f6f9';
+                ctx.fillRect(-15, 10, 10, 30); // Pierna izq
+                ctx.fillRect(5, 10, 10, 30);  // Pierna der
+                ctx.fillStyle = '#1a1d20';
+                ctx.fillRect(-18, 20, 4, 15); // Actuador gemelo
+
+                // Torso blanco y abdomen negro
+                ctx.fillStyle = '#1a1d20';
+                ctx.fillRect(-16, -15, 32, 25); // Abdomen / Batería
+                ctx.fillStyle = '#f4f6f9';
+                ctx.fillRect(-20, -40, 40, 25); // Coraza pectoral
+
+                // Brazo y Mano 22-DOF
+                ctx.strokeStyle = '#707580';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(18, -35); ctx.lineTo(35, -15); ctx.lineTo(45, -10); ctx.stroke();
+                ctx.fillStyle = '#00f2ff';
+                ctx.beginPath(); ctx.arc(45, -10, 4, 0, Math.PI * 2); ctx.fill(); // Sensor yema
+
+                // Cabezal Visor espejo con Halo Cian
+                ctx.fillStyle = '#08080c';
+                ctx.beginPath(); ctx.arc(0, -55, 14, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#00f2ff';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.arc(0, -55, 14, 0.2, Math.PI - 0.2); ctx.stroke();
+
+                // Haz del Halo y Visión FSD
+                ctx.fillStyle = 'rgba(0, 242, 255, 0.12)';
+                ctx.beginPath();
+                ctx.moveTo(0, -55);
+                ctx.lineTo(160, -90);
+                ctx.lineTo(160, -20);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+
+                // Dibujar Objetivo / Obstáculo según el caso
+                ctx.save();
+                ctx.translate(750, 110);
+                if (item.animState === 'evasion') {
+                    // Operario cruzando
+                    ctx.fillStyle = '#ffb700';
+                    ctx.fillRect(-10, -30, 20, 50);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText('👤 Técnico', -22, -40);
+                } else if (item.animState === 'tendones') {
+                    // Mesa y pieza milimétrica
+                    ctx.fillStyle = '#2c364e';
+                    ctx.fillRect(-30, 10, 60, 30);
+                    ctx.fillStyle = '#00e575';
+                    ctx.beginPath(); ctx.arc(0, 5, 6, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText('⚙️ Pasador 2mm', -35, -15);
+                } else if (item.animState === 'zmp') {
+                    // Charco de aceite
+                    ctx.fillStyle = 'rgba(255, 59, 92, 0.4)';
+                    ctx.beginPath(); ctx.ellipse(0, 40, 45, 10, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ff3b5c';
+                    ctx.fillText('⚠️ Suelo resbaladizo', -45, 20);
+                } else {
+                    // Base de recarga
+                    ctx.fillStyle = '#008a99';
+                    ctx.fillRect(-25, 20, 50, 20);
+                    ctx.fillStyle = '#00f2ff';
+                    ctx.fillText('⚡ Base Inductiva', -38, 10);
+                }
+                ctx.restore();
+
+                animFrameId = requestAnimationFrame(draw);
+            }
+            draw();
+        }
+    </script>
+</body>
+</html>

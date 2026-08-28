@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2. EJEMPLO REAL · MUÑECA (Estándar Canónico 4.5: Arriba +90, Abajo -90)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0a1a;
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 2px solid #00f2ff;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 100;
+            position: relative;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            color: #00f2ff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0 0 0 20px;
+            font-size: 16px;
+            color: #aaaaaa;
+            border-left: 1px solid #333;
+            padding-left: 20px;
+        }
+
+        #main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            width: 100%;
+        }
+
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            min-width: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+        #ui-panel {
+            width: 420px;
+            flex-shrink: 0;
+            background: rgba(13, 13, 34, 0.75);
+            backdrop-filter: blur(10px);
+            border-right: 2px solid #00f2ff;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 10;
+            box-sizing: border-box;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .panel-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #00f2ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            border-bottom: 2px solid #00f2ff;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #ffffff, #00f2ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .panel-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(0, 242, 255, 0.15);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            color: #00f2ff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .explanation-text {
+            font-size: 13.5px;
+            line-height: 1.5;
+            color: #8e8eb2;
+        }
+        .explanation-text strong {
+            color: #ffffff;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            color: #cbd5e1;
+        }
+
+        .slider-value {
+            font-weight: 800;
+            color: #00f2ff;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 9999px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00f2ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 242, 255, 0.5);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #33f5ff;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        button {
+            flex: 1;
+            height: 48px;
+            background: #101424;
+            border: 1px solid #00f2ff;
+            color: #00f2ff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        button:hover:not(:disabled) {
+            background: rgba(0, 242, 255, 0.15);
+            box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            border-color: #334;
+            color: #4f5e74;
+            cursor: not-allowed;
+            background: #0d0f1a;
+        }
+
+        .telemetry-box {
+            background: #050510;
+            border: 1px solid rgba(0, 242, 255, 0.15);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            color: #8e8eb2;
+        }
+
+        .target-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+
+        .btn-target {
+            background: #1e293b;
+            border: 1px solid rgba(0, 242, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: left;
+            transition: all 0.2s;
+            line-height: 1.4;
+            height: auto;
+            text-transform: none;
+            justify-content: flex-start;
+        }
+
+        .btn-target:hover {
+            background: #2d3748;
+            border-color: #00f2ff;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>P2. EJEMPLO REAL · MUÑECA</h1>
+        <p>BLOQUE 4 · Brazo robótico (Variables de Memoria)</p>
+    </header>
+
+    <div id="main-container">
+        <!-- UI PANEL -->
+        <div id="ui-panel">
+            <div class="panel-title">Consola de Mando</div>
+
+            <div class="panel-section">
+                <div class="section-title">Modelo Canónico Innegociable (4.5 P2)</div>
+                <div class="explanation-text" id="explanation">
+                    Mueve el robot. Siguiendo estrictamente el estándar de 4.5 P2: <strong>Arriba es +90° y Abajo es -90°</strong>. Los rangos de movimiento y cinemática coinciden milimétricamente con la regla oficial del proyecto.<br><br>
+                    <span style="color: #ffaa44;">Nota importante:</span> Para la <strong>Muñeca Horizontal</strong>, <strong>0°</strong> es la posición horizontal de la pinza y <strong>90°</strong> es la posición vertical de perfil.
+                </div>
+            </div>
+
+            <!-- CONTROL DE ARTICULACIONES -->
+            <div class="panel-section">
+                <div class="section-title">🕹️ Ajustar Parámetros</div>
+                
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Base Giratoria</span>
+                        <span class="slider-value" id="val-base">0°</span>
+                    </div>
+                    <input type="range" id="slider-base" min="-90" max="90" value="0">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Hombro</span>
+                        <span class="slider-value" id="val-shoulder">90°</span>
+                    </div>
+                    <input type="range" id="slider-shoulder" min="0" max="180" value="90">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Codo</span>
+                        <span class="slider-value" id="val-elbow">90°</span>
+                    </div>
+                    <input type="range" id="slider-elbow" min="-90" max="180" value="90">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Muñeca Vertical</span>
+                        <span class="slider-value" id="val-pitch">90°</span>
+                    </div>
+                    <input type="range" id="slider-pitch" min="-135" max="90" value="90">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <span>Muñeca Horizontal</span>
+                        <span class="slider-value" id="val-roll">0°</span>
+                    </div>
+                    <input type="range" id="slider-roll" min="-180" max="180" value="0">
+                </div>
+            </div>
+
+            <!-- CASILLERO DE MEMORIA -->
+            <div class="panel-section">
+                <div class="section-title">💾 Memoria del Robot</div>
+                
+                <div class="telemetry-box" id="mem-content">
+                    [VACÍO / NULL]
+                </div>
+
+                <div class="btn-row">
+                    <button id="btn-save">Guardar 💾</button>
+                    <button id="btn-load" disabled>Cargar 🔄</button>
+                </div>
+            </div>
+
+            <!-- PRESETS DIRECTOS -->
+            <div class="panel-section">
+                <div class="section-title">🎯 Variables Pregrabadas</div>
+                <div class="target-grid">
+                    <button class="btn-target" onclick="loadPreset(0, 135, 45, -45, 0)">
+                        <b>📐 Saludo Amigable</b><br>Hombro: 135° · Codo: 45° · M.Vertical: -45°
+                    </button>
+                    <button class="btn-target" onclick="loadPreset(0, 38, -80, -70, 0)">
+                        <b>📦 Coger Caja (Parámetros Oficiales)</b><br>Base: 0° · Hombro: 38º · Codo: -80° · M.Vertical: -70°
+                    </button>
+                    <button class="btn-target" onclick="loadPreset(0, 90, 90, 90, 0)">
+                        <b>🏠 Posición de Reposo (Home)</b><br>Hombro: 90° · Codo: 90° · M.Vertical: 90°
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('renderCanvas');
+        let engine, scene, camera, shadowGen, glow;
+        
+        let baseRotator, shoulderNode, codoNode, link2Node, munecaNode, munecaRollNode, pinzaNode;
+        let codoPointerPivot, munecaPointerPivot;
+        let realFingerL, realFingerR, boxMesh;
+
+        let targetAngles = { base: 0, shoulder: 90, elbow: 90, pitch: 90, roll: 0 };
+        let currentAngles = { base: 0, shoulder: 90, elbow: 90, pitch: 90, roll: 0 };
+        let savedPosition = null;
+
+        const ui = {
+            valBase: document.getElementById('val-base'),
+            valShoulder: document.getElementById('val-shoulder'),
+            valElbow: document.getElementById('val-elbow'),
+            valPitch: document.getElementById('val-pitch'),
+            valRoll: document.getElementById('val-roll'),
+            sliderBase: document.getElementById('slider-base'),
+            sliderShoulder: document.getElementById('slider-shoulder'),
+            sliderElbow: document.getElementById('slider-elbow'),
+            sliderPitch: document.getElementById('slider-pitch'),
+            sliderRoll: document.getElementById('slider-roll'),
+            btnSave: document.getElementById('btn-save'),
+            btnLoad: document.getElementById('btn-load'),
+            memContent: document.getElementById('mem-content'),
+            expText: document.getElementById('explanation')
+        };
+
+        function formatAngle(ang) {
+            return Math.round(ang) + "°";
+        }
+
+        async function initEngine() {
+            try {
+                if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+                    engine = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+                    await engine.initAsync();
+                } else {
+                    throw new Error("WebGPU no soportado");
+                }
+            } catch(e) {
+                engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            }
+            createScene();
+            engine.runRenderLoop(() => {
+                if(scene) scene.render();
+            });
+            window.addEventListener('resize', () => engine.resize());
+            setupUIEvents();
+        }
+
+        let mats = {};
+        function createMaterials() {
+            mats.orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            mats.orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            mats.orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+            mats.blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            mats.blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+
+            mats.metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            mats.metalMat.diffuseColor = BABYLON.Color3.FromHexString("#cbd5e1");
+
+            mats.redMat = new BABYLON.StandardMaterial("redMat", scene);
+            mats.redMat.diffuseColor = BABYLON.Color3.FromHexString("#ff2222");
+            mats.redMat.emissiveColor = BABYLON.Color3.FromHexString("#880000");
+
+            mats.woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            mats.woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+
+            mats.boxMat = new BABYLON.StandardMaterial("boxMat", scene);
+            mats.boxMat.diffuseColor = BABYLON.Color3.FromHexString("#0055ff");
+            mats.boxMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+        }
+
+        // GENERADOR CANÓNICO DE DIALES 2D (MODELO 4.5: Arriba +90, Abajo -90)
+        function createCanonicalDialTexture(name) {
+            const size = 512;
+            const tex = new BABYLON.DynamicTexture(name, size, scene, false);
+            const ctx = tex.getContext();
+            
+            ctx.fillStyle = "#ffb732"; 
+            ctx.fillRect(0, 0, size, size);
+            ctx.translate(size / 2, size / 2); 
+            ctx.rotate(Math.PI); // Orientación estándar exterior
+            
+            ctx.beginPath(); ctx.arc(0, 0, 245, 0, Math.PI * 2);
+            ctx.lineWidth = 14; ctx.strokeStyle = "#000000"; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2);
+            ctx.fillStyle = "#888888"; ctx.fill(); ctx.lineWidth = 4; ctx.stroke();
+            ctx.font = "bold 38px Arial, Helvetica, sans-serif";
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+            for (let i = 0; i < 360; i += 10) {
+                let angle = i * Math.PI / 180;
+                let isMajor = (i % 90 === 0);
+                
+                let innerRad = isMajor ? 160 : 210, outerRad = 238;
+                let x1 = Math.cos(angle) * innerRad, y1 = -Math.sin(angle) * innerRad; 
+                let x2 = Math.cos(angle) * outerRad, y2 = -Math.sin(angle) * outerRad;
+                
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = isMajor ? 6 : 3;
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                
+                if (isMajor) {
+                    let textRad = 125;
+                    let tx = Math.cos(angle) * textRad, ty = -Math.sin(angle) * textRad;
+                    ctx.save(); ctx.translate(tx, ty); ctx.rotate(Math.PI / 2 - angle);
+                    ctx.fillStyle = "#000000";
+                    
+                    // REGLA INNEGOCIABLE: Arriba +90° y Abajo -90°
+                    let labelText = i + "°";
+                    if (i > 180) labelText = (i - 360) + "°";
+                    
+                    ctx.fillText(labelText, 0, 0); ctx.restore();
+                }
+            }
+            tex.update(); return tex;
+        }
+
+        function createDialMaterial(name, texture) {
+            const mat = new BABYLON.StandardMaterial(name, scene);
+            mat.diffuseTexture = texture;
+            mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            mat.backFaceCulling = false;
+            return mat;
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.035;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2.2, Math.PI / 3.2, 7.5, new BABYLON.Vector3(0, 1.75, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 4;
+            camera.upperRadiusLimit = 15;
+
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 0.7;
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(3, 6, 3);
+            dirLight.intensity = 1.2;
+
+            shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true;
+            shadowGen.blurKernel = 32;
+
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 0.6;
+
+            createMaterials();
+            buildRobot();
+            buildInteractiveBox();
+            createFloorDial();
+            setupRenderLoop();
+        }
+
+        function buildRobot() {
+            const matDialL = createDialMaterial("matDialL", createCanonicalDialTexture("texShoulder"));
+            const matDialCodo = createDialMaterial("matDialCodo", createCanonicalDialTexture("texCodo"));
+            const matDialMuneca = createDialMaterial("matDialMuneca", createCanonicalDialTexture("texMuneca"));
+
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+            ground.receiveShadows = true; ground.material = mats.woodMat;
+
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 4, height: 0.1, depth: 4}, scene);
+            basePlate.position.y = 0.05; basePlate.material = mats.woodMat; basePlate.receiveShadows = true;
+
+            const gradCircle = BABYLON.MeshBuilder.CreateCylinder("gradCircle", {diameter: 3.4, height: 0.12}, scene);
+            gradCircle.position.y = 0.11; gradCircle.material = mats.blackMat; shadowGen.addShadowCaster(gradCircle);
+
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3}, scene);
+            domeBase.position.y = 0.2; domeBase.parent = baseRotator; domeBase.material = mats.orangeMat; shadowGen.addShadowCaster(domeBase);
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35; domeSphere.scaling.y = 0.5; domeSphere.parent = baseRotator; domeSphere.material = mats.orangeMat; shadowGen.addShadowCaster(domeSphere);
+
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.0, 0); pillarL.parent = baseRotator; pillarL.material = mats.orangeMat; shadowGen.addShadowCaster(pillarL);
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.0, 0); pillarR.parent = baseRotator; pillarR.material = mats.orangeMat; shadowGen.addShadowCaster(pillarR);
+
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.25}, scene);
+            shoulderPin.position.set(0.2, 1.2, 0); shoulderPin.rotation.z = Math.PI / 2; shoulderPin.parent = baseRotator; shoulderPin.material = mats.metalMat; shadowGen.addShadowCaster(shoulderPin);
+
+            const basePointer = BABYLON.MeshBuilder.CreateCylinder("basePointer", {diameterTop: 0, diameterBottom: 0.15, height: 0.3}, scene);
+            basePointer.position.set(0, 0.18, 1.95); basePointer.rotation.x = Math.PI; basePointer.parent = baseRotator; basePointer.material = mats.redMat;
+
+            shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.position.set(0, 1.2, 0); shoulderNode.parent = baseRotator;
+
+            const shoulderServo = BABYLON.MeshBuilder.CreateCylinder("shoulderServo", {diameter: 0.86, height: 0.3}, scene);
+            shoulderServo.position.set(0.75, 0, 0); shoulderServo.rotation.z = Math.PI / 2; shoulderServo.parent = shoulderNode; shoulderServo.material = mats.blackMat; shadowGen.addShadowCaster(shoulderServo);
+
+            const dialL = BABYLON.MeshBuilder.CreateDisc("dialL", {radius: 0.42, tessellation: 64}, scene);
+            dialL.position.set(0.915, 1.2, 0); dialL.rotation.y = Math.PI / 2; dialL.parent = baseRotator; dialL.material = matDialL;
+
+            const pointerL = BABYLON.MeshBuilder.CreateCylinder("pointerL", {diameterTop: 0, diameterBottom: 0.06, height: 0.2}, scene);
+            pointerL.position.set(0.935, 0.46, 0); pointerL.parent = shoulderNode; pointerL.material = mats.redMat;
+
+            const armBox = BABYLON.MeshBuilder.CreateBox("armBox", {width: 0.2, height: 1.7, depth: 0.34}, scene);
+            armBox.position.set(0.35, 0.85, 0); armBox.parent = shoulderNode; armBox.material = mats.orangeMat; shadowGen.addShadowCaster(armBox);
+
+            codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.position.set(0, 1.7, 0); codoNode.parent = shoulderNode;
+
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.14, height: 0.9}, scene);
+            codoPin.position.set(0.2, 0, 0); codoPin.rotation.z = Math.PI / 2; codoPin.parent = codoNode; codoPin.material = mats.metalMat; shadowGen.addShadowCaster(codoPin);
+
+            const codoServo = BABYLON.MeshBuilder.CreateCylinder("codoServo", {diameter: 0.66, height: 0.22}, scene);
+            codoServo.position.set(0.35, 0, 0); codoServo.rotation.z = Math.PI / 2; codoServo.parent = codoNode; codoServo.material = mats.blackMat; shadowGen.addShadowCaster(codoServo);
+
+            codoPointerPivot = new BABYLON.TransformNode("codoPointerPivot", scene);
+            codoPointerPivot.position.set(0, 1.7, 0); codoPointerPivot.parent = shoulderNode;
+
+            const codoDialMesh = BABYLON.MeshBuilder.CreateDisc("codoDialMesh", {radius: 0.32, tessellation: 64}, scene);
+            codoDialMesh.position.set(0.565, 0, 0); codoDialMesh.rotation.y = Math.PI / 2; codoDialMesh.parent = codoPointerPivot; codoDialMesh.material = matDialCodo;
+
+            const codoPointer = BABYLON.MeshBuilder.CreateCylinder("codoPointer", {diameterTop: 0, diameterBottom: 0.05, height: 0.15}, scene);
+            codoPointer.position.set(0.575, 0.35, 0); codoPointer.parent = codoNode; codoPointer.material = mats.redMat;
+
+            link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBox = BABYLON.MeshBuilder.CreateBox("forearmBox", {width: 0.3, height: 1.3, depth: 0.23}, scene);
+            forearmBox.position.set(0, 0.65, 0); forearmBox.parent = link2Node; forearmBox.material = mats.orangeMat; shadowGen.addShadowCaster(forearmBox);
+
+            munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.position.set(0, 1.3, 0); munecaNode.parent = link2Node;
+
+            const wristJointOuter = BABYLON.MeshBuilder.CreateCylinder("wristJointOuter", {diameter: 0.5, height: 0.2}, scene);
+            wristJointOuter.rotation.z = Math.PI / 2; wristJointOuter.parent = munecaNode; wristJointOuter.material = mats.orangeMat; shadowGen.addShadowCaster(wristJointOuter);
+
+            const wristJointInner = BABYLON.MeshBuilder.CreateCylinder("wristJointInner", {diameter: 0.3, height: 0.22}, scene);
+            wristJointInner.rotation.z = Math.PI / 2; wristJointInner.parent = munecaNode; wristJointInner.material = mats.blackMat; shadowGen.addShadowCaster(wristJointInner);
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.24, height: 0.24, depth: 0.24}, scene);
+            wristServo.position.set(0, 0.12, 0); wristServo.parent = munecaNode; wristServo.material = mats.blackMat; shadowGen.addShadowCaster(wristServo);
+
+            const pointerM = BABYLON.MeshBuilder.CreateCylinder("pointerM", {diameterTop: 0, diameterBottom: 0.04, height: 0.12}, scene);
+            pointerM.position.set(0.375, 0.26, 0); pointerM.parent = munecaNode; pointerM.material = mats.redMat;
+
+            munecaPointerPivot = new BABYLON.TransformNode("munecaPointerPivot", scene);
+            munecaPointerPivot.position.set(0, 1.3, 0); munecaPointerPivot.parent = link2Node;
+
+            const wristDialShaft = BABYLON.MeshBuilder.CreateCylinder("wristDialShaft", {diameter: 0.1, height: 0.24}, scene);
+            wristDialShaft.position.set(0.22, 0, 0); wristDialShaft.rotation.z = Math.PI / 2; wristDialShaft.parent = munecaPointerPivot; wristDialShaft.material = mats.blackMat; shadowGen.addShadowCaster(wristDialShaft);
+
+            const munecaDialMesh = BABYLON.MeshBuilder.CreateDisc("munecaDialMesh", {radius: 0.24, tessellation: 64}, scene);
+            munecaDialMesh.position.set(0.366, 0, 0); munecaDialMesh.rotation.y = Math.PI / 2; munecaDialMesh.parent = munecaPointerPivot; munecaDialMesh.material = matDialMuneca;
+
+            munecaRollNode = new BABYLON.TransformNode("munecaRollNode", scene);
+            munecaRollNode.position.set(0, 0.24, 0); munecaRollNode.rotation.x = -Math.PI / 2; munecaRollNode.parent = munecaNode;
+
+            const rollServoBody = BABYLON.MeshBuilder.CreateBox("rollServoBody", {width: 0.16, height: 0.16, depth: 0.16}, scene);
+            rollServoBody.position.set(0, 0, 0.08); rollServoBody.parent = munecaRollNode; rollServoBody.material = mats.blackMat; shadowGen.addShadowCaster(rollServoBody);
+
+            pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.position.set(0, 0, 0.16);
+            pinzaNode.parent = munecaRollNode;
+
+            const realGripperBase = BABYLON.MeshBuilder.CreateBox("realGripperBase", {width: 0.42, height: 0.08, depth: 0.22}, scene);
+            realGripperBase.parent = pinzaNode; realGripperBase.material = mats.orangeMat; shadowGen.addShadowCaster(realGripperBase);
+
+            realFingerL = new BABYLON.TransformNode("realFingerL", scene);
+            realFingerL.position.set(0.12, 0.04, 0.13); realFingerL.rotation.y = 0.3; realFingerL.parent = pinzaNode;
+            const knuckleL = BABYLON.MeshBuilder.CreateBox("knuckleL", {width: 0.04, height: 0.06, depth: 0.36}, scene);
+            knuckleL.position.set(0, 0, 0.18); knuckleL.parent = realFingerL; knuckleL.material = mats.metalMat; shadowGen.addShadowCaster(knuckleL);
+
+            realFingerR = new BABYLON.TransformNode("realFingerR", scene);
+            realFingerR.position.set(-0.12, 0.04, 0.13); realFingerR.rotation.y = -0.3; realFingerR.parent = pinzaNode;
+            const knuckleR = BABYLON.MeshBuilder.CreateBox("knuckleR", {width: 0.04, height: 0.06, depth: 0.36}, scene);
+            knuckleR.position.set(0, 0, 0.18); knuckleR.parent = realFingerR; knuckleR.material = mats.metalMat; shadowGen.addShadowCaster(knuckleR);
+        }
+
+        function buildInteractiveBox() {
+            boxMesh = BABYLON.MeshBuilder.CreateBox("cajaPruebas", {size: 0.15}, scene);
+            boxMesh.position.set(0, 0.175, -1.95); // Situada junto a la marca roja de la base (0°)
+            boxMesh.material = mats.boxMat;
+            shadowGen.addShadowCaster(boxMesh);
+        }
+
+        function createFloorDial() {
+            const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+            angles.forEach(ang => {
+                const rad = Math.PI + (ang * Math.PI / 180); 
+                const dist = 2.15;
+                const px = dist * Math.sin(rad);
+                const pz = dist * Math.cos(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.04, height: 0.02, depth: 0.15}, scene);
+                tick.position.set(px * 0.92, 0.06, pz * 0.92); tick.rotation.y = rad;
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene); tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0); tick.material = tickMat;
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 0.8, height: 0.4, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+                label.position.set(px, 0.055, pz); label.rotation.x = Math.PI / 2; label.rotation.y = rad + Math.PI;
+
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 256, height: 128}, scene);
+                dynTex.hasAlpha = true; const ctx = dynTex.getContext();
+                ctx.fillStyle = "rgba(0,0,0,0)"; ctx.fillRect(0, 0, 256, 128);
+                ctx.font = "bold 44px 'Outfit', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                
+                let displayAng = ang + "°";
+                if (ang > 180) displayAng = (ang - 360) + "°";
+
+                ctx.strokeStyle = "#ffffff"; 
+                ctx.lineWidth = 4; 
+                ctx.strokeText(displayAng, 128, 64);
+                ctx.fillStyle = "#000000"; 
+                ctx.fillText(displayAng, 128, 64); 
+                dynTex.update();
+
+                const labelMat = new BABYLON.StandardMaterial("floorLabelMat_" + ang, scene);
+                labelMat.diffuseTexture = dynTex; labelMat.emissiveColor = new BABYLON.Color3(1, 1, 1); labelMat.disableLighting = true; labelMat.backFaceCulling = false; label.material = labelMat;
+            });
+        }
+
+        // BUCLE CANÓNICO INNEGOCIABLE (Sección 3 Modelo 4.5 P2)
+        function setupRenderLoop() {
+            scene.onBeforeRenderObservable.add(() => {
+                const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+                const lerpSpeed = 5.0 * dt;
+
+                currentAngles.base = BABYLON.Scalar.Lerp(currentAngles.base, targetAngles.base, lerpSpeed);
+                currentAngles.shoulder = BABYLON.Scalar.Lerp(currentAngles.shoulder, targetAngles.shoulder, lerpSpeed);
+                currentAngles.elbow = BABYLON.Scalar.Lerp(currentAngles.elbow, targetAngles.elbow, lerpSpeed);
+                currentAngles.pitch = BABYLON.Scalar.Lerp(currentAngles.pitch, targetAngles.pitch, lerpSpeed);
+                currentAngles.roll = BABYLON.Scalar.Lerp(currentAngles.roll, targetAngles.roll, lerpSpeed);
+
+                baseRotator.rotation.y = Math.PI + (currentAngles.base * Math.PI / 180);
+                shoulderNode.rotation.x = (90 - currentAngles.shoulder) * Math.PI / 180;
+                codoNode.rotation.x = (90 - currentAngles.elbow) * Math.PI / 180 - shoulderNode.rotation.x;
+                munecaNode.rotation.x = (90 - currentAngles.pitch) * Math.PI / 180 - (shoulderNode.rotation.x + codoNode.rotation.x);
+                munecaRollNode.rotation.z = currentAngles.roll * Math.PI / 180;
+                
+                codoPointerPivot.rotation.x = -shoulderNode.rotation.x;
+                munecaPointerPivot.rotation.x = -(shoulderNode.rotation.x + codoNode.rotation.x);
+
+                ui.valBase.innerText = formatAngle(currentAngles.base);
+                ui.valShoulder.innerText = formatAngle(currentAngles.shoulder);
+                ui.valElbow.innerText = formatAngle(currentAngles.elbow);
+                ui.valPitch.innerText = formatAngle(currentAngles.pitch);
+                ui.valRoll.innerText = formatAngle(currentAngles.roll);
+            });
+        }
+
+        function setupUIEvents() {
+            const sliders = [
+                { el: ui.sliderBase, key: 'base' },
+                { el: ui.sliderShoulder, key: 'shoulder' },
+                { el: ui.sliderElbow, key: 'elbow' },
+                { el: ui.sliderPitch, key: 'pitch' },
+                { el: ui.sliderRoll, key: 'roll' }
+            ];
+
+            sliders.forEach(s => {
+                s.el.addEventListener('input', (e) => {
+                    targetAngles[s.key] = parseFloat(e.target.value);
+                });
+            });
+
+            ui.btnSave.addEventListener('click', () => {
+                savedPosition = { ...targetAngles };
+                ui.memContent.innerHTML = `
+                    <span style="color:#ffffff">Base:</span> ${formatAngle(savedPosition.base)}<br>
+                    <span style="color:#ffffff">Hombro:</span> ${formatAngle(savedPosition.shoulder)}<br>
+                    <span style="color:#ffffff">Codo:</span> ${formatAngle(savedPosition.elbow)}<br>
+                    <span style="color:#ffffff">M.Vertical:</span> ${formatAngle(savedPosition.pitch)}<br>
+                    <span style="color:#ffffff">M.Horizontal:</span> ${formatAngle(savedPosition.roll)}<br>
+                    <span style="color:#00ff66; margin-top:6px; display:block;">[ESTADO: ALMACENADO]</span>
+                `;
+                ui.btnLoad.disabled = false;
+                ui.expText.innerHTML = `La posición ha sido almacenada con éxito en la memoria. Mueve el robot a otra postura y luego pulsa <strong>Cargar</strong> para que regrese.`;
+            });
+
+            ui.btnLoad.addEventListener('click', () => {
+                if (!savedPosition) return;
+                targetAngles = { ...savedPosition };
+                updateSliders();
+                ui.expText.innerHTML = `El procesador recuperó la postura de su memoria y ejecutó la interpolación de trayectoria para posicionar la muñeca y pinza.`;
+            });
+        }
+
+        function loadPreset(b, s, e, p, r) {
+            targetAngles = { base: b, shoulder: s, elbow: e, pitch: p, roll: r };
+            updateSliders();
+            ui.expText.innerHTML = `Se ha cargado un preset directamente en la CPU. Esto equivale a asignar valores directos a la variable antes de ejecutar el programa.`;
+        }
+
+        function updateSliders() {
+            ui.sliderBase.value = targetAngles.base;
+            ui.sliderShoulder.value = targetAngles.shoulder;
+            ui.sliderElbow.value = targetAngles.elbow;
+            ui.sliderPitch.value = targetAngles.pitch;
+            ui.sliderRoll.value = targetAngles.roll;
+        }
+
+        window.onload = initEngine;
+    </script>
+</body>
+</html>

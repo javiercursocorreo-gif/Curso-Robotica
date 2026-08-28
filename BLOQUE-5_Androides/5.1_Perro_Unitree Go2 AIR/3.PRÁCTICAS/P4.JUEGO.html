@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — Unitree Go2 AIR (V5 Oficial)</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #06090e;
+  --bg2: #101622;
+  --glass: rgba(12, 18, 28, 0.92);
+  --text: #ffffff;
+  --sub: #8a9ba8;
+  --success: #00ff88;
+  --danger: #ff3355;
+  --warning: #ffdd00;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+body {
+  background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; display: flex; flex-direction: column;
+}
+#header {
+  height: 70px; background: rgba(6, 9, 14, 0.95); border-bottom: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+}
+#header h1 { font-size: 20px; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; font-weight: 800; }
+#header .subtitle { font-size: 13px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: 800; background: rgba(255,221,0,0.1); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(255,221,0,0.3); }
+
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0; height: 56px; background: rgba(12, 16, 24, 0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 999; padding: 8px 16px; gap: 10px;
+}
+.prog-btn {
+  flex: 1; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  color: var(--sub); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 10px; transition: all 0.25s;
+}
+.prog-btn:hover { border-color: var(--primary); color: #fff; }
+.prog-btn.active { border-color: var(--primary); color: var(--bg); background: var(--primary); box-shadow: 0 0 15px rgba(0,242,255,0.4); }
+.prog-btn.done { border-color: var(--success); color: var(--success); background: rgba(0,255,136,0.1); }
+
+#main {
+  margin-top: 136px; flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.pantalla { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 850px; width: 100%; }
+.pantalla.activa { display: flex; }
+
+/* PORTADA */
+.portada-emojis { font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(0,242,255,0.5)); }
+.portada-titulo { font-size: 34px; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 1px; }
+.portada-desc { font-size: 17px; color: var(--sub); margin-bottom: 30px; max-width: 600px; line-height: 1.6; }
+.badges-container { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.08); border: 1px solid var(--primary); border-radius: 12px; padding: 12px 20px; font-size: 15px; font-weight: 700; color: var(--primary); }
+
+.btn-empezar {
+  background: linear-gradient(135deg, #00f2ff, #00ff88); color: #06090e; border: none; padding: 18px 54px;
+  font-size: 22px; font-weight: 800; border-radius: 14px; cursor: pointer; transition: all 0.25s; box-shadow: 0 0 30px rgba(0,242,255,0.5);
+}
+.btn-empezar:hover { transform: scale(1.05); box-shadow: 0 0 45px rgba(0,255,136,0.8); }
+
+/* TARJETA DE JUEGO */
+.game-card {
+  background: var(--glass); border: 2px solid rgba(0,242,255,0.35); border-radius: 24px; padding: 36px; max-width: 850px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(0,242,255,0.15); text-align: left;
+}
+.game-title { font-size: 14px; letter-spacing: 3px; color: var(--primary); text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
+.game-question { font-size: 21px; line-height: 1.4; margin-bottom: 24px; color: #fff; font-weight: 700; }
+
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.opt-btn {
+  padding: 18px 20px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; border-radius: 14px; transition: all 0.2s; text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.1); transform: translateY(-2px); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,255,136,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,51,85,0.15); color: var(--danger); opacity: 0.6; }
+
+.feedback { padding: 16px 20px; border-radius: 12px; font-size: 17px; font-weight: 600; margin-bottom: 20px; display: none; line-height: 1.4; }
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,255,136,0.12); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,51,85,0.12); border: 1px solid var(--danger); color: #ff8899; }
+
+.btn-siguiente, .btn-solucion {
+  display: none; width: 100%; padding: 16px; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; transition: all 0.2s; margin-bottom: 12px;
+}
+.btn-siguiente.show, .btn-solucion.show { display: block; }
+.btn-siguiente { background: var(--success); color: #06090e; box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+.btn-siguiente:hover { transform: scale(1.02); background: #fff; }
+.btn-solucion { background: var(--warning); color: #06090e; }
+.btn-reiniciar { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--sub); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.btn-reiniciar:hover { color: #fff; border-color: #fff; }
+
+/* DRAG & DROP ORDENAR */
+.sortable-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.sort-item {
+  padding: 16px 20px; background: rgba(0, 242, 255, 0.05); border: 2px solid rgba(0, 242, 255, 0.3);
+  border-radius: 14px; font-size: 17px; font-weight: 600; cursor: grab; display: flex; align-items: center; gap: 16px; transition: all 0.2s;
+}
+.sort-item:hover { border-color: var(--primary); background: rgba(0,242,255,0.12); }
+.sort-num { width: 36px; height: 36px; background: var(--primary); color: #06090e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.btn-verificar { width: 100%; padding: 16px; background: var(--primary); color: #06090e; font-size: 18px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; margin-bottom: 14px; box-shadow: 0 0 20px rgba(0,242,255,0.4); }
+
+/* EMPAREJAR */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.match-col { display: flex; flex-direction: column; gap: 12px; }
+.match-item {
+  padding: 16px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.25s; display: flex; align-items: center;
+}
+.match-item.selected { border-color: var(--primary); background: rgba(0,242,255,0.15); transform: scale(1.02); }
+.match-item.matched { opacity: 0.55; cursor: default; border-style: dashed; }
+.match-pair-0 { border-color: #00ff88 !important; background: rgba(0,255,136,0.15) !important; color: #00ff88; }
+.match-pair-1 { border-color: #00f2ff !important; background: rgba(0,242,255,0.15) !important; color: #00f2ff; }
+.match-pair-2 { border-color: #ffdd00 !important; background: rgba(255,221,0,0.15) !important; color: #ffdd00; }
+.match-pair-3 { border-color: #ff3355 !important; background: rgba(255,51,85,0.15) !important; color: #ff3355; }
+.match-pair-4 { border-color: #ab47bc !important; background: rgba(171,71,188,0.15) !important; color: #ab47bc; }
+.match-badge { margin-left: auto; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(0,0,0,0.4); color: #fff; }
+
+/* RETO FINAL 3D INTERACTIVO */
+#canvas-container { width: 100%; height: 380px; border-radius: 18px; overflow: hidden; border: 2px solid var(--primary); margin-bottom: 20px; position: relative; }
+#renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Unitree Go2 AIR · P4.JUEGO</h1>
+    <div class="subtitle">Desafío de Evaluación Interactiva V5</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial V5</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Ordenar Secuencia</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar Anatomía</button>
+  <button class="prog-btn" onclick="goGame(3)">🦾 Reto Final 3D</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">🦾🐕⚡</div>
+    <div class="portada-titulo">Evaluación Final: Unitree Go2 AIR</div>
+    <div class="portada-desc">Supera los 4 desafíos progresivos para demostrar tu dominio total sobre la biomimética, cinemática inversa y sensórica del robot cuadrúpedo más avanzado.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial Biomimético</div>
+      <div class="badge-card">📦 Ordenar Evasión</div>
+      <div class="badge-card">🔗 Emparejar Anatomía</div>
+      <div class="badge-card">🦾 Simulación 3D</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡COMENZAR RETO!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 850px;"></div>
+</div>
+
+<script>
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0; currentGame = 0; completedGames.fill(false);
+  updateScore(0); updateProgressBar();
+  game1();
+}
+
+function goGame(n) { currentGame = n; updateProgressBar(); games[n](); }
+function nextGame() {
+  completedGames[currentGame] = true; updateProgressBar();
+  if (currentGame < 3) { currentGame++; updateProgressBar(); games[currentGame](); }
+  else { showFinal(); }
+}
+
+// ─── JUEGO 1: TRIVIAL V5 (5 Preguntas) ──────────────────────────────────
+const trivia = [
+  {
+    q: "¿Por qué el Unitree Go2 AIR V5 tiene la cabeza inclinada hacia abajo exactamente -15º?",
+    opts: [
+      "Por un defecto de fabricación del chasis de aluminio",
+      "Para enfocar los sensores verticales y cámaras directamente al suelo y obstáculos cercanos por donde camina",
+      "Para reducir la resistencia aerodinamica al correr",
+      "Para que el robot parezca triste frente a otros robots"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! Los -15º permiten enfocar el terreno inmediato para que el sistema de percepción calcule la pisada segura."
+  },
+  {
+    q: "¿Qué función cumple el sensor cilíndrico cian (LiDAR 4D) ubicado en el morro del robot?",
+    opts: [
+      "Emitir sonidos y música por Bluetooth",
+      "Escanear el entorno con haces láser en 360º para detectar obstáculos en tiempo real y trazar mapas espaciales",
+      "Medir la temperatura ambiental de la habitación",
+      "Cargar la batería solar del robot"
+    ],
+    ok: 1,
+    exp: "✅ ¡Perfecto! El LiDAR gira enviando rayos láser que generan un mapa 3D instantáneo del entorno para evadir colisiones."
+  },
+  {
+    q: "¿Qué algoritmo o cálculo matemático permite al chasis mantenerse horizontal aunque las patas pisen en un terreno inclinado?",
+    opts: [
+      "Cinemática Inversa (IK - Inverse Kinematics)",
+      "Inteligencia Artificial de texto",
+      "Modulación de ancho de pulso básica (PWM)",
+      "Temporizador aleatorio de los motores"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! La Cinemática Inversa calcula en milisegundos el ángulo exacto de cada rodilla y cadera para compensar los desniveles."
+  },
+  {
+    q: "En nuestra reconstrucción anatómica V5, ¿qué evita que los pies esféricos penetren en el suelo?",
+    opts: [
+      "Poner ruedas invisibles debajo del robot",
+      "Configurar los ángulos de flexión articular de reposo en el fémur (+39.6º) y rodilla (-79.2º)",
+      "Hacer que el suelo sea invisible",
+      "Apagar la gravedad de la escena 3D"
+    ],
+    ok: 1,
+    exp: "✅ ¡Muy bien! Aplicando la flexión anatómica exacta del perro en reposo, el pie desciende exactamente hasta tocar el plano del suelo."
+  },
+  {
+    q: "¿Por qué el sensor LiDAR cuenta con una jaula protectora metálica negra a su alrededor?",
+    opts: [
+      "Solo por decoración estética",
+      "Para resguardar el delicado rotor óptico láser giratorio ante posibles vuelcos o impactos en el terreno",
+      "Para sujetar los cables eléctricos exteriores",
+      "Para aumentar el peso de la cabeza"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! La jaula protege el sensor de escaneo giratorio ante cualquier impacto durante misiones extremas."
+  }
+];
+
+let triviaIdx = 0; let triviaAnswered = false; let triviaAttempts = 0;
+function game1() { triviaIdx = 0; renderTrivia(); }
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx]; triviaAnswered = false; triviaAttempts = 0;
+  const shuffled = shuffleArray([0, 1, 2, 3]); const correctShuffled = shuffled.indexOf(q.ok);
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial Biomimético · Pregunta ${triviaIdx+1} / ${trivia.length}</div>
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `<button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>`).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER EXPLICACIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE PREGUNTA →</button>
+      <button class="btn-reiniciar" onclick="game1()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx]; const btns = document.querySelectorAll('.opt-btn'); const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true; btns.forEach(b => b.disabled = true); btn.classList.add('correct');
+    fb.className = 'feedback show ok'; fb.textContent = q.exp;
+    updateScore(triviaAttempts === 0 ? 20 : 10);
+    document.getElementById('btn-sol').classList.remove('show'); document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++; btn.classList.add('wrong'); btn.disabled = true;
+    fb.className = 'feedback show ko'; fb.textContent = '❌ Respuesta incorrecta. ¡Analiza la anatomía V5 e inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true; const q = trivia[triviaIdx]; const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => { b.disabled = true; b.classList.remove('wrong'); });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb'); fb.className = 'feedback show ok'; fb.textContent = '💡 ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show'); document.getElementById('btn-sig').classList.add('show');
+}
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR SECUENCIA (6 Pasos) ────────────────────────────────
+const sortItems = [
+  { id: 'a', text: '📡 El rotor LiDAR gira a alta velocidad en la jaula del morro' },
+  { id: 'b', text: '🔴 Un haz láser rebota contra un obstáculo imprevisto en el camino' },
+  { id: 'c', text: '⚡ El procesador calcula la distancia exacta (0.45 metros)' },
+  { id: 'd', text: '🧠 El solver de Cinemática Inversa (IK) genera la nueva trayectoria' },
+  { id: 'e', text: '🦾 Los motores del fémur y rodilla flexionan las patas traseras' },
+  { id: 'f', text: '🚀 El Unitree Go2 salta limpiamente sobre el obstáculo sin rozarlo' }
+];
+const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f']; let sortCurrentOrder = []; let sortDone = false; let sortAttempts = 0;
+
+function game2() { sortCurrentOrder = shuffleArray([...sortItems]); sortDone = false; sortAttempts = 0; renderSort(); }
+function renderSort() {
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Secuencia de Evasión Autónoma</div>
+      <div class="game-question">Arrastra los bloques para ordenar cronológicamente la secuencia desde que el robot escanea el entorno hasta que ejecuta el salto evasivo.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div><span>${item.text}</span>
+          </div>`).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">✔ VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE MINIJUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+  initDragSort();
+}
+function initDragSort() {
+  const list = document.getElementById('sort-list'); let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.style.opacity = '0.4'; });
+    item.addEventListener('dragend', () => { item.style.opacity = '1'; dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        if (items.indexOf(dragEl) < items.indexOf(item)) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+function renumberSort() { document.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.sort-num').textContent = i + 1); }
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Impecable! La percepción láser antecede al cálculo cinemático y la actuación motriz.';
+    if (sortAttempts === 0) updateScore(30);
+    sortDone = true; document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++; fb.className = 'feedback show ko'; fb.textContent = '❌ El orden tiene fallos. Piensa: primero escanea, detecta rebote, calcula distancia y finalmente actúa.';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+function showSortSolution() {
+  sortDone = true; const list = document.getElementById('sort-list'); list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    list.innerHTML += `<div class="sort-item"><div class="sort-num">${i+1}</div><span>${item.text}</span></div>`;
+  });
+  const fb = document.getElementById('fb-sort'); fb.className = 'feedback show ok'; fb.textContent = '💡 Solución ordenada mostrada en pantalla.';
+  document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR ANATOMÍA V5 (5 Conceptos) ────────────────────────
+const matchPairs = [
+  { left: 'Cabeza V5 Inclinada (-15º)', right: 'Enfoca sensores ópticos directamente a la zona de pisada' },
+  { left: 'Sensor LiDAR 4D en morro', right: 'Emite rayos láser en 360º protegidos por jaula metálica' },
+  { left: 'Pie esférico de caucho', right: 'Garantiza tracción multi-ángulo sin traspasar el suelo' },
+  { left: 'Cinemática Inversa (IK)', right: 'Algoritmo que calcula el ángulo de flexión articular' },
+  { left: 'Chasis central de aluminio', right: 'Soporta los rótulos UNITREE 02 y el ordenador central' }
+];
+let matchSelected = null; let matchDone = 0; let matchAutoCount = 0;
+function game3() {
+  matchSelected = null; matchDone = 0; matchAutoCount = 0;
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Anatomía y Funciones V5</div>
+      <div class="game-question">Selecciona un elemento anatómico a la izquierda y conéctalo con su función en la derecha.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
+        <div class="match-col" id="right-col">${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE MINIJUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+}
+function selectMatch(el) {
+  if (el.classList.contains('matched')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) { if (side === 'left') { matchSelected = el; el.classList.add('selected'); } }
+  else {
+    if (side !== 'right') { matchSelected.classList.remove('selected'); el.classList.add('selected'); matchSelected = el; return; }
+    const idxA = parseInt(matchSelected.dataset.idx); const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected'); matchSelected.classList.add('matched', 'match-pair-' + idxA);
+      el.classList.add('matched', 'match-pair-' + idxA);
+      const badges = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'];
+      matchSelected.innerHTML += `<span class="match-badge">${badges[idxA]}</span>`; el.innerHTML += `<span class="match-badge">${badges[idxA]}</span>`;
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        updateScore((matchPairs.length - matchAutoCount) * 6);
+        const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Perfecto! Conoces exactamente el papel de cada componente V5 en el robot.';
+        document.getElementById('btn-sol3').classList.remove('show'); document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected'); el.style.borderColor = '#ff3355'; setTimeout(() => el.style.borderColor = '', 500);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+function showMatchSolution() {
+  document.querySelectorAll('#left-col .match-item').forEach((l) => {
+    const i = parseInt(l.dataset.idx); const r = Array.from(document.querySelectorAll('#right-col .match-item')).find(el => parseInt(el.dataset.idx) === i);
+    if (!l.classList.contains('matched')) {
+      l.classList.add('matched', 'match-pair-' + i); r.classList.add('matched', 'match-pair-' + i);
+      const badges = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E']; l.innerHTML += `<span class="match-badge">${badges[i]}</span>`; r.innerHTML += `<span class="match-badge">${badges[i]}</span>`;
+    }
+  });
+  matchAutoCount = matchPairs.length - matchDone; matchDone = matchPairs.length;
+  const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '💡 Solución emparejada mostrada arriba.';
+  document.getElementById('btn-sol3').classList.remove('show'); document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL 3D (Simulador e Inspección) ─────────────────────
+const finalScenarios = [
+  {
+    title: "Misión 1: Inspección de Reposo Anatómico",
+    desc: "Observa la postura biomimética en el visor 3D. Las rodillas están flexionadas y los pies se apoyan milimétricamente sin penetrar el suelo. ¿Qué ángulo articular de reposo mantiene el fémur respecto a la vertical en esta postura?",
+    opts: ["+39.6º hacia adelante (flexión positiva)", "0º (completamente recto hacia abajo)", "-180º (invertido hacia arriba)", "+90º (completamente horizontal)"],
+    ok: 0, exp: "✅ ¡Exacto! Los +39.6º en el fémur combinados con -79.2º en la rodilla logran la altura de 36 cm perfecta sobre el suelo."
+  },
+  {
+    title: "Misión 2: Percepción Óptica",
+    desc: "El robot gira su cabeza y activa el sensor cilíndrico cian del morro. ¿Qué velocidad o comportamiento físico muestra el LiDAR para cubrir los 360 grados?",
+    opts: ["Permanece inmóvil apuntando solo adelante", "Gira de forma continua sobre su eje vertical (Y) dentro de la jaula", "Se apaga cada dos segundos", "Se desprende del chasis para volar"],
+    ok: 1, exp: "✅ ¡Correcto! El rotor láser gira constantemente para actualizar el mapa tridimensional de obstáculos."
+  }
+];
+let finalIdx = 0; let finalAnswered = false;
+
+function game4() {
+  finalIdx = 0;
+  renderFinalStage();
+}
+
+function renderFinalStage() {
+  if (finalIdx >= finalScenarios.length) { showFinal(); return; }
+  const sc = finalScenarios[finalIdx]; finalAnswered = false;
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🦾 Reto Final 3D · ${sc.title}</div>
+      <div id="canvas-container"><canvas id="renderCanvas"></canvas></div>
+      <div class="game-question">${sc.desc}</div>
+      <div class="options-grid">
+        ${sc.opts.map((opt, i) => `<button class="opt-btn" onclick="answerFinal(this, ${i}, ${sc.ok})">${opt}</button>`).join('')}
+      </div>
+      <div class="feedback" id="fb-final"></div>
+      <button class="btn-siguiente" id="btn-sig-final" onclick="finalIdx++; renderFinalStage();">SIGUIENTE MISIÓN →</button>
+    </div>`;
+  setTimeout(initBabylonMini, 50);
+}
+
+function answerFinal(btn, idx, ok) {
+  if (finalAnswered) return;
+  const btns = document.querySelectorAll('.opt-btn'); const fb = document.getElementById('fb-final');
+  if (idx === ok) {
+    finalAnswered = true; btns.forEach(b => b.disabled = true); btn.classList.add('correct');
+    fb.className = 'feedback show ok'; fb.textContent = finalScenarios[finalIdx].exp;
+    updateScore(30); document.getElementById('btn-sig-final').classList.add('show');
+  } else {
+    btn.classList.add('wrong'); btn.disabled = true; fb.className = 'feedback show ko'; fb.textContent = '❌ Analiza el modelo 3D superior e inténtalo de nuevo.';
+  }
+}
+
+function initBabylonMini() {
+  const canvas = document.getElementById("renderCanvas"); if (!canvas) return;
+  const engine = new BABYLON.Engine(canvas, true);
+  const scene = new BABYLON.Scene(engine); scene.clearColor = new BABYLON.Color4(0.05, 0.07, 0.11, 1);
+  const cam = new BABYLON.ArcRotateCamera("c", -Math.PI/3, Math.PI/2.5, 2.2, new BABYLON.Vector3(0, 0.25, 0), scene);
+  cam.attachControl(canvas, true); cam.lowerRadiusLimit = 1; cam.upperRadiusLimit = 4;
+  new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene).intensity = 0.8;
+  const dir = new BABYLON.DirectionalLight("d", new BABYLON.Vector3(-1, -2, -1.5), scene); dir.position = new BABYLON.Vector3(5, 10, 5); dir.intensity = 2;
+  const g = BABYLON.MeshBuilder.CreateGround("g", {width: 10, height: 10}, scene);
+  const mg = new BABYLON.PBRMaterial("mg", scene); mg.albedoColor = new BABYLON.Color3(0.08, 0.1, 0.14); mg.roughness = 0.6; g.material = mg;
+  
+  for (let i = -4; i <= 4; i++) {
+    const lX = BABYLON.MeshBuilder.CreateLines("gx_" + i, {points: [new BABYLON.Vector3(-4, 0.001, i), new BABYLON.Vector3(4, 0.001, i)]}, scene);
+    lX.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+    const lZ = BABYLON.MeshBuilder.CreateLines("gz_" + i, {points: [new BABYLON.Vector3(i, 0.001, -4), new BABYLON.Vector3(i, 0.001, 4)]}, scene);
+    lZ.color = (i === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34);
+  }
+
+  const ms = new BABYLON.PBRMaterial("ms", scene); ms.albedoColor = BABYLON.Color3.FromHexString("#98a4b0"); ms.roughness = 0.45;
+  const mb = new BABYLON.PBRMaterial("mb", scene); mb.albedoColor = BABYLON.Color3.FromHexString("#181b1f"); mb.roughness = 0.75;
+  const ml = new BABYLON.PBRMaterial("ml", scene); ml.albedoColor = BABYLON.Color3.FromHexString("#111822"); ml.emissiveColor = new BABYLON.Color3(0, 0.5, 0.6);
+
+  const root = new BABYLON.TransformNode("r", scene); root.position.y = 0.36;
+  const torso = BABYLON.MeshBuilder.CreateCapsule("t", {height: 0.58, radius: 0.09}, scene); torso.parent = root; torso.rotation.x = Math.PI/2; torso.material = ms;
+  const head = new BABYLON.TransformNode("h", scene); head.parent = root; head.position = new BABYLON.Vector3(0, 0.03, 0.28); head.rotation.x = -15*Math.PI/180;
+  const headM = BABYLON.MeshBuilder.CreateCapsule("hm", {height: 0.22, radius: 0.065}, scene); headM.parent = head; headM.position.y = -0.04; headM.material = ms;
+  const fp = BABYLON.MeshBuilder.CreateBox("fp", {width:0.076, height:0.12, depth:0.015}, scene); fp.parent = head; fp.position = new BABYLON.Vector3(0, -0.03, 0.056); fp.material = mb;
+  const lidar = BABYLON.MeshBuilder.CreateCylinder("ld", {height: 0.038, diameter: 0.048}, scene); lidar.parent = head; lidar.position = new BABYLON.Vector3(0, -0.15, 0.015); lidar.material = ml;
+
+  function buildLegMini(sX, sZ) {
+    const lr = new BABYLON.TransformNode("l", scene); lr.parent = root; lr.position = new BABYLON.Vector3(sX*0.13, 0, sZ*0.24);
+    const dr = BABYLON.MeshBuilder.CreateCylinder("dr", {height: 0.075, diameter: 0.11}, scene); dr.parent = lr; dr.rotation.z = Math.PI/2; dr.material = ms;
+    const th = new BABYLON.TransformNode("th", scene); th.parent = lr; th.position.x = sX*0.042; th.rotation.x = 0.691;
+    const tb = BABYLON.MeshBuilder.CreateTube("tb", {path:[new BABYLON.Vector3(0,0,0), new BABYLON.Vector3(0,-0.22,0)], radius:0.025}, scene); tb.parent = th; tb.material = ms;
+    const kn = new BABYLON.TransformNode("kn", scene); kn.parent = th; kn.position.y = -0.22; kn.rotation.x = -1.383;
+    const cb = BABYLON.MeshBuilder.CreateTube("cb", {path:[new BABYLON.Vector3(0,0,0), new BABYLON.Vector3(0,-0.22,0)], radius:0.018}, scene); cb.parent = kn; cb.material = ms;
+    const ft = BABYLON.MeshBuilder.CreateSphere("ft", {diameter: 0.042}, scene); ft.parent = kn; ft.position.y = -0.22; ft.material = mb;
+  }
+  buildLegMini(1, 1); buildLegMini(-1, 1); buildLegMini(1, -1); buildLegMini(-1, -1);
+
+  scene.onBeforeRenderObservable.add(() => { lidar.rotation.y += 0.08; cam.alpha += 0.003; });
+  engine.runRenderLoop(() => scene.render());
+}
+
+function showFinal() {
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card" style="text-align: center;">
+      <div style="font-size: 70px; margin-bottom: 16px;">🏆🎉🐕</div>
+      <h2 style="font-size: 32px; color: var(--primary); margin-bottom: 12px;">¡ENHORABUENA, INGENIERO!</h2>
+      <p style="font-size: 18px; color: var(--sub); margin-bottom: 24px;">Has completado con éxito la evaluación interactiva del Unitree Go2 AIR.</p>
+      <div style="font-size: 26px; color: var(--warning); font-weight: 800; margin-bottom: 30px;">Puntuación Final: ${score} Puntos</div>
+      <button class="btn-empezar" onclick="iniciar()">🔄 REPETIR EVALUACIÓN</button>
+    </div>`;
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

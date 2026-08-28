@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 6.12 — Arena de Acrobacias y Pruebas Extremas Go2 AIR (V5 Oficial)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        #canvas-container { flex: 1; position: relative; }
+        #renderCanvas { width: 100%; height: 100%; outline: none; }
+        
+        .hud-panel {
+            width: 400px; background: rgba(12, 18, 28, 0.92); backdrop-filter: blur(24px);
+            border-right: 1px solid rgba(0, 242, 255, 0.35); padding: 24px;
+            display: flex; flex-direction: column; gap: 14px; z-index: 10; overflow-y: auto; max-height: 100vh;
+        }
+        .header { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; }
+        .lidar-badge { width: 14px; height: 14px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 14px #00ff88; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.3); } 100% { opacity: 0.3; transform: scale(0.8); } }
+        .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: #ff3366; font-weight: 700; }
+        h1 { font-size: 1.3rem; font-weight: 700; color: #fff; margin-top: 2px; }
+        .subtitle { font-size: 0.75rem; color: #00ff88; font-weight: 600; margin-top: 2px; }
+        
+        .section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; color: #ff3366; font-weight: 600; margin-top: 4px; }
+        
+        .missions-list { display: flex; flex-direction: column; gap: 8px; }
+        .mission-btn {
+            background: rgba(255, 51, 102, 0.05); border: 1px solid rgba(255, 51, 102, 0.2);
+            border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.2s ease;
+            display: flex; flex-direction: column; gap: 3px; text-align: left;
+        }
+        .mission-btn:hover { background: rgba(255, 51, 102, 0.15); border-color: #ff3366; transform: translateX(4px); }
+        .mission-btn.active { background: linear-gradient(135deg, rgba(255,51,102,0.3), rgba(255,0,85,0.1)); border-color: #ff3366; box-shadow: 0 0 18px rgba(255,51,102,0.3); }
+        .m-title { font-weight: 700; font-size: 0.9rem; color: #fff; display: flex; justify-content: space-between; }
+        .m-desc { font-size: 0.76rem; color: #a0b0c0; line-height: 1.25; }
+        
+        .slider-group { display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 10px; border: 1px solid rgba(0,242,255,0.25); }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: #a0b0c0; font-weight: 600; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #00f2ff; cursor: pointer; box-shadow: 0 0 10px #00f2ff; }
+
+        .danger-btn {
+            background: linear-gradient(135deg, #ff3366, #cc0044); color: #fff; border: none;
+            padding: 12px; border-radius: 10px; font-weight: 700; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s ease; box-shadow: 0 0 18px rgba(255,51,102,0.5);
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;
+        }
+        .danger-btn:hover { transform: scale(1.02); filter: brightness(1.2); }
+        
+        .telemetry { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,51,102,0.3); border-radius: 10px; padding: 12px; font-family: monospace; font-size: 0.78rem; color: #ff88aa; display: flex; flex-direction: column; gap: 5px; }
+
+        .mouse-hint {
+            position: absolute; bottom: 30px; right: 30px; background: rgba(0,0,0,0.85);
+            border: 1px solid #00f2ff; color: #00f2ff; padding: 12px 18px; border-radius: 10px;
+            font-size: 0.85rem; font-weight: 600; z-index: 20; display: none; box-shadow: 0 0 20px rgba(0,242,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="hud-panel">
+        <div class="header">
+            <div class="lidar-badge"></div>
+            <div>
+                <div class="tag">Paso 3 · Pruebas Extremas</div>
+                <h1>UNITREE GO2 AIR</h1>
+                <div class="subtitle">✨ V5 OFICIAL · ARENA ACROBÁTICA</div>
+            </div>
+        </div>
+        
+        <div class="section-title">Regulador de Velocidad y Cadencia</div>
+        <div class="slider-group">
+            <div class="slider-label"><span>Cadencia de Paso</span><span id="val-cadence">0.8x (Majestuoso)</span></div>
+            <input type="range" id="sld-cadence" min="0.3" max="1.8" step="0.1" value="0.8">
+        </div>
+
+        <div class="section-title">Seleccionar Misión / Acrobacia</div>
+        <div class="missions-list">
+            <button class="mission-btn active" onclick="startMission('RAMPA')">
+                <div class="m-title"><span>1. Circuito Montaña (Rampa)</span><span>⛰️</span></div>
+                <div class="m-desc">Subir rampa empinada adaptando las patas al desnivel y descender por la pendiente.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('BACKFLIP')">
+                <div class="m-title"><span>2. Voltereta Hacia Atrás</span><span>🤸</span></div>
+                <div class="m-desc">Flexión sobre el suelo y salto mortal 360° limpio sin giro inverso al aterrizar.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('BIPEDO')">
+                <div class="m-title"><span>3. Marcha Bípeda Trasera</span><span>🚶</span></div>
+                <div class="m-desc">Elevar torso en vertical con patas traseras pisando firmemente el suelo (IK real exacto).</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('PINO')">
+                <div class="m-title"><span>4. Parada de Manos (El Pino)</span><span>🙃</span></div>
+                <div class="m-desc">Elevar patas traseras al cielo con palmas delanteras pisando firmemente en el suelo.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('SALTO')">
+                <div class="m-title"><span>5. Salto de Obstáculo</span><span>🚧</span></div>
+                <div class="m-desc">Vuelo sobre valla amarilla con aterrizaje suave amortiguado (sin incrustarse).</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('BAILE')">
+                <div class="m-title"><span>6. Baile con Ritmo MP3</span><span>🎵</span></div>
+                <div class="m-desc">Coreografía rítmica con rebote, claqué de patas y giro 360° fluido sin retroceso.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('CARRERA_SALTOS')">
+                <div class="m-title"><span>7. Carrera Alternando Saltos</span><span>⚡</span></div>
+                <div class="m-desc">Galope veloz alternado con saltos verticales de gacela (pronking despegando del suelo).</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('LABERINTO')">
+                <div class="m-title"><span>8. Laberinto Antichoques LiDAR</span><span>🧩</span></div>
+                <div class="m-desc">Slalom bordeando limpiamente por el exterior de los pilares sin cruzarlos.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('ABRUPTO')">
+                <div class="m-title"><span>9. Terreno Abrupto / Rocoso</span><span>🪨</span></div>
+                <div class="m-desc">Rocas separadas para bascular el chasis adaptando cada pata a la piedra sin incrustarse.</div>
+            </button>
+            <button class="mission-btn" onclick="startMission('MOUSE_PILOT')">
+                <div class="m-title"><span>10. Pilotaje con Puntero Ratón</span><span>🖱️</span></div>
+                <div class="m-desc">El perro sigue tu cursor en tiempo real con precisión milimétrica (sube rampa o choca).</div>
+            </button>
+        </div>
+        <div class="section-title">Estado del Sistema IA</div>
+        <div class="telemetry">
+            <div>Misión Actual: <span id="tel-m" style="color:#fff">RAMPA</span></div>
+            <div>Velocidad Z: <span id="tel-vz">0.0 m/s</span></div>
+            <div>Altura Chasis: <span id="tel-h">0.36 m</span></div>
+            <div>Estado IK: <span id="tel-ik">ACTIVO</span></div>
+        </div>
+    </div>
+    
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div id="mouse-hint" class="mouse-hint">🖱️ Mueve el cursor por la pantalla: el perro seguirá el puntero en tiempo real</div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('renderCanvas');
+            const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+
+            window.currentMission = 'RAMPA';
+            window.rampaStarted = false;
+            let missionTime = 0;
+            let isTumbling = false;
+            let tumbleTimer = 0;
+            let safeRespawnX = 0;
+            
+            let robotZ = -1, robotX = -4.5, robotYaw = 0;
+            let targetHeight = 0.36;
+            let targetMouseX = 0, targetMouseZ = -3;
+            const keys = {};
+
+            window.stepCadence = 0.8;
+            document.getElementById('sld-cadence').addEventListener('input', (e) => {
+                window.stepCadence = parseFloat(e.target.value);
+                const val = window.stepCadence;
+                let txt = val.toFixed(1) + "x";
+                if (val <= 0.5) txt += " (Lento)";
+                else if (val <= 0.9) txt += " (Majestuoso)";
+                else if (val <= 1.3) txt += " (Normal)";
+                else txt += " (Rápido)";
+                document.getElementById('val-cadence').innerText = txt;
+            });
+
+            window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+            window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+            window.startMission = function(m) {
+                window.currentMission = m;
+                window.rampaStarted = false;
+                missionTime = 0;
+                isTumbling = false;
+                document.querySelectorAll('.mission-btn').forEach(b => b.classList.remove('active'));
+                if (window.event && window.event.currentTarget) window.event.currentTarget.classList.add('active');
+                document.getElementById('tel-m').innerText = m;
+
+                const showMouse = (m === 'MOUSE_PILOT');
+                document.getElementById('mouse-hint').style.display = showMouse ? 'block' : 'none';
+                try {
+                    if (window.currentCamera && window.currentCamera.inputs && window.currentCamera.inputs.attached && window.currentCamera.inputs.attached.pointers) {
+                        window.currentCamera.inputs.attached.pointers.buttons = showMouse ? [1, 2] : [0, 1, 2];
+                    }
+                } catch (e) { console.warn("Cam filter err:", e); }
+                
+                if (m === 'RAMPA') { robotX = -4.5; robotZ = -1; robotYaw = 0; }
+                else if (m === 'SALTO') { robotX = 4.5; robotZ = -4; robotYaw = 0; }
+                else if (m === 'LABERINTO') { robotX = -9.0; robotZ = 0; robotYaw = 0; }
+                else if (m === 'ABRUPTO') { robotX = 9.0; robotZ = 0; robotYaw = 0; }
+                else if (m === 'MOUSE_PILOT') { robotX = 0; robotZ = -8; robotYaw = 0; targetMouseX = 0; targetMouseZ = -5; }
+                else if (m === 'LIBRE') { robotX = 0; robotZ = -6; robotYaw = 0; }
+                else { robotX = 0; robotZ = 0; robotYaw = 0; }
+            };
+
+            window.triggerTumble = function(customSafeX) {
+                isTumbling = true;
+                tumbleTimer = 0;
+                if (typeof customSafeX === 'number') {
+                    safeRespawnX = customSafeX;
+                    robotX = customSafeX;
+                } else {
+                    safeRespawnX = robotX;
+                }
+                document.getElementById('tel-ik').innerText = "💥 REVOLCÓN (CAÍDA)";
+                document.getElementById('tel-ik').style.color = "#ff3366";
+            };
+
+            const createScene = function () {
+                const scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.05, 0.07, 0.11, 1.0);
+
+                const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 3.2, Math.PI / 2.3, 3.2, new BABYLON.Vector3(0, 0.2, 0), scene);
+                camera.attachControl(canvas, true);
+                window.currentCamera = camera;
+                window.currentCanvas = canvas;
+                camera.wheelPrecision = 40; camera.minZ = 0.1;
+
+                const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(5, 10, 5); dirLight.intensity = 2.5;
+                const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 0.8; hemiLight.groundColor = new BABYLON.Color3(0.08, 0.08, 0.12);
+
+                const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 140, height: 140, subdivisions: 2}, scene);
+                const matGround = new BABYLON.PBRMaterial("matGround", scene);
+                matGround.albedoColor = new BABYLON.Color3(0.09, 0.11, 0.15); matGround.metallic = 0.1; matGround.roughness = 0.6;
+                ground.material = matGround; ground.receiveShadows = true;
+
+                for (let i = -60; i <= 60; i += 1.0) {
+                    const lineX = BABYLON.MeshBuilder.CreateLines("gx_" + i, {points: [new BABYLON.Vector3(-60, 0.001, i), new BABYLON.Vector3(60, 0.001, i)]}, scene);
+                    lineX.color = (i % 5 === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34); lineX.parent = ground;
+                    const lineZ = BABYLON.MeshBuilder.CreateLines("gz_" + i, {points: [new BABYLON.Vector3(i, 0.001, -60), new BABYLON.Vector3(i, 0.001, 60)]}, scene);
+                    lineZ.color = (i % 5 === 0) ? new BABYLON.Color3(0.0, 0.8, 0.9) : new BABYLON.Color3(0.18, 0.24, 0.34); lineZ.parent = ground;
+                }
+
+                // Captura del cursor en el suelo 3D
+                const updateMouseTarget = function() {
+                    if (window.currentMission !== 'MOUSE_PILOT') return;
+                    const pick = scene.pick(scene.pointerX, scene.pointerY);
+                    if (pick && pick.hit && pick.pickedPoint) {
+                        targetMouseX = pick.pickedPoint.x;
+                        targetMouseZ = pick.pickedPoint.z;
+                    }
+                };
+                scene.onPointerMove = updateMouseTarget;
+                scene.onPointerDown = function() {
+                    if (window.currentMission === 'RAMPA') window.rampaStarted = true;
+                    updateMouseTarget();
+                };
+
+                const matShell = new BABYLON.PBRMaterial("matShell", scene);
+                matShell.albedoColor = BABYLON.Color3.FromHexString("#98a4b0"); matShell.metallic = 0.25; matShell.roughness = 0.45;
+                const matBlack = new BABYLON.PBRMaterial("matBlack", scene);
+                matBlack.albedoColor = BABYLON.Color3.FromHexString("#181b1f"); matBlack.metallic = 0.15; matBlack.roughness = 0.75;
+                const matLens = new BABYLON.PBRMaterial("matLens", scene);
+                matLens.albedoColor = new BABYLON.Color3(0.01, 0.01, 0.01); matLens.metallic = 1.0; matLens.roughness = 0.05;
+                const matLidar = new BABYLON.PBRMaterial("matLidar", scene);
+                matLidar.albedoColor = BABYLON.Color3.FromHexString("#111822"); matLidar.metallic = 0.8; matLidar.roughness = 0.3;
+                matLidar.emissiveColor = new BABYLON.Color3(0.0, 0.3, 0.4);
+                
+                const matYellow = new BABYLON.PBRMaterial("matYellow", scene);
+                matYellow.albedoColor = BABYLON.Color3.FromHexString("#ffcc00"); matYellow.metallic = 0.1; matYellow.roughness = 0.5;
+                const matObstacle = new BABYLON.PBRMaterial("matObs", scene);
+                matObstacle.albedoColor = BABYLON.Color3.FromHexString("#ff3366"); matObstacle.metallic = 0.2; matObstacle.roughness = 0.4;
+                const matRock = new BABYLON.PBRMaterial("matRock", scene);
+                matRock.albedoColor = BABYLON.Color3.FromHexString("#4a5568"); matRock.roughness = 0.9;
+
+                new BABYLON.GlowLayer("glow", scene).intensity = 0.75;
+
+                const makeTextPlane = (text, w, h, fontSize) => {
+                    const plane = BABYLON.MeshBuilder.CreatePlane("t", {width: w, height: h}, scene);
+                    const dt = new BABYLON.DynamicTexture("dt", {width: 512, height: 256}, scene, false);
+                    dt.hasAlpha = true; dt.getContext().clearRect(0, 0, 512, 256);
+                    dt.drawText(text, null, null, `bold ${fontSize}px Arial, sans-serif`, "#ffffff", "transparent", true);
+                    const mat = new BABYLON.PBRMaterial("mt", scene);
+                    mat.albedoTexture = dt; mat.useAlphaFromAlbedoTexture = true;
+                    mat.metallic = 0.0; mat.roughness = 0.8; mat.backFaceCulling = true; 
+                    plane.material = mat; return plane;
+                };
+
+                const colliders = [];
+
+                // 1. Carril Izquierdo 1 (x = -4.5): Circuito Montaña CON PENDIENTE EMPINADA
+                const rampaSubida = BABYLON.MeshBuilder.CreateBox("rSub", {width: 1.8, height: 0.12, depth: 4.2}, scene);
+                rampaSubida.position = new BABYLON.Vector3(-4.5, 0.6434, 2.9802); rampaSubida.rotation.x = -0.336; rampaSubida.material = matShell; shadowGen.addShadowCaster(rampaSubida);
+                const rampaMeseta = BABYLON.MeshBuilder.CreateBox("rMes", {width: 1.8, height: 1.4, depth: 3.5}, scene);
+                rampaMeseta.position = new BABYLON.Vector3(-4.5, 0.70, 6.75); rampaMeseta.material = matShell; shadowGen.addShadowCaster(rampaMeseta);
+                const rampaBajada = BABYLON.MeshBuilder.CreateBox("rBaj", {width: 1.8, height: 0.12, depth: 4.2}, scene);
+                rampaBajada.position = new BABYLON.Vector3(-4.5, 0.6434, 10.5198); rampaBajada.rotation.x = 0.336; rampaBajada.material = matShell; shadowGen.addShadowCaster(rampaBajada);
+
+                function getTerrainHeight(tx, tz) {
+                    if (tx >= -5.4 && tx <= -3.6 && tz >= 1.0 && tz <= 12.5) {
+                        if (tz < 5.0) return (tz - 1.0) / 4.0 * 1.4;
+                        else if (tz <= 8.5) return 1.4;
+                        else return Math.max(0, 1.4 - (tz - 8.5) / 4.0 * 1.4);
+                    }
+                    return 0;
+                }
+
+                // 2. Carril Derecho 1 (x = 4.5): Valla de Salto
+                const valla = BABYLON.MeshBuilder.CreateBox("valla", {width: 2.0, height: 0.35, depth: 0.08}, scene);
+                valla.position = new BABYLON.Vector3(4.5, 0.175, 3.0); valla.material = matYellow; shadowGen.addShadowCaster(valla);
+                colliders.push({x: 4.5, z: 3.0, r: 1.1});
+
+                // 3. Carril Izquierdo 2 (x = -9.0): Pilares del Laberinto
+                [3, 6, 9, 12, 15].forEach((z, idx) => {
+                    const pil = BABYLON.MeshBuilder.CreateCylinder("pil_" + idx, {height: 1.3, diameter: 0.45}, scene);
+                    pil.position = new BABYLON.Vector3(-9.0, 0.65, z); pil.material = matYellow; shadowGen.addShadowCaster(pil);
+                    colliders.push({x: -9.0, z: z, r: 0.7});
+                });
+
+                // 4. Carril Derecho 2 (x = 9.0): Sendero de Rocas SEPARADAS
+                const rockPositions = [2, 4.5, 7, 9.5, 12, 14.5, 17];
+                const rockMeshes = [];
+                rockPositions.forEach((rz, idx) => {
+                    const rx = 9.0 + ((idx % 2) - 0.5) * 0.4;
+                    const roca = BABYLON.MeshBuilder.CreateSphere("roca_"+idx, {diameterX: 1.3, diameterY: 0.5, diameterZ: 1.4, segments: 8}, scene);
+                    roca.position = new BABYLON.Vector3(rx, 0.18, rz); roca.material = matRock; shadowGen.addShadowCaster(roca);
+                    rockMeshes.push({x: rx, z: rz, r: 0.7, h: 0.43});
+                    colliders.push({x: rx, z: rz, r: 0.65});
+                });
+
+                function getRockElevation(tx, tz) {
+                    let maxH = 0;
+                    for (let rm of rockMeshes) {
+                        const dx = (tx - rm.x) / 0.65;
+                        const dz = (tz - rm.z) / 0.70;
+                        const E = 1 - dx*dx - dz*dz;
+                        if (E >= 0) {
+                            const h = 0.18 + 0.25 * Math.sqrt(E);
+                            if (h > maxH) maxH = h;
+                        } else if (E >= -0.5184) {
+                            const h = Math.max(0, 0.18 - 0.25 * Math.sqrt(-E));
+                            if (h > maxH) maxH = h;
+                        }
+                    }
+                    return maxH;
+                }
+
+                // 5. Obstáculos dispersos para Exploración Autónoma y Pilotaje con Puntero
+                const obsPositions = [
+                    {x:-1.5, z:-3}, {x:1.8, z:-1}, {x:-2.5, z:2.5}, {x:-2.0, z:5.5}, {x:2.2, z:8.0}, {x:-2.5, z:11.0},
+                    {x:-5, z:-12}, {x:-2, z:-15}, {x:2, z:-13}, {x:5, z:-14},
+                    {x:-12, z:-5}, {x:12, z:-5}, {x:-12, z:5}, {x:12, z:5}
+                ];
+                obsPositions.forEach((pos, idx) => {
+                    let type = idx % 3;
+                    let m = (type === 0) ? BABYLON.MeshBuilder.CreateCylinder("bar_"+idx, {height:0.8, diameter:0.55}, scene) :
+                            (type === 1) ? BABYLON.MeshBuilder.CreateBox("box_"+idx, {size:0.65}, scene) :
+                                           BABYLON.MeshBuilder.CreateSphere("sph_"+idx, {diameter:0.7, segments:6}, scene);
+                    m.position = new BABYLON.Vector3(pos.x, 0.35, pos.z);
+                    m.material = (type === 0) ? matObstacle : (type === 1) ? matYellow : matRock;
+                    shadowGen.addShadowCaster(m);
+                    colliders.push({x: pos.x, z: pos.z, r: 0.75});
+                });
+
+                function resolveCollisions(targetX, targetZ) {
+                    let rx = targetX, rz = targetZ;
+                    // 1. Repulsión elástica en todos los obstáculos circulares
+                    for (let c of colliders) {
+                        const dx = rx - c.x;
+                        const dz = rz - c.z;
+                        const dist = Math.sqrt(dx*dx + dz*dz);
+                        if (dist < c.r + 0.05) {
+                            const angle = Math.atan2(dx, dz);
+                            rx = c.x + Math.sin(angle) * (c.r + 0.05);
+                            rz = c.z + Math.cos(angle) * (c.r + 0.05);
+                        }
+                    }
+                    // 2. Repulsión sólida en la caja de la meseta solo durante LIBRE
+                    if (window.currentMission === 'LIBRE') {
+                        if (rx >= -5.6 && rx <= -3.4 && rz >= 0.8 && rz <= 12.7) {
+                            const dLeft = Math.abs(rx - (-5.6));
+                            const dRight = Math.abs(rx - (-3.4));
+                            const dFront = Math.abs(rz - 0.8);
+                            const dBack = Math.abs(rz - 12.7);
+                            const minD = Math.min(dLeft, dRight, dFront, dBack);
+                            if (minD === dLeft) rx = -5.6;
+                            else if (minD === dRight) rx = -3.4;
+                            else if (minD === dFront) rz = 0.8;
+                            else rz = 12.7;
+                        }
+                    }
+                    return { x: rx, z: rz };
+                }
+
+                function checkCollision(targetX, targetZ) {
+                    const res = resolveCollisions(targetX, targetZ);
+                    return (res.x !== targetX || res.z !== targetZ);
+                }
+
+                // ==================== ROBOT V5 OFICIAL INTOCABLE ====================
+                const torsoNode = new BABYLON.TransformNode("torsoNode", scene);
+                torsoNode.position.y = targetHeight;
+
+                const torsoBody = BABYLON.MeshBuilder.CreateCapsule("torsoBody", {height: 0.58, radius: 0.09}, scene);
+                torsoBody.parent = torsoNode; torsoBody.rotation.x = Math.PI / 2; torsoBody.material = matShell;
+                
+                const torsoFront = BABYLON.MeshBuilder.CreateBox("torsoF", {width: 0.17, height: 0.13, depth: 0.15}, scene);
+                torsoFront.parent = torsoNode; torsoFront.position.z = 0.18; torsoFront.material = matShell;
+                const torsoRear = BABYLON.MeshBuilder.CreateBox("torsoR", {width: 0.17, height: 0.13, depth: 0.15}, scene);
+                torsoRear.parent = torsoNode; torsoRear.position.z = -0.18; torsoRear.material = matShell;
+
+                const logoR = makeTextPlane("UNITREE", 0.16, 0.05, 100);
+                logoR.parent = torsoNode; logoR.position = new BABYLON.Vector3(0.092, 0.04, 0.02); logoR.rotation.y = -Math.PI/2; 
+                const logoL = makeTextPlane("UNITREE", 0.16, 0.05, 100);
+                logoL.parent = torsoNode; logoL.position = new BABYLON.Vector3(-0.092, 0.04, 0.02); logoL.rotation.y = Math.PI/2; 
+
+                const headNode = new BABYLON.TransformNode("headNode", scene);
+                headNode.parent = torsoNode; headNode.position = new BABYLON.Vector3(0, 0.03, 0.28);
+                headNode.rotation.x = -15 * Math.PI / 180;
+
+                const headMain = BABYLON.MeshBuilder.CreateCapsule("headMain", {height: 0.22, radius: 0.065}, scene);
+                headMain.parent = headNode; headMain.position.y = -0.04; headMain.material = matShell;
+
+                const badgeR = makeTextPlane("02", 0.05, 0.035, 120);
+                badgeR.parent = headNode; badgeR.position = new BABYLON.Vector3(0.066, -0.04, 0.0); badgeR.rotation.y = -Math.PI/2;
+                const badgeL = makeTextPlane("02", 0.05, 0.035, 120);
+                badgeL.parent = headNode; badgeL.position = new BABYLON.Vector3(-0.066, -0.04, 0.0); badgeL.rotation.y = Math.PI/2; 
+
+                const facePanel = BABYLON.MeshBuilder.CreateBox("facePanel", {width: 0.076, height: 0.12, depth: 0.015}, scene);
+                facePanel.parent = headNode; facePanel.position = new BABYLON.Vector3(0, -0.03, 0.056);
+                facePanel.material = matBlack;
+                
+                const sensorTop = BABYLON.MeshBuilder.CreateCylinder("sTop", {height: 0.002, diameter: 0.022}, scene);
+                sensorTop.parent = facePanel; sensorTop.rotation.x = Math.PI/2; sensorTop.position = new BABYLON.Vector3(0, 0.032, 0.0075);
+                sensorTop.material = matLens;
+                
+                const sensorBot = BABYLON.MeshBuilder.CreateCylinder("sBot", {height: 0.002, diameter: 0.022}, scene);
+                sensorBot.parent = facePanel; sensorBot.rotation.x = Math.PI/2; sensorBot.position = new BABYLON.Vector3(0, -0.032, 0.0075);
+                sensorBot.material = matLens;
+
+                const greenRing = BABYLON.MeshBuilder.CreateTorus("gRing", {diameter: 0.026, thickness: 0.0025, tessellation: 24}, scene);
+                greenRing.parent = facePanel; greenRing.rotation.x = Math.PI/2; greenRing.position = new BABYLON.Vector3(0, -0.032, 0.0075);
+                const matGreen = new BABYLON.PBRMaterial("matG", scene);
+                matGreen.emissiveColor = new BABYLON.Color3(0.1, 0.8, 0.3);
+                greenRing.material = matGreen;
+
+                const lidarNode = new BABYLON.TransformNode("lidarNode", scene);
+                lidarNode.parent = headNode; lidarNode.position = new BABYLON.Vector3(0, -0.15, 0.015);
+
+                const lidarCyl = BABYLON.MeshBuilder.CreateCylinder("lidarC", {height: 0.038, diameter: 0.048}, scene);
+                lidarCyl.parent = lidarNode; lidarCyl.material = matLidar;
+
+                const lidarSlot = BABYLON.MeshBuilder.CreateBox("lSlot", {width: 0.01, height: 0.04, depth: 0.05}, scene);
+                lidarSlot.parent = lidarCyl; lidarSlot.material = matBlack;
+
+                const cageRing = BABYLON.MeshBuilder.CreateTorus("cage1", {diameter: 0.062, thickness: 0.005, tessellation: 32}, scene);
+                cageRing.parent = lidarNode; cageRing.position.y = -0.015; cageRing.material = matBlack;
+                [ {x:0.028,z:0}, {x:-0.028,z:0}, {x:0,z:0.028}, {x:0,z:-0.028} ].forEach(pos => {
+                    const b = BABYLON.MeshBuilder.CreateBox("bar", {width:0.005, height:0.035, depth:0.005}, scene);
+                    b.parent = lidarNode; b.position = new BABYLON.Vector3(pos.x, 0, pos.z); b.material = matBlack;
+                });
+
+                [torsoBody, torsoFront, torsoRear, headMain, facePanel].forEach(m => shadowGen.addShadowCaster(m));
+
+                const legs = [];
+                const L1 = 0.22, L2 = 0.22;
+
+                function createLeg(name, isLeft, isFront) {
+                    const signX = isLeft ? 1 : -1;
+                    const signZ = isFront ? 1 : -1;
+                    const x_drum = signX * 0.13, z_drum = signZ * 0.24;
+
+                    const drum = BABYLON.MeshBuilder.CreateCylinder(name+"_drum", {height: 0.075, diameter: 0.11}, scene);
+                    drum.rotation.z = Math.PI / 2; drum.position = new BABYLON.Vector3(x_drum, 0, z_drum);
+                    drum.parent = torsoNode; drum.material = matShell;
+                    
+                    const thighJoint = new BABYLON.TransformNode(name+"_thighJ", scene);
+                    thighJoint.parent = torsoNode; thighJoint.position = new BABYLON.Vector3(x_drum + signX * 0.042, 0, z_drum);
+                    
+                    const thighTop = BABYLON.MeshBuilder.CreateSphere(name+"_tt", {diameterX: 0.055, diameterY: 0.085, diameterZ: 0.085}, scene);
+                    thighTop.parent = thighJoint; thighTop.material = matShell;
+                    
+                    const thighPath = [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -L1 * 0.5, 0.005), new BABYLON.Vector3(0, -L1, 0)];
+                    const thighBone = BABYLON.MeshBuilder.CreateTube(name+"_tb", {path: thighPath, radiusFunction: (i,d)=>0.026*(1-d*0.35), cap: BABYLON.Mesh.CAP_ALL}, scene);
+                    thighBone.parent = thighJoint; thighBone.material = matShell;
+                    
+                    const kneeJoint = new BABYLON.TransformNode(name+"_kneeJ", scene);
+                    kneeJoint.parent = thighJoint; kneeJoint.position.y = -L1;
+                    
+                    const kneeMotor = BABYLON.MeshBuilder.CreateCylinder(name+"_km", {height: 0.052, diameter: 0.046}, scene);
+                    kneeMotor.parent = kneeJoint; kneeMotor.rotation.z = Math.PI/2; kneeMotor.material = matShell;
+                    
+                    const calfPath = [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -L2 * 0.4, 0.015), new BABYLON.Vector3(0, -L2 * 0.8, 0.005), new BABYLON.Vector3(0, -L2, 0)];
+                    const calfBone = BABYLON.MeshBuilder.CreateTube(name+"_cb", {path: calfPath, radiusFunction: (i,d)=>0.018*(1-d*0.45), cap: BABYLON.Mesh.CAP_ALL}, scene);
+                    calfBone.parent = kneeJoint; calfBone.material = matShell;
+                    
+                    const foot = BABYLON.MeshBuilder.CreateSphere(name+"_foot", {diameter: 0.042}, scene);
+                    foot.parent = kneeJoint; foot.position.y = -L2; foot.material = matBlack;
+                    
+                    [drum, thighTop, thighBone, calfBone, foot].forEach(m => shadowGen.addShadowCaster(m));
+                    return { jointThigh: thighJoint, jointKnee: kneeJoint, isLeft, isFront, baseZ: z_drum, baseX: signX * 0.17 };
+                }
+
+                legs.push(createLeg("FL", true, true)); legs.push(createLeg("FR", false, true));
+                legs.push(createLeg("RL", true, false)); legs.push(createLeg("RR", false, false));
+
+                function solveIK(dz, dy) {
+                    let D = Math.sqrt(dz*dz + dy*dy);
+                    D = Math.max(0.01, Math.min(D, L1 + L2 - 0.002)); 
+                    const alpha = Math.atan2(dz, -dy);
+                    const gamma = Math.acos((L1*L1 + D*D - L2*L2) / (2 * L1 * D)); 
+                    const beta  = Math.acos((L1*L1 + L2*L2 - D*D) / (2 * L1 * L2)); 
+                    return { thigh: alpha + gamma, knee: -(Math.PI - beta) };
+                }
+
+                // ==================== BUCLE DE RENDERIZADO ====================
+                scene.onBeforeRenderObservable.add(() => {
+                    const time = performance.now() * 0.005;
+                    const dt = engine.getDeltaTime() * 0.001;
+                    const cad = window.stepCadence;
+                    missionTime += dt;
+
+                    lidarCyl.rotation.y += 0.12 * cad;
+                    matLidar.emissiveColor = new BABYLON.Color3(0, 0.3 + 0.1*Math.sin(time*4), 0.4);
+
+                    let goalY = targetHeight;
+                    let goalPitch = 0, goalRoll = 0, goalYaw = robotYaw;
+                    let velDisplay = 0;
+
+                    let localFootDx = [0, 0, 0, 0];
+                    let localFootDy = [-targetHeight, -targetHeight, -targetHeight, -targetHeight];
+                    let overrideAngles = null;
+                    let bypassRotLerp = false;
+
+                    // 💥 CAÍDA / REVOLCÓN
+                    if (isTumbling) {
+                        tumbleTimer += dt;
+                        if (tumbleTimer < 2.0) {
+                            bypassRotLerp = true;
+                            const progRoll = tumbleTimer / 2.0;
+                            goalRoll = progRoll * Math.PI * 4;
+                            torsoNode.rotation.z = goalRoll;
+                            goalY = 0.22 + Math.abs(Math.sin(progRoll * Math.PI * 4)) * 0.12;
+                            goalPitch = 0.1 * Math.sin(progRoll * Math.PI * 2);
+                            overrideAngles = [ {t:0.3, k:-1.2}, {t:0.8, k:-2.1}, {t:0.5, k:-1.4}, {t:0.2, k:-0.9} ];
+                        } else if (tumbleTimer < 3.5) {
+                            document.getElementById('tel-ik').innerText = "🤖 AUTO-ENDEREZANDO (IA)...";
+                            document.getElementById('tel-ik').style.color = "#00ff88";
+                            const prog = (tumbleTimer - 2.0) / 1.5;
+                            goalY = BABYLON.Scalar.Lerp(0.22, targetHeight, prog);
+                            if (torsoNode.rotation.z >= Math.PI * 2) torsoNode.rotation.z %= (Math.PI * 2);
+                            goalRoll = BABYLON.Scalar.Lerp(torsoNode.rotation.z, 0, prog);
+                            goalPitch = BABYLON.Scalar.Lerp(torsoNode.rotation.x, 0, prog);
+                            const tAngle = BABYLON.Scalar.Lerp(0.5, 0, prog);
+                            const kAngle = BABYLON.Scalar.Lerp(-1.4, -1.1, prog);
+                            overrideAngles = [ {t:tAngle, k:kAngle}, {t:tAngle, k:kAngle}, {t:tAngle, k:kAngle}, {t:tAngle, k:kAngle} ];
+                        } else {
+                            isTumbling = false;
+                            robotX = safeRespawnX;
+                            document.getElementById('tel-ik').innerText = "ACTIVO";
+                            document.getElementById('tel-ik').style.color = "#ff88aa";
+                        }
+                    } 
+                    else if (window.currentMission === 'LIBRE') {
+                        velDisplay = 1.6 * cad;
+                        robotZ += velDisplay * dt;
+                        
+                        let avoidX = 0;
+                        for (let c of colliders) {
+                            const dz = c.z - robotZ;
+                            const dx = c.x - robotX;
+                            if (dz > 0 && dz < 4.0 && Math.abs(dx) < 1.8) {
+                                avoidX = (dx >= 0) ? -1.6 : 1.6;
+                            }
+                        }
+                        if (avoidX !== 0) {
+                            robotX += avoidX * dt * 1.5;
+                            goalRoll = avoidX * -0.12; goalYaw = avoidX * 0.25;
+                            document.getElementById('tel-ik').innerText = "🤖 ESQUIVE AUTÓNOMO LiDAR";
+                            document.getElementById('tel-ik').style.color = "#00ff88";
+                        } else {
+                            robotX = Math.sin(robotZ * 0.4) * 1.2;
+                            goalRoll = Math.cos(robotZ * 0.4) * 0.1; goalYaw = Math.cos(robotZ * 0.4) * 0.2;
+                            document.getElementById('tel-ik').innerText = "Navegación Autónoma";
+                            document.getElementById('tel-ik').style.color = "#00f2ff";
+                        }
+
+                        goalY = targetHeight + Math.abs(Math.sin(time * 5 * cad)) * 0.015;
+                        for(let i=0; i<4; i++) {
+                            const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                            const phase = isDiag1 ? time * 5 * cad : time * 5 * cad + Math.PI;
+                            localFootDx[i] = Math.cos(phase) * 0.14;
+                            localFootDy[i] = -goalY + Math.max(0, Math.sin(phase)) * 0.12;
+                        }
+                    }
+                    else if (window.currentMission === 'RAMPA') {
+                        if (!window.rampaStarted) {
+                            missionTime = 0;
+                            velDisplay = 0;
+                            robotX = -4.5;
+                            robotZ = -1.0;
+                            goalY = targetHeight;
+                            goalPitch = 0;
+                            document.getElementById('tel-ik').innerText = "ESPERANDO CLIC PARA SUBIR 🖱️";
+                            document.getElementById('tel-ik').style.color = "#00f2ff";
+                            for(let i=0; i<4; i++) {
+                                localFootDx[i] = 0;
+                                localFootDy[i] = -targetHeight;
+                            }
+                        } else {
+                            velDisplay = 1.1 * cad;
+                            robotX = -4.5;
+                            const cycleTime = (missionTime * cad) % 15;
+                            if (cycleTime < 2.0) {
+                                robotZ = -1.0 + cycleTime * 1.0;
+                        } else if (cycleTime < 6.0) {
+                            const p = (cycleTime - 2.0) / 4.0;
+                            robotZ = 1.0 + p * 4.0; 
+                        } else if (cycleTime < 9.0) {
+                            const p = (cycleTime - 6.0) / 3.0;
+                            robotZ = 5.0 + p * 3.5;
+                        } else if (cycleTime < 13.0) {
+                            const p = (cycleTime - 9.0) / 4.0;
+                            robotZ = 8.5 + p * 4.0;
+                        } else {
+                            robotZ = 12.5 + (cycleTime - 13.0) * 1.3;
+                        }
+                        const elevationFront = getTerrainHeight(robotX, robotZ + 0.24);
+                        const elevationRear  = getTerrainHeight(robotX, robotZ - 0.24);
+                        goalY = targetHeight + (elevationFront + elevationRear) * 0.5;
+                        goalPitch = Math.atan2(elevationRear - elevationFront, 0.48);
+                        torsoNode.position.y = goalY;
+                        torsoNode.position.z = robotZ;
+                        torsoNode.rotation.x = goalPitch;
+                        bypassRotLerp = true;
+                        for(let i=0; i<4; i++) {
+                            const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                            const phase = isDiag1 ? time * 5 * cad : time * 5 * cad + Math.PI;
+                            const dzStep = Math.cos(phase) * 0.13;
+                            const footZWorld = robotZ + legs[i].baseZ * Math.cos(goalPitch) + dzStep;
+                            const terrainH = getTerrainHeight(robotX, footZWorld);
+                            const footRadius = 0.035;
+                            const footWorldY = terrainH + footRadius + Math.max(0, Math.sin(phase)) * 0.11;
+                            const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                            const dyWorld = footWorldY - hipWorldY;
+                            const zLocal = dzStep * Math.cos(goalPitch) + dyWorld * Math.sin(goalPitch);
+                            const yLocal = dzStep * Math.sin(goalPitch) + dyWorld * Math.cos(goalPitch);
+                            localFootDx[i] = zLocal;
+                            localFootDy[i] = yLocal;
+                        }
+                        }
+                    }
+                    else if (window.currentMission === 'BACKFLIP') {
+                        const loopT = (missionTime * cad) % 4.0;
+                        const footRadius = 0.035;
+                        if (loopT < 1.2) {
+                            const p = loopT / 1.2;
+                            goalY = BABYLON.Scalar.Lerp(0.36, 0.20, Math.sin(p * Math.PI / 2));
+                            goalPitch = 0.18 * p;
+                            for(let i=0; i<4; i++) {
+                                const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                                localFootDx[i] = 0; localFootDy[i] = -(hipWorldY - footRadius);
+                            }
+                            document.getElementById('tel-ik').innerText = "⚡ FLEXIÓN SOBRE EL SUELO";
+                        } else if (loopT < 2.2) {
+                            bypassRotLerp = true;
+                            const p = (loopT - 1.2) / 1.0;
+                            goalY = 0.36 + Math.sin(p * Math.PI) * 1.4;
+                            goalPitch = 0.18 - (p * Math.PI * 2);
+                            torsoNode.rotation.x = goalPitch;
+                            overrideAngles = [ {t:1.3, k:-2.4}, {t:1.3, k:-2.4}, {t:1.3, k:-2.4}, {t:1.3, k:-2.4} ];
+                            document.getElementById('tel-ik').innerText = "🤸 SALTO MORTAL 360°";
+                        } else if (loopT < 2.8) {
+                            if (torsoNode.rotation.x < -Math.PI) torsoNode.rotation.x += Math.PI * 2;
+                            goalY = 0.24; goalPitch = 0;
+                            for(let i=0; i<4; i++) {
+                                const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                                localFootDx[i] = 0; localFootDy[i] = -(hipWorldY - footRadius);
+                            }
+                            document.getElementById('tel-ik').innerText = "💥 AMORTIGUACIÓN";
+                        } else {
+                            goalY = targetHeight; goalPitch = 0;
+                            for(let i=0; i<4; i++) {
+                                const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                                localFootDx[i] = 0; localFootDy[i] = -(hipWorldY - footRadius);
+                            }
+                            document.getElementById('tel-ik').innerText = "ACTIVO";
+                        }
+                    }
+                    else if (window.currentMission === 'BIPEDO') {
+                        velDisplay = 0.5 * cad;
+                        robotZ += velDisplay * dt;
+                        goalPitch = -1.25;
+                        goalY = 0.53;
+                        overrideAngles = overrideAngles || [null, null, null, null];
+                        overrideAngles[0] = {t: -0.8, k: -2.0}; overrideAngles[1] = {t: -0.8, k: -2.0};
+                        
+                        const footRadius = 0.035;
+                        for(let i=2; i<4; i++) {
+                            overrideAngles[i] = null;
+                            const phase = (i === 2) ? time * 4.5 * cad : time * 4.5 * cad + Math.PI;
+                            const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                            const footWorldY = footRadius + Math.max(0, Math.sin(phase)) * 0.12;
+                            localFootDx[i] = Math.cos(phase) * 0.12;
+                            localFootDy[i] = -(hipWorldY - footWorldY);
+                        }
+                    }
+                    else if (window.currentMission === 'PINO') {
+                        velDisplay = 0.5 * cad;
+                        robotZ += velDisplay * dt;
+                        goalPitch = 1.25;
+                        goalY = 0.53;
+                        overrideAngles = overrideAngles || [null, null, null, null];
+                        overrideAngles[2] = {t: 1.4, k: -0.3}; overrideAngles[3] = {t: 1.4, k: -0.3};
+                        
+                        const footRadius = 0.035;
+                        for(let i=0; i<2; i++) {
+                            overrideAngles[i] = null;
+                            const phase = (i === 0) ? time * 4.5 * cad : time * 4.5 * cad + Math.PI;
+                            const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                            const footWorldY = footRadius + Math.max(0, Math.sin(phase)) * 0.12;
+                            localFootDx[i] = Math.cos(phase) * 0.12;
+                            localFootDy[i] = -(hipWorldY - footWorldY);
+                        }
+                    }
+                    else if (window.currentMission === 'SALTO') {
+                        robotX = 4.5;
+                        const cycleTime = (missionTime * cad) % 4.2;
+                        if (cycleTime < 1.5) {
+                            velDisplay = 3.2 * cad; robotZ = -4 + cycleTime * 3.2; goalY = 0.36; goalPitch = 0;
+                            for(let i=0; i<4; i++) {
+                                const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                                const phase = isDiag1 ? time * 6 * cad : time * 6 * cad + Math.PI;
+                                localFootDx[i] = Math.cos(phase) * 0.16;
+                                localFootDy[i] = -0.36 + Math.max(0, Math.sin(phase)) * 0.14;
+                            }
+                        } else if (cycleTime < 2.6) {
+                            velDisplay = 3.2 * cad;
+                            const p = (cycleTime - 1.5) / 1.1;
+                            robotZ = 0.8 + p * 3.6; goalY = 0.36 + Math.sin(p * Math.PI) * 0.85;
+                            goalPitch = -0.35 + p * 0.7;
+                            overrideAngles = [ {t:-0.9, k:-0.3}, {t:-0.9, k:-0.3}, {t:1.1, k:-0.3}, {t:1.1, k:-0.3} ];
+                        } else if (cycleTime < 3.2) {
+                            velDisplay = 2.0 * cad;
+                            const p = (cycleTime - 2.6) / 0.6;
+                            robotZ = 4.4 + p * 1.2; 
+                            goalY = BABYLON.Scalar.Lerp(0.30, targetHeight, p);
+                            goalPitch = 0;
+                            for(let i=0; i<4; i++) { localFootDx[i] = 0; localFootDy[i] = -goalY; }
+                        } else {
+                            velDisplay = 2.0 * cad;
+                            robotZ = 5.6 + (cycleTime - 3.2) * 2.0; goalY = targetHeight; goalPitch = 0;
+                            for(let i=0; i<4; i++) {
+                                const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                                const phase = isDiag1 ? time * 5 * cad : time * 5 * cad + Math.PI;
+                                localFootDx[i] = Math.cos(phase) * 0.14;
+                                localFootDy[i] = -goalY + Math.max(0, Math.sin(phase)) * 0.12;
+                            }
+                        }
+                    }
+                    else if (window.currentMission === 'BAILE') {
+                        const beat = (missionTime * cad) % 4.0;
+                        if (beat < 1.0) {
+                            goalRoll = Math.sin(time * 6 * cad) * 0.25; robotX = Math.sin(time * 6 * cad) * 0.15;
+                            for(let i=0; i<4; i++) localFootDy[i] = -0.36 + Math.abs(Math.sin(time*6*cad + i))*0.08;
+                        } else if (beat < 2.0) {
+                            goalPitch = Math.sin(time * 8 * cad) * 0.25; goalY = 0.32 + Math.abs(Math.sin(time * 8 * cad)) * 0.08;
+                        } else if (beat < 3.0) {
+                            for(let i=0; i<4; i++) localFootDy[i] = -0.36 + ((i===1)? Math.abs(Math.sin(time*14*cad))*0.16 : 0);
+                        } else {
+                            bypassRotLerp = true;
+                            goalYaw = (beat - 3.0) * Math.PI * 2;
+                            if (torsoNode.rotation.y > Math.PI) torsoNode.rotation.y -= Math.PI * 2;
+                            torsoNode.rotation.y = goalYaw;
+                            for(let i=0; i<4; i++) {
+                                const phase = time * 10 * cad + i * Math.PI / 2;
+                                localFootDx[i] = Math.cos(phase) * 0.08;
+                                localFootDy[i] = -0.36 + Math.max(0, Math.sin(phase)) * 0.1;
+                            }
+                        }
+                    }
+                    else if (window.currentMission === 'CARRERA_SALTOS') {
+                        velDisplay = 3.2 * cad;
+                        robotZ += velDisplay * dt;
+                        const phaseMode = (missionTime * cad) % 3.0;
+                        if (phaseMode < 1.8) {
+                            goalPitch = Math.sin(time * 8 * cad) * 0.16;
+                            goalY = 0.36 + Math.max(0, Math.sin(time * 8 * cad)) * 0.12;
+                            for(let i=0; i<4; i++) {
+                                const phase = legs[i].isFront ? time * 8 * cad : time * 8 * cad + Math.PI;
+                                localFootDx[i] = Math.cos(phase) * 0.2;
+                                localFootDy[i] = -goalY + Math.max(0, Math.sin(phase)) * 0.14;
+                            }
+                            document.getElementById('tel-ik').innerText = "⚡ GALOPE VELOZ";
+                        } else {
+                            const jumpP = Math.sin(((phaseMode - 1.8) / 1.2) * Math.PI);
+                            goalY = 0.36 + jumpP * 0.50;
+                            goalPitch = -0.2 * jumpP;
+                            for(let i=0; i<4; i++) {
+                                localFootDx[i] = 0;
+                                localFootDy[i] = jumpP > 0.1 ? -0.26 : -goalY;
+                            }
+                            document.getElementById('tel-ik').innerText = "🐑 SALTO AÉREO GACELA";
+                        }
+                    }
+                    else if (window.currentMission === 'LABERINTO') {
+                        velDisplay = 1.5 * cad;
+                        robotZ += velDisplay * dt;
+                        if (robotZ <= 17.0) {
+                            robotX = -9.0 + 1.3 * Math.sin(robotZ * (Math.PI / 3.0) - Math.PI / 2);
+                            goalRoll = Math.cos(robotZ * (Math.PI / 3.0)) * 0.18;
+                            goalYaw = Math.cos(robotZ * (Math.PI / 3.0)) * 0.32;
+                        } else {
+                            robotX = BABYLON.Scalar.Lerp(robotX, -9.0, 0.1);
+                            goalRoll = 0; goalYaw = 0;
+                        }
+                        for(let i=0; i<4; i++) {
+                            const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                            const phase = isDiag1 ? time * 5 * cad : time * 5 * cad + Math.PI;
+                            localFootDx[i] = Math.cos(phase) * 0.14;
+                            localFootDy[i] = -0.36 + Math.max(0, Math.sin(phase)) * 0.12;
+                        }
+                    }
+                    else if (window.currentMission === 'ABRUPTO') {
+                        velDisplay = 0.8 * cad;
+                        robotX = 9.0;
+                        robotZ += velDisplay * dt;
+                        
+                        const elevationFront = getRockElevation(9.0, robotZ + 0.24);
+                        const elevationRear  = getRockElevation(9.0, robotZ - 0.24);
+                        goalY = targetHeight + (elevationFront + elevationRear) * 0.5;
+                        goalPitch = Math.atan2(elevationRear - elevationFront, 0.48);
+                        goalRoll = 0.08 * Math.sin(robotZ * 2.0);
+                        torsoNode.position.y = goalY;
+                        torsoNode.position.z = robotZ;
+                        torsoNode.rotation.x = goalPitch;
+                        bypassRotLerp = true;
+
+                        for(let i=0; i<4; i++) {
+                            const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                            const phase = isDiag1 ? time * 4 * cad : time * 4 * cad + Math.PI;
+                            const dzStep = Math.cos(phase) * 0.12;
+                            const footZWorld = robotZ + legs[i].baseZ * Math.cos(goalPitch) + dzStep;
+                            const footXWorld = robotX + legs[i].baseX;
+                            const rockH = getRockElevation(footXWorld, footZWorld);
+                            const footRadius = 0.035;
+                            const footWorldY = rockH + footRadius + Math.max(0, Math.sin(phase)) * 0.12;
+                            const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                            const dyWorld = footWorldY - hipWorldY;
+                            localFootDx[i] = dzStep * Math.cos(goalPitch) + dyWorld * Math.sin(goalPitch);
+                            localFootDy[i] = dzStep * Math.sin(goalPitch) + dyWorld * Math.cos(goalPitch);
+                        }
+                    }
+                    else if (window.currentMission === 'MOUSE_PILOT') {
+                        // PUNTO 10 MEJORADO: El perro sigue el puntero del ratón en tiempo real sobre el suelo 3D
+                        const dx = targetMouseX - robotX;
+                        const dz = targetMouseZ - robotZ;
+                        const distToCursor = Math.sqrt(dx*dx + dz*dz);
+
+                        if (distToCursor > 0.4) {
+                            const targetAngle = Math.atan2(dx, dz);
+                            let diffAngle = targetAngle - robotYaw;
+                            while (diffAngle > Math.PI) diffAngle -= Math.PI * 2;
+                            while (diffAngle < -Math.PI) diffAngle += Math.PI * 2;
+                            
+                            const turnSpeed = Math.max(-2.5, Math.min(2.5, diffAngle * 3.0)) * cad;
+                            robotYaw += turnSpeed * dt;
+                            
+                            velDisplay = Math.min(2.5, distToCursor * 1.2) * cad;
+                            const moveDist = velDisplay * dt;
+                            const propZ = robotZ + Math.cos(robotYaw) * moveDist;
+                            const propX = robotX + Math.sin(robotYaw) * moveDist;
+                            goalRoll = -turnSpeed * 0.1;
+
+                            const resPos = resolveCollisions(propX, propZ);
+                            const collisionDetected = (resPos.x !== propX || resPos.z !== propZ);
+                            robotX = resPos.x;
+                            robotZ = resPos.z;
+
+                            const terrainH = getTerrainHeight(robotX, robotZ);
+                            goalY = targetHeight + terrainH;
+                            
+                            if (terrainH > 0.05) {
+                                const nextH = getTerrainHeight(robotX + Math.sin(robotYaw)*0.2, robotZ + Math.cos(robotYaw)*0.2);
+                                goalPitch = Math.atan2(terrainH - nextH, 0.2);
+                            } else {
+                                goalPitch = 0;
+                            }
+
+                            if (robotZ >= 2.0 && robotZ <= 11.5 && terrainH > 0.3) {
+                                if (robotX < -5.35) triggerTumble(-6.2);
+                                else if (robotX > -3.65) triggerTumble(-2.8);
+                            }
+
+                            if (collisionDetected) {
+                                document.getElementById('tel-ik').innerText = "⚠️ COLISIÓN FRENADA";
+                                document.getElementById('tel-ik').style.color = "#ffcc00";
+                            } else {
+                                document.getElementById('tel-ik').innerText = "SIGUIENDO PUNTERO 🖱️";
+                                document.getElementById('tel-ik').style.color = "#00ff88";
+                            }
+
+                            for(let i=0; i<4; i++) {
+                                const isDiag1 = (legs[i].isFront && !legs[i].isLeft) || (!legs[i].isFront && legs[i].isLeft);
+                                const phase = isDiag1 ? time * 5 * cad : time * 5 * cad + Math.PI;
+                                const footZWorld = robotZ + legs[i].baseZ + Math.cos(phase)*0.1;
+                                const footTerrainH = getTerrainHeight(robotX, footZWorld);
+                                const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                                localFootDx[i] = Math.cos(phase) * 0.14;
+                                localFootDy[i] = -(hipWorldY - footTerrainH) + Math.max(0, Math.sin(phase)) * 0.12;
+                            }
+                        } else {
+                            velDisplay = 0;
+                            const terrainH = getTerrainHeight(robotX, robotZ);
+                            goalY = targetHeight + terrainH;
+                            goalPitch = 0; goalRoll = 0;
+                            document.getElementById('tel-ik').innerText = "EN DESTINO (ESPERANDO)";
+                            document.getElementById('tel-ik').style.color = "#00f2ff";
+                            for(let i=0; i<4; i++) {
+                                const footTerrainH = getTerrainHeight(robotX, robotZ + legs[i].baseZ);
+                                const hipWorldY = goalY - legs[i].baseZ * Math.sin(goalPitch);
+                                localFootDx[i] = 0; localFootDy[i] = -(hipWorldY - footTerrainH);
+                            }
+                        }
+                    }
+
+                    torsoNode.position.x = BABYLON.Scalar.Lerp(torsoNode.position.x, robotX, 0.2);
+                    torsoNode.position.y = BABYLON.Scalar.Lerp(torsoNode.position.y, goalY, 0.2);
+                    torsoNode.position.z = BABYLON.Scalar.Lerp(torsoNode.position.z, robotZ, 0.2);
+                    
+                    if (!bypassRotLerp) {
+                        torsoNode.rotation.x = BABYLON.Scalar.Lerp(torsoNode.rotation.x, goalPitch, 0.2);
+                        torsoNode.rotation.z = BABYLON.Scalar.Lerp(torsoNode.rotation.z, goalRoll, 0.2);
+                        torsoNode.rotation.y = BABYLON.Scalar.Lerp(torsoNode.rotation.y, goalYaw, 0.2);
+                    } else {
+                        torsoNode.rotation.z = goalRoll;
+                    }
+                    torsoNode.computeWorldMatrix(true);
+
+                    camera.target.z = BABYLON.Scalar.Lerp(camera.target.z, torsoNode.position.z, 0.1);
+                    camera.target.x = BABYLON.Scalar.Lerp(camera.target.x, torsoNode.position.x, 0.1);
+                    ground.position.z = Math.floor(torsoNode.position.z / 10) * 10;
+                    ground.position.x = Math.floor(torsoNode.position.x / 10) * 10;
+                    dirLight.position.z = torsoNode.position.z + 5;
+                    dirLight.position.x = torsoNode.position.x + 5;
+
+                    for (let i=0; i<4; i++) {
+                        const leg = legs[i];
+                        if (overrideAngles && overrideAngles[i]) {
+                            leg.jointThigh.rotation.x = BABYLON.Scalar.Lerp(leg.jointThigh.rotation.x, overrideAngles[i].t, 0.35);
+                            leg.jointKnee.rotation.x = BABYLON.Scalar.Lerp(leg.jointKnee.rotation.x, overrideAngles[i].k, 0.35);
+                        } else {
+                            const ik = solveIK(localFootDx[i], localFootDy[i]);
+                            const pitchOffset = (window.currentMission === 'BIPEDO' || window.currentMission === 'PINO') ? goalPitch : 0;
+                            const targetThigh = ik.thigh - pitchOffset;
+                            const fastMissions = ['RAMPA', 'BACKFLIP', 'BIPEDO', 'PINO', 'ABRUPTO'];
+                            const ikSpeed = fastMissions.includes(window.currentMission) ? 1.0 : 0.4;
+                            leg.jointThigh.rotation.x = BABYLON.Scalar.Lerp(leg.jointThigh.rotation.x, targetThigh, ikSpeed);
+                            leg.jointKnee.rotation.x = BABYLON.Scalar.Lerp(leg.jointKnee.rotation.x, ik.knee, ikSpeed);
+                        }
+                    }
+
+                    document.getElementById('tel-vz').innerText = velDisplay.toFixed(1) + " m/s";
+                    document.getElementById('tel-h').innerText = torsoNode.position.y.toFixed(2) + " m";
+                });
+
+                return scene;
+            };
+
+            const scene = createScene();
+            engine.runRenderLoop(() => scene.render());
+            window.addEventListener('resize', () => engine.resize());
+        });
+    </script>
+</body>
+</html>

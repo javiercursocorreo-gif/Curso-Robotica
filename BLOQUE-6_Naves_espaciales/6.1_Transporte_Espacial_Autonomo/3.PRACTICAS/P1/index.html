@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1: Showroom de la Nave - Robótica V2</title>
+    <!-- Babylon.js CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; }
+        #renderCanvas { width: 100%; height: 100vh; touch-action: none; display: block; }
+        
+        /* Controles Showroom */
+        #ui-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            background: rgba(10, 20, 40, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        h2 { margin: 0; font-family: 'Orbitron', sans-serif; font-size: 1rem; color: #00e5ff; }
+
+        .cyber-button {
+            background: rgba(0, 229, 255, 0.1);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            font-family: 'Orbitron', sans-serif;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .cyber-button:hover {
+            background: rgba(0, 229, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div id="ui-container">
+        <h2>P1: VISOR DE MODELO</h2>
+        <button id="btn-play" class="cyber-button">REPRODUCIR ANIMACIÓN</button>
+        <button id="btn-pause" class="cyber-button" style="border-color: #ffaa00; color: #ffaa00;">PAUSAR</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

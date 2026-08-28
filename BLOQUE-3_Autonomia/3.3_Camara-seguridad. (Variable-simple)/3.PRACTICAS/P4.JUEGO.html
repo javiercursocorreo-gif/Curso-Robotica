@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — Cámara de Seguridad</title>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #0d0d1a;
+  --bg2: #13132a;
+  --glass: rgba(0,20,40,0.85);
+  --text: #ffffff;
+  --sub: #aaaaaa;
+  --success: #00e676;
+  --danger: #ff4444;
+  --warning: #ffcc00;
+  --orange: #FF6B35;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 2px solid var(--primary);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+#header h1 { font-size: 22px; color: var(--primary); letter-spacing: 5px; text-transform: uppercase; }
+#header .subtitle { font-size: 14px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: bold; }
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 1px solid #333;
+  display: flex; z-index: 99; padding: 6px 12px; gap: 8px;
+}
+.prog-btn {
+  flex: 1; height: 44px; border: 2px solid #444; background: transparent;
+  color: var(--sub); font-size: 14px; cursor: pointer;
+  border-radius: 8px; transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+}
+.prog-btn.active { border-color: var(--warning); color: var(--warning); background: rgba(255,204,0,0.1); }
+.prog-btn.done { border-color: var(--primary); color: var(--primary); background: rgba(0,242,255,0.1); }
+#main {
+  margin-top: 130px;
+  min-height: calc(100vh - 130px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pantalla {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 800px; width: 100%;
+}
+.pantalla.activa { display: flex; }
+.portada-emojis { font-size: 80px; margin-bottom: 20px; }
+.portada-titulo { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 12px; }
+.portada-desc { font-size: 18px; color: var(--sub); margin-bottom: 30px; max-width: 520px; line-height: 1.6; }
+.badges-container { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 14px 22px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+.btn-empezar {
+  background: var(--primary); color: #000; border: none; padding: 18px 48px;
+  font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer;
+  min-height: 70px; transition: all 0.2s; letter-spacing: 2px;
+}
+.btn-empezar:hover { background: #00d4e0; transform: scale(1.03); }
+
+.game-card {
+  background: var(--glass);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 800px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,242,255,0.08);
+}
+.game-title { font-size: 13px; letter-spacing: 4px; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+.game-question { font-size: 22px; line-height: 1.4; margin-bottom: 28px; color: var(--text); font-weight: 600; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.opt-btn {
+  min-height: 75px; padding: 16px 20px;
+  border: 2px solid #444; background: rgba(255,255,255,0.04);
+  color: var(--text); font-size: 18px; cursor: pointer;
+  border-radius: 12px; transition: all 0.25s;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,68,68,0.1); color: var(--danger); }
+.opt-btn:disabled { cursor: default; }
+
+.feedback {
+  min-height: 60px; padding: 14px 20px;
+  border-radius: 10px; font-size: 18px; margin-bottom: 18px;
+  display: none; line-height: 1.4;
+}
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,230,118,0.15); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+.btn-siguiente {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-siguiente.show { display: block; }
+.btn-siguiente:hover { background: #00d4e0; transform: translateY(-2px); }
+
+.btn-solucion {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--warning); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-solucion.show { display: block; }
+.btn-solucion:hover { background: #e6b800; transform: translateY(-2px); }
+
+.btn-reiniciar {
+  min-height: 55px; padding: 0 24px;
+  background: transparent; border: 2px solid #555; color: var(--sub);
+  border-radius: 10px; font-size: 16px; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-top: 14px;
+}
+.btn-reiniciar:hover { border-color: var(--warning); color: var(--warning); }
+
+/* Sortable items */
+.sortable-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.sort-item {
+  min-height: 70px; padding: 14px 20px;
+  background: rgba(0,191,165,0.08); border: 2px solid var(--teal);
+  border-radius: 12px; font-size: 18px; cursor: grab;
+  display: flex; align-items: center; gap: 14px;
+  user-select: none; transition: all 0.2s;
+}
+.sort-item:active { cursor: grabbing; }
+.sort-item.dragging { opacity: 0.4; }
+.sort-item.over { border: 2px dashed var(--warning) !important; background: rgba(255,204,0,0.08) !important; }
+.sort-num {
+  width: 36px; height: 36px; background: var(--teal);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 16px; color: #000; flex-shrink: 0;
+}
+.btn-verificar {
+  min-height: 75px; width: 100%;
+  background: var(--orange); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-bottom: 12px;
+}
+.btn-verificar:hover { background: #e55c28; }
+
+/* Match grid */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-item {
+  min-height: 70px; padding: 14px 16px;
+  border: 2px solid #444; border-radius: 10px;
+  font-size: 17px; cursor: pointer; transition: all 0.25s;
+  display: flex; align-items: center; line-height: 1.3;
+}
+.match-item.left { background: rgba(255,107,53,0.1); border-color: var(--orange); }
+.match-item.right { background: rgba(0,191,165,0.1); border-color: var(--teal); }
+.match-item.selected { transform: scale(1.03); box-shadow: 0 0 20px rgba(0,242,255,0.4); border-color: var(--primary); }
+.match-item.matched { opacity: 0.5; cursor: default; border-style: dashed; }
+.match-item.match-ok { border-color: var(--success); background: rgba(0,230,118,0.12); color: var(--success); }
+.match-item.match-ko { border-color: var(--danger); background: rgba(255,68,68,0.1); animation: shake 0.4s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+/* Reto Final camera box */
+.cam-desc-wrap { background: rgba(0,0,0,0.4); border: 2px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.cam-monitor {
+  display: flex; gap: 24px; background: rgba(10, 10, 25, 0.7);
+  border: 2px solid var(--primary); border-radius: 16px;
+  padding: 20px; margin-bottom: 20px; align-items: stretch;
+  flex-wrap: wrap; text-align: left;
+}
+.cam-feed {
+  flex: 1.2; min-width: 260px; background: #000; border-radius: 12px;
+  border: 2px solid #444; position: relative; display: flex;
+  align-items: center; justify-content: center; font-size: 80px;
+  min-height: 180px; overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,242,255,0.2);
+}
+.cam-feed::before {
+  content: "📷 EN DIRECTO · CAM 1"; position: absolute; top: 12px; left: 12px;
+  font-size: 11px; color: #00f2ff; font-weight: bold; font-family: monospace; letter-spacing: 2px;
+}
+.cam-feed-scanline {
+  position: absolute; top: 0; left: 0; right: 0; height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 242, 255, 0.08) 50%);
+  background-size: 100% 6px; pointer-events: none;
+  animation: scrollScan 8s linear infinite;
+}
+@keyframes scrollScan {
+  from { background-position: 0 0; }
+  to { background-position: 0 400px; }
+}
+.cam-stats {
+  flex: 0.8; min-width: 200px; display: flex; flex-direction: column; gap: 10px; justify-content: center;
+}
+.if-stat { background: rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; }
+.if-stat-l { font-size: 11px; color: #aaaaaa; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+.if-stat-v { font-size: 18px; font-weight: bold; color: #00f2ff; }
+.cam-emoji { font-size: 60px; }
+.cam-text { font-size: 18px; line-height: 1.6; max-width: 500px; }
+
+#final-screen {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px;
+}
+.trophy { font-size: 80px; margin-bottom: 20px; animation: bounce 1s infinite alternate; }
+@keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-15px)} }
+.final-title { font-size: 32px; color: var(--primary); letter-spacing: 4px; margin-bottom: 12px; }
+.final-score { font-size: 22px; color: var(--warning); margin-bottom: 30px; }
+.btn-replay {
+  min-height: 75px; padding: 0 48px;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 16px;
+  font-size: 22px; font-weight: bold; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; letter-spacing: 2px;
+}
+.btn-replay:hover { background: #00d4e0; }
+
+@media (max-width: 768px) {
+  #header { height: auto; padding: 10px; flex-direction: column; gap: 5px; align-items: flex-start; }
+  #score-display { text-align: left !important; font-size: 18px; }
+  #progress-bar { top: 105px; }
+  #main { margin-top: 165px; min-height: calc(100vh - 165px); }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Cámara de Seguridad</h1>
+    <div class="subtitle">Repaso · La variable simple</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Ordenar</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar</button>
+  <button class="prog-btn" onclick="goGame(3)">🎯 Reto Final</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">📷🔴</div>
+    <div class="portada-titulo">¿Cuándo dice SÍ la cámara?</div>
+    <div class="portada-desc">4 minijuegos sobre variables, reconocimiento visual y seguridad.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial</div>
+      <div class="badge-card">📦 Ordenar</div>
+      <div class="badge-card">🔗 Emparejar</div>
+      <div class="badge-card">🎯 Reto Final</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡EMPEZAR!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 800px;"></div>
+</div>
+
+<script>
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0;
+  currentGame = 0;
+  completedGames.fill(false);
+  updateScore(0);
+  updateProgressBar();
+  game1();
+}
+
+function goGame(n) {
+  currentGame = n;
+  updateProgressBar();
+  games[n]();
+}
+
+function nextGame() {
+  completedGames[currentGame] = true;
+  updateProgressBar();
+  if (currentGame < 3) {
+    currentGame++;
+    updateProgressBar();
+    games[currentGame]();
+  } else {
+    showFinal();
+  }
+}
+
+// ─── JUEGO 1: TRIVIAL (5 Preguntas) ──────────────────────────────────────────
+const trivia = [
+  {
+    q: "¿Qué es una variable en programación?",
+    opts: [
+      "Un cable físico especial que conecta la cámara",
+      "Un cajón con nombre donde se guarda un dato que puede cambiar",
+      "Un sensor que mide la temperatura ambiente",
+      "Una instrucción que solo puede ejecutarse una sola vez"
+    ],
+    ok: 1,
+    exp: "✅ ¡Correcto! Una variable es un contenedor con nombre donde guardamos información temporal (como números, textos, o estados SÍ/NO) que puede cambiar durante la ejecución del programa."
+  },
+  {
+    q: "La variable 'persona detectada' tiene dos valores posibles. ¿Cuáles son?",
+    opts: [
+      "Rápido y Lento",
+      "Encendido y Apagado",
+      "SÍ y NO",
+      "Grande y Pequeño"
+    ],
+    ok: 2,
+    exp: "✅ ¡Correcto! Esta variable es booleana (solo tiene dos estados posibles): SÍ (persona presente en el campo visual) o NO (nadie en la imagen)."
+  },
+  {
+    q: "¿Qué diferencia hay entre un sensor de movimiento y el reconocimiento visual?",
+    opts: [
+      "No hay ninguna diferencia, detectan lo mismo",
+      "El sensor detecta cualquier movimiento; el reconocimiento visual identifica qué objeto es",
+      "El sensor de movimiento requiere más luz",
+      "El reconocimiento visual solo funciona en exteriores"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! Un sensor de movimiento tradicional reacciona a cualquier cambio físico (un gato, una rama, etc.). El reconocimiento visual procesa la imagen para confirmar si el objeto es una persona."
+  },
+  {
+    q: "¿Qué significa que la cámara tiene un umbral de confianza del 80%?",
+    opts: [
+      "Que solo graba si detecta más de 80 personas a la vez",
+      "Que activa la alerta si está al menos un 80% segura de que lo detectado es una persona",
+      "Que necesita 80 segundos completos para procesar cada fotograma",
+      "Que solo capta el 80% de la luz ambiental del entorno"
+    ],
+    ok: 1,
+    exp: "✅ ¡Muy bien! El umbral es el límite mínimo de certeza de la IA. Si la confianza en que sea una persona supera el 80% (por ejemplo, 85%), cambia la variable a SÍ."
+  },
+  {
+    q: "¿Qué acciones desencadena que la variable 'persona detectada' cambie a SÍ?",
+    opts: [
+      "Únicamente encender el foco de luz exterior",
+      "Únicamente comenzar a grabar y subir el vídeo",
+      "Múltiples acciones simultáneas: encender la luz, grabar y notificar al móvil",
+      "Ninguna, las variables solo guardan datos sin conectar con actuadores"
+    ],
+    ok: 2,
+    exp: "✅ ¡Perfecto! La variable sirve como interruptor central. Cuando pasa a SÍ, el programa puede activar varias alarmas o actuadores al mismo tiempo."
+  }
+];
+
+let triviaIdx = 0;
+let triviaAnswered = false;
+let triviaAttempts = 0;
+
+function game1() {
+  triviaIdx = 0;
+  renderTrivia();
+}
+
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx];
+  triviaAnswered = false;
+  triviaAttempts = 0;
+  
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(q.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial · Pregunta ${triviaIdx+1} de ${trivia.length}</div>
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE →</button>
+      <button class="btn-reiniciar" onclick="game1()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = q.exp;
+    if (triviaAttempts === 0) {
+      updateScore(20);
+    } else {
+      updateScore(10);
+    }
+    document.getElementById('btn-sol').classList.remove('show');
+    document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true;
+  const q = trivia[triviaIdx];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show');
+  document.getElementById('btn-sig').classList.add('show');
+}
+
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR (7 pasos Drag & Drop nativo) ────────────────────────────
+const sortItems = [
+  { id: 'a', text: 'La cámara captura una imagen del portal en tiempo real' },
+  { id: 'b', text: 'El sensor de imagen convierte la luz en datos digitales' },
+  { id: 'c', text: 'El módulo de IA analiza la imagen comparándola con millones de ejemplos' },
+  { id: 'd', text: 'El sistema calcula el porcentaje de confianza: ¿cuánto se parece esto a una persona?' },
+  { id: 'e', text: 'Si el porcentaje supera el umbral (80%), la variable \'persona detectada\' cambia a SÍ' },
+  { id: 'f', text: 'La variable SÍ desencadena las acciones: luz, grabación y notificación' },
+  { id: 'g', text: 'Cuando la persona se va, la variable vuelve a NO y las acciones se detienen' }
+];
+const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+let sortCurrentOrder = [];
+let sortDone = false;
+let sortAttempts = 0;
+
+function game2() {
+  sortCurrentOrder = shuffleArray([...sortItems]);
+  sortDone = false;
+  sortAttempts = 0;
+  renderSort();
+}
+
+function renderSort() {
+  const html = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Flujo de Detección</div>
+      <div class="game-question">Arrastra los pasos para ordenar qué ocurre desde que una persona entra en el portal hasta que se apaga la alerta.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div>
+            <span>${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  initDragSort();
+}
+
+function initDragSort() {
+  const list = document.getElementById('sort-list');
+  let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => { item.classList.remove('dragging'); dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); if (dragEl && dragEl !== item) item.classList.add('over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault(); item.classList.remove('over');
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        const fromIdx = items.indexOf(dragEl);
+        const toIdx = items.indexOf(item);
+        if (fromIdx < toIdx) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+
+function renumberSort() {
+  document.querySelectorAll('.sort-item').forEach((el, i) => {
+    el.querySelector('.sort-num').textContent = i + 1;
+  });
+}
+
+function disableDrag() {
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.removeAttribute('draggable');
+    el.style.cursor = 'default';
+  });
+}
+
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Perfecto! La cámara captura, la IA procesa y calcula la confianza, se actualiza la variable y finalmente se activan las acciones de seguridad.';
+    if (sortAttempts === 0) {
+      updateScore(30);
+    }
+    sortDone = true;
+    disableDrag();
+    document.getElementById('btn-sol2').classList.remove('show');
+    document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ El orden no es correcto todavía. Recuerda: captura -> digitalización -> análisis IA -> variable -> acción.';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+
+function showSortSolution() {
+  sortDone = true;
+  const list = document.getElementById('sort-list');
+  list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `<div class="sort-num">${i+1}</div><span>${item.text}</span>`;
+    list.appendChild(div);
+  });
+  const fb = document.getElementById('fb-sort');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes el ciclo secuencial del sistema de seguridad.';
+  disableDrag();
+  document.getElementById('btn-sol2').classList.remove('show');
+  document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR (5 Conceptos) ─────────────────────────────────────────
+const matchPairs = [
+  { left: 'Variable', right: 'Cajón con nombre donde se guarda un dato que puede cambiar' },
+  { left: 'Variable booleana', right: 'Variable que solo tiene dos valores: SÍ o NO' },
+  { left: 'Umbral de confianza', right: 'Porcentaje mínimo de certeza para que la cámara actúe' },
+  { left: 'Reconocimiento visual', right: 'Analizar una imagen para identificar qué hay en ella' },
+  { left: 'Sensor de movimiento', right: 'Detecta cualquier movimiento sin identificar qué lo produce' }
+];
+let matchSelected = null;
+let matchDone = 0;
+let matchAutoCount = 0;
+
+function game3() {
+  matchSelected = null;
+  matchDone = 0;
+  matchAutoCount = 0;
+  
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Conceptos de Variables</div>
+      <div class="game-question">Pulsa un término de la izquierda y su definición correspondiente en la derecha.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">
+          ${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+        <div class="match-col" id="right-col">
+          ${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function selectMatch(el) {
+  if (el.classList.contains('matched') || el.classList.contains('match-ok')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) {
+    if (side !== 'left') return;
+    matchSelected = el;
+    el.classList.add('selected');
+  } else {
+    if (side !== 'right') {
+      matchSelected.classList.remove('selected');
+      el.classList.add('selected');
+      matchSelected = el;
+      return;
+    }
+    const idxA = parseInt(matchSelected.dataset.idx);
+    const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('matched', 'match-ok');
+      el.classList.add('matched', 'match-ok');
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        const ownMatches = matchPairs.length - matchAutoCount;
+        updateScore(ownMatches * 6);
+        const fb = document.getElementById('fb-match');
+        fb.className = 'feedback show ok';
+        fb.textContent = '✅ ¡Excelente! Has emparejado todos los conceptos correctamente.';
+        document.getElementById('btn-sol3').classList.remove('show');
+        document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('match-ko');
+      el.classList.add('match-ko');
+      const prev = matchSelected;
+      setTimeout(() => { prev.classList.remove('match-ko'); el.classList.remove('match-ko'); }, 600);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+
+function showMatchSolution() {
+  const lefts = document.querySelectorAll('#left-col .match-item');
+  const rights = document.querySelectorAll('#right-col .match-item');
+  
+  lefts.forEach(l => {
+    if (!l.classList.contains('matched')) l.classList.add('matched', 'match-ok');
+  });
+  rights.forEach(r => {
+    if (!r.classList.contains('matched')) r.classList.add('matched', 'match-ok');
+  });
+  
+  matchAutoCount = matchPairs.length - matchDone;
+  matchDone = matchPairs.length;
+  
+  const fb = document.getElementById('fb-match');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes todas las correspondencias de conceptos.';
+  document.getElementById('btn-sol3').classList.remove('show');
+  document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL (4 Escenarios de Detección) ─────────────────────────
+const scenarios = [
+  {
+    desc: "Son las 3 de la madrugada (modo noche). Una persona se acerca a la puerta. La cámara obtiene un 92% de confianza.",
+    p: "¿Qué valor tiene la variable y qué acciones de seguridad se activan?",
+    ops: [
+      "Variable = SÍ: luz encendida, grabación de vídeo y notificación al móvil",
+      "Variable = NO: la confianza no supera el umbral requerido",
+      "Variable = SÍ: pero de noche el sistema silencia las notificaciones",
+      "Variable = NO: la cámara solo analiza imágenes de día"
+    ],
+    ok: 0,
+    ex: "✅ ¡Correcto! El 92% supera el umbral del 80%. La variable cambia a SÍ y, al ser de noche, se activan todos los actuadores y avisos.",
+    emoji: "👤",
+    time: "03:00 AM",
+    modo: "NOCHE",
+    confianza: 92,
+    confianzaTxt: "92%"
+  },
+  {
+    desc: "Son las 14h. Un gato pasa por delante del portal. La cámara de seguridad analiza la imagen y calcula un 28% de confianza de que sea una persona.",
+    p: "¿Qué ocurre con la variable y el sistema?",
+    ops: [
+      "La variable cambia a SÍ porque se ha detectado movimiento",
+      "La variable se queda en NO: el 28% no supera el umbral de seguridad del 80%",
+      "La variable es SÍ pero no se envía notificación por tratarse de un animal",
+      "El sistema entra en cortocircuito por confusión"
+    ],
+    ok: 1,
+    ex: "✅ ¡Correcto! El reconocimiento visual evita falsas alarmas. Como 28% es menor que 80%, la variable permanece en NO y no se molesta al dueño.",
+    emoji: "🐱",
+    time: "02:00 PM",
+    modo: "DÍA",
+    confianza: 28,
+    confianzaTxt: "28%"
+  },
+  {
+    desc: "Son las 19h (modo día). Una persona llama al interfono. La cámara de seguridad la reconoce con un 97% de confianza.",
+    p: "¿Qué comportamiento ejecuta el sistema en modo día?",
+    ops: [
+      "Envía igualmente una notificación de alerta urgente al móvil",
+      "Graba el clip en local pero NO envía notificación (en modo día solo graba)",
+      "Se apaga temporalmente debido al exceso de iluminación",
+      "Ignora la presencia por completo al estar fuera de horas de vigilancia"
+    ],
+    ok: 1,
+    ex: "✅ ¡Correcto! En modo día, el sistema es menos invasivo: graba el evento por seguridad pero no manda notificaciones molestas.",
+    emoji: "👤",
+    time: "07:00 PM",
+    modo: "DÍA",
+    confianza: 97,
+    confianzaTxt: "97%"
+  },
+  {
+    desc: "Hay una persona parada en el portal. Variable = SÍ, la luz está encendida y la cámara grabando. De repente, la persona se marcha del portal.",
+    p: "¿Qué ocurre con la variable y las acciones en ese momento?",
+    ops: [
+      "La variable se mantiene en SÍ indefinidamente por si regresa",
+      "La variable vuelve a NO; la grabación se detiene y la luz se apaga tras un retardo",
+      "La variable se reseteará a cero automáticamente cuando llegue la medianoche",
+      "El sistema entra en reposo manual hasta que el usuario lo reactive"
+    ],
+    ok: 1,
+    ex: "✅ ¡Correcto! Al vaciarse la escena, la confianza cae, la variable vuelve a NO y las acciones asociadas finalizan de forma programada.",
+    emoji: "🚪",
+    time: "11:30 PM",
+    modo: "NOCHE",
+    confianza: 5,
+    confianzaTxt: "5%"
+  }
+];
+
+let scIdx = 0;
+let scAnswered = false;
+let scAttempts = 0;
+
+function game4() {
+  scIdx = 0;
+  renderScenario();
+}
+
+function renderScenario() {
+  if (scIdx >= scenarios.length) { nextGame(); return; }
+  const s = scenarios[scIdx];
+  scAnswered = false;
+  scAttempts = 0;
+
+  const shuffled = shuffleArray([0, 1, 2, 3]);
+  const correctShuffled = shuffled.indexOf(s.ok);
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 Reto Final · Escenario ${scIdx+1} de ${scenarios.length}</div>
+      
+      <div class="cam-monitor">
+        <div class="cam-feed">
+          <div class="cam-feed-scanline"></div>
+          <div style="font-size: 60px; filter: drop-shadow(0 0 10px var(--primary));">${s.emoji}</div>
+          <div style="position: absolute; bottom: 8px; right: 10px; font-size: 11px; font-family: monospace; color: #888;">${s.time}</div>
+        </div>
+        <div class="cam-stats">
+          <div class="if-stat"><div class="if-stat-l">Modo de Cámara</div><div class="if-stat-v">${s.modo}</div></div>
+          <div class="if-stat"><div class="if-stat-l">Confianza Detección</div><div class="if-stat-v" style="color: ${s.confianza >= 80 ? '#00ff88' : '#ff6644'}">${s.confianzaTxt}</div></div>
+          <div class="if-stat"><div class="if-stat-l">Variable (Persona?)</div><div class="if-stat-v" style="color: ${s.confianza >= 80 ? '#00ff88' : '#ff6644'}">${s.confianza >= 80 ? 'SÍ' : 'NO'}</div></div>
+        </div>
+      </div>
+
+      <div class="game-question">${s.p}</div>
+      <div class="options-grid" id="ifops">
+        ${shuffled.map((i, pos) => `
+          <button class="opt-btn" onclick="answerScenario(this, ${pos}, ${correctShuffled})">${s.ops[i]}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-f"></div>
+      <button class="btn-solucion" id="btn-solf" onclick="showScenarioSolution(${correctShuffled})">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sigf" onclick="scenarioNext()">${scIdx < scenarios.length - 1 ? 'SIGUIENTE ▶' : 'VER RESULTADO FINAL ▶'}</button>
+      <button class="btn-reiniciar" onclick="game4()">REINICIAR JUEGO</button>
+    </div>`;
+
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function answerScenario(btn, pos, correctPos) {
+  if (scAnswered) return;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  const fb = document.getElementById('fb-f');
+  if (pos === correctPos) {
+    scAnswered = true;
+    btns.forEach(b => b.disabled = true);
+    btn.classList.add('correct');
+    fb.className = 'feedback show ok';
+    fb.textContent = s.ex;
+    if (scAttempts === 0) {
+      updateScore(25);
+    } else {
+      updateScore(12);
+    }
+    document.getElementById('btn-solf').classList.remove('show');
+    document.getElementById('btn-sigf').classList.add('show');
+  } else {
+    scAttempts++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ No es esa. ¡Inténtalo de nuevo!';
+    document.getElementById('btn-solf').classList.add('show');
+  }
+}
+
+function showScenarioSolution(correctPos) {
+  scAnswered = true;
+  const s = scenarios[scIdx];
+  const btns = document.querySelectorAll('#ifops .opt-btn');
+  btns.forEach(b => {
+    b.disabled = true;
+    b.classList.remove('wrong');
+  });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb-f');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: ' + s.ex;
+  document.getElementById('btn-solf').classList.remove('show');
+  document.getElementById('btn-sigf').classList.add('show');
+}
+
+function scenarioNext() { scIdx++; renderScenario(); }
+
+// ─── FINAL ───────────────────────────────────────────────────────────────────
+function showFinal() {
+  document.getElementById('progress-bar').style.display = 'none';
+  const trofeo = score >= 230 ? '🏆' : score >= 180 ? '🥈' : '🎖️';
+  const msg = score >= 230
+    ? '¡Excelente! Eres un experto en variables y lógica de seguridad inteligente.'
+    : score >= 180
+    ? '¡Muy bien! Sabes cómo funciona el flujo de variables y umbrales de decisión.'
+    : '¡Buen trabajo! Repasa cómo cambian las variables de la cámara y volverás a por el oro.';
+    
+  document.getElementById('game-area').innerHTML = `
+    <div id="final-screen" style="display:flex">
+      <div class="trophy">${trofeo}</div>
+      <div class="final-title">¡REPASO COMPLETADO!</div>
+      <div class="final-score">⭐ ${score} puntos · ${msg}</div>
+      <button class="btn-replay" onclick="iniciar()">JUGAR OTRA VEZ</button>
+    </div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

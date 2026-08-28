@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2. Cinemática Inversa Avanzada - Optimus Gen 3</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; font-family: 'Segoe UI', sans-serif; background: #222; color: #fff; overflow: hidden; height: 100vh; }
+        #ui-panel { width: 350px; background: #2d2d30; padding: 15px 25px; overflow-y: auto; z-index: 2; box-shadow: 2px 0 15px rgba(0,0,0,0.6); display: flex; flex-direction: column; }
+        h2 { font-size: 20px; text-align: center; color: #00f2ff; margin-bottom: 5px; margin-top: 0; }
+        p.sub { font-size: 13px; text-align: center; color: #ccc; margin-top: 0; margin-bottom: 20px; }
+        .slider-box { background: #3e3e42; margin: 6px 0; padding: 12px; border-radius: 8px; border-left: 4px solid #00f2ff; }
+        .slider-box label { display: block; font-weight: bold; margin-bottom: 6px; color: #fff; font-size: 13px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: #00f2ff; }
+        #canvas-container { flex: 1; position: relative; background: #111; }
+        #canvas { width: 100%; height: 100%; outline: none; }
+    </style>
+</head>
+<body>
+
+<div id="ui-panel">
+    <h2>Consola Cinemática</h2>
+    <p class="sub">Control de Actuadores Biomecánicos</p>
+    
+    <div class="slider-box"><label>Hombro Izq. (Flexión Z)</label><input type="range" id="slShoulderZ" min="0.15" max="1.57" step="0.01" value="0.15"></div>
+    <div class="slider-box"><label>Hombro Izq. (Flexión X)</label><input type="range" id="slShoulderX" min="0" max="3.14" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Codo Izq. (Flexión X)</label><input type="range" id="slElbow" min="0" max="2.0" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Cadera Izq. (Flexión X)</label><input type="range" id="slHip" min="-0.78" max="1.57" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Rodilla Izq. (Flexión X)</label><input type="range" id="slKnee" min="0" max="2.0" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Tobillo Izq. (Flexión X)</label><input type="range" id="slAnkle" min="-1.0" max="1.0" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Cintura (Giro Y)</label><input type="range" id="slWaistY" min="-1.0" max="1.0" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Cintura (Inclinación X)</label><input type="range" id="slWaistX" min="-1.5" max="0.78" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Cuello (Giro Y)</label><input type="range" id="slNeckY" min="-1.5" max="1.5" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Cuello (Inclinación X)</label><input type="range" id="slNeckX" min="-0.5" max="0.5" step="0.01" value="0"></div>
+    <div class="slider-box"><label>Manos 22-GdL (Tendones)</label><input type="range" id="slHand" min="0" max="1.3" step="0.01" value="0"></div>
+</div>
+
+<div id="canvas-container">
+    <canvas id="canvas"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.35, 0.35, 0.38, 1); // Fondo gris medio
+
+    // Ángulo Frontal-Derecho (Para ver el frente y el lado izquierdo del robot, ya que mira hacia -Z)
+    const camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 4, Math.PI/2.5, 42, new BABYLON.Vector3(0, 6.0, 0), scene);
+    camera.attachControl(canvas, true);
+    camera.wheelPrecision = 20;
+    camera.useAutoRotationBehavior = false; // ROTACIÓN DESACTIVADA
+
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 1.3;
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+    dirLight.intensity = 0.5;
+
+    let ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 40, height: 40, subdivisions: 25}, scene);
+    let floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+    floorMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Color oscuro para que contraste con el fondo gris
+    floorMat.wireframe = true;
+    floorMat.alpha = 0.4;
+    ground.material = floorMat; ground.position.y = 2.2;
+
+    const v3 = (x, y, z) => new BABYLON.Vector3(x, y, z);
+    const B = BABYLON;
+
+    const mW = new B.StandardMaterial("mW", scene); mW.diffuseColor = B.Color3.FromHexString("#F4F6F9");
+    const mD = new B.StandardMaterial("mD", scene); mD.diffuseColor = B.Color3.FromHexString("#1A1A20"); mD.specularPower = 16;
+    const mC = new B.StandardMaterial("mC", scene); mC.diffuseColor = B.Color3.FromHexString("#D0D0D5"); mC.specularPower = 128;
+    const mV = new B.StandardMaterial("mV", scene); mV.diffuseColor = B.Color3.FromHexString("#050508"); mV.specularPower = 256; mV.specularColor = new B.Color3(0.5, 0.5, 0.5);
+    const mL = new B.StandardMaterial("mL", scene); mL.emissiveColor = new B.Color3(0, 0.95, 1);
+
+    const createRotary = (n, p, pos, rot, d, l) => {
+        let cyl = B.MeshBuilder.CreateCylinder(n, {diameter: d, height: l}, scene);
+        cyl.parent = p; cyl.position = pos; cyl.rotation = rot; cyl.material = mD;
+        let fl = B.MeshBuilder.CreateCylinder(n+"_f", {diameter: d*1.15, height: l*0.25}, scene);
+        fl.parent = cyl; fl.material = mC; return cyl;
+    };
+
+    const createLinear = (n, p, pos, d, l) => {
+        let base = B.MeshBuilder.CreateCylinder(n, {diameter: d, height: l*0.6}, scene);
+        base.parent = p; base.position = pos; base.material = mD;
+        let rod = B.MeshBuilder.CreateCylinder(n+"_r", {diameter: d*0.4, height: l*0.8}, scene);
+        rod.parent = base; rod.position.y = l * 0.4; rod.material = mC; return base;
+    };
+
+    const createHand = (n, p, pos) => {
+        let palm = B.MeshBuilder.CreateBox(n, {width: 0.8, height: 0.9, depth: 0.3}, scene);
+        palm.parent = p; palm.position = pos; palm.material = mD;
+        palm.phalanges = [];
+        for(let i=0; i<5; i++) {
+            let dx = -0.3 + i*0.15;
+            let prev = palm;
+            for(let j=0; j<3; j++) {
+                let ph = B.MeshBuilder.CreateCylinder(n+i+j, {diameter: 0.12, height: 0.35}, scene);
+                ph.parent = prev; 
+                ph.position = (j===0) ? v3(dx, -0.45, 0) : v3(0, -0.35, -0.05);
+                ph.rotation.x = -0.15; ph.material = mC;
+                palm.phalanges.push(ph);
+                prev = ph;
+            }
+        } return palm;
+    };
+
+    // --- PIVOTES JERÁRQUICOS ---
+    const pLHip = new B.TransformNode("pLHip", scene); pLHip.position = v3(-1.2, 10.0, 0);
+    const pRHip = new B.TransformNode("pRHip", scene); pRHip.position = v3(1.2, 10.0, 0);
+    const pRKnee = new B.TransformNode("pRKnee", scene); pRKnee.parent = pRHip; pRKnee.position = v3(0, -3.6, 0);
+    const pRAnkle = new B.TransformNode("pRAnkle", scene); pRAnkle.parent = pRKnee; pRAnkle.position = v3(0, -3.9, 0);
+
+    const pSpine = new B.TransformNode("pSpine", scene); pSpine.position = v3(0, 10.7, 0);
+    
+    const pLShoulder = new B.TransformNode("pLShoulder", scene); pLShoulder.parent = pSpine; pLShoulder.position = v3(-1.85, 4.6, 0);
+    pLShoulder.rotation.z = -0.15; // Brazo pasivo en reposo
+    
+    const pRShoulder = new B.TransformNode("pRShoulder", scene); pRShoulder.parent = pSpine; pRShoulder.position = v3(1.85, 4.6, 0);
+    const pRElbow = new B.TransformNode("pRElbow", scene); pRElbow.parent = pRShoulder; pRElbow.position = v3(0, -2.8, 0);
+
+    // Pelvis
+    let pelvis = B.MeshBuilder.CreateBox("pelvis", {width: 2.3, height: 1.3, depth: 1.5}, scene);
+    pelvis.position.y = 10.0; pelvis.material = mD;
+    createRotary("hipL", pelvis, v3(-1.2, 0, 0), v3(0,0,1.57), 1.1, 0.8);
+    createRotary("hipR", pelvis, v3(1.2, 0, 0), v3(0,0,1.57), 1.1, 0.8);
+
+    // Pierna Izquierda
+    let tL = B.MeshBuilder.CreateCylinder("tL", {diameterTop: 1.6, diameterBottom: 1.0, height: 3.5}, scene);
+    tL.parent = pLHip; tL.position = v3(0, -1.75, 0); tL.material = mW;
+    createRotary("knL", pLHip, v3(0, -3.6, 0), v3(0,0,1.57), 0.9, 0.9);
+    let shL = B.MeshBuilder.CreateCylinder("shL", {diameter: 0.8, height: 3.5}, scene);
+    shL.parent = pLHip; shL.position = v3(0, -5.5, 0); shL.material = mW;
+    createLinear("cfL", pLHip, v3(0, -5.4, 0.45), 0.3, 1.5);
+    let ftL = B.MeshBuilder.CreateCapsule("ftL", {radius: 0.45, height: 2.8}, scene);
+    ftL.parent = pLHip; ftL.position = v3(0, -7.5, -0.6); ftL.rotation.x = -1.57; ftL.scaling = v3(1.1, 1, 0.6); ftL.material = mD;
+
+    // Pierna Derecha (Con rodilla jerárquica)
+    let tR = B.MeshBuilder.CreateCylinder("tR", {diameterTop: 1.6, diameterBottom: 1.0, height: 3.5}, scene);
+    tR.parent = pRHip; tR.position = v3(0, -1.75, 0); tR.material = mW;
+    createRotary("knR", pRKnee, v3(0, 0, 0), v3(0,0,1.57), 0.9, 0.9);
+    let shR = B.MeshBuilder.CreateCylinder("shR", {diameter: 0.8, height: 3.5}, scene);
+    shR.parent = pRKnee; shR.position = v3(0, -1.9, 0); shR.material = mW;
+    createLinear("cfR", pRKnee, v3(0, -1.8, 0.45), 0.3, 1.5);
+    let ftR = B.MeshBuilder.CreateCapsule("ftR", {radius: 0.45, height: 2.8}, scene);
+    ftR.parent = pRAnkle; ftR.position = v3(0, 0, -0.6); ftR.rotation.x = -1.57; ftR.scaling = v3(1.1, 1, 0.6); ftR.material = mD;
+
+    // Torso (Controlado por pSpine)
+    let spine = B.MeshBuilder.CreateCylinder("spine", {diameter: 0.65, height: 1.6}, scene);
+    spine.parent = pSpine; spine.position = v3(0, 0.8, 0); spine.material = mD;
+    let cR = B.MeshBuilder.CreateTube("cR", {path: [v3(-0.4,0,0.4), v3(-0.5,0.8,0.4), v3(-0.3,1.6,0.3)], radius: 0.08}, scene); cR.parent = pSpine; cR.material = mD;
+    let cO = B.MeshBuilder.CreateTube("cO", {path: [v3(0.4,0,0.4), v3(0.5,0.8,0.4), v3(0.3,1.6,0.3)], radius: 0.08}, scene); cO.parent = pSpine; cO.material = mD;
+    let abd = B.MeshBuilder.CreateCylinder("abd", {diameter: 1.9, height: 1.8}, scene);
+    abd.parent = pSpine; abd.position = v3(0, 2.4, 0); abd.material = mD;
+    let chest = B.MeshBuilder.CreateCapsule("chest", {radius: 1.7, height: 4.8}, scene);
+    chest.parent = pSpine; chest.position = v3(0, 4.2, 0); chest.scaling = v3(0.88, 0.8, 0.65); chest.material = mW;
+    let tTex = new B.DynamicTexture("tTex", {width:256, height:64}, scene);
+    tTex.drawText("T E S L A", null, 40, "bold 45px sans-serif", "#1A1A20", "transparent", true);
+    let tMat = new B.StandardMaterial("tMat", scene);
+    tMat.diffuseTexture = tTex; tMat.diffuseTexture.hasAlpha = true; tMat.zOffset = -1;
+    let tPlane = B.MeshBuilder.CreatePlane("tP", {width: 1.4, height: 0.35}, scene);
+    tPlane.parent = chest; tPlane.position = v3(0, 1.4, -1.72); tPlane.rotation.x = -0.15; tPlane.material = tMat;
+
+    // Brazo Izquierdo
+    createRotary("shL", pLShoulder, v3(0,0,0), v3(0,0,1.57), 1, 1);
+    let armL = B.MeshBuilder.CreateCylinder("armL", {diameter: 0.8, height: 2.6}, scene);
+    armL.parent = pLShoulder; armL.position = v3(0, -1.3, 0); armL.material = mW;
+    createRotary("elL", pLShoulder, v3(0, -2.8, 0), v3(0,0,1.57), 0.8, 0.9);
+    let faL = B.MeshBuilder.CreateCylinder("faL", {diameter: 0.7, height: 2.6}, scene);
+    faL.parent = pLShoulder; faL.position = v3(0, -4.3, 0); faL.material = mW;
+    let handL = createHand("hL", pLShoulder, v3(0, -6.0, 0));
+
+    // Brazo Derecho (Con codo jerárquico)
+    createRotary("shR", pRShoulder, v3(0,0,0), v3(0,0,1.57), 1, 1);
+    let armR = B.MeshBuilder.CreateCylinder("armR", {diameter: 0.8, height: 2.6}, scene);
+    armR.parent = pRShoulder; armR.position = v3(0, -1.3, 0); armR.material = mW;
+    
+    createRotary("elR", pRElbow, v3(0,0,0), v3(0,0,1.57), 0.8, 0.9);
+    let faR = B.MeshBuilder.CreateCylinder("faR", {diameter: 0.7, height: 2.6}, scene);
+    faR.parent = pRElbow; faR.position = v3(0, -1.5, 0); faR.material = mW;
+    let handR = createHand("hR", pRElbow, v3(0, -3.2, 0));
+
+    // Cabeza y Cuello
+    let neck = B.MeshBuilder.CreateCylinder("neck", {diameter: 0.65, height: 0.9}, scene);
+    neck.parent = pSpine; neck.position = v3(0, 6.0, 0); neck.material = mD;
+    const pNeck = new B.TransformNode("pNeck", scene);
+    pNeck.parent = pSpine; pNeck.position = v3(0, 6.45, 0); 
+    
+    let head = B.MeshBuilder.CreateCapsule("head", {radius: 0.9, height: 2.3}, scene);
+    head.parent = pNeck; head.position = v3(0, 0.65, -0.1); head.material = mV; 
+    let controlR = [v3(0, 1.13, 0.22), v3(0.68, 0.85, 0.48), v3(0.93, 0.2, 0.12), v3(0.77, -0.5, -0.47), v3(0, -0.96, -0.77)];
+    let controlL = [v3(0, 1.13, 0.22), v3(-0.68, 0.85, 0.48), v3(-0.93, 0.2, 0.12), v3(-0.77, -0.5, -0.47), v3(0, -0.96, -0.77)];
+    let pathR = B.Curve3.CreateCatmullRomSpline(controlR, 20).getPoints();
+    let pathL = B.Curve3.CreateCatmullRomSpline(controlL, 20).getPoints();
+    let lineR = B.MeshBuilder.CreateTube("lR", {path: pathR, radius: 0.035}, scene); lineR.parent = head; lineR.material = mL;
+    let lineL = B.MeshBuilder.CreateTube("lL", {path: pathL, radius: 0.035}, scene); lineL.parent = head; lineL.material = mL;
+
+    // LECTURA DE SLIDERS
+    const sShZ = document.getElementById("slShoulderZ");
+    const sShX = document.getElementById("slShoulderX");
+    const sEl = document.getElementById("slElbow");
+    const sHip = document.getElementById("slHip");
+    const sKn = document.getElementById("slKnee");
+    const sAn = document.getElementById("slAnkle");
+    const sWaY = document.getElementById("slWaistY");
+    const sWaX = document.getElementById("slWaistX");
+    const sNeY = document.getElementById("slNeckY");
+    const sNeX = document.getElementById("slNeckX");
+    const sHa = document.getElementById("slHand");
+
+    scene.onBeforeRenderObservable.add(() => {
+        pRShoulder.rotation.z = B.Scalar.Lerp(pRShoulder.rotation.z, parseFloat(sShZ.value), 0.1);
+        pRShoulder.rotation.x = B.Scalar.Lerp(pRShoulder.rotation.x, parseFloat(sShX.value), 0.1);
+        pRElbow.rotation.x = B.Scalar.Lerp(pRElbow.rotation.x, parseFloat(sEl.value), 0.1);
+        
+        pRHip.rotation.x = B.Scalar.Lerp(pRHip.rotation.x, parseFloat(sHip.value), 0.1);
+        pRKnee.rotation.x = B.Scalar.Lerp(pRKnee.rotation.x, -parseFloat(sKn.value), 0.1);
+        pRAnkle.rotation.x = B.Scalar.Lerp(pRAnkle.rotation.x, parseFloat(sAn.value), 0.1);
+        
+        pSpine.rotation.y = B.Scalar.Lerp(pSpine.rotation.y, parseFloat(sWaY.value), 0.1);
+        pSpine.rotation.x = B.Scalar.Lerp(pSpine.rotation.x, parseFloat(sWaX.value), 0.1);
+        
+        pNeck.rotation.y = B.Scalar.Lerp(pNeck.rotation.y, parseFloat(sNeY.value), 0.1);
+        pNeck.rotation.x = B.Scalar.Lerp(pNeck.rotation.x, parseFloat(sNeX.value), 0.1);
+        
+        let hv = parseFloat(sHa.value);
+        handL.phalanges.forEach(ph => ph.rotation.x = B.Scalar.Lerp(ph.rotation.x, -0.15 - hv, 0.1));
+        handR.phalanges.forEach(ph => ph.rotation.x = B.Scalar.Lerp(ph.rotation.x, -0.15 - hv, 0.1));
+    });
+
+    engine.runRenderLoop(() => { scene.render(); });
+    window.addEventListener("resize", () => { engine.resize(); });
+</script>
+</body>
+</html>

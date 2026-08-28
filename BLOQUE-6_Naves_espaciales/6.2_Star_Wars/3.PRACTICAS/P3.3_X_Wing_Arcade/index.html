@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.3 - X-Wing Arcade (Death Star Trench Run)</title>
+    <!-- Babylon.js core and loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none; /* Previene scroll en móviles */
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+        }
+        
+        /* Contenedor UI Moderno */
+        #ui-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(10, 15, 30, 0.85);
+            border: 2px solid #00f3ff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4), inset 0 0 10px rgba(0, 243, 255, 0.2);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .ui-title {
+            color: #ff9900;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ff9900;
+            margin: 0;
+            text-align: center;
+        }
+        
+        .ui-subtitle {
+            color: #88ccff;
+            font-size: 12px;
+            margin: 0;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .controls-row {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .cyber-button {
+            background: rgba(0, 50, 100, 0.5);
+            border: 1px solid #00f3ff;
+            color: #00f3ff;
+            padding: 10px 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+            user-select: none;
+        }
+
+        .cyber-button:hover {
+            background: rgba(0, 100, 200, 0.6);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        .cyber-button:active {
+            background: #00f3ff;
+            color: #000;
+        }
+        
+        .btn-fire {
+            border-color: #ff3366;
+            color: #ff3366;
+            box-shadow: 0 0 5px rgba(255, 51, 102, 0.2);
+        }
+        
+        .btn-fire:hover {
+            background: rgba(200, 20, 50, 0.6);
+            box-shadow: 0 0 10px rgba(255, 51, 102, 0.5);
+        }
+        
+        .btn-fire:active {
+            background: #ff3366;
+            color: #fff;
+        }
+        
+        /* Ocultar UI en pantallas muy pequeñas para no tapar la nave */
+        @media (max-width: 600px) {
+            #ui-container {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px;
+            }
+            .cyber-button {
+                padding: 8px 15px;
+            }
+        }
+        
+        /* UI del Game Over / Victoria */
+        #game-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+        }
+        
+        #game-title {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px currentColor;
+        }
+        
+        #score-display {
+            font-size: 24px;
+            color: #00f3ff;
+            margin-bottom: 30px;
+        }
+        
+        .huge-btn {
+            font-size: 20px;
+            padding: 15px 40px;
+        }
+        
+        /* Puntuación en vivo */
+        #hud-score {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            color: #00f3ff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00f3ff;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="hud-score">PUNTOS: 0</div>
+
+    <div id="ui-container">
+        <h2 class="ui-title">X-WING ARCADE</h2>
+        <p class="ui-subtitle">FLECHAS: ALABEO | ESPACIO: DISPARAR</p>
+        <div class="controls-row">
+            <button id="btn-left" class="cyber-button">< ALABEO</button>
+            <button id="btn-fire" class="cyber-button btn-fire">DISPARAR</button>
+            <button id="btn-right" class="cyber-button">ALABEO ></button>
+        </div>
+    </div>
+    
+    <div id="game-screen">
+        <h1 id="game-title">GAME OVER</h1>
+        <div id="score-display">Puntuación Final: 0</div>
+        <button id="btn-restart" class="cyber-button huge-btn" onclick="location.reload()">VOLVER A JUGAR</button>
+    </div>
+
+    <script src="app.js?v=7"></script>
+</body>
+</html>

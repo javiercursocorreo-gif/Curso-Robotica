@@ -1,0 +1,881 @@
+<!-- MEJORAS:
+- Rediseño Estético Fiel a las Capturas: Brazo robótico de plástico naranja inyectado, base de madera cuadrada beige con marcas circulares, servomotores negros y pinza crema.
+- Solución al Render Negro: Eliminación de CubeTexture y uso exclusivo de StandardMaterial de Babylon.js para garantizar visualización brillante y offline.
+- Método de Desbloqueo Holográfico: Base giratoria sólida y resto del brazo en holograma cian translúcido.
+- Osciloscopio PWM y Modo Escaneo Integrados.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0d0d18;
+            font-family: 'Segoe UI', sans-serif;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* HEADER */
+        header {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #00f2ff;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 100;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 26px;
+            color: #00f2ff;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            margin: 0 0 0 20px;
+            font-size: 18px;
+            color: #aaaaaa;
+        }
+
+        /* LAYOUT PRINCIPAL */
+        #main-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        /* CONTENEDOR DEL CANVAS */
+        #canvas-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            min-width: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+
+
+
+        /* PANEL DE CONTROL DERECHO */
+        #ui-panel {
+            width: 420px;
+            flex-shrink: 0;
+            background: rgba(10, 10, 25, 0.92);
+            border-left: 2px solid #00f2ff;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        .panel-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 242, 255, 0.15);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .section-title {
+            font-size: 19px;
+            font-weight: bold;
+            color: #00f2ff;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 242, 255, 0.1);
+            padding-bottom: 6px;
+        }
+
+        /* CONTROLES MANUALES */
+        .slider-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            color: #ccc;
+        }
+
+        .slider-val {
+            font-family: monospace;
+            font-weight: bold;
+            color: #00f2ff;
+            font-size: 22px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 12px;
+            background: #222;
+            border-radius: 6px;
+            outline: none;
+            accent-color: #00f2ff;
+            cursor: pointer;
+        }
+
+        .btn-giant {
+            width: 100%;
+            height: 70px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #00f2ff, #0088cc);
+            color: #000;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3);
+        }
+
+        .btn-giant:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 242, 255, 0.5);
+        }
+
+        .btn-giant:active {
+            transform: scale(0.98);
+        }
+
+        .btn-giant:disabled {
+            background: #444;
+            color: #777;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .presets-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-preset {
+            flex: 1;
+            height: 48px;
+            background: #222535;
+            border: 1px solid #444868;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-preset:hover:not(:disabled) {
+            border-color: #00f2ff;
+            background: #2e334a;
+        }
+
+        .btn-preset:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* MONITOR DE SEÑAL */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .monitor-box {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .monitor-val {
+            font-size: 24px;
+            font-weight: bold;
+            font-family: monospace;
+            color: #00f2ff;
+        }
+
+        .monitor-lbl {
+            font-size: 14px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .osc-canvas {
+            width: 100%;
+            height: 90px;
+            background: #05050f;
+            border: 1px solid #222;
+            border-radius: 8px;
+            display: block;
+        }
+
+        /* SWITCH AUTOMÁTICO */
+        .switch-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 18px;
+        }
+
+        .switch-btn {
+            height: 50px;
+            padding: 0 20px;
+            border-radius: 8px;
+            border: 2px solid #555;
+            background: #111;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .switch-btn.active {
+            border-color: #00ffaa;
+            background: rgba(0, 255, 170, 0.15);
+            color: #00ffaa;
+            box-shadow: 0 0 10px rgba(0, 255, 170, 0.2);
+        }
+
+        /* EXPLICACIÓN */
+        #didactic-text {
+            font-size: 17px;
+            line-height: 1.4;
+            color: #ccc;
+            min-height: 70px;
+        }
+
+        .btn-restart {
+            width: 100%;
+            height: 60px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+        }
+        .btn-restart:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+        }
+        .btn-restart:active {
+            transform: scale(0.98);
+        }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>P2.EJEMPLO-REAL</h1>
+        <p>Calibra el parámetro de la base y observa la señal eléctrica y el giro resultante.</p>
+    </header>
+
+    <div id="main-layout">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+
+        <div id="ui-panel">
+            <!-- EXPLICACIÓN DIDÁCTICA -->
+            <div class="panel-section">
+                <div class="section-title">Posición del Brazo</div>
+                <div id="didactic-text">Posición inicial a 90°. Ajusta el parámetro para orientar el motor.</div>
+            </div>
+
+            <!-- CONTROLES -->
+            <div class="panel-section">
+                <div class="section-title">Ajustar Parámetro</div>
+                <div class="slider-wrap">
+                    <div class="slider-header">
+                        <span>Ángulo de la Base</span>
+                        <span class="slider-val" id="val-angulo">90°</span>
+                    </div>
+                    <input type="range" id="slider-param" min="0" max="360" value="90">
+                </div>
+                <button class="btn-giant" id="btn-send">Enviar Parámetro 🚀</button>
+                
+                <div class="presets-row">
+                    <button class="btn-preset" onclick="setPreset(0)">0°</button>
+                    <button class="btn-preset" onclick="setPreset(45)">45°</button>
+                    <button class="btn-preset" onclick="setPreset(90)">90°</button>
+                    <button class="btn-preset" onclick="setPreset(135)">135°</button>
+                    <button class="btn-preset" onclick="setPreset(180)">180°</button>
+                </div>
+            </div>
+
+            <!-- MODO DE ESCANEO -->
+            <div class="panel-section">
+                <div class="switch-wrap">
+                    <span>Modo Escaneo Automático</span>
+                    <button class="switch-btn" id="btn-scan" onclick="toggleScan()">DESACTIVADO 🔄</button>
+                </div>
+            </div>
+
+            <!-- ESTADO DE LA BASE -->
+            <div class="panel-section">
+                <div class="section-title">Estado de la Base Giratoria</div>
+                <div class="monitor-grid">
+                    <div class="monitor-box">
+                        <div class="monitor-val" id="mon-pulse">Centro</div>
+                        <div class="monitor-lbl">Zona de Posición</div>
+                    </div>
+                    <div class="monitor-box">
+                        <div class="monitor-val" id="mon-duty">90°</div>
+                        <div class="monitor-lbl">Ángulo de Giro</div>
+                    </div>
+                </div>
+                <div class="monitor-lbl" style="margin-top: 15px; text-align: center; font-size: 15px; color: #888;">Visualización de la Señal de Control</div>
+                <canvas class="osc-canvas" id="oscCanvas"></canvas>
+            </div>
+
+            <button class="btn-restart" onclick="resetSimulation()">🔄 Reiniciar Calibración</button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN BABYLON.JS
+        const canvas = document.getElementById('renderCanvas');
+        let engine;
+        let scene;
+        let camera;
+        let shadowGen;
+        
+        let baseRotator; // Parte sólida móvil (rotatorNode)
+        
+        // Variables de estado
+        let anguloObjetivo = 90;
+        let anguloActual = 90;
+        let escaneando = false;
+        
+        // Materiales Estándar Robustos
+        let orangeMat, blackMat, whiteMat, metalMat, woodMat, holoMat;
+
+        // CONFIGURACIÓN DE CANVAS OSCILOSCOPIO
+        const osc = document.getElementById('oscCanvas');
+        const oCtx = osc.getContext('2d');
+        let oscWidth = osc.width = osc.offsetWidth;
+        let oscHeight = osc.height = osc.offsetHeight;
+
+        window.addEventListener('resize', () => {
+            if(osc) {
+                oscWidth = osc.width = osc.offsetWidth;
+                oscHeight = osc.height = osc.offsetHeight;
+            }
+        });
+
+        
+        function createFloorDial(glow) {
+            const angles = [-90, -45, 0, 45, 90, 135, 180, 225, 270];
+            angles.forEach(ang => {
+                const rad = -(ang + 45) * Math.PI / 180;
+                const dist = 2.15;
+                const px = dist * Math.sin(rad);
+                const pz = dist * Math.cos(rad);
+
+                const tick = BABYLON.MeshBuilder.CreateBox("tick_" + ang, {width: 0.04, height: 0.02, depth: 0.15}, scene);
+                tick.position.set(px * 0.92, 0.06, pz * 0.92);
+                tick.rotation.y = rad;
+                
+                const tickMat = new BABYLON.StandardMaterial("tickMat_" + ang, scene);
+                tickMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+                tickMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                tick.material = tickMat;
+                if (glow) glow.addIncludedOnlyMesh(tick);
+
+                const label = BABYLON.MeshBuilder.CreatePlane("floorLabel_" + ang, {width: 0.8, height: 0.4}, scene);
+                label.position.set(px, 0.055, pz);
+                label.rotation.x = Math.PI / 2; // Flat on floor
+                label.rotation.y = rad + Math.PI; // Face outwards
+
+                const labelText = (ang < 0 ? ang + 360 : ang) + "°";
+                const dynTex = new BABYLON.DynamicTexture("floorTex_" + ang, {width: 256, height: 128}, scene);
+                dynTex.hasAlpha = true;
+                const ctx = dynTex.getContext();
+                ctx.fillStyle = "rgba(0,0,0,0)";
+                ctx.fillRect(0, 0, 256, 128);
+                
+                ctx.font = "bold 72px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(labelText, 128, 64);
+                dynTex.update();
+                
+                const mat = new BABYLON.StandardMaterial("floorMat_" + ang, scene);
+                mat.diffuseTexture = dynTex;
+                mat.useAlphaFromDiffuseTexture = true;
+                mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                mat.disableLighting = true;
+                label.material = mat;
+            });
+        }
+
+        function initEngine() {
+            // Se utiliza inicialización síncrona segura con WebGL
+            engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.10, 0.10, 0.18, 1);
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            scene.fogDensity = 0.035;
+            scene.fogColor = new BABYLON.Color3(0.10, 0.10, 0.18);
+
+            // Cámara perspectiva isométrica
+            camera = new BABYLON.ArcRotateCamera("cam", Math.PI/4, Math.PI/3.5, 12, new BABYLON.Vector3(0, 1.2, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 6; 
+            camera.upperRadiusLimit = 22;
+
+            // Luces
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0,1,0), scene);
+            hemi.intensity = 0.6; 
+            hemi.groundColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+            
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1,-2,-0.5), scene);
+            dirLight.position = new BABYLON.Vector3(20,40,20); 
+            dirLight.intensity = 2.5;
+            
+            shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useBlurExponentialShadowMap = true; 
+            shadowGen.blurKernel = 32;
+            
+            const glow = new BABYLON.GlowLayer("glow", scene); 
+            glow.intensity = 0.8;
+            
+            const pipeline = new BABYLON.DefaultRenderingPipeline("pp", true, scene, [camera]);
+            pipeline.msaaSamples = 4; 
+            pipeline.bloomEnabled = true;
+            pipeline.bloomThreshold = 0.85; 
+            pipeline.bloomWeight = 0.35;
+            
+            try {
+                scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+                scene.environmentIntensity = 0.6;
+            } catch(e) {
+                console.warn("Entorno PBR no cargado.");
+            }
+
+            // SUELO
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:30, height:30}, scene);
+            const groundMat = new BABYLON.PBRMaterial("groundMat", scene);
+            groundMat.albedoColor = new BABYLON.Color3(0.12, 0.14, 0.18);
+            groundMat.roughness = 0.9; 
+            groundMat.metallic = 0.0;
+            ground.material = groundMat; 
+            ground.receiveShadows = true;
+
+            buildRobotAndEnvironment(glow);
+
+            engine.runRenderLoop(() => {
+                try {
+                    if(scene) scene.render();
+                    drawOscilloscope();
+                } catch(err) { console.error(err); }
+            });
+
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+        }
+
+        function buildRobotAndEnvironment(glow) {
+            // MATERIALES ESTÁNDAR
+            orangeMat = new BABYLON.StandardMaterial("orangeMat", scene);
+            orangeMat.diffuseColor = BABYLON.Color3.FromHexString("#ff5500");
+            orangeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+            orangeMat.specularPower = 32;
+
+            blackMat = new BABYLON.StandardMaterial("blackMat", scene);
+            blackMat.diffuseColor = BABYLON.Color3.FromHexString("#1b1b1b");
+            blackMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            blackMat.specularPower = 8;
+
+            whiteMat = new BABYLON.StandardMaterial("whiteMat", scene);
+            whiteMat.diffuseColor = BABYLON.Color3.FromHexString("#f5f5dc");
+            whiteMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+            metalMat = new BABYLON.StandardMaterial("metalMat", scene);
+            metalMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+            metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+            metalMat.specularPower = 64;
+
+            woodMat = new BABYLON.StandardMaterial("woodMat", scene);
+            woodMat.diffuseColor = BABYLON.Color3.FromHexString("#c19a6b");
+            woodMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+
+            holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+            holoMat.diffuseColor = new BABYLON.Color3(0, 0.8, 1);
+            holoMat.emissiveColor = new BABYLON.Color3(0, 0.6, 1);
+            holoMat.alpha = 0.25;
+
+            // 1. BASE DE MADERA
+            // CORRECCIÓN: Se reduce a un ancho de 2.4 para que NO tape el dial (cuyos números se generan a una distancia de 2.15).
+            const basePlate = BABYLON.MeshBuilder.CreateBox("basePlate", {width: 2.4, height: 0.05, depth: 2.4}, scene);
+            basePlate.position.y = 0.025;
+            basePlate.rotation.y = Math.PI / 4; 
+            basePlate.material = woodMat;
+            basePlate.receiveShadows = true;
+
+            createFloorDial(glow);
+
+            // 2. NODO GIRATORIO DE LA BASE (SÓLIDO)
+            baseRotator = new BABYLON.TransformNode("baseRotator", scene);
+
+            const domeBase = BABYLON.MeshBuilder.CreateCylinder("domeBase", {diameter: 3.0, height: 0.3, tessellation: 32}, scene);
+            domeBase.position.y = 0.2; // y bottom is 0.05 (rests on basePlate)
+            domeBase.material = orangeMat; domeBase.parent = baseRotator;
+
+            const domeSphere = BABYLON.MeshBuilder.CreateSphere("domeSphere", {diameter: 2.6}, scene);
+            domeSphere.position.y = 0.35;
+            domeSphere.scaling.y = 0.5; // semiesfera
+            domeSphere.material = orangeMat; domeSphere.parent = baseRotator;
+
+            // Soporte U (Pilares robustos)
+            const pillarL = BABYLON.MeshBuilder.CreateBox("pillarL", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarL.position.set(0.5, 1.0, 0);
+            pillarL.material = orangeMat; pillarL.parent = baseRotator;
+
+            const pillarR = BABYLON.MeshBuilder.CreateBox("pillarR", {width: 0.35, height: 1.3, depth: 0.6}, scene);
+            pillarR.position.set(-0.5, 1.0, 0);
+            pillarR.material = orangeMat; pillarR.parent = baseRotator;
+
+            // Eje hombro
+            const shoulderPin = BABYLON.MeshBuilder.CreateCylinder("shoulderPin", {diameter: 0.25, height: 1.25}, scene);
+            shoulderPin.rotation.z = Math.PI / 2;
+            shoulderPin.position.set(0, 1.2, 0);
+            shoulderPin.material = metalMat; shoulderPin.parent = baseRotator;
+
+            // Servo hombro
+            const shoulderServo = BABYLON.MeshBuilder.CreateBox("shoulderServo", {width: 0.45, height: 0.45, depth: 0.65}, scene);
+            shoulderServo.position.set(0.75, 1.2, 0);
+            shoulderServo.material = blackMat; shoulderServo.parent = baseRotator;
+
+            const shoulderServoAxle = BABYLON.MeshBuilder.CreateCylinder("shoulderServoAxle", {diameter: 0.15, height: 0.3}, scene);
+            shoulderServoAxle.rotation.z = Math.PI / 2;
+            shoulderServoAxle.position.set(0.55, 1.2, 0);
+            shoulderServoAxle.material = metalMat; shoulderServoAxle.parent = baseRotator;
+
+            // Cables
+            for (let zOffset = -0.2; zOffset <= 0.2; zOffset += 0.2) {
+                const wireMat = zOffset < -0.05 ? blackMat : (zOffset > 0.05 ? orangeMat : whiteMat);
+                const wire = BABYLON.MeshBuilder.CreateCylinder("wire_" + zOffset, {diameter: 0.03, height: 1.2, tessellation: 8}, scene);
+                wire.position.set(0.75, 0.5, zOffset - 0.35);
+                wire.rotation.x = 0.5;
+                wire.material = wireMat; wire.parent = baseRotator;
+            }
+
+            baseRotator.getChildMeshes(false).forEach(m => shadowGen.addShadowCaster(m));
+
+            // 3. ARTICULACIÓN SUPERIOR HOLOGRÁFICA
+            const shoulderNode = new BABYLON.TransformNode("shoulderNode", scene);
+            shoulderNode.parent = baseRotator;
+            shoulderNode.position.set(0, 1.2, 0); // Eje de rotación del hombro (elevado por cúpula doble)
+            shoulderNode.rotation.x = -Math.PI / 4; // Rest position: 45° backward
+
+            // Eslabón 1 (Brazo - Tubos cilíndricos robustos)
+            const armBarL = BABYLON.MeshBuilder.CreateCylinder("armBarL", {diameter: 0.36, height: 1.8}, scene);
+            armBarL.position.set(0.35, 0.8, 0); // Desplazar hacia los lados para dejar espacio a la base ancha
+            armBarL.material = holoMat; armBarL.parent = shoulderNode;
+
+            const armBarR = BABYLON.MeshBuilder.CreateCylinder("armBarR", {diameter: 0.36, height: 1.8}, scene);
+            armBarR.position.set(-0.35, 0.8, 0);
+            armBarR.material = holoMat; armBarR.parent = shoulderNode;
+
+            const armBrace1 = BABYLON.MeshBuilder.CreateCylinder("armBrace1", {diameter: 0.28, height: 0.5}, scene);
+            armBrace1.rotation.z = Math.PI / 2;
+            armBrace1.position.set(0, 0.2, 0);
+            armBrace1.material = holoMat; armBrace1.parent = shoulderNode;
+
+            const armBrace2 = BABYLON.MeshBuilder.CreateCylinder("armBrace2", {diameter: 0.28, height: 0.5}, scene);
+            armBrace2.rotation.z = Math.PI / 2;
+            armBrace2.position.set(0, 1.4, 0);
+            armBrace2.material = holoMat; armBrace2.parent = shoulderNode;
+
+            // Codo Node
+            const codoNode = new BABYLON.TransformNode("codoNode", scene);
+            codoNode.parent = shoulderNode;
+            codoNode.position.set(0, 1.7, 0);
+            codoNode.rotation.x = Math.PI / 2; // Rest position: 90° forward
+
+            const codoPin = BABYLON.MeshBuilder.CreateCylinder("codoPin", {diameter: 0.3, height: 0.8}, scene);
+            codoPin.rotation.z = Math.PI / 2;
+            codoPin.material = holoMat; codoPin.parent = codoNode;
+
+            const elbowServo = BABYLON.MeshBuilder.CreateBox("elbowServo", {width: 0.45, height: 0.45, depth: 0.65}, scene);
+            elbowServo.position.set(0.4, 0, 0);
+            elbowServo.material = holoMat; elbowServo.parent = codoNode;
+
+            // Eslabón 2 (Antebrazo - Tubos cilíndricos robustos)
+            const link2Node = new BABYLON.TransformNode("link2Node", scene);
+            link2Node.parent = codoNode;
+
+            const forearmBarL = BABYLON.MeshBuilder.CreateCylinder("forearmBarL", {diameter: 0.28, height: 1.3}, scene);
+            forearmBarL.position.set(0.2, 0.6, 0);
+            forearmBarL.material = holoMat; forearmBarL.parent = link2Node;
+
+            const forearmBarR = BABYLON.MeshBuilder.CreateCylinder("forearmBarR", {diameter: 0.28, height: 1.3}, scene);
+            forearmBarR.position.set(-0.2, 0.6, 0);
+            forearmBarR.material = holoMat; forearmBarR.parent = link2Node;
+
+            const forearmBrace = BABYLON.MeshBuilder.CreateCylinder("forearmBrace", {diameter: 0.22, height: 0.3}, scene);
+            forearmBrace.rotation.z = Math.PI / 2;
+            forearmBrace.position.set(0, 0.6, 0);
+            forearmBrace.material = holoMat; forearmBrace.parent = link2Node;
+
+            // Muñeca
+            const munecaNode = new BABYLON.TransformNode("munecaNode", scene);
+            munecaNode.parent = link2Node;
+            munecaNode.position.set(0, 1.25, 0);
+            munecaNode.rotation.x = Math.PI / 2; // Rest position: 90° forward
+
+            const wristServo = BABYLON.MeshBuilder.CreateBox("wristServo", {width: 0.4, height: 0.45, depth: 0.4}, scene);
+            wristServo.position.set(0, 0.15, 0);
+            wristServo.material = holoMat; wristServo.parent = munecaNode;
+
+            // Pinza (Dedos curvos grandes saliendo hacia afuera con engranajes)
+            const pinzaNode = new BABYLON.TransformNode("pinzaNode", scene);
+            pinzaNode.parent = munecaNode;
+            pinzaNode.position.set(0, 0.35, 0);
+            pinzaNode.rotation.x = -Math.PI / 2; // Collinear with wrist (0° relative angle)
+
+            const gripperBase = BABYLON.MeshBuilder.CreateBox("gripperBase", {width: 0.5, height: 0.08, depth: 0.25}, scene);
+            gripperBase.material = holoMat; gripperBase.parent = pinzaNode;
+
+            const gearG1 = BABYLON.MeshBuilder.CreateCylinder("gearG1", {diameter: 0.25, height: 0.06}, scene);
+            gearG1.position.set(0.12, 0.05, 0);
+            gearG1.material = holoMat; gearG1.parent = pinzaNode;
+
+            const gearG2 = BABYLON.MeshBuilder.CreateCylinder("gearG2", {diameter: 0.25, height: 0.06}, scene);
+            gearG2.position.set(-0.12, 0.05, 0);
+            gearG2.material = holoMat; gearG2.parent = pinzaNode;
+
+            // Dedo izquierdo curvo
+            const fingerL = BABYLON.MeshBuilder.CreateBox("fingerL", {width: 0.05, height: 0.07, depth: 0.35}, scene);
+            fingerL.position.set(0.16, 0.05, 0.175);
+            fingerL.rotation.y = 0.35;
+            fingerL.material = holoMat; fingerL.parent = pinzaNode;
+
+            const fingerL_dist = BABYLON.MeshBuilder.CreateBox("fingerL_dist", {width: 0.04, height: 0.07, depth: 0.25}, scene);
+            fingerL_dist.position.set(0.11, 0.05, 0.4);
+            fingerL_dist.rotation.y = -0.5; // ángulo obtuso
+            fingerL_dist.material = holoMat; fingerL_dist.parent = pinzaNode;
+
+            const tipL = BABYLON.MeshBuilder.CreateBox("tipL", {width: 0.02, height: 0.08, depth: 0.08}, scene);
+            tipL.position.set(0.06, 0.05, 0.5);
+            tipL.material = holoMat; tipL.parent = pinzaNode;
+
+            // Dedo derecho curvo
+            const fingerR = BABYLON.MeshBuilder.CreateBox("fingerR", {width: 0.05, height: 0.07, depth: 0.35}, scene);
+            fingerR.position.set(-0.16, 0.05, 0.175);
+            fingerR.rotation.y = -0.35;
+            fingerR.material = holoMat; fingerR.parent = pinzaNode;
+
+            const fingerR_dist = BABYLON.MeshBuilder.CreateBox("fingerR_dist", {width: 0.04, height: 0.07, depth: 0.25}, scene);
+            fingerR_dist.position.set(-0.11, 0.05, 0.4);
+            fingerR_dist.rotation.y = 0.5;
+            fingerR_dist.material = holoMat; fingerR_dist.parent = pinzaNode;
+
+            const tipR = BABYLON.MeshBuilder.CreateBox("tipR", {width: 0.02, height: 0.08, depth: 0.08}, scene);
+            tipR.position.set(-0.06, 0.05, 0.5);
+            tipR.material = holoMat; tipR.parent = pinzaNode;
+
+            // Evitar picks en colisión
+            gripperBase.isPickable = false; gearG1.isPickable = false; gearG2.isPickable = false;
+            fingerL.isPickable = false; fingerL_dist.isPickable = false; tipL.isPickable = false;
+            fingerR.isPickable = false; fingerR_dist.isPickable = false; tipR.isPickable = false;
+
+            // Deshabilitar picks
+            armBarL.isPickable = false; armBarR.isPickable = false;
+            codoPin.isPickable = false; elbowServo.isPickable = false;
+            forearmBarL.isPickable = false; forearmBarR.isPickable = false;
+            wristServo.isPickable = false; gripperBase.isPickable = false;
+            fingerL.isPickable = false; fingerR.isPickable = false;
+
+            // Lógica de Movimiento
+            scene.onBeforeRenderObservable.add(() => {
+                if (escaneando) {
+                    const time = performance.now() / 1000;
+                    anguloObjetivo = 90 + Math.sin(time * 1.2) * 60; // Oscila entre 30° y 150°
+                    
+                    document.getElementById('slider-param').value = Math.round(anguloObjetivo);
+                    updateReadouts(anguloObjetivo);
+                }
+
+                // Interpolación suave del motor de la base
+                const error = anguloObjetivo - anguloActual;
+                anguloActual += error * 0.08;
+                if (Math.abs(error) < 0.05) anguloActual = anguloObjetivo;
+
+                // Aplicar rotación (Estándar cinemático: 0°=Derecha, 90°=Arriba/Fondo, 180°=Izquierda, 270°=Abajo/Frente)
+                baseRotator.rotation.y = -(anguloActual + 45) * Math.PI / 180;
+            });
+        }
+
+        // LÓGICA DE INTERFAZ Y MONITOR PWM
+        const slider = document.getElementById('slider-param');
+        const valAngulo = document.getElementById('val-angulo');
+        const btnSend = document.getElementById('btn-send');
+        const btnScan = document.getElementById('btn-scan');
+        const didacticText = document.getElementById('didactic-text');
+
+        slider.addEventListener('input', () => {
+            if (escaneando) return;
+            valAngulo.textContent = slider.value + '°';
+            didacticText.innerHTML = "Preparado para enviar parámetro: <strong style='color: #00f2ff'>" + slider.value + "°</strong>. Pulsa <strong>Enviar Parámetro 🚀</strong> para mover el robot.";
+        });
+
+        btnSend.addEventListener('click', () => {
+            if (escaneando) return;
+            anguloObjetivo = parseFloat(slider.value);
+            updateReadouts(anguloObjetivo);
+            updateDidacticText(anguloObjetivo);
+        });
+
+        function setPreset(val) {
+            if (escaneando) return;
+            slider.value = val;
+            valAngulo.textContent = val + '°';
+            anguloObjetivo = val;
+            updateReadouts(val);
+            updateDidacticText(val);
+        }
+
+        function toggleScan() {
+            escaneando = !escaneando;
+            if (escaneando) {
+                btnScan.textContent = "ACTIVADO 🔄";
+                btnScan.classList.add('active');
+                slider.disabled = true;
+                btnSend.disabled = true;
+                didacticText.textContent = "Modo escaneo activo. El parámetro cambia continuamente de forma automática.";
+            } else {
+                btnScan.textContent = "DESACTIVADO 🔄";
+                btnScan.classList.remove('active');
+                slider.disabled = false;
+                btnSend.disabled = false;
+                anguloObjetivo = parseFloat(slider.value);
+                updateReadouts(anguloObjetivo);
+                updateDidacticText(anguloObjetivo);
+            }
+        }
+
+        function updateReadouts(angleVal) {
+            let posText = "Centro";
+            if (angleVal < 60) posText = "Derecha";
+            else if (angleVal > 120) posText = "Izquierda";
+            
+            document.getElementById('mon-pulse').textContent = posText;
+            document.getElementById('mon-duty').textContent = Math.round(angleVal) + '°';
+        }
+
+        function updateDidacticText(angleVal) {
+            if (angleVal < 60) {
+                didacticText.textContent = "Enviando parámetro bajo (" + Math.round(angleVal) + "°). La base del brazo gira a la derecha.";
+            } else if (angleVal > 120) {
+                didacticText.textContent = "Enviando parámetro alto (" + Math.round(angleVal) + "°). La base del brazo gira a la izquierda.";
+            } else {
+                didacticText.textContent = "Enviando parámetro medio (" + Math.round(angleVal) + "°). La base del brazo vuelve a la posición central.";
+            }
+        }
+
+        // OSCILOSCOPIO
+        let xOffset = 0;
+        function drawOscilloscope() {
+            oCtx.clearRect(0, 0, oscWidth, oscHeight);
+            
+            // Rejilla
+            oCtx.strokeStyle = '#0a2030';
+            oCtx.lineWidth = 1;
+            for (let x = 0; x < oscWidth; x += 40) {
+                oCtx.beginPath(); oCtx.moveTo(x, 0); oCtx.lineTo(x, oscHeight); oCtx.stroke();
+            }
+            for (let y = 0; y < oscHeight; y += 20) {
+                oCtx.beginPath(); oCtx.moveTo(0, y); oCtx.lineTo(oscWidth, y); oCtx.stroke();
+            }
+
+            const pulseMs = 1 + (anguloActual / 180);
+            const dutyCycle = pulseMs / 20;
+            const pixelPeriod = 160;
+            const pixelPulse = pixelPeriod * dutyCycle;
+
+            oCtx.strokeStyle = '#00f2ff';
+            oCtx.lineWidth = 3;
+            oCtx.shadowBlur = 8;
+            oCtx.shadowColor = '#00f2ff';
+            oCtx.beginPath();
+
+            xOffset = (xOffset - 2) % pixelPeriod;
+
+            let first = true;
+            for (let x = -pixelPeriod; x < oscWidth + pixelPeriod; x += pixelPeriod) {
+                const startX = x + xOffset;
+                const midX = startX + pixelPulse;
+                const endX = startX + pixelPeriod;
+
+                if (first) {
+                    oCtx.moveTo(startX, oscHeight - 20);
+                    first = false;
+                }
+
+                oCtx.lineTo(startX, 20);
+                oCtx.lineTo(midX, 20);
+                oCtx.lineTo(midX, oscHeight - 20);
+                oCtx.lineTo(endX, oscHeight - 20);
+            }
+            oCtx.stroke();
+            oCtx.shadowBlur = 0;
+        }
+
+        function resetSimulation() {
+            if (escaneando) toggleScan();
+            slider.value = 90;
+            valAngulo.textContent = '90°';
+            anguloObjetivo = 90;
+            anguloActual = 90;
+            updateReadouts(90);
+            updateDidacticText(90);
+        }
+
+
+
+        window.onload = () => {
+            initEngine();
+            resetSimulation();
+        }
+    </script>
+</body>
+</html>

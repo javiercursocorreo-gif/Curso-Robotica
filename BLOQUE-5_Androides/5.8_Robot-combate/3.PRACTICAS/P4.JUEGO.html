@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P4 - Evaluación: Robot de Combate</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1d; color: white; overflow: hidden; }
+        #header { background-color: #c0392b; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
+        
+        #tabs { display: flex; background-color: #333; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; border-right: 1px solid #444; transition: 0.3s; font-weight: bold;}
+        .tab:hover { background-color: #444; }
+        .tab.active { background-color: #e74c3c; color: white; }
+        
+        .tab-content { display: none; padding: 30px; height: calc(100vh - 120px); overflow-y: auto; }
+        .tab-content.active { display: block; }
+        
+        /* Juego 1: Trivial */
+        .question-box { background: #2c3e50; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .options button { display: block; width: 100%; margin: 10px 0; padding: 10px; background: #34495e; color: white; border: none; border-radius: 5px; cursor: pointer; text-align: left; font-size: 16px;}
+        .options button:hover { background: #45b39d; }
+        .options button.correct { background: #2ecc71; }
+        .options button.wrong { background: #e74c3c; }
+        
+        /* Juego 2: Secuencia */
+        #sequence-container { display: flex; gap: 20px; margin-top: 20px; }
+        .bank, .slots { flex: 1; background: #2c3e50; padding: 20px; border-radius: 8px; min-height: 400px;}
+        .block { background: #f39c12; padding: 15px; margin: 10px 0; border-radius: 5px; cursor: grab; font-weight: bold; color: #333; text-align: center;}
+        .slot { border: 2px dashed #7f8c8d; height: 50px; margin: 10px 0; border-radius: 5px; }
+        
+        /* Juego 3: Emparejar */
+        #match-container { display: flex; justify-content: space-between; gap: 50px;}
+        .match-column { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .match-item { background: #2980b9; padding: 15px; border-radius: 5px; text-align: center; cursor: pointer; }
+        .match-item.selected { background: #f1c40f; color: black; }
+        .match-item.matched { background: #27ae60; cursor: default; }
+        
+        /* Juego 4: Reto 3D */
+        #canvas-container { width: 100%; height: 60vh; position: relative; border-radius: 8px; overflow: hidden; border: 2px solid #555;}
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; }
+        #panel-izquierdo { background: #2c3e50; padding: 20px; border-radius: 8px; margin-top: 20px;}
+        
+    </style>
+</head>
+<body>
+
+<div id="header">EVALUACIÓN FINAL: INGENIERÍA DE COMBATE</div>
+
+<div id="tabs">
+    <div class="tab active" onclick="showTab('tab1')">1. Trivial Técnico</div>
+    <div class="tab" onclick="showTab('tab2')">2. Lógica de Reacción</div>
+    <div class="tab" onclick="showTab('tab3')">3. Anatomía del Mecha</div>
+    <div class="tab" onclick="showTab('tab4')">4. Inspección 3D</div>
+</div>
+
+<!-- JUEGO 1: TRIVIAL -->
+<div id="tab1" class="tab-content active">
+    <h2>🎯 Responde a las preguntas de Ingeniería</h2>
+    <div id="trivial-container"></div>
+</div>
+
+<!-- JUEGO 2: ORDENAR SECUENCIA -->
+<div id="tab2" class="tab-content">
+    <h2>📦 Ordena la secuencia lógica para un contraataque autónomo</h2>
+    <p>Arrastra los bloques de la izquierda al orden correcto en la derecha para que el robot se defienda y contraataque.</p>
+    <div id="sequence-container">
+        <div class="bank" id="bank" ondragover="allowDrop(event)" ondrop="drop(event)">
+            <div class="block" draggable="true" ondragstart="drag(event)" id="b1">SI SENSOR DETECTA RIVAL A MENOS DE 3m</div>
+            <div class="block" draggable="true" ondragstart="drag(event)" id="b2">ESQUIVAR HASTA COORDENADA SEGURA</div>
+            <div class="block" draggable="true" ondragstart="drag(event)" id="b3">ESPERAR 1 SEGUNDO (Recuperación)</div>
+            <div class="block" draggable="true" ondragstart="drag(event)" id="b4">EMBESTIR CON TODA LA POTENCIA</div>
+        </div>
+        <div class="slots" id="slots">
+            <div class="slot" id="slot1" ondragover="allowDrop(event)" ondrop="dropSlot(event, 'b1')"></div>
+            <div class="slot" id="slot2" ondragover="allowDrop(event)" ondrop="dropSlot(event, 'b2')"></div>
+            <div class="slot" id="slot3" ondragover="allowDrop(event)" ondrop="dropSlot(event, 'b3')"></div>
+            <div class="slot" id="slot4" ondragover="allowDrop(event)" ondrop="dropSlot(event, 'b4')"></div>
+        </div>
+    </div>
+</div>
+
+<!-- JUEGO 3: EMPAREJAR CONCEPTOS -->
+<div id="tab3" class="tab-content">
+    <h2>🔗 Empareja la pieza física con su función en combate</h2>
+    <div id="match-container">
+        <div class="match-column" id="colA">
+            <div class="match-item" onclick="selectMatch('A', 1)">1. Centro de Gravedad Bajo</div>
+            <div class="match-item" onclick="selectMatch('A', 2)">2. Orugas de Goma</div>
+            <div class="match-item" onclick="selectMatch('A', 3)">3. Arma Cinética (Spinner)</div>
+            <div class="match-item" onclick="selectMatch('A', 4)">4. Coraza de Titanio</div>
+        </div>
+        <div class="match-column" id="colB">
+            <div class="match-item" onclick="selectMatch('B', 4)">Absorbe la energía del impacto sin dañar la CPU</div>
+            <div class="match-item" onclick="selectMatch('B', 3)">Almacena energía girando para estallar al contacto</div>
+            <div class="match-item" onclick="selectMatch('B', 1)">Evita que el robot vuelque al ser empujado</div>
+            <div class="match-item" onclick="selectMatch('B', 2)">Proporciona el torque máximo para arrastrar al rival</div>
+        </div>
+    </div>
+</div>
+
+<!-- JUEGO 4: RETO 3D -->
+<div id="tab4" class="tab-content">
+    <h2>🦾 Inspección Técnica en Arena</h2>
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+    <div id="panel-izquierdo">
+        <h3>Telemetría del Mecha:</h3>
+        <p>Al arrancar la simulación, inspecciona cómo las patas del robot se mueven. ¿En cuántos tiempos (golpes) da un ciclo de paso completo?</p>
+        <button class="block" onclick="start3D()" style="background:#27ae60; color:white; border:none; padding:10px 20px;">INICIAR MOTOR DE PRUEBAS</button>
+    </div>
+</div>
+
+<script>
+    // --- Lógica de Pestañas ---
+    function showTab(tabId) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+        
+        if(tabId === 'tab4' && !engineStarted) initEngine();
+    }
+
+    // --- Lógica de Trivial ---
+    const qData = [
+        {q: "¿Por qué los robots de combate colocan las baterías pegadas al suelo?", o: ["Para refrigerarlas mejor", "Para bajar su centro de gravedad y no volcar", "Para que hagan de parachoques"], a: 1},
+        {q: "¿Qué tipo de arma transfiere energía destructiva tras girar mucho tiempo?", o: ["Arma Cinética (Spinner)", "Catapulta neumática", "Lanzallamas"], a: 0},
+        {q: "Si queremos empujar al rival por la arena, ¿qué importa más en los motores?", o: ["La Velocidad Máxima", "El Torque (Fuerza de arrastre)", "El tamaño de las ruedas"], a: 1}
+    ];
+    let trivialHTML = "";
+    qData.forEach((q, i) => {
+        trivialHTML += `<div class="question-box"><p><strong>${i+1}. ${q.q}</strong></p><div class="options">`;
+        q.o.forEach((opt, j) => {
+            trivialHTML += `<button onclick="checkA(${i}, ${j}, this)">${opt}</button>`;
+        });
+        trivialHTML += `</div></div>`;
+    });
+    document.getElementById("trivial-container").innerHTML = trivialHTML;
+    
+    function checkA(qIdx, ansIdx, btn) {
+        let parent = btn.parentElement;
+        for(let b of parent.children) b.disabled = true;
+        if(qIdx >= 0 && qData[qIdx].a === ansIdx) btn.classList.add("correct");
+        else { btn.classList.add("wrong"); parent.children[qData[qIdx].a].classList.add("correct"); }
+    }
+
+    // --- Lógica de Secuencia (Drag & Drop) ---
+    let draggedId = null;
+    function drag(ev) { draggedId = ev.target.id; }
+    function allowDrop(ev) { ev.preventDefault(); }
+    function drop(ev) {
+        ev.preventDefault();
+        if(ev.target.id === 'bank') ev.target.appendChild(document.getElementById(draggedId));
+    }
+    function dropSlot(ev, correctId) {
+        ev.preventDefault();
+        if(draggedId === correctId && ev.target.className === 'slot' && ev.target.children.length === 0) {
+            ev.target.appendChild(document.getElementById(draggedId));
+            document.getElementById(draggedId).draggable = false; // Fijar acierto
+            ev.target.style.borderColor = "#2ecc71";
+        }
+    }
+
+    // --- Lógica de Emparejar ---
+    let selA = null, selB = null, nodeA = null, nodeB = null;
+    function selectMatch(col, val) {
+        let ev = window.event;
+        let t = ev.target;
+        if(t.classList.contains("matched")) return;
+        
+        if(col === 'A') {
+            if(nodeA) nodeA.classList.remove("selected");
+            selA = val; nodeA = t; nodeA.classList.add("selected");
+        } else {
+            if(nodeB) nodeB.classList.remove("selected");
+            selB = val; nodeB = t; nodeB.classList.add("selected");
+        }
+        
+        if(selA !== null && selB !== null) {
+            if(selA === selB) {
+                nodeA.classList.remove("selected"); nodeB.classList.remove("selected");
+                nodeA.classList.add("matched"); nodeB.classList.add("matched");
+                selA = null; selB = null; nodeA = null; nodeB = null;
+            } else {
+                setTimeout(() => {
+                    nodeA.classList.remove("selected"); nodeB.classList.remove("selected");
+                    selA = null; selB = null; nodeA = null; nodeB = null;
+                }, 500);
+            }
+        }
+    }
+
+    // --- Lógica 3D BabylonJS ---
+    let engineStarted = false;
+    let bEngine, bScene, mechaAnim = null;
+    
+    function initEngine() {
+        const canvas = document.getElementById("renderCanvas");
+        bEngine = new BABYLON.Engine(canvas, true);
+        engineStarted = true;
+        
+        const createScene = async function () {
+            const scene = new BABYLON.Scene(bEngine);
+            scene.clearColor = new BABYLON.Color4(0.1, 0.15, 0.2, 1);
+            
+            const camera = new BABYLON.ArcRotateCamera("cam", Math.PI/4, Math.PI/3, 10, new BABYLON.Vector3(0, 2, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 5;
+            camera.upperRadiusLimit = 25;
+
+            const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 1.2;
+
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+            const mat = new BABYLON.StandardMaterial("gmat", scene);
+            mat.wireframe = true; mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            ground.material = mat;
+
+            // Cargar modelo
+            const modelPath = "../1.FICHEROS-AUXILIARES/mech_neck_walker_-_bge_free_download.glb";
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelPath, "", scene);
+            
+            result.meshes[0].scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+            if(result.animationGroups && result.animationGroups.length > 0) {
+                mechaAnim = result.animationGroups[0];
+                mechaAnim.stop(); // Pausado por defecto
+            }
+            return scene;
+        };
+
+        createScene().then(scene => {
+            bScene = scene;
+            bEngine.runRenderLoop(() => { scene.render(); });
+        });
+        window.addEventListener("resize", () => { bEngine.resize(); });
+    }
+    
+    function start3D() {
+        if(mechaAnim) mechaAnim.start(true, 1.0, 0, 554);
+    }
+</script>
+</body>
+</html>

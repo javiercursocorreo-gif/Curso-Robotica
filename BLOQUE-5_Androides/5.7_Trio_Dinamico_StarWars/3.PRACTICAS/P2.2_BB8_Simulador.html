@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3: Simulador Cinemático BB-8</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #renderCanvas { width: 100%; height: 100%; touch-action: none; outline: none; }
+        
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0, 10, 20, 0.8); border: 1px solid #00ffff; border-radius: 8px;
+            padding: 15px; color: #00ffff; backdrop-filter: blur(5px);
+            font-family: monospace; font-size: 1.1rem; z-index: 10;
+        }
+        #hud h3 { margin: 0 0 10px 0; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+        #errorLog { color: #ff5555; font-size: 0.9rem; max-width: 300px; margin-top: 10px; }
+        
+        #controlsHelp {
+            position: absolute; bottom: 20px; right: 20px;
+            background: rgba(0, 0, 0, 0.6); padding: 15px; border-radius: 8px;
+            color: #ccc; font-size: 0.9rem; text-align: right; pointer-events: none;
+        }
+        .key { display: inline-block; background: #333; padding: 5px 10px; border-radius: 4px; color: white; margin: 0 2px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="hud">
+    <h3>BB-8 Telemetría</h3>
+    <div>VELOCIDAD: <span id="speedVal">0.0</span> m/s</div>
+    <div>CABEZA YAW: <span id="yawVal">0</span>°</div>
+    <div id="errorLog"></div>
+    <button id="btnFixPosture" style="margin-top:10px; background:#1f6feb; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; width:100%;">↻ Corregir Postura (90º)</button>
+</div>
+
+<div id="controlsHelp">
+    Usa <span class="key">⬆</span> <span class="key">⬅</span> <span class="key">⬇</span> <span class="key">➡</span> para mover a BB-8
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    
+    let scene, camera;
+    let bbBody = null;
+    let bbHead = null;
+    let bbRadius = 1.333; // Un tercio más grande
+    
+    // Controles de entrada (usando window events para garantizar foco)
+    const inputMap = {};
+    window.addEventListener("keydown", (evt) => { inputMap[evt.key.toLowerCase()] = true; });
+    window.addEventListener("keyup", (evt) => { inputMap[evt.key.toLowerCase()] = false; });
+
+    // Cargar GridMaterial
+    const loadGridMat = async () => {
+        await BABYLON.Tools.LoadScriptAsync("https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js");
+    };
+
+    const createScene = async () => {
+        await loadGridMat();
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.8, 0.6, 0.4, 1); // Tatooine sky
+        
+        const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+        hemiLight.intensity = 0.6;
+        const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+        dirLight.intensity = 1.0;
+
+        // Suelo con cuadrícula para que se note el movimiento
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200}, scene);
+        const gMat = new BABYLON.GridMaterial("gMat", scene);
+        gMat.mainColor = new BABYLON.Color3(1, 1, 1);
+        gMat.lineColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+        gMat.gridRatio = 2; // Cuadrícula cada 2 metros
+        ground.material = gMat;
+        
+        // Nodos contenedores lógicos
+        const robotRoot = new BABYLON.TransformNode("robotRoot", scene);
+        bbBody = new BABYLON.TransformNode("bbBody", scene);
+        bbHead = new BABYLON.TransformNode("bbHead", scene);
+        
+        bbBody.parent = robotRoot;
+        // La cabeza NO es hija del cuerpo, porque no queremos que ruede.
+        bbHead.parent = robotRoot;
+
+        // Crear la cámara ANTES de cargar el modelo para poder hacer scene.render() sin errores
+        camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 15, new BABYLON.Vector3(0, 0, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.wheelPrecision = 20;
+        camera.setTarget(robotRoot); // ¡MUY IMPORTANTE! Hacer que la cámara siga al robot
+        
+        // Desactivar el control por teclado por defecto de la cámara orbital
+        // Así las flechas solo mueven al robot y no hacen que el mundo (la cámara) gire
+        camera.keysUp = [];
+        camera.keysDown = [];
+        camera.keysLeft = [];
+        camera.keysRight = [];
+
+        // Funciones auxiliares para medir la caja delimitadora total
+        const getBoundingInfoTotal = (meshes, rootMesh) => {
+            let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+            let max = new BABYLON.Vector3(Number.MIN_VALUE, Number.MIN_VALUE, Number.MIN_VALUE);
+            meshes.forEach(m => {
+                if (m === rootMesh || !m.getBoundingInfo) return;
+                m.refreshBoundingInfo(true);
+                const bMin = m.getBoundingInfo().boundingBox.minimumWorld;
+                const bMax = m.getBoundingInfo().boundingBox.maximumWorld;
+                if (bMin.x < min.x) min.x = bMin.x; if (bMin.y < min.y) min.y = bMin.y; if (bMin.z < min.z) min.z = bMin.z;
+                if (bMax.x > max.x) max.x = bMax.x; if (bMax.y > max.y) max.y = bMax.y; if (bMax.z > max.z) max.z = bMax.z;
+            });
+            return {min, max, size: max.subtract(min)};
+        };
+
+        try {
+            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+            const root = result.meshes[0];
+            scene.render(); // Forzar matrices
+            
+            // 3. Calibración Geométrica Pura con Pivote Externo
+            const modelPivot = new BABYLON.TransformNode("modelPivot", scene);
+            root.parent = modelPivot;
+            
+            // A. Poner de pie y corregir el sistema de coordenadas
+            // 1. Z=180 para darle la vuelta (venía boca abajo)
+            modelPivot.rotation.z = Math.PI;
+            // 2. X=90 para levantarlo (BabylonJS lo tumba por defecto al importar algunos GLTF)
+            modelPivot.rotate(BABYLON.Axis.X, Math.PI/2, BABYLON.Space.LOCAL);
+            
+            scene.render(); // Forzar actualización de matrices
+            
+            // B. Escalar dinámicamente para que el diámetro sea exactamente 2.0 (Radio = 1.0)
+            let bbox = getBoundingInfoTotal(result.meshes, root);
+            let diameter = Math.min(bbox.size.x, Math.min(bbox.size.y, bbox.size.z));
+            if (diameter > 0) {
+                modelPivot.scaling.scaleInPlace((bbRadius * 2.0) / diameter);
+            }
+            
+            // C. Centrar el pivote (Ajustado matemáticamente y escalado por bbRadius)
+            modelPivot.position.y = -(643.0 / 632.0) * bbRadius;
+            
+            // 4. Separación Inteligente
+            const headPivot = modelPivot.clone("headPivot", null);
+            modelPivot.parent = bbBody;
+            headPivot.parent = bbHead;
+            
+            const mBody = modelPivot.getChildMeshes(false);
+            const mHead = headPivot.getChildMeshes(false);
+            
+            for (let i = 0; i < mBody.length; i++) {
+                const positions = mBody[i].getVerticesData(BABYLON.VertexBuffer.PositionKind);
+                if (!positions) continue;
+                
+                let localMinY = Infinity;
+                let localMaxY = -Infinity;
+                for (let j = 0; j < positions.length; j += 3) {
+                    if (positions[j+1] < localMinY) localMinY = positions[j+1];
+                    if (positions[j+1] > localMaxY) localMaxY = positions[j+1];
+                }
+                const centerY = (localMinY + localMaxY) / 2;
+                
+                if (centerY < -1300) {
+                    mBody[i].dispose();
+                } else {
+                    mHead[i].dispose();
+                }
+            }
+
+            // TAPAR EL AGUJERO: El modelo original de BB-8 tiene un agujero físico en el cuello.
+            // Para que no se vea el interior vacío al rodar, metemos una esfera blanca sólida dentro.
+            const innerShell = BABYLON.MeshBuilder.CreateSphere("innerShell", {diameter: bbRadius * 1.95}, scene);
+            const shellMat = new BABYLON.StandardMaterial("shellMat", scene);
+            shellMat.diffuseColor = new BABYLON.Color3(0.85, 0.85, 0.85); // Blanco roto
+            innerShell.material = shellMat;
+            innerShell.parent = bbBody;
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById("errorLog").innerText = "Error cargando bb-8.glb: " + e.message;
+        }
+
+        robotRoot.position.y = bbRadius;
+
+        // --- MOTOR DE SONIDO SINTÉTICO (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const playRobotSound = (type) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            
+            if (type === 'chirp') {
+                // Pitido agudo alegre
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200 + Math.random()*800, now);
+                osc.frequency.exponentialRampToValueAtTime(2500 + Math.random()*500, now + 0.15);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'brake') {
+                // Quejido grave al frenar
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.3);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'talk') {
+                // Secuencia de pitidos rápidos
+                let t = now;
+                for(let i=0; i<3+Math.random()*4; i++) {
+                    const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.type = Math.random() > 0.5 ? 'sine' : 'square';
+                    o.frequency.setValueAtTime(1000 + Math.random()*2000, t);
+                    g.gain.setValueAtTime(0.1, t);
+                    g.gain.linearRampToValueAtTime(0, t + 0.08);
+                    o.start(t); o.stop(t + 0.1);
+                    t += 0.05 + Math.random()*0.05;
+                }
+            }
+        };
+
+        // Variables de movimiento fluido
+        let currentVelocity = new BABYLON.Vector3(0, 0, 0);
+        const maxSpeed = 12.0;
+        let headYaw = 0; // Rotación manual de la cabeza
+        let lastSpeed = 0;
+
+        // Mostrar controles extra
+        document.getElementById("controlsHelp").innerHTML += "<br>Usa <span class='key'>Q</span> y <span class='key'>E</span> para girar la cabeza";
+        document.getElementById("controlsHelp").innerHTML += "<br>Pulsa <span class='key'>Espacio</span> para interactuar (sonido)";
+        // Ocultar el botón absurdo ya que sale vertical
+        document.getElementById("btnFixPosture").style.display = "none";
+
+        // Tecla espacio para sonido
+        window.addEventListener("keydown", (evt) => { 
+            if (evt.code === "Space") {
+                playRobotSound('talk');
+            }
+        });
+
+        scene.onBeforeRenderObservable.add(() => {
+            let dt = engine.getDeltaTime() / 1000;
+            if (dt > 0.1) dt = 0.1; 
+            
+            let inputDir = new BABYLON.Vector3(0,0,0);
+            let camForward = camera.getDirection(new BABYLON.Vector3(0, 0, 1));
+            camForward.y = 0; camForward.normalize();
+            let camRight = camera.getDirection(new BABYLON.Vector3(1, 0, 0));
+            camRight.y = 0; camRight.normalize();
+
+            // Movimiento cuerpo
+            if (inputMap["arrowup"] || inputMap["w"]) inputDir.addInPlace(camForward);
+            if (inputMap["arrowdown"] || inputMap["s"]) inputDir.subtractInPlace(camForward);
+            if (inputMap["arrowleft"] || inputMap["a"]) inputDir.subtractInPlace(camRight);
+            if (inputMap["arrowright"] || inputMap["d"]) inputDir.addInPlace(camRight);
+
+            if (inputDir.lengthSquared() > 0) inputDir.normalize();
+
+            // Movimiento cabeza (Q / E)
+            if (inputMap["q"]) headYaw -= 2.0 * dt;
+            if (inputMap["e"]) headYaw += 2.0 * dt;
+            bbHead.rotation.y = headYaw;
+
+            // FÍSICA Y CINEMÁTICA LERP
+            let targetVelocity = inputDir.scale(maxSpeed);
+            currentVelocity = BABYLON.Vector3.Lerp(currentVelocity, targetVelocity, 8.0 * dt);
+
+            let speed = currentVelocity.length();
+
+            // Efectos de sonido al arrancar o frenar
+            if (speed > 5.0 && lastSpeed <= 5.0) playRobotSound('chirp');
+            if (speed < 2.0 && lastSpeed >= 2.0) playRobotSound('brake');
+            lastSpeed = speed;
+
+            if (speed > 0.05) {
+                // 1. TRASLACIÓN
+                const displacement = currentVelocity.scale(dt);
+                robotRoot.position.addInPlace(displacement);
+
+                // 2. ROTACIÓN DEL CUERPO
+                const distance = displacement.length();
+                const angle = distance / bbRadius;
+                
+                // Vector perpendicular para rodar
+                let moveDir = currentVelocity.clone().normalize();
+                const rotationAxis = new BABYLON.Vector3(moveDir.z, 0, -moveDir.x);
+                bbBody.rotate(rotationAxis, angle, BABYLON.Space.WORLD);
+            }
+
+            // Actualizar HUD
+            document.getElementById("speedVal").innerText = speed.toFixed(1);
+            let yawDeg = (headYaw * 180 / Math.PI) % 360;
+            if(yawDeg < 0) yawDeg += 360;
+            document.getElementById("yawVal").innerText = Math.round(yawDeg);
+        });
+
+        return scene;
+    };
+
+    createScene().then(s => {
+        engine.runRenderLoop(() => s.render());
+    });
+    window.addEventListener("resize", () => engine.resize());
+
+</script>
+</body>
+</html>

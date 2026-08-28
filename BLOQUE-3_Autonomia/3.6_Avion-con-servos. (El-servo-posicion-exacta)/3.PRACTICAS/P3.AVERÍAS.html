@@ -1,0 +1,1074 @@
+<!-- MEJORAS TÉCNICAS:
+- [SIMPLIFICACIÓN] Terminología de averías adaptada a lenguaje sencillo para alumnos (Atascado, Al revés, Tiembla, Muerto, Se desvía).
+- [UI/UX] Forzada la selección única de botones. Eliminado el escenario de avería múltiple para evitar confusión.
+- [VISUAL] Escala de las cajas de los servos incrementada +40%. Color naranja oscuro (#D84315) aplicado a alerones y brazos.
+- [ANIMACIÓN] Rotación visual del brazo del servo exagerada (x2.5) y amplitudes de avería (oscilaciones, bloqueos) incrementadas para rápida detección.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P3.AVERÍAS</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        :root {
+            --cyan: #00f2ff;
+            --orange: #FF6F00;
+            --dark-orange: #D84315;
+            --green: #00ff88;
+            --red: #ff3333;
+            --bg-dark: #151520;
+            --bg-panel: #1e1e2d;
+            --text-main: #eeeeee;
+            --text-muted: #aaaaaa;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* HEADER */
+        header {
+            height: 70px;
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid var(--cyan);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .header-title {
+            font-size: 24px;
+            color: var(--cyan);
+            letter-spacing: 5px;
+            font-weight: bold;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .header-subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-left: 20px;
+        }
+
+        /* MAIN LAYOUT */
+        #main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            min-height: 0;
+        }
+
+        /* CANVAS AREA */
+        #canvas-area {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+            display: flex;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            outline: none;
+            display: block;
+        }
+
+        /* HUD OVERLAYS */
+        #hud-status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 22px;
+            font-weight: bold;
+            padding: 10px 25px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid transparent;
+            z-index: 10;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .status-observacion { color: var(--cyan); border-color: var(--cyan) !important; animation: pulse 1.5s infinite; }
+        .status-diagnostico { color: var(--orange); border-color: var(--orange) !important; }
+        .status-correcto { color: var(--green); border-color: var(--green) !important; transform: translateX(-50%) scale(1.1) !important; }
+        .status-incorrecto { color: var(--red); border-color: var(--red) !important; }
+
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; box-shadow: 0 0 15px var(--cyan); } 100% { opacity: 0.8; } }
+
+        #hud-views {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+        .view-btn {
+            background: rgba(20,20,30,0.8);
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .view-btn:hover { background: var(--cyan); color: #000; }
+
+        #labels-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            overflow: hidden;
+        }
+        .servo-label {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid var(--orange);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            transform: translate(-50%, -150%);
+            display: none;
+        }
+        .servo-label::after {
+            content: '';
+            position: absolute;
+            bottom: -10px; left: 50%;
+            margin-left: -5px;
+            border-width: 10px 5px 0;
+            border-style: solid;
+            border-color: var(--orange) transparent transparent transparent;
+        }
+
+        /* RIGHT PANEL */
+        #right-panel {
+            width: 380px;
+            flex-shrink: 0;
+            background: var(--bg-panel);
+            border-left: 2px solid #333;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .panel-section {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        /* Progreso */
+        .progreso-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+        .dot { width: 16px; height: 16px; border-radius: 50%; background: #444; }
+        .dot.correct { background: var(--green); }
+        .dot.solution { background: var(--red); }
+        .dot.current { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+        .score-text { text-align: center; font-size: 18px; font-weight: bold; color: var(--cyan); }
+
+        /* Sintoma */
+        .sintoma-title { color: var(--orange); font-size: 20px; font-weight: bold; margin: 0 0 10px 0; }
+        .sintoma-text { font-size: 16px; color: #eee; line-height: 1.4; margin: 0; }
+        .badge-diff { display: inline-block; padding: 4px 8px; background: #c62828; color: white; border-radius: 4px; font-size: 14px; font-weight: bold; margin-top: 10px; }
+
+        /* Timer */
+        #timer-sec { text-align: center; display: none; }
+        .timer-circle {
+            position: relative; width: 80px; height: 80px; margin: 0 auto 10px auto;
+        }
+        .timer-circle svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .timer-circle circle {
+            fill: none; stroke-width: 8; stroke-linecap: round;
+        }
+        .timer-circle .bg { stroke: #333; }
+        .timer-circle .fg { stroke: var(--cyan); stroke-dasharray: 201; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+        .timer-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: bold; color: white; }
+
+        /* Servos Info */
+        .servo-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 16px; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 4px; border-left: 4px solid var(--orange); }
+        .servo-row.fixed { border-left-color: var(--green); }
+        
+        /* Herramientas */
+        .diag-title { font-size: 18px; font-weight: bold; margin: 15px 0 10px 0; color: #ccc; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn-grid.full { grid-template-columns: 1fr; }
+        .diag-btn {
+            background: #2a2a3d; border: 2px solid #444; color: white;
+            padding: 12px; font-size: 16px; border-radius: 6px; cursor: pointer;
+            transition: all 0.2s; min-height: 50px;
+        }
+        .diag-btn:hover { border-color: var(--cyan); }
+        .diag-btn.selected { background: #1565C0; border-color: var(--cyan); font-weight: bold; }
+        .diag-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #btn-comprobar {
+            width: 100%; min-height: 70px; background: #1565C0; color: white;
+            font-size: 20px; font-weight: bold; border: none; border-radius: 6px;
+            margin-top: 20px; cursor: pointer; transition: 0.2s;
+        }
+        #btn-comprobar:disabled { background: #333; color: #777; cursor: not-allowed; }
+        #btn-comprobar:not(:disabled):hover { background: #1e88e5; transform: scale(1.02); }
+
+        /* Feedback */
+        #feedback-sec { display: none; margin-top: 20px; padding: 15px; border-radius: 6px; background: rgba(0,0,0,0.5); border-left: 4px solid #444; font-size: 16px; line-height: 1.4; }
+        .fb-incorrect1 { border-color: var(--orange); }
+        .fb-incorrect2 { border-color: var(--red); }
+        .fb-correcto { border-color: var(--green); }
+        .fb-solucion { border-color: #ffd700; }
+        
+        .action-btn { width: 100%; min-height: 70px; font-size: 18px; font-weight: bold; border: none; border-radius: 6px; margin-top: 15px; cursor: pointer; }
+        .btn-next { background: var(--green); color: black; }
+        .btn-sol { background: var(--red); color: white; }
+
+        /* OVERLAYS FULLSCREEN */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10,10,20,0.9); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 20px; box-sizing: border-box;
+        }
+        .overlay-box { max-width: 800px; background: #1e1e2d; padding: 40px; border-radius: 12px; border: 2px solid var(--cyan); }
+        .overlay h1 { font-size: 32px; color: var(--cyan); margin-top: 0; }
+        .overlay p { font-size: 20px; line-height: 1.5; color: #ddd; margin-bottom: 25px; }
+        .btn-start { background: #00c853; color: black; font-size: 24px; font-weight: bold; border: none; padding: 20px 50px; border-radius: 8px; cursor: pointer; }
+        .btn-start:hover { background: #00e676; transform: scale(1.05); }
+        
+        .icon-desc { display: flex; align-items: center; text-align: left; margin-bottom: 15px; font-size: 18px; }
+        .icon-desc span { display: inline-block; width: 40px; text-align: center; font-size: 24px; margin-right: 15px; }
+
+        .score-big { font-size: 60px; font-weight: bold; margin: 20px 0; }
+        .score-badge { font-size: 24px; color: white; background: #333; padding: 10px 20px; border-radius: 20px; display: inline-block; margin-bottom: 30px; }
+        .res-table { width: 100%; text-align: left; font-size: 18px; margin-bottom: 30px; border-collapse: collapse; }
+        .res-table td { padding: 8px; border-bottom: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">P3. AVERÍAS</div>
+        <div class="header-subtitle">CLASE 3.6 — DIAGNÓSTICO DE SERVOS</div>
+    </header>
+
+    <div id="main-area">
+        <div id="canvas-area">
+            <canvas id="renderCanvas"></canvas>
+            
+            <div id="hud-status" class="status-observacion" style="display:none">👁 OBSERVA EL AVIÓN</div>
+            
+            <div id="hud-views">
+                <button class="view-btn" onclick="setView('trasera')">🔙 TRASERA</button>
+                <button class="view-btn" onclick="setView('lateral')">👁 LATERAL</button>
+                <button class="view-btn" onclick="setView('inferior')">⬇ INFERIOR</button>
+            </div>
+
+            <div id="labels-container">
+                <div id="label-aleronIzq" class="servo-label">⚠️ SERVO AVERIADO</div>
+                <div id="label-aleronDer" class="servo-label">⚠️ SERVO AVERIADO</div>
+                <div id="label-elevIzq" class="servo-label">⚠️ SERVO AVERIADO</div>
+                <div id="label-elevDer" class="servo-label">⚠️ SERVO AVERIADO</div>
+                <div id="label-timon" class="servo-label">⚠️ SERVO AVERIADO</div>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div class="panel-section" id="progreso-sec">
+                <div class="progreso-dots" id="dots-container"></div>
+                <div class="score-text" id="score-text">0 / 30 puntos</div>
+            </div>
+
+            <div class="panel-section" id="sintoma-sec">
+                <h2 class="sintoma-title" id="st-titulo">Título Avería</h2>
+                <p class="sintoma-text" id="st-desc">Descripción...</p>
+                <div id="st-badge" class="badge-diff" style="display:none">DIFÍCIL</div>
+            </div>
+
+            <div class="panel-section" id="timer-sec">
+                <h3 style="margin-top:0; color:#00f2ff; animation: pulse 1s infinite;">Observa el avión</h3>
+                <div class="timer-circle">
+                    <svg viewBox="0 0 80 80">
+                        <circle class="bg" cx="40" cy="40" r="32"></circle>
+                        <circle class="fg" id="timer-ring" cx="40" cy="40" r="32"></circle>
+                    </svg>
+                    <div class="timer-text" id="timer-val">10</div>
+                </div>
+            </div>
+
+            <div class="panel-section" id="servos-sec">
+                <div style="font-weight:bold; margin-bottom:10px; color:#aaa;">Lectura de Servos (Tiempo Real)</div>
+                <div class="servo-row" id="srow-aleronIzq"><span>Alerón Izquierdo</span> <span id="sang-aleronIzq">0°</span></div>
+                <div class="servo-row" id="srow-aleronDer"><span>Alerón Derecho</span> <span id="sang-aleronDer">0°</span></div>
+                <div class="servo-row" id="srow-elevIzq"><span>Elevador Izquierdo</span> <span id="sang-elevIzq">0°</span></div>
+                <div class="servo-row" id="srow-elevDer"><span>Elevador Derecho</span> <span id="sang-elevDer">0°</span></div>
+                <div class="servo-row" id="srow-timon"><span>Timón de Cola</span> <span id="sang-timon">0°</span></div>
+            </div>
+
+            <div class="panel-section" id="diagnostico-sec" style="display:none">
+                <div class="diag-title">1. ¿Qué servo falla?</div>
+                <div class="btn-grid">
+                    <button class="diag-btn servo-btn" data-val="aleronIzq">Alerón Izquierdo</button>
+                    <button class="diag-btn servo-btn" data-val="aleronDer">Alerón Derecho</button>
+                    <button class="diag-btn servo-btn" data-val="elevIzq">Elevador Izquierdo</button>
+                    <button class="diag-btn servo-btn" data-val="elevDer">Elevador Derecho</button>
+                    <button class="diag-btn servo-btn" data-val="timon" style="grid-column: span 2;">Timón de Cola</button>
+                </div>
+
+                <div class="diag-title">2. ¿Qué tipo de avería es?</div>
+                <div class="btn-grid full">
+                    <button class="diag-btn tipo-btn" data-val="bloqueado">🔒 ATASCADO</button>
+                    <button class="diag-btn tipo-btn" data-val="invertido">🔄 AL REVÉS</button>
+                    <button class="diag-btn tipo-btn" data-val="oscilante">〰️ TIEMBLA</button>
+                    <button class="diag-btn tipo-btn" data-val="sinRespuesta">💀 MUERTO</button>
+                    <button class="diag-btn tipo-btn" data-val="deriva">📉 SE DESVÍA</button>
+                </div>
+
+                <button id="btn-comprobar" onclick="comprobar()" disabled>COMPROBAR</button>
+            </div>
+
+            <div class="panel-section" id="feedback-sec">
+                <div id="fb-text"></div>
+                <button id="btn-solucion" class="action-btn btn-sol" style="display:none" onclick="verSolucion()">VER SOLUCIÓN</button>
+                <button id="btn-siguiente" class="action-btn btn-next" style="display:none" onclick="siguienteEscenario()">SIGUIENTE ESCENARIO</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA INICIAL -->
+    <div id="overlay-intro" class="overlay">
+        <div class="overlay-box">
+            <h1>🔧 DIAGNÓSTICO DE AVERÍAS</h1>
+            <p><strong>¿Puedes identificar el servo que falla observando el avión en vuelo?</strong></p>
+            
+            <div style="text-align:left; max-width: 600px; margin: 0 auto 30px auto;">
+                <div class="icon-desc"><span>🔒</span> <b>Atascado:</b> El servo se queda atascado en un ángulo fijo.</div>
+                <div class="icon-desc"><span>🔄</span> <b>Al revés:</b> Se mueve en la dirección contraria a la que debería.</div>
+                <div class="icon-desc"><span>〰️</span> <b>Tiembla:</b> Vibra o se mueve arriba y abajo sin control.</div>
+                <div class="icon-desc"><span>💀</span> <b>Muerto:</b> Se queda en el centro (0°) y no hace nada.</div>
+                <div class="icon-desc"><span>📉</span> <b>Se desvía:</b> Se va torciendo muy poco a poco.</div>
+            </div>
+            
+            <p style="color:#aaa; font-size:16px;">
+                Puntuación: 30 puntos posibles (3 pt al primer intento, 1 pt al segundo intento).<br>
+                Tendrás 10 segundos para observar antes de diagnosticar.
+            </p>
+            
+            <button class="btn-start" onclick="initGame()">EMPEZAR</button>
+        </div>
+    </div>
+
+    <!-- PANTALLA FINAL -->
+    <div id="overlay-fin" class="overlay" style="display:none; background:rgba(10,10,20,0.85);">
+        <div class="overlay-box" style="width:700px; max-width:90%;">
+            <h1>RESULTADOS DEL DIAGNÓSTICO</h1>
+            <div class="score-big" id="fin-score">0 / 30</div>
+            <div class="score-badge" id="fin-badge">🔧 Mecánico en prácticas</div>
+            
+            <div style="max-height: 250px; overflow-y:auto; border:1px solid #444; border-radius:8px; margin-bottom:20px;">
+                <table class="res-table" id="fin-table"></table>
+            </div>
+
+            <button class="btn-start" onclick="location.reload()">JUGAR OTRA VEZ</button>
+        </div>
+    </div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// LOS 10 ESCENARIOS DE AVERÍA (Simples y extremos)
+// ═══════════════════════════════════════════════════════════════
+const ESCENARIOS_DATA = [
+  { id: 1, titulo: "El avión gira solo a la derecha", sintoma: "El avión vira constantemente hacia la derecha sin que el piloto mueva ningún mando. No responde a correcciones.", servoAveriado: 'aleronIzq', tipoAveria: 'bloqueado', anguloBloqueo: 35, pista1: "Observa las alas — ¿están simétricas o una está más alta que la otra?", pista2: "El ala izquierda está más baja. El alerón izquierdo está atascado." },
+  { id: 2, titulo: "Los giros van al revés", sintoma: "Cuando el piloto intenta girar a la izquierda, el avión gira a la derecha. Y al revés. El timón funciona bien.", servoAveriado: 'aleronDer', tipoAveria: 'invertido', pista1: "Observa el alerón derecho cuando el avión intenta girar. ¿Sube o baja cuando debería subir?", pista2: "El alerón derecho se mueve al revés. Cuando debería bajar para girar a la izquierda, sube." },
+  { id: 3, titulo: "El avión tiembla sin parar", sintoma: "El avión vibra de forma extraña — solo en el eje de subida y bajada del morro. Las alas están estables.", servoAveriado: 'elevIzq', tipoAveria: 'oscilante', frecOscilacion: 6, amplitudOscilacion: 30, pista1: "Las alas están quietas. ¿Qué superficie de la cola se mueve sin control?", pista2: "El elevador izquierdo tiembla fuertemente (±30°). El derecho está bien." },
+  { id: 4, titulo: "El avión no puede subir", sintoma: "El avión desciende lentamente y no responde cuando el piloto intenta subir el morro. Los giros funcionan bien.", servoAveriado: 'elevIzq', tipoAveria: 'bloqueado', anguloBloqueo: -30, pista1: "Intenta subir — ¿ambos elevadores responden o solo uno?", pista2: "El elevador izquierdo está atascado hacia abajo (-30°). Solo el derecho responde." },
+  { id: 5, titulo: "El avión se desvía solo hacia la izquierda", sintoma: "Sin tocar ningún mando, el avión gira lentamente hacia la izquierda. Muy despacio pero sin parar.", servoAveriado: 'timon', tipoAveria: 'deriva', velocidadDeriva: 0.8, pista1: "¿Las alas están niveladas? ¿Desde dónde viene la desviación — de las alas o de la cola?", pista2: "El timón de cola se desvía lentamente hacia la izquierda. Las alas están correctas." },
+  { id: 6, titulo: "Un ala no responde", sintoma: "El avión puede girar a la izquierda pero cuando intenta girar a la derecha, el ala derecha no sube.", servoAveriado: 'aleronDer', tipoAveria: 'sinRespuesta', pista1: "Observa los dos alerones durante un intento de giro a la derecha. ¿Se mueven los dos?", pista2: "El alerón derecho está muerto y se queda en 0°. El izquierdo funciona solo." },
+  { id: 7, titulo: "El avión sube sin control", sintoma: "El avión sube constantemente y no puede nivelar el vuelo. Lleva una trayectoria ascendente permanente.", servoAveriado: 'elevDer', tipoAveria: 'bloqueado', anguloBloqueo: 30, pista1: "Ambos elevadores deberían estar a 0° en vuelo nivelado. ¿Lo están?", pista2: "El elevador derecho está atascado hacia arriba (+30°). El izquierdo está bien." },
+  { id: 8, titulo: "El timón responde al revés", sintoma: "Cuando el piloto corrige una desviación a la izquierda aplicando timón a la derecha, el avión gira más a la izquierda.", servoAveriado: 'timon', tipoAveria: 'invertido', pista1: "¿El timón de cola se mueve en la dirección correcta cuando se aplica una corrección?", pista2: "El timón está al revés: se mueve a la izquierda cuando debería ir a la derecha." },
+  { id: 9, titulo: "El avión se desvía bruscamente", sintoma: "El avión pega tirones hacia la derecha constantemente de forma incontrolable.", servoAveriado: 'timon', tipoAveria: 'bloqueado', anguloBloqueo: 35, dificultad: 'alta', pista1: "Observa la cola. ¿El timón está en el centro?", pista2: "El timón está atascado completamente hacia un lado." },
+  { id: 10, titulo: "Vibración asimétrica en la cola", sintoma: "El avión tiene una vibración extraña en la cola. Las alas están quietas. El morro sube y baja pero de forma rara — más de un lado que del otro.", servoAveriado: 'elevDer', tipoAveria: 'oscilante', frecOscilacion: 5, amplitudOscilacion: 30, pista1: "Observa los dos elevadores de la cola horizontal. ¿Se mueven igual los dos?", pista2: "El elevador derecho tiembla (±30°). El izquierdo está quieto y correcto." }
+];
+
+// ═══════════════════════════════════════════════════════════════
+// VARIABLES GLOBALES (Juego y 3D)
+// ═══════════════════════════════════════════════════════════════
+let engine, scene, camera, planeRoot;
+let servosInfo = {};      
+let controlSurfaces = {}; 
+let propRoot, propBlades = [], propDiscoMat = null;
+let chaseTarget = BABYLON.Vector3.Zero();
+let clouds = [];
+
+let targetAlpha = -Math.PI/2 + 0.3;
+let targetBeta = Math.PI/3.5;
+let targetRadius = 22;
+
+let ESCENARIOS = [];
+let escenarioActual = 0;
+let intentos = 0;
+let puntuacion = 0;
+let estadoJuego = 'intro';
+let tiempoObservacion = 10;
+let averiaActiva = null;
+let tiempoJuego = 0;
+let timonDeriva = 0;
+let reparado = false;
+
+// Almacenamos un array pero siempre forzaremos 1 solo elemento de selección.
+let selectedServos = [];
+let selectedTipo = [];
+let historialResultados = []; 
+
+// ═══════════════════════════════════════════════════════════════
+// MOTOR — WebGPU + Fallback (patrón v5)
+// ═══════════════════════════════════════════════════════════════
+async function initEngine() {
+    const canvas = document.getElementById('renderCanvas');
+    try {
+        if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+            engine = new BABYLON.WebGPUEngine(canvas, {antialias:true, stencil:true});
+            await engine.initAsync();
+        } else throw new Error("WebGPU no soportado");
+    } catch(e) {
+        engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer:true, stencil:true});
+    }
+    createScene();
+    engine.runRenderLoop(() => { 
+        try { if(scene) scene.render(); } catch(err){ console.error(err); } 
+    });
+    window.addEventListener('resize', () => engine.resize());
+}
+window.onload = () => initEngine();
+
+// ═══════════════════════════════════════════════════════════════
+// ESCENA EXTERIOR
+// ═══════════════════════════════════════════════════════════════
+function createScene() {
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = BABYLON.Color4.FromHexString("#3A7BD5FF");
+    
+    scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR; 
+    scene.fogStart = 4000; 
+    scene.fogEnd = 25000;
+    scene.fogColor = new BABYLON.Color3(0.6, 0.75, 0.95);
+
+    camera = new BABYLON.ArcRotateCamera("chase", targetAlpha, targetBeta, targetRadius, BABYLON.Vector3.Zero(), scene);
+    camera.lowerRadiusLimit = 8; camera.upperRadiusLimit = 50;
+    camera.attachControl(document.getElementById('renderCanvas'), true);
+
+    const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.6;
+    hemi.groundColor = new BABYLON.Color3(0.2, 0.3, 0.2);
+
+    const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -1.5, -1), scene);
+    dirLight.position = new BABYLON.Vector3(20, 50, 20);
+    dirLight.intensity = 2.5;
+
+    const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+    shadowGen.useContactHardeningShadow = true;
+    shadowGen.contactHardeningLightSizeUVRatio = 0.05;
+
+    const glow = new BABYLON.GlowLayer("glow", scene);
+    glow.intensity = 1.0;
+
+    scene.createDefaultEnvironment({ createSkybox: true, skyboxSize: 1000, enableGroundMirror: false, groundYBias: 0.01 });
+    scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+    scene.environmentIntensity = 0.6;
+
+    const pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+    pipeline.msaaSamples = 4;
+    pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.85;
+    pipeline.fxaaEnabled = true;
+    pipeline.imageProcessingEnabled = true;
+    pipeline.imageProcessing.toneMappingEnabled = true;
+    pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    pipeline.imageProcessing.exposure = 1.2; pipeline.imageProcessing.contrast = 1.1;
+    pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = 0.3;
+
+    buildEnvironment();
+    buildPlane(shadowGen);
+    buildClouds();
+
+    planeRoot.position = new BABYLON.Vector3(0, 80, 0);
+
+    scene.onBeforeRenderObservable.add(() => {
+        const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+        
+        updateFlightPhysics(dt);
+        
+        chaseTarget.x = BABYLON.Scalar.Lerp(chaseTarget.x, planeRoot.position.x, 0.08);
+        chaseTarget.y = BABYLON.Scalar.Lerp(chaseTarget.y, planeRoot.position.y, 0.08);
+        chaseTarget.z = BABYLON.Scalar.Lerp(chaseTarget.z, planeRoot.position.z, 0.08);
+        camera.target = chaseTarget;
+
+        camera.alpha = BABYLON.Scalar.Lerp(camera.alpha, targetAlpha, 0.05);
+        camera.beta = BABYLON.Scalar.Lerp(camera.beta, targetBeta, 0.05);
+        camera.radius = BABYLON.Scalar.Lerp(camera.radius, targetRadius, 0.05);
+
+        clouds.forEach(c => {
+            if (planeRoot.position.z - c.position.z > 2000) c.position.z += 10000;
+        });
+
+        updateUIRealtime(dt);
+    });
+}
+
+function createPBR(name, hex, r, m) {
+    const mat = new BABYLON.PBRMaterial(name, scene);
+    mat.albedoColor = BABYLON.Color3.FromHexString(hex);
+    mat.roughness = r; mat.metallic = m;
+    return mat;
+}
+
+function buildEnvironment() {
+    const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10000, height:10000, subdivisions:100}, scene);
+    const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    for (let i=0; i<positions.length; i+=3) {
+        const x=positions[i], z=positions[i+2];
+        let y = (Math.sin(x*0.005)*Math.cos(z*0.005)*25) + (Math.sin(x*0.02)*Math.sin(z*0.02)*10) + (Math.random()*1.5);
+        const dist = Math.abs(x);
+        if (dist<40 && z>-2500 && z<4500) y=0.0;
+        else if (dist<100 && z>-2500 && z<4500) y=BABYLON.Scalar.Lerp(0.0,y,(dist-40)/60);
+        positions[i+1]=y;
+    }
+    ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+    ground.createNormals(true);
+    ground.material = createPBR("gMat","#2E6B2E",0.95,0.0);
+}
+
+function buildClouds() {
+    const nubesGrp = new BABYLON.TransformNode("nubes", scene);
+    const cMat = new BABYLON.StandardMaterial("cMat", scene);
+    cMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.95);
+    cMat.alpha = 0.6; cMat.disableLighting = true;
+    for(let i=0; i<25; i++) {
+        const x = (Math.random()-0.5)*3000;
+        const y = 60 + Math.random()*250;
+        const z = (Math.random()-0.2)*10000;
+        const n = BABYLON.MeshBuilder.CreateSphere("n", {segments:12, diameter:100+Math.random()*80}, scene);
+        n.position.set(x,y,z);
+        n.scaling.y = 0.5;
+        n.material = cMat; n.parent = nubesGrp;
+        clouds.push(n);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AVIÓN EXACTO Y SUPERFICIES (Servos agrandados y naranjas)
+// ═══════════════════════════════════════════════════════════════
+function buildPlane(shadowGen) {
+    planeRoot = new BABYLON.TransformNode("planeRoot", scene);
+    
+    const matWhite = createPBR("matW", "#F0F0F0", 0.2, 0.1); matWhite.clearCoat.isEnabled = true; matWhite.clearCoat.intensity = 1.0;
+    const matWing   = createPBR("matWing", "#E8EAF6", 0.3, 0.1);
+    const matDark   = createPBR("matD",    "#212121", 0.8, 0.1);
+    const matGear   = createPBR("matG",    "#455A64", 0.6, 0.8);
+    const matGlass  = createPBR("matGlass","#90CAF9", 0.1, 0.0);
+    matGlass.alpha = 0.55; matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    
+    // Naranja Oscuro explícito para todos los elementos de control
+    const matOrange = createPBR("matO",    "#D84315", 0.3, 0.1);
+
+    const mkMesh = (m) => { shadowGen.addShadowCaster(m); m.receiveShadows = true; };
+
+    // FUSELAJE
+    const fuseGrp = new BABYLON.TransformNode("p_fuse", scene); fuseGrp.parent = planeRoot;
+    const b1 = BABYLON.MeshBuilder.CreateCylinder("b1", {height:1.2, diameterTop:1.0, diameterBottom:1.2, tessellation:24}, scene);
+    b1.position.set(0,0.1,1.4); b1.rotation.x=Math.PI/2;
+    const b2 = BABYLON.MeshBuilder.CreateCylinder("b2", {height:1.6, diameterTop:1.2, diameterBottom:1.2, tessellation:24}, scene);
+    b2.position.set(0,0.1,0); b2.rotation.x=Math.PI/2;
+    const b3 = BABYLON.MeshBuilder.CreateCylinder("b3", {height:1.6, diameterTop:1.2, diameterBottom:0.8, tessellation:24}, scene);
+    b3.position.set(0,0.1,-1.6); b3.rotation.x=Math.PI/2;
+    const b4 = BABYLON.MeshBuilder.CreateCylinder("b4", {height:1.4, diameterTop:0.8, diameterBottom:0.4, tessellation:24}, scene);
+    b4.position.set(0,0.15,-3.1); b4.rotation.x=Math.PI/2;
+    const b5 = BABYLON.MeshBuilder.CreateCylinder("b5", {height:1.0, diameterTop:0.4, diameterBottom:0.1, tessellation:24}, scene);
+    b5.position.set(0,0.2,-4.3); b5.rotation.x=Math.PI/2;
+    [b1,b2,b3,b4,b5].forEach(b => { b.parent=fuseGrp; b.material=matWhite; mkMesh(b); });
+
+    // ALAS
+    const alaIGrp = new BABYLON.TransformNode("p_alai",scene); alaIGrp.parent=planeRoot;
+    alaIGrp.position.set(-0.6,0.3,0); alaIGrp.rotation.z=-5*Math.PI/180;
+    const wL = BABYLON.MeshBuilder.CreateCapsule("wL",{height:4.2,radius:0.8,tessellation:16},scene);
+    wL.rotation.z=Math.PI/2; wL.scaling.set(0.08,1,1); wL.position.x=-2.0; wL.parent=alaIGrp; wL.material=matWing; mkMesh(wL);
+
+    const alerIGrp=new BABYLON.TransformNode("p_aleron_i",scene); alerIGrp.parent=planeRoot;
+    alerIGrp.position=alaIGrp.position.clone(); alerIGrp.rotation.z=alaIGrp.rotation.z;
+    const alerPivotI=new BABYLON.TransformNode("alerPivotI",scene); alerPivotI.parent=alerIGrp; alerPivotI.position.set(-2.5,0,-0.8);
+    const aleronI=BABYLON.MeshBuilder.CreateBox("alI",{width:0.4,height:1.8,depth:0.4},scene);
+    aleronI.rotation.z=Math.PI/2; aleronI.scaling.set(0.15,1,1); aleronI.position.z=-0.2; aleronI.parent=alerPivotI; aleronI.material=matOrange; mkMesh(aleronI);
+    controlSurfaces.aleronIzq=alerPivotI;
+
+    const alaDGrp=new BABYLON.TransformNode("p_alad",scene); alaDGrp.parent=planeRoot;
+    alaDGrp.position.set(0.6,0.3,0); alaDGrp.rotation.z=5*Math.PI/180;
+    const wR=BABYLON.MeshBuilder.CreateCapsule("wR",{height:4.2,radius:0.8,tessellation:16},scene);
+    wR.rotation.z=Math.PI/2; wR.scaling.set(0.08,1,1); wR.position.x=2.0; wR.parent=alaDGrp; wR.material=matWing; mkMesh(wR);
+
+    const alerDGrp=new BABYLON.TransformNode("p_aleron_d",scene); alerDGrp.parent=planeRoot;
+    alerDGrp.position=alaDGrp.position.clone(); alerDGrp.rotation.z=alaDGrp.rotation.z;
+    const alerPivotD=new BABYLON.TransformNode("alerPivotD",scene); alerPivotD.parent=alerDGrp; alerPivotD.position.set(2.5,0,-0.8);
+    const aleronD=BABYLON.MeshBuilder.CreateBox("alD",{width:0.4,height:1.8,depth:0.4},scene);
+    aleronD.rotation.z=Math.PI/2; aleronD.scaling.set(0.15,1,1); aleronD.position.z=-0.2; aleronD.parent=alerPivotD; aleronD.material=matOrange; mkMesh(aleronD);
+    controlSurfaces.aleronDer=alerPivotD;
+
+    // COLAS
+    const cHGrp=new BABYLON.TransformNode("p_colah",scene); cHGrp.parent=planeRoot; cHGrp.position.set(0,0.45,-4.2);
+    const chBox=BABYLON.MeshBuilder.CreateCapsule("ch",{height:3.4,radius:0.4,tessellation:16},scene);
+    chBox.rotation.z=Math.PI/2; chBox.scaling.set(0.1,1,1); chBox.parent=cHGrp; chBox.material=matWing; mkMesh(chBox);
+
+    const elevIGrp=new BABYLON.TransformNode("p_elev_i",scene); elevIGrp.parent=planeRoot; elevIGrp.position=cHGrp.position.clone();
+    const elevPivotI=new BABYLON.TransformNode("elevPivotI",scene); elevPivotI.parent=elevIGrp; elevPivotI.position.set(-0.8,0,-0.4);
+    const elI=BABYLON.MeshBuilder.CreateBox("elI",{width:0.5,height:1.4,depth:0.5},scene);
+    elI.rotation.z=Math.PI/2; elI.scaling.set(0.1,1,1); elI.position.z=-0.25; elI.parent=elevPivotI; elI.material=matOrange; mkMesh(elI);
+    controlSurfaces.elevIzq=elevPivotI;
+
+    const elevDGrp=new BABYLON.TransformNode("p_elev_d",scene); elevDGrp.parent=planeRoot; elevDGrp.position=cHGrp.position.clone();
+    const elevPivotD=new BABYLON.TransformNode("elevPivotD",scene); elevPivotD.parent=elevDGrp; elevPivotD.position.set(0.8,0,-0.4);
+    const elD=BABYLON.MeshBuilder.CreateBox("elD",{width:0.5,height:1.4,depth:0.5},scene);
+    elD.rotation.z=Math.PI/2; elD.scaling.set(0.1,1,1); elD.position.z=-0.25; elD.parent=elevPivotD; elD.material=matOrange; mkMesh(elD);
+    controlSurfaces.elevDer=elevPivotD;
+
+    const cVGrp=new BABYLON.TransformNode("p_colav",scene); cVGrp.parent=planeRoot; cVGrp.position.set(0,0.5,-4.0);
+    const cvBox=BABYLON.MeshBuilder.CreateCapsule("cv",{height:1.6,radius:0.5,tessellation:16},scene);
+    cvBox.scaling.set(0.1,1,1); cvBox.position.set(0,0.7,-0.2); cvBox.parent=cVGrp; cvBox.material=matWing; mkMesh(cvBox);
+
+    const timonGrp=new BABYLON.TransformNode("p_timon",scene); timonGrp.parent=planeRoot; timonGrp.position=cVGrp.position.clone();
+    const timonPivot=new BABYLON.TransformNode("timonPivot",scene); timonPivot.parent=timonGrp; timonPivot.position.set(0,0.7,-0.7);
+    const tBox=BABYLON.MeshBuilder.CreateBox("tB",{width:0.6,height:1.3,depth:0.6},scene);
+    tBox.scaling.set(0.1,1,1); tBox.position.z=-0.3; tBox.parent=timonPivot; tBox.material=matOrange; mkMesh(tBox);
+    controlSurfaces.timon=timonPivot;
+
+    // MOTOR & HÉLICE
+    const motGrp=new BABYLON.TransformNode("p_motor",scene); motGrp.parent=planeRoot; motGrp.position.set(0,0.1,2.0);
+    const motor=BABYLON.MeshBuilder.CreateCylinder("mot",{diameter:1.1,height:0.8},scene);
+    motor.rotation.x=Math.PI/2; motor.parent=motGrp; motor.material=matGear; mkMesh(motor);
+
+    propRoot=new BABYLON.TransformNode("propRoot",scene); propRoot.parent=motGrp; propRoot.position.z=0.45;
+    const propBuz=BABYLON.MeshBuilder.CreateCylinder("buz",{diameter:0.3,height:0.2},scene);
+    propBuz.rotation.x=Math.PI/2; propBuz.parent=propRoot; propBuz.material=matWhite; mkMesh(propBuz);
+
+    const prop1=BABYLON.MeshBuilder.CreateCapsule("pr1",{height:3.4,radius:0.1,tessellation:12},scene);
+    prop1.scaling.set(1,1,0.2); prop1.parent=propRoot; prop1.material=matDark;
+    const prop2=BABYLON.MeshBuilder.CreateCapsule("pr2",{height:3.4,radius:0.1,tessellation:12},scene);
+    prop2.rotation.z=Math.PI/2; prop2.scaling.set(1,1,0.2); prop2.parent=propRoot; prop2.material=matDark;
+    propBlades=[prop1,prop2];
+
+    const propDisco=BABYLON.MeshBuilder.CreateCylinder("propDisco",{diameter:3.6,height:0.04,tessellation:48},scene);
+    propDisco.parent=propRoot; propDisco.rotation.x=Math.PI/2;
+    propDiscoMat=new BABYLON.PBRMaterial("matDisco",scene);
+    propDiscoMat.albedoColor=BABYLON.Color3.FromHexString("#8AABCC");
+    propDiscoMat.alpha=0.45; propDiscoMat.metallic=0.1; propDiscoMat.roughness=0.1;
+    propDiscoMat.transparencyMode=BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+    propDisco.material=propDiscoMat; propBlades.forEach(p => p.visibility=0);
+
+    // CABINA
+    const cabGrp=new BABYLON.TransformNode("p_cabina",scene); cabGrp.parent=planeRoot; cabGrp.position.set(0,0.7,-0.8);
+    const glassPivot=new BABYLON.TransformNode("glassPivot",scene); glassPivot.parent=cabGrp; glassPivot.scaling.set(0.8,0.9,1.0);
+    const cabMain=BABYLON.MeshBuilder.CreateCylinder("cabMain",{height:1.8,diameter:1.0,arc:0.5,enclose:true,tessellation:24},scene);
+    cabMain.parent=glassPivot; cabMain.rotation.x=Math.PI/2; cabMain.rotation.y=Math.PI; cabMain.material=matGlass;
+
+    // SERVOS (Materiales independientes PBR, agrandados 40% y bracito naranja oscuro)
+    const createServo=(id, parentPos, parentRotZ, posOffset, rotY)=>{
+        const sGrp=new BABYLON.TransformNode("grp_"+id,scene); sGrp.parent=planeRoot;
+        sGrp.position=parentPos.clone(); sGrp.rotation.z=parentRotZ;
+        const sw=new BABYLON.TransformNode("sw",scene); sw.parent=sGrp; sw.position=posOffset; sw.rotation.y=rotY;
+        
+        const mBase=new BABYLON.PBRMaterial(id+"_base",scene); mBase.albedoColor=BABYLON.Color3.FromHexString("#B0BEC5"); mBase.metallic=0.8; mBase.roughness=0.4;
+        const mArm=new BABYLON.PBRMaterial(id+"_arm",scene); mArm.albedoColor=BABYLON.Color3.FromHexString("#D84315"); mArm.metallic=0.2; mArm.roughness=0.2;
+        
+        // Cajas aumentadas
+        const base=BABYLON.MeshBuilder.CreateBox("b",{width:0.35,height:0.25,depth:0.25},scene); 
+        base.parent=sw; base.position.y=0.125; base.material=mBase; mkMesh(base);
+        
+        const aPivot=new BABYLON.TransformNode("ap",scene); aPivot.parent=sw; aPivot.position.set(0,0.3,0);
+        
+        const arm=BABYLON.MeshBuilder.CreateBox("a",{width:0.08,height:0.35,depth:0.08},scene); 
+        arm.parent=aPivot; arm.position.y=0.15; arm.material=mArm; mkMesh(arm);
+        
+        servosInfo[id]={armPivot:aPivot, mBase:mBase, mArm:mArm, sw:sw, sGrp:sGrp};
+    };
+    createServo('aleronIzq', alaIGrp.position, alaIGrp.rotation.z, new BABYLON.Vector3(-2.5, 0.15, -0.4), 0);
+    createServo('aleronDer', alaDGrp.position, alaDGrp.rotation.z, new BABYLON.Vector3(2.5, 0.15, -0.4),  0);
+    createServo('elevIzq',   cHGrp.position,   0,                  new BABYLON.Vector3(-0.8, 0.15, 0),    0);
+    createServo('elevDer',   cHGrp.position,   0,                  new BABYLON.Vector3(0.8, 0.15, 0),     0);
+    createServo('timon',     cVGrp.position,   0,                  new BABYLON.Vector3(0.1, 1.0, -0.4),   Math.PI/2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FÍSICA Y EFECTOS DE AVERÍA EXAGERADOS
+// ═══════════════════════════════════════════════════════════════
+function updateFlightPhysics(dt) {
+    const t = tiempoJuego;
+    tiempoJuego += dt;
+
+    planeRoot.position.z += 12 * dt;
+    if (planeRoot.position.z > 3000) planeRoot.position.z = -3000;
+    if (propRoot) propRoot.rotation.z += 30 * dt;
+
+    if (reparado) {
+        Object.keys(controlSurfaces).forEach(k => {
+            if(k==='timon') controlSurfaces[k].rotation.y = BABYLON.Scalar.Lerp(controlSurfaces[k].rotation.y, 0, 0.05);
+            else controlSurfaces[k].rotation.x = BABYLON.Scalar.Lerp(controlSurfaces[k].rotation.x, 0, 0.05);
+        });
+        planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.04);
+        planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, 0, 0.04);
+        planeRoot.rotation.y = BABYLON.Scalar.Lerp(planeRoot.rotation.y, 0, 0.04);
+    } else if (averiaActiva && estadoJuego !== 'intro' && estadoJuego !== 'siguiente' && estadoJuego !== 'fin') {
+        const d_av = averiaActiva;
+        const check = (servo, tipo) => {
+            if(d_av.servoAveriado === servo && d_av.tipoAveria === tipo) return {ang: d_av.anguloBloqueo};
+            return false;
+        };
+
+        let hasBloqAI = check('aleronIzq', 'bloqueado');
+        let hasBloqEI = check('elevIzq', 'bloqueado');
+        let hasBloqED = check('elevDer', 'bloqueado');
+        let hasBloqT  = check('timon', 'bloqueado');
+        let hasInvAD = check('aleronDer', 'invertido');
+        let hasInvT = check('timon', 'invertido');
+        let hasOscEI = check('elevIzq', 'oscilante');
+        let hasOscED = check('elevDer', 'oscilante');
+        let hasDeriva = check('timon', 'deriva');
+        let hasSR = check('aleronDer', 'sinRespuesta');
+
+        // BLOQUEADO
+        if (hasBloqAI) {
+            let ang = hasBloqAI.ang * Math.PI/180;
+            controlSurfaces.aleronIzq.rotation.x = ang;
+            planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, -0.6, 0.02);
+            planeRoot.rotation.y += 0.3 * dt;
+        }
+        if (hasBloqEI) {
+            let ang = hasBloqEI.ang * Math.PI/180;
+            controlSurfaces.elevIzq.rotation.x = ang;
+            planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0.12, 0.02);
+            planeRoot.position.y -= 2*dt;
+        }
+        if (hasBloqED) {
+            let ang = hasBloqED.ang * Math.PI/180;
+            controlSurfaces.elevDer.rotation.x = ang;
+            planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, -0.15, 0.02);
+            planeRoot.position.y += 3*dt;
+        }
+        if (hasBloqT) {
+            let ang = hasBloqT.ang * Math.PI/180;
+            controlSurfaces.timon.rotation.y = ang;
+            planeRoot.rotation.y += 0.5 * dt;
+            planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, -0.4, 0.02);
+        }
+
+        // INVERTIDO
+        if (hasInvAD) {
+            const demoAngle = Math.sin(t * 0.5) * 40; // Exagerado para notar contraste
+            controlSurfaces.aleronDer.rotation.x = demoAngle * Math.PI/180;
+            controlSurfaces.aleronIzq.rotation.x = demoAngle * Math.PI/180;
+            planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, Math.sin(t*0.5)*0.4, 0.05);
+            planeRoot.rotation.y += Math.sin(t*0.5) * 0.15 * dt;
+        }
+        if (hasInvT) {
+            const corrInv = Math.sin(t * 0.4) * 35;
+            controlSurfaces.timon.rotation.y = corrInv * Math.PI/180;
+            planeRoot.rotation.y += Math.sin(t*0.4) * -0.08 * dt;
+        }
+
+        // OSCILANTE
+        if (hasOscEI || hasOscED) {
+            const freq = d_av.frecOscilacion; const amp = d_av.amplitudOscilacion;
+            const osc = Math.sin(t * freq) * amp * Math.PI/180;
+            if (hasOscEI) { controlSurfaces.elevIzq.rotation.x = osc; planeRoot.rotation.x += Math.sin(t*freq)*0.04; }
+            if (hasOscED) { controlSurfaces.elevDer.rotation.x = osc; planeRoot.rotation.x += Math.sin(t*freq)*0.025; }
+        }
+
+        // DERIVA
+        if (hasDeriva) {
+            timonDeriva = Math.max(-35, timonDeriva - d_av.velocidadDeriva * dt);
+            controlSurfaces.timon.rotation.y = timonDeriva * Math.PI/180;
+            planeRoot.rotation.y -= 0.015 * dt;
+        }
+
+        // SIN RESPUESTA
+        if (hasSR) {
+            controlSurfaces.aleronDer.rotation.x = 0;
+            controlSurfaces.aleronIzq.rotation.x = Math.sin(t * 0.6) * 40 * Math.PI/180;
+            planeRoot.rotation.z = Math.sin(t * 0.6) * 0.2;
+        }
+    }
+
+    planeRoot.position.y = Math.max(20, Math.min(400, planeRoot.position.y));
+
+    // ANIMACIÓN VISUAL DE LOS BRAZOS (Multiplicador x2.5 para exagerar)
+    Object.keys(controlSurfaces).forEach(k => {
+        if(servosInfo[k]) {
+            servosInfo[k].armPivot.rotation.x = -controlSurfaces[k].rotation[k==='timon'?'y':'x'] * 2.5;
+        }
+    });
+
+    // PARPADEO DE SERVO AVERIADO
+    const parpadeo = Math.sin(t * Math.PI * 2.5) > 0;
+    const isObservacion = ['observacion', 'diagnostico', 'incorrecto1', 'incorrecto2'].includes(estadoJuego);
+    const isResuelto = ['correcto', 'solucion'].includes(estadoJuego);
+
+    Object.keys(servosInfo).forEach(id => {
+        servosInfo[id].mBase.emissiveColor.set(0,0,0);
+        if (averiaActiva && averiaActiva.servoAveriado === id) {
+            if (isResuelto) {
+                if (parpadeo) servosInfo[id].mBase.emissiveColor.set(0, 1, 0.5);
+            } else if (isObservacion) {
+                if (parpadeo) servosInfo[id].mBase.emissiveColor.set(0.8, 0, 0);
+            }
+        }
+    });
+
+    // Etiquetas flotantes en 3D
+    if (isResuelto && averiaActiva) {
+        const id = averiaActiva.servoAveriado;
+        const el = document.getElementById('label-' + id);
+        if (el && servosInfo[id]) {
+            el.style.display = 'block';
+            const pos = servosInfo[id].sw.getAbsolutePosition();
+            const proj = BABYLON.Vector3.Project(pos, BABYLON.Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()));
+            el.style.left = proj.x + 'px'; el.style.top = proj.y + 'px';
+        }
+    } else {
+        document.querySelectorAll('.servo-label').forEach(el => el.style.display = 'none');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SISTEMA DE JUEGO Y UI
+// ═══════════════════════════════════════════════════════════════
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function initGame() {
+    document.getElementById('overlay-intro').style.display = 'none';
+    ESCENARIOS = [...ESCENARIOS_DATA];
+    shuffle(ESCENARIOS);
+    escenarioActual = 0;
+    puntuacion = 0;
+    historialResultados = [];
+    dibujarProgreso();
+    startEscenario();
+}
+
+function startEscenario() {
+    averiaActiva = ESCENARIOS[escenarioActual];
+    intentos = 0;
+    tiempoJuego = 0;
+    timonDeriva = 0;
+    reparado = false;
+    selectedServos = [];
+    selectedTipo = [];
+    
+    document.querySelectorAll('.diag-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-comprobar').disabled = true;
+    document.getElementById('feedback-sec').style.display = 'none';
+    document.getElementById('diagnostico-sec').style.display = 'none';
+    document.getElementById('timer-sec').style.display = 'block';
+    
+    document.getElementById('st-titulo').innerText = averiaActiva.titulo;
+    document.getElementById('st-desc').innerText = averiaActiva.sintoma;
+    document.getElementById('st-badge').style.display = averiaActiva.dificultad === 'alta' ? 'inline-block' : 'none';
+
+    estadoJuego = 'observacion';
+    tiempoObservacion = 10;
+    
+    dibujarProgreso();
+    updateStatusHUD();
+
+    planeRoot.rotation.set(0,0,0);
+    Object.keys(controlSurfaces).forEach(k => controlSurfaces[k].rotation.set(0,0,0));
+
+    if(averiaActiva.servoAveriado.includes('aleron')) setView('lateral');
+    else setView('trasera');
+}
+
+function setView(tipo) {
+    if(tipo==='trasera') { targetAlpha = -Math.PI/2; targetBeta = Math.PI/3.5; targetRadius = 22; }
+    else if(tipo==='lateral') { targetAlpha = 0; targetBeta = Math.PI/3.5; targetRadius = 26; }
+    else if(tipo==='inferior') { targetAlpha = -Math.PI/2; targetBeta = Math.PI; targetRadius = 22; }
+}
+
+function updateStatusHUD() {
+    const s = document.getElementById('hud-status');
+    s.style.display = 'block';
+    s.className = '';
+    if(estadoJuego==='observacion') { s.innerText='👁 OBSERVA EL AVIÓN'; s.classList.add('status-observacion'); }
+    else if(estadoJuego==='diagnostico') { s.innerText='🔍 DIAGNOSTICA LA AVERÍA'; s.classList.add('status-diagnostico'); }
+    else if(estadoJuego==='correcto') { s.innerText='✅ ¡SERVO REPARADO!'; s.classList.add('status-correcto'); }
+    else if(estadoJuego.startsWith('incorrecto')) { s.innerText='❌ INCORRECTO'; s.classList.add('status-incorrecto'); }
+    else s.style.display = 'none';
+}
+
+function updateUIRealtime(dt) {
+    if (estadoJuego === 'observacion') {
+        tiempoObservacion -= dt;
+        document.getElementById('timer-val').innerText = Math.ceil(tiempoObservacion);
+        document.getElementById('timer-ring').style.strokeDashoffset = 201 - (tiempoObservacion/10)*201;
+        if (tiempoObservacion <= 0) {
+            estadoJuego = 'diagnostico';
+            document.getElementById('timer-sec').style.display = 'none';
+            document.getElementById('diagnostico-sec').style.display = 'block';
+            updateStatusHUD();
+        }
+    }
+    
+    Object.keys(controlSurfaces).forEach(k => {
+        const val = controlSurfaces[k].rotation[k==='timon'?'y':'x'] * 180 / Math.PI;
+        document.getElementById('sang-'+k).innerText = val.toFixed(1) + '°';
+        
+        let el = document.getElementById('srow-'+k);
+        if(estadoJuego==='correcto' || estadoJuego==='solucion') {
+            if(averiaActiva.servoAveriado === k) el.classList.add('fixed'); else el.classList.remove('fixed');
+        } else el.classList.remove('fixed');
+    });
+}
+
+// Botones toggle (Forzar 1 sola selección)
+document.querySelectorAll('.servo-btn').forEach(b => {
+    b.onclick = () => {
+        selectedServos = [b.getAttribute('data-val')]; // Sobrescribe array -> 1 solo seleccionado
+        renderBtnState();
+    };
+});
+document.querySelectorAll('.tipo-btn').forEach(b => {
+    b.onclick = () => {
+        selectedTipo = [b.getAttribute('data-val')]; // Sobrescribe array -> 1 solo seleccionado
+        renderBtnState();
+    };
+});
+
+function renderBtnState() {
+    document.querySelectorAll('.servo-btn').forEach(b => b.classList.toggle('selected', selectedServos.includes(b.getAttribute('data-val'))));
+    document.querySelectorAll('.tipo-btn').forEach(b => b.classList.toggle('selected', selectedTipo.includes(b.getAttribute('data-val'))));
+    document.getElementById('btn-comprobar').disabled = (selectedServos.length===0 || selectedTipo.length===0);
+}
+
+function comprobar() {
+    const servoCorrect = averiaActiva.servoAveriado === selectedServos[0];
+    const tipoCorrect = averiaActiva.tipoAveria === selectedTipo[0];
+
+    const fb = document.getElementById('feedback-sec');
+    const fbt = document.getElementById('fb-text');
+    fb.style.display = 'block';
+    fb.className = 'panel-section';
+    document.getElementById('btn-siguiente').style.display = 'none';
+    document.getElementById('btn-solucion').style.display = 'none';
+
+    if (servoCorrect && tipoCorrect) {
+        let pts = (intentos===0 ? 3 : 1);
+        puntuacion += pts;
+        estadoJuego = 'correcto';
+        reparado = true;
+        fb.classList.add('fb-correcto');
+        fbt.innerHTML = `✅ <b>¡Correcto!</b> Has ganado ${pts} puntos.`;
+        document.getElementById('btn-siguiente').style.display = 'block';
+        historialResultados.push({id: averiaActiva.id, res: intentos===0 ? 'directo' : 'pista'});
+        updateStatusHUD();
+        desactivarPanel();
+    } else {
+        intentos++;
+        if (intentos === 1) {
+            estadoJuego = 'incorrecto1';
+            fb.classList.add('fb-incorrect1');
+            fbt.innerHTML = `❌ No es correcto.<br><br><b>Pista:</b> ${averiaActiva.pista1}`;
+        } else {
+            estadoJuego = 'incorrecto2';
+            fb.classList.add('fb-incorrect2');
+            fbt.innerHTML = `❌ Último intento.<br><br><b>Pista:</b> ${averiaActiva.pista2}`;
+            document.getElementById('btn-solucion').style.display = 'block';
+            desactivarPanel();
+        }
+        updateStatusHUD();
+    }
+    dibujarProgreso();
+}
+
+function verSolucion() {
+    estadoJuego = 'solucion';
+    reparado = true;
+    const fb = document.getElementById('feedback-sec');
+    fb.className = 'panel-section fb-solucion';
+    document.getElementById('btn-solucion').style.display = 'none';
+    document.getElementById('btn-siguiente').style.display = 'block';
+    
+    const textMapT = { 'bloqueado': 'Atascado', 'invertido': 'Al revés', 'oscilante': 'Tiembla', 'sinRespuesta': 'Muerto', 'deriva': 'Se desvía' };
+    const textMapS = { 'aleronIzq': 'Alerón Izquierdo', 'aleronDer': 'Alerón Derecho', 'elevIzq': 'Elevador Izquierdo', 'elevDer': 'Elevador Derecho', 'timon': 'Timón de Cola' };
+    
+    document.getElementById('fb-text').innerHTML = `💡 <b>Solución:</b><br>Servo: ${textMapS[averiaActiva.servoAveriado]}<br>Tipo: ${textMapT[averiaActiva.tipoAveria]}`;
+    
+    historialResultados.push({id: averiaActiva.id, res: 'fallo'});
+    dibujarProgreso();
+    updateStatusHUD();
+}
+
+function desactivarPanel() {
+    document.querySelectorAll('.diag-btn').forEach(b => b.disabled = true);
+    document.getElementById('btn-comprobar').disabled = true;
+}
+
+function siguienteEscenario() {
+    escenarioActual++;
+    if (escenarioActual >= ESCENARIOS.length) {
+        mostrarFin();
+    } else {
+        document.querySelectorAll('.diag-btn').forEach(b => b.disabled = false);
+        startEscenario();
+    }
+}
+
+function dibujarProgreso() {
+    let ht = '';
+    for(let i=0; i<10; i++) {
+        let cl = 'dot';
+        if (i < escenarioActual) {
+            cl += historialResultados[i]?.res === 'fallo' ? ' solution' : ' correct';
+        } else if (i === escenarioActual) {
+            cl += ' current';
+        }
+        ht += `<div class="${cl}"></div>`;
+    }
+    document.getElementById('dots-container').innerHTML = ht;
+    document.getElementById('score-text').innerText = `${puntuacion} / 30 puntos`;
+}
+
+function mostrarFin() {
+    estadoJuego = 'fin';
+    document.getElementById('hud-status').style.display = 'none';
+    const ov = document.getElementById('overlay-fin');
+    ov.style.display = 'flex';
+    document.getElementById('fin-score').innerText = `${puntuacion} / 30`;
+    document.getElementById('fin-score').style.color = puntuacion<=10 ? 'var(--red)' : (puntuacion<=20 ? 'var(--orange)' : (puntuacion<=27 ? 'var(--cyan)' : '#ffd700'));
+    
+    let badge = "🔧 Mecánico en prácticas";
+    if(puntuacion>=11) badge = "✈️ Co-piloto";
+    if(puntuacion>=21) badge = "🏆 Piloto de pruebas";
+    if(puntuacion>=28) badge = "⭐ Ingeniero aeronáutico";
+    document.getElementById('fin-badge').innerText = badge;
+
+    let tr = '';
+    ESCENARIOS.forEach((e, i) => {
+        let r = historialResultados[i]?.res;
+        let icon = r==='directo' ? '✅' : (r==='pista' ? '🔶' : '❌');
+        tr += `<tr><td>${i+1}</td><td>${e.titulo}</td><td style="text-align:right">${icon}</td></tr>`;
+    });
+    document.getElementById('fin-table').innerHTML = tr;
+}
+</script>
+</body>
+</html>

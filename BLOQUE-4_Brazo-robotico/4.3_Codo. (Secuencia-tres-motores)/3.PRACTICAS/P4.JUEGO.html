@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — El Codo y la Secuencia de Tres Motores</title>
+<style>
+:root {
+  --primary: #00f2ff;
+  --bg: #0d0d1a;
+  --bg2: #13132a;
+  --glass: rgba(0,20,40,0.85);
+  --text: #ffffff;
+  --sub: #aaaaaa;
+  --success: #00e676;
+  --danger: #ff4444;
+  --warning: #ffcc00;
+  --orange: #FF6B35;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#header {
+  position: fixed; top: 0; left: 0; right: 0; height: 70px;
+  background: rgba(0,0,0,0.9);
+  border-bottom: 2px solid var(--primary);
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+}
+#header h1 { font-size: 22px; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; }
+#header .subtitle { font-size: 14px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: bold; }
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0;
+  background: rgba(0,0,0,0.8);
+  border-bottom: 1px solid #333;
+  display: flex; z-index: 99; padding: 6px 12px; gap: 8px;
+}
+.prog-btn {
+  flex: 1; height: 44px; border: 2px solid #444; background: transparent;
+  color: var(--sub); font-size: 14px; cursor: pointer;
+  border-radius: 8px; transition: all 0.3s;
+  font-family: 'Segoe UI', sans-serif;
+  outline: none;
+}
+.prog-btn:focus { outline: none; }
+.prog-btn.active { border-color: var(--warning); color: var(--warning); background: rgba(255,204,0,0.1); }
+.prog-btn.done { border-color: var(--primary); color: var(--primary); background: rgba(0,242,255,0.1); }
+#main {
+  margin-top: 130px;
+  min-height: calc(100vh - 130px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.pantalla {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; max-width: 800px; width: 100%;
+}
+.pantalla.activa { display: flex; }
+.portada-emojis { font-size: 80px; margin-bottom: 20px; }
+.portada-titulo { font-size: 32px; font-weight: bold; color: var(--primary); margin-bottom: 12px; }
+.portada-desc { font-size: 18px; color: var(--sub); margin-bottom: 30px; max-width: 520px; line-height: 1.6; }
+.badges-container { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.06); border: 2px solid var(--primary); border-radius: 12px; padding: 14px 22px; font-size: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+.btn-empezar {
+  background: var(--primary); color: #000; border: none; padding: 18px 48px;
+  font-size: 22px; font-weight: bold; border-radius: 12px; cursor: pointer;
+  min-height: 70px; transition: all 0.2s; letter-spacing: 2px;
+}
+.btn-empezar:hover { background: #00d4e0; transform: scale(1.03); }
+
+.game-card {
+  background: var(--glass);
+  border: 1px solid rgba(0,242,255,0.3);
+  border-radius: 20px;
+  padding: 36px;
+  max-width: 800px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(0,242,255,0.08);
+}
+.game-title { font-size: 13px; letter-spacing: 4px; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+.game-question { font-size: 22px; line-height: 1.4; margin-bottom: 28px; color: var(--text); font-weight: 600; }
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.opt-btn {
+  min-height: 75px; padding: 16px 20px;
+  border: 2px solid #444; background: rgba(255,255,255,0.04);
+  color: var(--text); font-size: 18px; cursor: pointer;
+  border-radius: 12px; transition: all 0.25s;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: left; line-height: 1.3;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,230,118,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,68,68,0.1); color: var(--danger); }
+.opt-btn:disabled { cursor: default; }
+
+.feedback {
+  min-height: 60px; padding: 14px 20px;
+  border-radius: 10px; font-size: 18px; margin-bottom: 18px;
+  display: none; line-height: 1.4;
+}
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,230,118,0.15); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,68,68,0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+.btn-siguiente {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--primary); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-siguiente.show { display: block; }
+.btn-siguiente:hover { background: #00d4e0; transform: translateY(-2px); }
+
+.btn-solucion {
+  display: none; min-height: 75px; width: 100%;
+  background: var(--warning); color: #000;
+  border: none; border-radius: 12px;
+  font-size: 20px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-family: 'Segoe UI', sans-serif;
+  letter-spacing: 2px; margin-bottom: 12px;
+}
+.btn-solucion.show { display: block; }
+.btn-solucion:hover { background: #e6b800; transform: translateY(-2px); }
+
+.btn-reiniciar {
+  min-height: 55px; padding: 0 24px;
+  background: transparent; border: 2px solid #555; color: var(--sub);
+  border-radius: 10px; font-size: 16px; cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; margin-top: 14px;
+}
+.btn-reiniciar:hover { border-color: var(--warning); color: var(--warning); }
+
+/* Sortable lists */
+.sortable-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.sort-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 20px; background: rgba(255,255,255,0.05);
+  border: 2px dashed #444; border-radius: 12px; cursor: grab;
+  font-size: 18px; transition: all 0.2s;
+}
+.sort-item.dragging { opacity: 0.4; background: rgba(0,242,255,0.05); }
+.sort-item.over { border-color: var(--primary); background: rgba(0,242,255,0.08); }
+.sort-num {
+  width: 32px; height: 32px; background: #222; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; color: var(--primary); border: 1.5px solid var(--primary);
+}
+
+/* Matching columns */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+.match-col { display: flex; flex-direction: column; gap: 10px; }
+.match-item {
+  min-height: 70px; padding: 14px 20px;
+  background: rgba(255,255,255,0.03); border: 2px solid #444;
+  border-radius: 12px; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  line-height: 1.35; transition: all 0.25s;
+}
+.match-item.left:hover { border-color: var(--orange); background: rgba(255,107,53,0.06); }
+.match-item.right:hover { border-color: var(--teal); background: rgba(0,191,165,0.06); }
+.match-item.selected { border-color: var(--warning) !important; background: rgba(255,204,0,0.1) !important; }
+.match-item.matched {
+  cursor: default; opacity: 0.95;
+}
+.match-badge {
+  font-size: 11px; font-weight: bold; text-transform: uppercase;
+  background: rgba(255,255,255,0.15); color: #fff;
+  padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* Specific pair colors for matched items */
+.match-pair-0 { border-color: #ef5350 !important; background: rgba(239,83,80,0.15) !important; color: #ef5350 !important; }
+.match-pair-1 { border-color: #26a69a !important; background: rgba(38,166,154,0.15) !important; color: #26a69a !important; }
+.match-pair-2 { border-color: #ab47bc !important; background: rgba(171,71,188,0.15) !important; color: #ab47bc !important; }
+.match-pair-3 { border-color: #ffa726 !important; background: rgba(255,167,38,0.15) !important; color: #ffa726 !important; }
+.match-pair-4 { border-color: #29b6f6 !important; background: rgba(41,182,246,0.15) !important; color: #29b6f6 !important; }
+
+/* Interactive Reto HUD Canvas */
+.reto-hud {
+  background: #050518;
+  border: 2px solid var(--primary);
+  border-radius: 16px;
+  width: 100%;
+  height: 250px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,242,255,0.15);
+}
+.reto-canvas { width: 100%; height: 100%; display: block; }
+.reto-telemetry {
+  position: absolute; bottom: 10px; left: 10px; right: 10px;
+  display: flex; justify-content: space-around;
+  background: rgba(0,0,0,0.85); border-radius: 8px;
+  padding: 8px 12px; font-family: monospace; font-size: 14px;
+  border: 1px solid rgba(0,242,255,0.2);
+}
+.tel-val { color: var(--warning); font-weight: bold; }
+.tel-label { color: var(--primary); }
+
+.end-screen { display: none; flex-direction: column; align-items: center; justify-content: center; }
+.end-screen.activa { display: flex; }
+.trophy { font-size: 100px; animation: popTrophy 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); margin-bottom: 20px; }
+.final-score { font-size: 40px; font-weight: bold; color: var(--warning); margin-bottom: 30px; }
+
+@keyframes popTrophy {
+  0% { transform: scale(0.1) rotate(-45deg); opacity: 0; }
+  100% { transform: scale(1.0) rotate(0deg); opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>El Codo y la Secuencia</h1>
+    <div class="subtitle">Secuencia en cadena de tres motores</div>
+  </div>
+  <div id="score-display">PUNTOS: <span id="score-val">0</span></div>
+</div>
+
+<div id="progress-bar">
+  <button class="prog-btn active" id="pb-0" onclick="goGame(0)">1. Inicio</button>
+  <button class="prog-btn" id="pb-1" onclick="goGame(1)">2. Trivial</button>
+  <button class="prog-btn" id="pb-2" onclick="goGame(2)">3. Secuencia</button>
+  <button class="prog-btn" id="pb-3" onclick="goGame(3)">4. Conceptos</button>
+  <button class="prog-btn" id="pb-4" onclick="goGame(4)">5. Retos</button>
+</div>
+
+<div id="main">
+  
+  <!-- Pantalla 0: Portada de Bienvenida -->
+  <div class="pantalla activa" id="pant-0">
+    <div class="portada-emojis">🦾🏗️🎯</div>
+    <div class="portada-titulo">El Codo y la Secuencia de Tres Motores</div>
+    <div class="portada-desc">
+      ¡Bienvenido al laboratorio del brazo robótico! Pon a prueba tus conocimientos sobre cómo encadenar movimientos secuenciales ordenados utilizando la base, el hombro y el codo.
+    </div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial (5)</div>
+      <div class="badge-card">📦 Secuencia</div>
+      <div class="badge-card">🔗 Conceptos</div>
+      <div class="badge-card">🎯 Retos (4)</div>
+    </div>
+    <button class="btn-empezar" onclick="nextGame()">¡EMPEZAR EL RETO!</button>
+  </div>
+
+  <!-- Contenedor dinámico de juegos -->
+  <div class="pantalla" id="game-pant">
+    <div id="game-area"></div>
+  </div>
+
+  <!-- Pantalla Final: Éxito -->
+  <div class="pantalla" id="pant-final">
+    <div class="trophy">🏆</div>
+    <div class="portada-titulo" style="color: var(--success)">¡Entrenamiento de Operador Completado!</div>
+    <div class="portada-desc">
+      Has demostrado comprender a la perfección el funcionamiento del codo, los límites de movimiento del brazo robótico y la importancia del control secuencial lógico en cadena.
+    </div>
+    <div class="final-score">PUNTUACIÓN FINAL: <span id="final-score-val">0</span> / 120</div>
+    <button class="btn-empezar" onclick="restart()">VOLVER A JUGAR 🔄</button>
+  </div>
+
+</div>
+
+<script>
+// Fisher-Yates shuffle array function
+function shuffleArray(array) {
+  let currentIndex = array.length, randomIndex;
+  const newArray = [...array];
+  while (currentIndex != 0) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+    [newArray[currentIndex], newArray[randomIndex]] = [
+      newArray[randomIndex], newArray[currentIndex]];
+  }
+  return newArray;
+}
+
+// ESTADO GLOBAL
+let currentStep = 0;
+let score = 0;
+let triviaIdx = 0;
+let triviaDone = false;
+let triviaAttempts = [0, 0, 0, 0, 0];
+let sortDone = false;
+let sortAttempts = 0;
+let matchDone = 0;
+let matchAttempts = 0;
+let matchSelected = null;
+let retoIdx = 0;
+let retoDone = false;
+let retoAttempts = [0, 0, 0, 0, 0];
+let animFrameId = null;
+
+// DATOS DE JUEGOS
+const trivia = [
+  {
+    q: "¿Cuál es el concepto central de esta clase del brazo robótico?",
+    opts: [
+      "La condición lógica SI / NO",
+      "La secuencia en cadena de tres motores (orden estricto)",
+      "El bucle repetitivo de movimiento continuo",
+      "La tracción diferencial usando dos ruedas"
+    ],
+    ans: 1,
+    okFeedback: "¡Correcto! En esta clase aprendemos a ordenar y secuenciar el arranque y parada de la base, el hombro y el codo en un orden lógico estricto.",
+    koFeedback: "Incorrecto. Recuerda que con tres motores (base, hombro, codo) necesitamos establecer una secuencia en cadena paso a paso para evitar accidentes."
+  },
+  {
+    q: "Para coger una pieza situada en una estantería alta, ¿cuál es el orden secuencial más lógico de movimiento?",
+    opts: [
+      "1º Hombro ➔ 2º Codo ➔ 3º Base",
+      "1º Codo ➔ 2º Hombro ➔ 3º Base",
+      "1º Base ➔ 2º Hombro ➔ 3º Codo",
+      "1º Pinza ➔ 2º Base ➔ 3º Hombro"
+    ],
+    ans: 2,
+    okFeedback: "¡Excelente! Primero orientamos la base horizontalmente, luego elevamos el hombro para dar altura y finalmente flexionamos el codo para la aproximación de precisión.",
+    koFeedback: "No es correcto. Piensa en qué es mejor orientar primero: la dirección general (base) antes de subir la altura y ajustar la distancia final."
+  },
+  {
+    q: "En esta clase (codo robótico), ¿qué partes físicas de la maqueta son sólidas/activas y cuáles son holográficas/inactivas?",
+    opts: [
+      "Solo la Base giratoria es sólida; el hombro y el codo son hologramas cian.",
+      "La Base y el Hombro son sólidos; el Codo y la Muñeca son hologramas cian.",
+      "La Base, el Hombro y el Codo son sólidos; la Muñeca y la Pinza son hologramas cian.",
+      "Todas las partes del brazo son sólidas desde el primer momento."
+    ],
+    ans: 2,
+    okFeedback: "¡Correcto! Vamos ensamblando el robot de forma secuencial. Base, hombro y codo ya están instalados y son sólidos; muñeca y pinza aún son hologramas de luz.",
+    koFeedback: "Incorrecto. Revisa el progreso del montaje: en esta clase ya tenemos base, hombro y codo montados y el resto aún no."
+  },
+  {
+    q: "¿Cómo entiende físicamente el servomotor del codo la orden de grados que le damos?",
+    opts: [
+      "Recibe una señal de aire comprimido por tubos internos.",
+      "Mide la corriente de la batería constantemente.",
+      "Recibe una señal eléctrica PWM (pulsos de duración variable de 1ms a 2ms).",
+      "Detecta el color que hay pintado en la mesa de trabajo."
+    ],
+    ans: 2,
+    okFeedback: "¡Perfecto! La placa controladora traduce los grados a milisegundos de pulso eléctrico (señal PWM) y el servo se coloca en el ángulo correspondiente.",
+    koFeedback: "No es así. El servomotor es un dispositivo electrónico que responde al ancho de pulso eléctrico variable (señal PWM)."
+  },
+  {
+    q: "El codo del robot está limitado a moverse entre 0° y 150°. Si intentara hiperextenderse más allá de 0° por un fallo de código, ¿qué ocurriría?",
+    opts: [
+      "El brazo funcionará más rápido y gastará menos corriente.",
+      "El servo sufrirá una sobrecarga mecánica, calentándose y pudiendo quemarse o romper el plástico.",
+      "El robot detectará el fallo y flotará en el aire.",
+      "La pinza se abrirá de forma automática para compensar."
+    ],
+    ans: 1,
+    okFeedback: "¡Exacto! Intentar forzar un servomotor más allá de sus límites mecánicos genera calor y fatiga que pueden fundir el motor o fracturar el brazo.",
+    koFeedback: "No. Forzar un servomotor contra su límite físico o mecánico es peligroso para la estructura y la integridad eléctrica del robot."
+  }
+];
+
+const sortItems = [
+  { id: 'base', text: '1. Girar Base para orientar la dirección general hacia la estantería.' },
+  { id: 'hombro', text: '2. Elevar el Hombro para levantar el brazo a la altura de la bandeja.' },
+  { id: 'codo', text: '3. Flexionar el Codo para extender el antebrazo y ajustar la distancia.' },
+  { id: 'pinza', text: '4. Cerrar la Pinza al sentir el contacto con el asa de la taza.' }
+];
+const sortCorrect = ['base', 'hombro', 'codo', 'pinza'];
+
+const matchPairs = [
+  { left: 'Secuencia', right: 'Orden de pasos estrictos donde cada uno depende del éxito del anterior.' },
+  { left: 'Codo del Robot', right: 'Articulación tipo bisagra que controla la flexión del antebrazo (eje X).' },
+  { left: 'Base Giratoria', right: 'Primer eje de movimiento que permite rotar toda la grúa horizontalmente (eje Y).' },
+  { left: 'Hombro', right: 'Articulación principal que conecta el brazo al chasis y define la altura.' },
+  { left: 'Señal PWM', right: 'Modulación por ancho de pulso que indica al servo en qué ángulo situarse.' }
+];
+
+const scenarios = [
+  {
+    q: "Escenario 1: Bloqueo en mitad del trayecto.<br><span style='font-size:16px;color:#aaa'>La base giratoria se ha bloqueado debido a un obstáculo físico, pero la secuencia sigue ejecutándose y el hombro y el codo comienzan a moverse. ¿Qué decisión tomas como operador?</span>",
+    opts: [
+      "Dejar que la secuencia termine, confiando en que el brazo alcanzará el objetivo.",
+      "Pulsar el botón de PARAR de inmediato para evitar que el brazo choque lateralmente y proteger los servomotores.",
+      "Aumentar los grados del codo para compensar la falta de giro de la base."
+    ],
+    ans: 1,
+    okFeedback: "¡Excelente decisión de seguridad! Si falla la alineación de la base, el brazo se moverá por una zona no planificada. Detener el robot previene daños estructurales.",
+    koFeedback: "¡Cuidado! Si la base está atascada, el hombro y el codo se desplazarán hacia una zona incorrecta, lo que provocará un choque inevitable."
+  },
+  {
+    q: "Escenario 2: Esquivar una barrera física.<br><span style='font-size:16px;color:#aaa'>Para coger una pieza, el brazo debe pasar por debajo de una barra horizontal baja. Si baja hombro y codo a la vez, chocará. ¿Cuál es la secuencia segura?</span>",
+    opts: [
+      "Extender el brazo al máximo y embestir la barra para apartarla.",
+      "1º Doblar el codo al máximo para retraer el brazo ➔ 2º Girar base ➔ 3º Pasar la barra ➔ 4º Extender hombro y codo.",
+      "Girar la base primero con todo el brazo estirado en horizontal."
+    ],
+    ans: 1,
+    okFeedback: "¡Brillante! Encoger el brazo plegando el codo reduce la palanca y la altura del robot, permitiéndole pasar bajo obstáculos antes de volver a posicionarse.",
+    koFeedback: "Incorrecto. Mover el brazo estirado colisionará con la barra. La secuencia debe encoger primero el brazo usando el codo."
+  },
+  {
+    q: "Escenario 3: Sincronización de ciclos.<br><span style='font-size:16px;color:#aaa'>La base tarda 2 segundos en hacer su giro y el hombro tarda solo 1 segundo. Si queremos que ambos comiencen y terminen al mismo tiempo, ¿qué hacemos?</span>",
+    opts: [
+      "Hacer que el hombro se mueva al doble de su velocidad estándar.",
+      "Ajustar la velocidad del hombro reduciéndola a la mitad de forma proporcional.",
+      "Moverlos a la máxima velocidad y hacer que el hombro espere detenido en el aire."
+    ],
+    ans: 1,
+    okFeedback: "¡Muy bien! Sincronizar proporcionalmente la velocidad evita las paradas intermedias bruscas y genera un trayecto fluido sin tirones.",
+    koFeedback: "Incorrecto. Si el hombro va rápido y espera parado en el aire, habremos realizado un movimiento cortado. Debemos ralentizar el motor rápido para que vaya coordinado."
+  },
+  {
+    q: "Escenario 4: Protección de límites articulares.<br><span style='font-size:16px;color:#aaa'>El codo humano está protegido contra la hiperextensión por el hueso olécranon. En el robot articulado, ¿cómo debemos proteger la junta del codo?</span>",
+    opts: [
+      "Confiar exclusivamente en los límites de grados definidos por código en el programa del microcontrolador.",
+      "Diseñar un tope mecánico físico de plástico que actúe a los 0° (brazo estirado) combinado con límites en el código.",
+      "Dejar la articulación libre y sin límites para que el robot tenga más flexibilidad."
+    ],
+    ans: 1,
+    okFeedback: "¡Excelente! La seguridad física redundante (tope mecánico + protección por software) es el estándar industrial para evitar roturas mecánicas por fallos del sistema.",
+    koFeedback: "Peligroso. Si solo confiamos en el código y el microcontrolador tiene un fallo de señal, el motor ejercerá fuerza máxima contra las piezas plásticas, rompiéndolas."
+  }
+];
+
+// NAVEGACIÓN Y FLUJO
+function goGame(step) {
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  
+  // Update header progress dots
+  document.querySelectorAll('.prog-btn').forEach((btn, idx) => {
+    btn.className = 'prog-btn';
+    if (idx === step) btn.classList.add('active');
+    else if (idx < step) btn.classList.add('done');
+  });
+
+  currentStep = step;
+  
+  // Hide screens
+  document.getElementById('pant-0').classList.remove('activa');
+  document.getElementById('game-pant').classList.remove('activa');
+  document.getElementById('pant-final').classList.remove('activa');
+
+  if (step === 0) {
+    document.getElementById('pant-0').classList.add('activa');
+  } else if (step === 5) {
+    document.getElementById('pant-final').classList.add('activa');
+    document.getElementById('final-score-val').textContent = score;
+  } else {
+    document.getElementById('game-pant').classList.add('activa');
+    if (step === 1) game1();
+    else if (step === 2) game2();
+    else if (step === 3) game3();
+    else if (step === 4) game4();
+  }
+}
+
+function nextGame() {
+  goGame(currentStep + 1);
+}
+
+function updateScore(pts) {
+  score += pts;
+  document.getElementById('score-val').textContent = score;
+}
+
+// ─── JUEGO 1: TRIVIAL (5 Preguntas) ──────────────────────────────────────────
+function game1() {
+  triviaIdx = 0;
+  triviaDone = false;
+  triviaAttempts = [0, 0, 0, 0, 0];
+  renderTriviaQuestion();
+}
+
+function renderTriviaQuestion() {
+  const item = trivia[triviaIdx];
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 TRIVIAL · Pregunta ${triviaIdx + 1} de 5</div>
+      <div class="game-question">${item.q}</div>
+      <div class="options-grid">
+        ${item.opts.map((opt, i) => `
+          <button class="opt-btn" id="opt-${i}" onclick="checkTrivia(${i})">${opt}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-trivia"></div>
+      <button class="btn-solucion" id="btn-sol1" onclick="showTriviaSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig1" onclick="nextTrivia()">CONTINUAR →</button>
+      <button class="btn-reiniciar" onclick="game1()">REINICIAR TRIVIAL</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function checkTrivia(optIdx) {
+  const item = trivia[triviaIdx];
+  const btn = document.getElementById(`opt-${optIdx}`);
+  const fb = document.getElementById('fb-trivia');
+  
+  if (optIdx === item.ans) {
+    btn.classList.add('correct');
+    document.querySelectorAll('.opt-btn').forEach(b => b.disabled = true);
+    fb.className = 'feedback show ok';
+    fb.textContent = item.okFeedback;
+    
+    // Score based on attempts
+    if (triviaAttempts[triviaIdx] === 0) updateScore(10);
+    else if (triviaAttempts[triviaIdx] === 1) updateScore(5);
+    
+    document.getElementById('btn-sol1').classList.remove('show');
+    document.getElementById('btn-sig1').classList.add('show');
+  } else {
+    triviaAttempts[triviaIdx]++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = item.koFeedback;
+    document.getElementById('btn-sol1').classList.add('show');
+  }
+}
+
+function showTriviaSolution() {
+  const item = trivia[triviaIdx];
+  const fb = document.getElementById('fb-trivia');
+  
+  document.querySelectorAll('.opt-btn').forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === item.ans) b.classList.add('correct');
+  });
+  
+  fb.className = 'feedback show ok';
+  fb.textContent = `💡 Solución: La respuesta correcta es la marcada en verde. ` + item.okFeedback;
+  document.getElementById('btn-sol1').classList.remove('show');
+  document.getElementById('btn-sig1').classList.add('show');
+}
+
+function nextTrivia() {
+  if (triviaIdx < 4) {
+    triviaIdx++;
+    renderTriviaQuestion();
+  } else {
+    nextGame();
+  }
+}
+
+// ─── JUEGO 2: ORDENAR (Secuencia) ────────────────────────────────────────────
+function game2() {
+  sortDone = false;
+  sortAttempts = 0;
+  const itemsShuffled = shuffleArray(sortItems);
+  
+  const html = `
+    <div class="game-card">
+      <div class="game-title">📦 SECUENCIA · Reorganizar trayecto</div>
+      <div class="game-question">Arrastra y ordena las acciones del brazo robótico desde la fase inicial de alineamiento hasta la recogida final:</div>
+      <div class="sortable-list" id="sort-list">
+        ${itemsShuffled.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i + 1}</div>
+            <span>${item.text}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-siguiente" id="btn-check2" onclick="checkSort()" style="display:block; background:var(--warning)">COMPROBAR ORDEN 🔍</button>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  initDragSort();
+}
+
+function initDragSort() {
+  const list = document.getElementById('sort-list');
+  let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.classList.add('dragging'); });
+    item.addEventListener('dragend', () => { item.classList.remove('dragging'); dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); if (dragEl && dragEl !== item) item.classList.add('over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault(); item.classList.remove('over');
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        const fromIdx = items.indexOf(dragEl);
+        const toIdx = items.indexOf(item);
+        if (fromIdx < toIdx) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+
+function renumberSort() {
+  document.querySelectorAll('.sort-item').forEach((el, i) => {
+    el.querySelector('.sort-num').textContent = i + 1;
+  });
+}
+
+function disableDrag() {
+  document.querySelectorAll('.sort-item').forEach(el => {
+    el.removeAttribute('draggable');
+    el.style.cursor = 'default';
+  });
+}
+
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok';
+    fb.textContent = '✅ ¡Excelente! El brazo robótico ejecuta la secuencia correcta: base ➔ hombro ➔ codo ➔ pinza. Así se aproxima al objeto con precisión y seguridad.';
+    
+    if (sortAttempts === 0) updateScore(20);
+    else if (sortAttempts === 1) updateScore(10);
+    
+    sortDone = true;
+    disableDrag();
+    document.getElementById('btn-check2').style.display = 'none';
+    document.getElementById('btn-sol2').classList.remove('show');
+    document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++;
+    fb.className = 'feedback show ko';
+    fb.textContent = '❌ Orden incorrecto. Recuerda que primero se orienta la dirección horizontal (base), luego se levanta la altura (hombro), después se afina el alcance (codo) y finalmente se coge el objeto (pinza).';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+
+function showSortSolution() {
+  sortDone = true;
+  const list = document.getElementById('sort-list');
+  list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.dataset.id = item.id;
+    div.innerHTML = `<div class="sort-num">${i+1}</div><span>${item.text}</span>`;
+    list.appendChild(div);
+  });
+  const fb = document.getElementById('fb-sort');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Esta es la secuencia de pasos ordenada lógicamente.';
+  disableDrag();
+  document.getElementById('btn-check2').style.display = 'none';
+  document.getElementById('btn-sol2').classList.remove('show');
+  document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR (5 Conceptos) ────────────────────────────────────────
+function game3() {
+  matchSelected = null;
+  matchDone = 0;
+  matchAttempts = 0;
+  
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Componentes de la Secuencia</div>
+      <div class="game-question">Pulsa un concepto de la izquierda y luego asócialo con su definición correspondiente en la derecha:</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">
+          ${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+        <div class="match-col" id="right-col">
+          ${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}
+        </div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE JUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">REINICIAR JUEGO</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+}
+
+function selectMatch(el) {
+  if (el.classList.contains('matched') || el.classList.contains('match-ok')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) {
+    if (side !== 'left') return;
+    matchSelected = el;
+    el.classList.add('selected');
+  } else {
+    if (side !== 'right') {
+      matchSelected.classList.remove('selected');
+      el.classList.add('selected');
+      matchSelected = el;
+      return;
+    }
+    const idxA = parseInt(matchSelected.dataset.idx);
+    const idxB = parseInt(el.dataset.idx);
+    const fb = document.getElementById('fb-match');
+    
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected');
+      matchSelected.classList.add('matched', 'match-pair-' + idxA);
+      el.classList.add('matched', 'match-pair-' + idxA);
+      
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][idxA];
+      matchSelected.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      el.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+      
+      matchSelected = null;
+      matchDone++;
+      
+      fb.className = 'feedback show ok';
+      fb.textContent = '✅ ¡Pareja correcta!';
+      
+      if (matchDone === 5) {
+        fb.className = 'feedback show ok';
+        fb.textContent = '🎉 ¡Enhorabuena! Has emparejado todos los términos teóricos correctamente.';
+        
+        if (matchAttempts === 0) updateScore(20);
+        else if (matchAttempts <= 2) updateScore(10);
+        
+        document.getElementById('btn-sol3').classList.remove('show');
+        document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchAttempts++;
+      matchSelected.classList.remove('selected');
+      matchSelected = null;
+      fb.className = 'feedback show ko';
+      fb.textContent = '❌ Asociación incorrecta. Inténtalo de nuevo.';
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+  }
+}
+
+function showMatchSolution() {
+  document.querySelectorAll('.match-item').forEach(el => {
+    const idx = parseInt(el.dataset.idx);
+    el.classList.add('matched', 'match-pair-' + idx);
+    if (!el.querySelector('.match-badge')) {
+      const badgeText = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'][idx];
+      el.innerHTML += `<span class="match-badge">${badgeText}</span>`;
+    }
+  });
+  const fb = document.getElementById('fb-match');
+  fb.className = 'feedback show ok';
+  fb.textContent = '💡 Solución: Aquí tienes todas las parejas teóricas asociadas correctamente.';
+  document.getElementById('btn-sol3').classList.remove('show');
+  document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETOS (4 Escenarios con HUD Interactivo) ───────────────────────
+function game4() {
+  retoIdx = 0;
+  retoDone = false;
+  retoAttempts = [0, 0, 0, 0, 0];
+  renderRetoScenario();
+}
+
+function renderRetoScenario() {
+  const item = scenarios[retoIdx];
+  const html = `
+    <div class="game-card">
+      <div class="game-title">🎯 RETO FINAL · Escenario ${retoIdx + 1} de 4</div>
+      
+      <!-- HUD Interactivo -->
+      <div class="reto-hud">
+        <canvas id="reto-canvas" class="reto-canvas"></canvas>
+        <div class="reto-telemetry" id="reto-tel">
+          <div>BASE: <span id="tel-base" class="tel-val">90.0°</span></div>
+          <div>HOMBRO: <span id="tel-hombro" class="tel-val">45.0°</span></div>
+          <div>CODO: <span id="tel-codo" class="tel-val">90.0°</span></div>
+          <div>ESTADO: <span id="tel-estado" class="tel-val">ESPERANDO</span></div>
+        </div>
+      </div>
+      
+      <div class="game-question">${item.q}</div>
+      <div class="options-grid">
+        ${item.opts.map((opt, i) => `
+          <button class="opt-btn" id="reto-opt-${i}" onclick="checkReto(${i})">${opt}</button>
+        `).join('')}
+      </div>
+      <div class="feedback" id="fb-reto"></div>
+      <button class="btn-solucion" id="btn-sol4" onclick="showRetoSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig4" onclick="nextReto()">CONTINUAR Reto →</button>
+      <button class="btn-reiniciar" onclick="game4()">REINICIAR RETOS</button>
+    </div>`;
+  document.getElementById('game-area').innerHTML = html;
+  
+  // Start animation loop for the HUD
+  initHUDAnimation();
+}
+
+function initHUDAnimation() {
+  const canvas = document.getElementById('reto-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let t = 0;
+  
+  function draw() {
+    t += 0.02;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Fit canvas resolution to bounds
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    // Draw grid background
+    ctx.strokeStyle = 'rgba(0, 242, 255, 0.08)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 30) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 30) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    
+    // Kinetic representation changes by scenario
+    if (retoIdx === 0) {
+      // Scenario 1: Base rotates but shoulder/elbow move. Shows base turning in top down
+      document.getElementById('tel-estado').textContent = 'FALLO BASE';
+      document.getElementById('tel-estado').style.color = '#ff4444';
+      
+      // Draw top down circular dial
+      const cx = w / 2;
+      const cy = h / 2 - 10;
+      const radius = 70;
+      
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI*2); ctx.stroke();
+      
+      // Scale tick marks
+      ctx.strokeStyle = 'rgba(0, 242, 255, 0.4)';
+      ctx.lineWidth = 2;
+      for (let angle = 0; angle < 360; angle += 45) {
+        const rad = angle * Math.PI / 180;
+        ctx.beginPath();
+        ctx.moveTo(cx + (radius-5)*Math.cos(rad), cy + (radius-5)*Math.sin(rad));
+        ctx.lineTo(cx + (radius+5)*Math.cos(rad), cy + (radius+5)*Math.sin(rad));
+        ctx.stroke();
+      }
+      
+      // Active arrow blocked, show jittering lock symbol
+      const baseJitter = 90 + Math.sin(t*30)*2.5;
+      document.getElementById('tel-base').textContent = baseJitter.toFixed(1) + '° (ATASCADA)';
+      document.getElementById('tel-base').style.color = '#ff4444';
+      
+      const radBase = baseJitter * Math.PI / 180;
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + radius * Math.cos(radBase), cy + radius * Math.sin(radBase));
+      ctx.stroke();
+      
+      // Draw warning lock
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('🔒 BASE BLOQUEADA', cx - 75, cy + radius + 25);
+      
+    } else if (retoIdx === 1) {
+      // Scenario 2: Obstacle clearing
+      document.getElementById('tel-estado').textContent = 'EVADIENDO';
+      document.getElementById('tel-estado').style.color = '#00e676';
+      
+      const px = 100;
+      const py = h - 50;
+      
+      // Draw floor
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(0, py + 20); ctx.lineTo(w, py + 20); ctx.stroke();
+      
+      // Draw obstacle bar
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(w / 2 - 20, py - 60); ctx.lineTo(w / 2 + 60, py - 60); ctx.stroke();
+      ctx.fillStyle = '#ff4444';
+      ctx.font = '12px monospace';
+      ctx.fillText('BARRERA OBSTÁCULO', w / 2 - 10, py - 70);
+      
+      // Kinematic arm drawing tucking elbow
+      const shAngle = -Math.PI / 4 + Math.sin(t * 1.5) * 0.2; // slight sway
+      const elAngle = Math.PI / 1.5 + Math.sin(t * 3) * 0.4; // tucking in/out
+      
+      const l1 = 60;
+      const l2 = 50;
+      
+      const shoulderX = px;
+      const shoulderY = py;
+      const elbowX = shoulderX + l1 * Math.cos(shAngle);
+      const elbowY = shoulderY - l1 * Math.sin(shAngle);
+      const wristX = elbowX + l2 * Math.cos(shAngle - elAngle);
+      const wristY = elbowY - l2 * Math.sin(shAngle - elAngle);
+      
+      // Draw Arm links
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#ff5500'; // Orange arm
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.lineTo(elbowX, elbowY);
+      ctx.stroke();
+      
+      ctx.strokeStyle = '#00f2ff'; // Forearm (cian hologram)
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(elbowX, elbowY);
+      ctx.lineTo(wristX, wristY);
+      ctx.stroke();
+      
+      // Draw joints
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(shoulderX, shoulderY, 6, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(elbowX, elbowY, 5, 0, Math.PI*2); ctx.fill();
+      
+      // Telemetry
+      const shDeg = (45 + Math.sin(t * 1.5) * 10).toFixed(1);
+      const elDeg = (110 + Math.sin(t * 3) * 20).toFixed(1);
+      document.getElementById('tel-hombro').textContent = shDeg + '°';
+      document.getElementById('tel-codo').textContent = elDeg + '°';
+      document.getElementById('tel-base').textContent = '90.0°';
+      
+    } else if (retoIdx === 2) {
+      // Scenario 3: Speeds synchronization bar
+      document.getElementById('tel-estado').textContent = 'SINCRONIZANDO';
+      document.getElementById('tel-estado').style.color = '#ffcc00';
+      
+      // Draw timeline progress bar of two motors
+      const barW = w - 160;
+      const y1 = 60;
+      const y2 = 140;
+      
+      ctx.fillStyle = '#444';
+      ctx.fillRect(80, y1, barW, 20);
+      ctx.fillRect(80, y2, barW, 20);
+      
+      // Progress calculations
+      const progressBase = (t % 4) / 4; // slowly to end
+      const progressShoulder = (t % 4) / 4; // also slowly to end (synchronized!)
+      
+      ctx.fillStyle = 'var(--primary)';
+      ctx.fillRect(80, y1, barW * progressBase, 20);
+      ctx.fillStyle = 'var(--warning)';
+      ctx.fillRect(80, y2, barW * progressShoulder, 20);
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText('BASE (Giro 90° - 2 seg)', 80, y1 - 10);
+      ctx.fillText('HOMBRO (Giro 20° - 2 seg ralentizado)', 80, y2 - 10);
+      
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText((progressBase*100).toFixed(0) + '%', 90 + barW*progressBase, y1 + 15);
+      ctx.fillText((progressShoulder*100).toFixed(0) + '%', 90 + barW*progressShoulder, y2 + 15);
+      
+      document.getElementById('tel-base').textContent = (90 + progressBase * 90).toFixed(1) + '°';
+      document.getElementById('tel-hombro').textContent = (45 + progressShoulder * 20).toFixed(1) + '°';
+      document.getElementById('tel-codo').textContent = '90.0°';
+      
+    } else if (retoIdx === 3) {
+      // Scenario 4: Limits and physical stops
+      document.getElementById('tel-estado').textContent = 'LÍMITE CODO';
+      document.getElementById('tel-estado').style.color = '#ffcc00';
+      
+      // Draw elbow joint with bones and a physical stop block
+      const cx = w / 2;
+      const cy = h / 2 - 15;
+      
+      // Draw mechanical lock block
+      ctx.fillStyle = '#555';
+      ctx.fillRect(cx - 30, cy + 25, 60, 20);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - 30, cy + 25, 60, 20);
+      
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('TOPE 0°', cx - 20, cy + 38);
+      
+      // Draw forearm bouncing against the stop
+      const rotAngle = Math.max(0, Math.sin(t * 4) * 0.5); // stays >= 0
+      
+      ctx.strokeStyle = '#ff5500';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      
+      // Hombro bone (fixed)
+      ctx.beginPath();
+      ctx.moveTo(cx - 80, cy);
+      ctx.lineTo(cx, cy);
+      ctx.stroke();
+      
+      // Forearm bone (bouncing)
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + 80 * Math.cos(rotAngle), cy + 80 * Math.sin(rotAngle));
+      ctx.stroke();
+      
+      // Center pin
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI*2); ctx.fill();
+      
+      document.getElementById('tel-base').textContent = '90.0°';
+      document.getElementById('tel-hombro').textContent = '45.0°';
+      document.getElementById('tel-codo').textContent = (rotAngle * 180 / Math.PI).toFixed(1) + '°';
+    }
+    
+    animFrameId = requestAnimationFrame(draw);
+  }
+  
+  draw();
+}
+
+function checkReto(optIdx) {
+  const item = scenarios[retoIdx];
+  const btn = document.getElementById(`reto-opt-${optIdx}`);
+  const fb = document.getElementById('fb-reto');
+  
+  if (optIdx === item.ans) {
+    btn.classList.add('correct');
+    document.querySelectorAll('[id^="reto-opt-"]').forEach(b => b.disabled = true);
+    fb.className = 'feedback show ok';
+    fb.textContent = item.okFeedback;
+    
+    // Score based on attempts
+    if (retoAttempts[retoIdx] === 0) updateScore(15);
+    else if (retoAttempts[retoIdx] === 1) updateScore(7);
+    
+    document.getElementById('btn-sol4').classList.remove('show');
+    document.getElementById('btn-sig4').classList.add('show');
+  } else {
+    retoAttempts[retoIdx]++;
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    fb.className = 'feedback show ko';
+    fb.textContent = item.koFeedback;
+    document.getElementById('btn-sol4').classList.add('show');
+  }
+}
+
+function showRetoSolution() {
+  const item = scenarios[retoIdx];
+  const fb = document.getElementById('fb-reto');
+  
+  document.querySelectorAll('[id^="reto-opt-"]').forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === item.ans) b.classList.add('correct');
+  });
+  
+  fb.className = 'feedback show ok';
+  fb.textContent = `💡 Solución: La respuesta correcta es la marcada en verde. ` + item.okFeedback;
+  document.getElementById('btn-sol4').classList.remove('show');
+  document.getElementById('btn-sig4').classList.add('show');
+}
+
+function nextReto() {
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  if (retoIdx < 3) {
+    retoIdx++;
+    renderRetoScenario();
+  } else {
+    nextGame();
+  }
+}
+
+// FINALIZAR Y REINICIAR
+function restart() {
+  score = 0;
+  document.getElementById('score-val').textContent = 0;
+  goGame(0);
+}
+
+// INICIAR AL CARGAR
+window.onload = function() {
+  restart();
+};
+</script>
+
+</body>
+</html>

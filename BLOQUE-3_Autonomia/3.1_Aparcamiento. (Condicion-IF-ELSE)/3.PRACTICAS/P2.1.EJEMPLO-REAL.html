@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clase 3.1 — P2.1 Ejemplo Real: Aparcamiento (Gold V8)</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; user-select: none; }
+        body { background: #06090e; color: #e0e6ed; overflow: hidden; display: flex; height: 100vh; }
+        
+        #left-panel {
+            width: 420px; flex-shrink: 0; background: rgba(12, 16, 24, 0.95);
+            border-right: 2px solid #00f2ff; padding: 24px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 16px; z-index: 10;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+        }
+        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; }
+        .tag { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: #00f2ff; font-weight: 700; }
+        h1 { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 4px; }
+        
+        .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1.5px; color: #8a9ba8; font-weight: 600; margin-bottom: 4px; }
+        
+        .code-box {
+            background: #020408; border: 1px solid rgba(0, 242, 255, 0.3); border-radius: 12px;
+            padding: 16px; font-family: monospace; font-size: 0.9rem; line-height: 1.6; color: #c5d2e0;
+            position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .kw { color: #ff7b72; font-weight: bold; }
+        .fn { color: #d2a8ff; }
+        .num { color: #79c0ff; }
+        .com { color: #8b949e; font-style: italic; }
+        
+        .branch-highlight {
+            padding: 10px 14px; border-radius: 8px; margin: 6px 0; border-left: 4px solid #555;
+            background: rgba(255,255,255,0.02); transition: all 0.3s ease; font-size: 0.85rem;
+        }
+        .active-yes { border-left-color: #00ff88; background: rgba(0, 255, 136, 0.15); color: #fff; font-weight: 600; box-shadow: 0 0 15px rgba(0,255,136,0.2); }
+        .active-no { border-left-color: #ff4444; background: rgba(255, 68, 68, 0.15); color: #fff; font-weight: 600; box-shadow: 0 0 15px rgba(255,68,68,0.2); }
+
+        .telemetry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .telemetry-card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px; padding: 12px; text-align: center;
+        }
+        .telemetry-val { font-size: 1.3rem; font-weight: 700; color: #00f2ff; margin-top: 4px; }
+        .telemetry-label { font-size: 0.75rem; color: #8a9ba8; text-transform: uppercase; }
+
+        #right-panel { flex: 1; position: relative; }
+        #renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+        
+        .hud-top {
+            position: absolute; top: 20px; left: 20px; right: 20px;
+            display: flex; justify-content: space-between; pointer-events: none;
+        }
+        .hud-box {
+            background: rgba(12, 18, 28, 0.85); border: 1px solid rgba(0, 242, 255, 0.4);
+            border-radius: 12px; padding: 12px 20px; backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); pointer-events: auto;
+        }
+        
+        .btn-action {
+            background: linear-gradient(135deg, #00f2ff, #0078ff); border: none; color: #000;
+            font-weight: 700; padding: 12px 24px; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(0,242,255,0.4);
+        }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(0,242,255,0.7); color: #fff; }
+
+        #sensor-beam-status {
+            display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem;
+        }
+        .led { width: 12px; height: 12px; border-radius: 50%; background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+    </style>
+</head>
+<body>
+    <div id="left-panel">
+        <div class="header">
+            <div class="tag">Clase 3.1 · Práctica 2.1</div>
+            <h1>Aparcamiento Real</h1>
+        </div>
+
+        <div>
+            <div class="section-title">Lógica de Decisión (SI / SI NO)</div>
+            <div class="code-box">
+                <span class="kw">if</span> (hueco Libre &gt;= <span class="num">5.0</span>) {<br>
+                <div id="branch-yes" class="branch-highlight">
+                    &nbsp;&nbsp;<span class="com">// ✅ SI CUMPLE: Hueco Válido</span><br>
+                    &nbsp;&nbsp;<span class="fn">iniciarManiobraAparcamiento</span>();
+                </div>
+                } <span class="kw">else</span> {<br>
+                <div id="branch-no" class="branch-highlight">
+                    &nbsp;&nbsp;<span class="com">// ⛔ SI NO CUMPLE: Hueco Pequeño</span><br>
+                    &nbsp;&nbsp;<span class="fn">seguirBuscando</span>();
+                </div>
+                }
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">Telemetría en Tiempo Real</div>
+            <div class="telemetry-grid">
+                <div class="telemetry-card">
+                    <div class="telemetry-label">Distancia Sensor</div>
+                    <div class="telemetry-val" id="val-dist">0.0 m</div>
+                </div>
+                <div class="telemetry-card">
+                    <div class="telemetry-label">Hueco Medido</div>
+                    <div class="telemetry-val" id="val-gap" style="color:#ffcc00">0.0 m</div>
+                </div>
+                <div class="telemetry-card">
+                    <div class="telemetry-label">Velocidad</div>
+                    <div class="telemetry-val" id="val-spd">0.0 m/s</div>
+                </div>
+                <div class="telemetry-card">
+                    <div class="telemetry-label">Ángulo Volante</div>
+                    <div class="telemetry-val" id="val-steer">0°</div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">Estado del Vehículo</div>
+            <div class="telemetry-card" style="text-align:left; padding: 16px;">
+                <div id="sensor-beam-status">
+                    <div class="led" id="led-status"></div>
+                    <span id="txt-status">Buscando hueco en carril derecho...</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #8a9ba8; line-height: 1.4;">
+                    El coche ELEGOO avanza por la calle. Observa cómo discrimina los dos primeros huecos pequeños y ejecuta la maniobra al detectar la plaza amplia.
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: auto; display: flex; gap: 10px;">
+            <button class="btn-action" style="flex:1;" onclick="resetSim()">🔄 Reiniciar</button>
+        </div>
+    </div>
+
+    <div id="right-panel">
+        <canvas id="renderCanvas"></canvas>
+        <div class="hud-top">
+            <div class="hud-box">
+                <span style="color:#8a9ba8; font-size:0.8rem; text-transform:uppercase; display:block;">Fase de Maniobra</span>
+                <strong id="val-phase" style="color:#00f2ff; font-size:1.1rem;">BÚSQUEDA ACTIVA</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('renderCanvas');
+            const engine = new BABYLON.Engine(canvas, true);
+            
+            let scene, camera, cocheGroup, sensorLine;
+            let estado = 'BUSCANDO';
+            let velocidad = 2.5;
+            let steerAngle = 0;
+            let gapLength = 0;
+            let huecoEncontrado = false;
+
+            const createScene = function() {
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.06, 0.08, 0.12, 1.0);
+                const glow = new BABYLON.GlowLayer("glow", scene);
+                glow.intensity = 0.75;
+
+                // CÁMARA ESTÁTICA / PANORÁMICA PARA QUE SE VEA CLARAMENTE MOVERSE AL COCHE (No a la calle)
+                camera = new BABYLON.ArcRotateCamera("cam", -Math.PI / 2.1, Math.PI / 2.7, 30, new BABYLON.Vector3(3, 0, -8), scene);
+                camera.attachControl(canvas, true);
+                camera.lowerRadiusLimit = 5; camera.upperRadiusLimit = 50;
+
+                const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+                hemiLight.intensity = 1.0; hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.35);
+
+                const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1.5), scene);
+                dirLight.position = new BABYLON.Vector3(10, 20, 10); dirLight.intensity = 2.5;
+
+                const shadowGen = new BABYLON.ShadowGenerator(1024, dirLight);
+                shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 32;
+
+                const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 60, height: 100}, scene);
+                const matG = new BABYLON.PBRMaterial("matG", scene);
+                matG.albedoColor = new BABYLON.Color3(0.12, 0.15, 0.20);
+                matG.roughness = 0.8; matG.metallic = 0.1;
+                ground.material = matG; ground.receiveShadows = true;
+
+                // Acera
+                const acera = BABYLON.MeshBuilder.CreateBox("acera", {width: 12, height: 0.3, depth: 100}, scene);
+                acera.position = new BABYLON.Vector3(12, 0.15, 0);
+                const matA = new BABYLON.PBRMaterial("matA", scene);
+                matA.albedoColor = new BABYLON.Color3(0.35, 0.38, 0.42); matA.roughness = 0.9;
+                acera.material = matA; acera.receiveShadows = true;
+
+                // PALETA DE COLORES VARIADOS Y VIBRANTES
+                const matPaintElegoo = new BABYLON.PBRMaterial("matPElegoo", scene);
+                matPaintElegoo.albedoColor = BABYLON.Color3.FromHexString("#00f2ff"); // Cian ELEGOO
+                matPaintElegoo.metallic = 0.4; matPaintElegoo.roughness = 0.1;
+                matPaintElegoo.clearCoat.isEnabled = true; matPaintElegoo.clearCoat.intensity = 1.0;
+                matPaintElegoo.emissiveColor = new BABYLON.Color3(0.0, 0.15, 0.25);
+
+                const matRed = new BABYLON.PBRMaterial("matRed", scene);
+                matRed.albedoColor = BABYLON.Color3.FromHexString("#ff3333"); matRed.metallic = 0.3; matRed.roughness = 0.2;
+
+                const matPurple = new BABYLON.PBRMaterial("matPurple", scene);
+                matPurple.albedoColor = BABYLON.Color3.FromHexString("#8844ff"); matPurple.metallic = 0.3; matPurple.roughness = 0.2;
+
+                const matOrange = new BABYLON.PBRMaterial("matOrange", scene);
+                matOrange.albedoColor = BABYLON.Color3.FromHexString("#ff7700"); matOrange.metallic = 0.3; matOrange.roughness = 0.2;
+
+                const matSilver = new BABYLON.PBRMaterial("matSilver", scene);
+                matSilver.albedoColor = BABYLON.Color3.FromHexString("#b0b8c0"); matSilver.metallic = 0.7; matSilver.roughness = 0.15;
+
+                const matGreen = new BABYLON.PBRMaterial("matGreen", scene);
+                matGreen.albedoColor = BABYLON.Color3.FromHexString("#00cc66"); matGreen.metallic = 0.3; matGreen.roughness = 0.2;
+
+                const matGlass = new BABYLON.PBRMaterial("matGlass", scene);
+                matGlass.albedoColor = new BABYLON.Color3(0.02, 0.02, 0.02);
+                matGlass.metallic = 0.8; matGlass.roughness = 0.05; matGlass.alpha = 0.85;
+                matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+                const matDarkPlastic = new BABYLON.PBRMaterial("matDarkPlastic", scene);
+                matDarkPlastic.albedoColor = BABYLON.Color3.FromHexString("#111111");
+                matDarkPlastic.metallic = 0.1; matDarkPlastic.roughness = 0.8;
+
+                const matTire = new BABYLON.PBRMaterial("matTire", scene);
+                matTire.albedoColor = new BABYLON.Color3(0.05, 0.05, 0.05); matTire.roughness = 0.95;
+
+                const matRim = new BABYLON.PBRMaterial("matRim", scene);
+                matRim.albedoColor = BABYLON.Color3.FromHexString("#cccccc"); matRim.metallic = 0.8; matRim.roughness = 0.2;
+
+                const matTail = new BABYLON.PBRMaterial("matTail", scene);
+                matTail.emissiveColor = new BABYLON.Color3(0.9, 0.05, 0.05); matTail.roughness = 0.2;
+
+                // CONSTRUCTOR DE COCHE DETALLADO (IGUAL QUE P1)
+                function buildDetailedCar(name, paintMat, isElegoo = false) {
+                    const root = new BABYLON.TransformNode(name, scene);
+
+                    const skirt = BABYLON.MeshBuilder.CreateBox("skirt", {width:2.2, height:0.12, depth:4.0}, scene);
+                    skirt.position.y = 0.30; skirt.material = matDarkPlastic; skirt.parent = root; shadowGen.addShadowCaster(skirt);
+                    
+                    const cabin = BABYLON.MeshBuilder.CreateBox("cabin", {width:2.0, height:0.45, depth:1.8}, scene);
+                    cabin.position = new BABYLON.Vector3(0, 0.80, -0.2); cabin.material = paintMat; cabin.parent = root;
+                    
+                    const capot = BABYLON.MeshBuilder.CreateBox("capot", {width:2.0, height:0.35, depth:1.2}, scene);
+                    capot.position = new BABYLON.Vector3(0, 0.55, 1.3); capot.rotation.x = 0.05; capot.material = paintMat; capot.parent = root;
+                    
+                    const maletero = BABYLON.MeshBuilder.CreateBox("maletero", {width:2.0, height:0.35, depth:1.1}, scene);
+                    maletero.position = new BABYLON.Vector3(0, 0.55, -1.35); maletero.rotation.x = -0.05; maletero.material = paintMat; maletero.parent = root;
+
+                    const winF = BABYLON.MeshBuilder.CreateBox("winF", {width:1.8, height:0.1, depth:0.7}, scene);
+                    winF.rotation.x = 0.5; winF.position = new BABYLON.Vector3(0, 0.93, 0.45); winF.material = matGlass; winF.parent = root;
+                    const winR = BABYLON.MeshBuilder.CreateBox("winR", {width:1.8, height:0.1, depth:0.6}, scene);
+                    winR.rotation.x = -0.5; winR.position = new BABYLON.Vector3(0, 0.93, -0.85); winR.material = matGlass; winR.parent = root;
+
+                    const bumperF = BABYLON.MeshBuilder.CreateBox("bumperF", {width:2.1, height:0.2, depth:0.3}, scene);
+                    bumperF.position = new BABYLON.Vector3(0, 0.35, 1.95); bumperF.material = matDarkPlastic; bumperF.parent = root;
+                    const bumperR = BABYLON.MeshBuilder.CreateBox("bumperR", {width:2.1, height:0.2, depth:0.3}, scene);
+                    bumperR.position = new BABYLON.Vector3(0, 0.35, -1.95); bumperR.material = matDarkPlastic; bumperR.parent = root;
+
+                    const tailL = BABYLON.MeshBuilder.CreateBox("tailL", {width:0.4, height:0.12, depth:0.05}, scene);
+                    tailL.position = new BABYLON.Vector3(-0.7, 0.50, -2.08); tailL.material = matTail; tailL.parent = root;
+                    const tailR = BABYLON.MeshBuilder.CreateBox("tailR", {width:0.4, height:0.12, depth:0.05}, scene);
+                    tailR.position = new BABYLON.Vector3(0.7, 0.50, -2.08); tailR.material = matTail; tailR.parent = root;
+
+                    // 4 Ruedas detalladas con llantas
+                    [[-1.15, 1.2], [1.15, 1.2], [-1.15, -1.2], [1.15, -1.2]].forEach((pos, idx) => {
+                        const wGroup = new BABYLON.TransformNode("w_"+idx, scene);
+                        wGroup.parent = root; wGroup.position = new BABYLON.Vector3(pos[0], 0.40, pos[1]);
+                        const tire = BABYLON.MeshBuilder.CreateCylinder("tire", {diameter:0.7, height:0.28, tessellation:24}, scene);
+                        tire.rotation.z = Math.PI / 2; tire.material = matTire; tire.parent = wGroup; shadowGen.addShadowCaster(tire);
+                        const rim = BABYLON.MeshBuilder.CreateCylinder("rim", {diameter:0.48, height:0.3, tessellation:16}, scene);
+                        rim.rotation.z = Math.PI / 2; rim.material = matRim; rim.parent = wGroup;
+                    });
+
+                    if (isElegoo) {
+                        // Sensor ultrasónico realista, compacto y bien pegado al morro
+                        const sPlate = BABYLON.MeshBuilder.CreateBox("sPlate", {width: 0.35, height: 0.15, depth: 0.05}, scene);
+                        sPlate.position = new BABYLON.Vector3(0, 0.43, 2.05);
+                        const matS = new BABYLON.PBRMaterial("matS", scene); matS.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.6);
+                        sPlate.material = matS; sPlate.parent = root;
+
+                        const ojoI = BABYLON.MeshBuilder.CreateCylinder("ojoI", {diameter: 0.08, height: 0.06}, scene);
+                        ojoI.rotation.x = Math.PI/2; ojoI.position = new BABYLON.Vector3(-0.08, 0.43, 2.07);
+                        const matOjo = new BABYLON.PBRMaterial("matO", scene); matOjo.metallic = 1.0; matOjo.roughness = 0.1;
+                        ojoI.material = matOjo; ojoI.parent = root;
+                        const ojoD = ojoI.clone("ojoD"); ojoD.position.x = 0.08; ojoD.parent = root;
+                    }
+
+                    return root;
+                }
+
+                // COCHES APARCADOS CON COLORES VARIADOS Y HUECOS EXACTOS
+                const p1 = buildDetailedCar("p1", matRed); p1.position = new BABYLON.Vector3(4.5, 0, -25);
+                // Hueco 1 (Pequeño: 1.8m) entre -23 y -21.2
+                const p2 = buildDetailedCar("p2", matOrange); p2.position = new BABYLON.Vector3(4.5, 0, -19.2);
+                // Hueco 2 (Pequeño: 2.0m) entre -17.2 y -15.2
+                const p3 = buildDetailedCar("p3", matSilver); p3.position = new BABYLON.Vector3(4.5, 0, -14.5);
+                // Hueco 3 (VÁLIDO y AMPLIO) entre -12.5 y -5.2
+                const p4 = buildDetailedCar("p4", matPurple); p4.position = new BABYLON.Vector3(4.5, 0, -3.2);
+                const p5 = buildDetailedCar("p5", matGreen); p5.position = new BABYLON.Vector3(4.5, 0, 5.0);
+
+                // NUESTRO COCHE ELEGOO
+                cocheGroup = buildDetailedCar("elegoo", matPaintElegoo, true);
+                cocheGroup.position = new BABYLON.Vector3(1.5, 0, -32);
+
+                const pts = [new BABYLON.Vector3(0, 0.6, 0), new BABYLON.Vector3(3.0, 0.6, 0)];
+                sensorLine = BABYLON.MeshBuilder.CreateLines("sensorLine", {points: pts}, scene);
+                sensorLine.color = new BABYLON.Color3(0, 1, 0); sensorLine.parent = cocheGroup;
+
+                return scene;
+            };
+
+            scene = createScene();
+
+            engine.runRenderLoop(() => {
+                const dt = engine.getDeltaTime() / 1000;
+
+                if (cocheGroup && estado !== 'APARCADO') {
+                    if (estado === 'BUSCANDO') {
+                        cocheGroup.position.z += velocidad * dt;
+
+                        // EVALUACIÓN GEOMÉTRICA EXACTA Y DETERMINÍSTICA DE HUECOS
+                        const z = cocheGroup.position.z;
+                        let enHueco = false;
+                        
+                        if (z >= -22.5 && z <= -20.7) {
+                            enHueco = true; gapLength = 1.8; // Hueco pequeño 1
+                        } else if (z >= -16.5 && z <= -14.5) {
+                            enHueco = true; gapLength = 2.0; // Hueco pequeño 2
+                        } else if (z >= -12.5 && z <= -4.5) {
+                            enHueco = true; gapLength = 6.5; // HUECO VÁLIDO AMPLIO
+                            huecoEncontrado = true;
+                        }
+
+                        if (!enHueco && !huecoEncontrado) {
+                            document.getElementById('val-dist').innerText = "1.0 m";
+                            document.getElementById('val-gap').innerText = "0.0 m";
+                            sensorLine.color = new BABYLON.Color3(1, 0.2, 0.2);
+                            document.getElementById('led-status').style.background = "#ff4444";
+                        } else {
+                            if (huecoEncontrado) {
+                                gapLength = 6.5;
+                                document.getElementById('val-dist').innerText = "> 5.0 m";
+                                document.getElementById('val-gap').innerText = "6.5 m";
+                                sensorLine.color = new BABYLON.Color3(0, 1, 0);
+                                document.getElementById('branch-yes').classList.add('active-yes');
+                                document.getElementById('branch-no').classList.remove('active-no');
+                                document.getElementById('val-phase').innerText = "HUECO VÁLIDO (F1)";
+                                document.getElementById('txt-status').innerText = "HUECO 6.5m DETECTADO -> ALINEANDO PARA APARCAR";
+                                document.getElementById('led-status').style.background = "#00ff88";
+                                
+                                // Avanzar hasta alinearse paralelo con el coche delantero (p4 en Z=-3.2)
+                                if (z >= -3.5) {
+                                    estado = 'APARCANDO_F2';
+                                    huecoEncontrado = false;
+                                    document.getElementById('val-phase').innerText = "GIRANDO Y RETROCEDIENDO (F2)";
+                                    document.getElementById('txt-status').innerText = "VOLANTE 45° DERECHA -> RETROCEDIENDO";
+                                }
+                            } else {
+                                document.getElementById('val-dist').innerText = "> 5.0 m";
+                                document.getElementById('val-gap').innerText = gapLength.toFixed(1) + " m";
+                                sensorLine.color = new BABYLON.Color3(0, 1, 0);
+                                document.getElementById('branch-no').classList.add('active-no');
+                                document.getElementById('branch-yes').classList.remove('active-yes');
+                                document.getElementById('txt-status').innerText = `HUECO (${gapLength.toFixed(1)}m) < 5.0m -> DESCARTADO`;
+                                document.getElementById('led-status').style.background = "#ff4444";
+                                setTimeout(() => { document.getElementById('branch-no').classList.remove('active-no'); }, 1500);
+                            }
+                        }
+                    } 
+                    else if (estado === 'APARCANDO_F2') {
+                        velocidad = -2.2; steerAngle = 45;
+                        cocheGroup.rotation.y -= 0.55 * dt; // Curva S natural hacia la plaza (+X)
+                        cocheGroup.position.z += Math.cos(cocheGroup.rotation.y) * velocidad * dt;
+                        cocheGroup.position.x += Math.sin(cocheGroup.rotation.y) * velocidad * dt;
+                        if (cocheGroup.rotation.y <= -Math.PI / 4) {
+                            estado = 'APARCANDO_F3';
+                            document.getElementById('val-phase').innerText = "CONTRA-VOLANTE (F3)";
+                            document.getElementById('txt-status').innerText = "VOLANTE 45° IZQUIERDA -> ENTRANDO";
+                        }
+                    }
+                    else if (estado === 'APARCANDO_F3') {
+                        velocidad = -2.2; steerAngle = -45;
+                        cocheGroup.rotation.y += 0.55 * dt; // Contravolante natural hasta quedar paralelo
+                        cocheGroup.position.z += Math.cos(cocheGroup.rotation.y) * velocidad * dt;
+                        cocheGroup.position.x += Math.sin(cocheGroup.rotation.y) * velocidad * dt;
+                        if (cocheGroup.rotation.y >= 0) {
+                            cocheGroup.rotation.y = 0;
+                            cocheGroup.position.x = 4.5; // Centrado perfecto en X tras curva S fluida
+                            cocheGroup.position.z = -8.5; // Centrado perfecto en Z entre p3 (-14.5) y p4 (-3.2) sin rozar
+                            estado = 'APARCADO';
+                            document.getElementById('val-phase').innerText = "¡APARCADO CON ÉXITO!";
+                            document.getElementById('val-phase').style.color = "#00ff88";
+                            document.getElementById('txt-status').innerText = "✨ MANIOBRA FINALIZADA PERFECTAMENTE EN EL CENTRO";
+                        }
+                    }
+
+                    document.getElementById('val-spd').innerText = Math.abs(velocidad).toFixed(1) + " m/s";
+                    document.getElementById('val-steer').innerText = steerAngle.toFixed(0) + "°";
+                }
+                scene.render();
+            });
+
+            window.addEventListener('resize', () => engine.resize());
+
+            window.resetSim = function() {
+                cocheGroup.position = new BABYLON.Vector3(1.5, 0, -32);
+                cocheGroup.rotation.y = 0;
+                estado = 'BUSCANDO';
+                velocidad = 2.5; steerAngle = 0; gapLength = 0;
+                huecoEncontrado = false;
+                document.getElementById('val-phase').innerText = "BÚSQUEDA ACTIVA";
+                document.getElementById('val-phase').style.color = "#00f2ff";
+                document.getElementById('branch-yes').classList.remove('active-yes');
+                document.getElementById('branch-no').classList.remove('active-no');
+                document.getElementById('txt-status').innerText = "Buscando hueco en carril derecho...";
+            };
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Repaso · Fuerza controlada</title>
+<style>
+  :root {
+    --primary: #00f2ff;
+    --bg: #0a0a1a;
+    --card: #111128;
+    --border: #00f2ff;
+    --success: #00c853;
+    --warning: #ffd600;
+    --error: #ff3d3d;
+    --text: #e8e8f0;
+    --muted: #8888aa;
+    --orange: #FF6B1A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 18px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: rgba(0,0,0,0.92);
+    border-bottom: 2px solid var(--primary);
+    padding: 0 24px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .header-left h1 { font-size: 20px; color: var(--primary); font-weight: 700; }
+  .header-left p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .score-display { font-size: 22px; font-weight: 700; color: var(--warning); }
+
+  /* NAV BARRA */
+  .nav-bar {
+    display: flex;
+    background: #080818;
+    border-bottom: 1px solid #222244;
+    flex-shrink: 0;
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 14px 8px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all .25s;
+  }
+  .nav-btn:hover { color: var(--text); }
+  .nav-btn.active  { color: var(--warning); border-bottom-color: var(--warning); }
+  .nav-btn.done    { color: var(--success); border-bottom-color: var(--success); }
+
+  /* CONTENIDO */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 20px;
+    max-width: 860px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* PANTALLA */
+  .screen { display: none; animation: fadeIn .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px);} to { opacity:1; transform:none; } }
+
+  /* PORTADA */
+  .portada { text-align: center; padding: 30px 0; }
+  .portada .emoji-row { font-size: 52px; margin-bottom: 20px; }
+  .portada .pregunta-central {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 14px;
+    line-height: 1.35;
+  }
+  .portada .desc { color: var(--muted); font-size: 16px; margin-bottom: 28px; }
+  .badge-row {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .badge-card {
+    border: 1.5px solid var(--primary);
+    background: rgba(0,242,255,0.06);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 15px;
+    min-width: 130px;
+    text-align: center;
+  }
+  .btn-start {
+    background: var(--primary);
+    color: #000;
+    font-size: 20px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    height: 70px;
+    padding: 0 48px;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn-start:hover { opacity: .85; }
+
+  /* TARJETAS DE PREGUNTA */
+  .question-card {
+    background: var(--card);
+    border: 1px solid #222244;
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+  }
+  .question-text { font-size: 19px; font-weight: 600; margin-bottom: 18px; line-height: 1.4; }
+  .progress-text { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+
+  /* OPCIONES TRIVIAL */
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .opt-btn {
+    background: #16163a;
+    border: 1.5px solid #333355;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 17px;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    transition: background .2s, border-color .2s;
+  }
+  .opt-btn:hover:not(:disabled) { background: #1e1e50; border-color: var(--primary); }
+  .opt-btn.correct   { background: rgba(0,200,83,.18); border-color: var(--success); color: var(--success); }
+  .opt-btn.wrong     { background: rgba(255,61,61,.15); border-color: var(--error);   color: var(--error); }
+  .opt-btn:disabled  { cursor: default; }
+
+  /* FEEDBACK */
+  .feedback {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    display: none;
+  }
+  .feedback.ok  { background: rgba(0,200,83,.15); border-left: 4px solid var(--success); color: var(--success); display: block; }
+  .feedback.err { background: rgba(255,61,61,.13); border-left: 4px solid var(--error);  color: var(--error);  display: block; }
+
+  /* BOTONES ACCIÓN */
+  .action-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .btn-solucion {
+    display: none;
+    background: var(--warning);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    height: 70px;
+    padding: 0 24px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-next {
+    display: none;
+    background: var(--primary);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    height: 70px;
+    padding: 0 28px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .btn-reset {
+    background: #222244;
+    color: var(--text);
+    border: 1px solid #444466;
+    border-radius: 8px;
+    height: 70px;
+    padding: 0 22px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  /* ORDENAR — DRAG & DROP */
+  .sort-list { display: flex; flex-direction: column; gap: 8px; }
+  .sort-item {
+    background: #16163a;
+    border: 1.5px solid #333355;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 17px;
+    cursor: grab;
+    user-select: none;
+    transition: background .2s;
+  }
+  .sort-item:active { cursor: grabbing; }
+  .sort-item.over { border: 2px dashed var(--warning); background: #1e1e40; }
+  .sort-item.dragging { opacity: .4; }
+
+  /* EMPAREJAR */
+  .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .match-item {
+    background: #16163a;
+    border: 1.5px solid #333355;
+    border-radius: 8px;
+    padding: 13px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+    text-align: center;
+  }
+  .match-item.selected { border-color: var(--primary); background: rgba(0,242,255,.1); }
+  .match-item.matched  { border-color: var(--success); background: rgba(0,200,83,.12); color: var(--success); cursor: default; }
+  .match-item.wrong-flash { border-color: var(--error); background: rgba(255,61,61,.13); }
+
+  /* HUD CANVAS */
+  .hud-canvas {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 18px;
+    display: block;
+    border-radius: 10px;
+    border: 1px solid #222244;
+  }
+
+  /* FIN */
+  .fin-panel { text-align: center; padding: 40px 20px; }
+  .fin-panel .trophy { font-size: 72px; margin-bottom: 16px; }
+  .fin-panel h2 { font-size: 28px; color: var(--primary); margin-bottom: 10px; }
+  .fin-panel .puntos { font-size: 22px; color: var(--warning); margin-bottom: 28px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Repaso · Fuerza controlada</h1>
+    <p>Mano Hidráulica · Bloque 4</p>
+  </div>
+  <div class="score-display" id="scoreDisplay">0 pts</div>
+</header>
+
+<nav class="nav-bar" id="navBar">
+  <button class="nav-btn" onclick="goGame(0)">🏠 Inicio</button>
+  <button class="nav-btn" onclick="goGame(1)">🎯 Trivial</button>
+  <button class="nav-btn" onclick="goGame(2)">📦 Ordenar</button>
+  <button class="nav-btn" onclick="goGame(3)">🔗 Emparejar</button>
+  <button class="nav-btn" onclick="goGame(4)">🎯 Reto Final</button>
+</nav>
+
+<div class="content">
+
+  <!-- ══════ PORTADA ══════ -->
+  <div class="screen active" id="screen-0">
+    <div class="portada">
+      <div class="emoji-row">💧🤖✋💪🔬</div>
+      <p class="pregunta-central">¿Sabes apretar sin romper?<br>Pon a prueba lo que has aprendido sobre la fuerza controlada</p>
+      <p class="desc">Repaso de la Mano Hidráulica · 4 minijuegos · Sin límite de tiempo</p>
+      <div class="badge-row">
+        <div class="badge-card">🎯 Trivial</div>
+        <div class="badge-card">📦 Ordenar</div>
+        <div class="badge-card">🔗 Emparejar</div>
+        <div class="badge-card">🎯 Reto Final</div>
+      </div>
+      <button class="btn-start" onclick="goGame(1)">¡EMPEZAR!</button>
+    </div>
+  </div>
+
+  <!-- ══════ JUEGO 1: TRIVIAL ══════ -->
+  <div class="screen" id="screen-1">
+    <div class="question-card" id="trivialCard">
+      <p class="progress-text" id="trivialProgress">Pregunta 1 de 5</p>
+      <p class="question-text" id="trivialQuestion"></p>
+      <div class="options" id="trivialOptions"></div>
+      <div class="feedback" id="trivialFeedback"></div>
+      <div class="action-row">
+        <button class="btn-reset" onclick="resetTrivial()">Reiniciar 🔄</button>
+        <button class="btn-solucion" id="trivialSol" onclick="showTrivialSol()">Ver Solución 💡</button>
+        <button class="btn-next" id="trivialNext" onclick="nextTrivia()">Siguiente ➜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ JUEGO 2: ORDENAR ══════ -->
+  <div class="screen" id="screen-2">
+    <div class="question-card">
+      <p class="question-text">Ordena los pasos para usar la mano hidráulica con un objeto frágil</p>
+      <p class="progress-text">Arrastra las tarjetas hasta colocarlas en el orden correcto</p>
+      <div class="sort-list" id="sortList"></div>
+      <div class="feedback" id="sortFeedback"></div>
+      <div class="action-row">
+        <button class="btn-reset" onclick="resetSort()">Reiniciar 🔄</button>
+        <button class="btn-solucion" id="sortSol" onclick="showSortSol()">Ver Solución 💡</button>
+        <button class="btn-next" id="sortNext" onclick="goGame(3); markDone(2);">Siguiente ➜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ JUEGO 3: EMPAREJAR ══════ -->
+  <div class="screen" id="screen-3">
+    <div class="question-card">
+      <p class="question-text">Empareja cada término con su significado</p>
+      <p class="progress-text" id="matchProgress">0 de 5 pares encontrados</p>
+      <div class="match-grid" id="matchGrid"></div>
+      <div class="feedback" id="matchFeedback"></div>
+      <div class="action-row">
+        <button class="btn-reset" onclick="resetMatch()">Reiniciar 🔄</button>
+        <button class="btn-solucion" id="matchSol" onclick="showMatchSol()">Ver Solución 💡</button>
+        <button class="btn-next" id="matchNext" onclick="goGame(4); markDone(3);">Siguiente ➜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ JUEGO 4: RETO FINAL ══════ -->
+  <div class="screen" id="screen-4">
+    <div id="retoContainer"></div>
+  </div>
+
+  <!-- ══════ FIN ══════ -->
+  <div class="screen" id="screen-5">
+    <div class="fin-panel">
+      <div class="trophy" id="finTrophy">🏆</div>
+      <h2>¡Repaso completado!</h2>
+      <p class="puntos" id="finPuntos"></p>
+      <button class="btn-start" onclick="reiniciarTodo()">Jugar otra vez 🔄</button>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// UTILIDADES
+// ══════════════════════════════════════════════════════════════
+
+let totalScore = 0;
+const gamesDone = [false, false, false, false, false]; // índice 1-4
+
+function addScore(pts) {
+  totalScore += pts;
+  document.getElementById('scoreDisplay').textContent = totalScore + ' pts';
+}
+
+function markDone(idx) {
+  gamesDone[idx] = true;
+  const btns = document.querySelectorAll('.nav-btn');
+  btns[idx].classList.add('done');
+  if (gamesDone[1] && gamesDone[2] && gamesDone[3] && gamesDone[4]) {
+    setTimeout(() => goGame(5), 600);
+  }
+}
+
+function goGame(idx) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + idx).classList.add('active');
+  const btns = document.querySelectorAll('.nav-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  if (btns[idx]) btns[idx].classList.add('active');
+  if (idx === 1 && triviaIdx === 0) loadTrivia();
+  if (idx === 2 && !sortLoaded) initSort();
+  if (idx === 3 && !matchLoaded) initMatch();
+  if (idx === 4 && retoIdx === 0) loadReto();
+}
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function reiniciarTodo() {
+  totalScore = 0;
+  document.getElementById('scoreDisplay').textContent = '0 pts';
+  gamesDone.fill(false);
+  document.querySelectorAll('.nav-btn').forEach(b => { b.classList.remove('done'); b.classList.remove('active'); });
+  triviaIdx = 0; sortLoaded = false; matchLoaded = false; retoIdx = 0;
+  goGame(0);
+}
+
+// ══════════════════════════════════════════════════════════════
+// JUEGO 1 — TRIVIAL
+// ══════════════════════════════════════════════════════════════
+
+const triviaData = [
+  {
+    q: "¿Por qué el agua es mejor que el aire para transmitir fuerza en un sistema hidráulico?",
+    opts: ["El agua es más bonita que el aire","El agua no se comprime: la fuerza llega entera al destino","El agua es más barata que el aceite","El aire se mueve más rápido"],
+    ok: 1,
+    fb: "¡Exacto! Los líquidos no se comprimen. Si hay una burbuja de aire en el tubo, la fuerza se \"absorbe\" y el control falla."
+  },
+  {
+    q: "¿Qué significa \"fuerza proporcional\" en la mano hidráulica?",
+    opts: ["Que la mano siempre aprieta al máximo","Que la fuerza aplicada depende exactamente de cuánto empujas el pistón","Que los cinco dedos siempre se mueven a la vez","Que el agua tiene que estar caliente"],
+    ok: 1,
+    fb: "Correcto. Más presión en el pistón → más fuerza en el dedo. La relación es continua y gradual."
+  },
+  {
+    q: "¿Qué objeto podría coger la mano hidráulica sin dañarlo si usamos muy poca presión?",
+    opts: ["Un ladrillo de construcción","Una uva madura","Una bola de acero","Una llave inglesa"],
+    ok: 1,
+    fb: "La uva es frágil y blanda. Con muy poca presión la mano puede sostenerla sin aplastarla. Eso es control de fuerza."
+  },
+  {
+    q: "¿Qué pasa si queda una burbuja de aire dentro del tubo hidráulico?",
+    opts: ["El sistema funciona igual de bien","La mano se mueve más rápido","La fuerza ya no llega entera: el control se vuelve impreciso","El agua sale por el otro extremo"],
+    ok: 2,
+    fb: "El aire se comprime y \"absorbe\" parte de la fuerza antes de que llegue al dedo. Es el mismo problema que hace fallar los frenos de un coche mal purgados."
+  },
+  {
+    q: "El bloque PRESIONAR recibe un valor entre 0% y 100%. ¿Qué ocurre al ejecutar PRESIONAR 20%?",
+    opts: ["Los cinco dedos se cierran al máximo","La mano solo mueve el dedo índice","La mano cierra los dedos con muy poca fuerza, suficiente para objetos frágiles","La mano abre los dedos completamente"],
+    ok: 2,
+    fb: "20% es un agarre delicado. 100% sería la fuerza máxima. El porcentaje controla exactamente cuánta fuerza aplica la mano."
+  }
+];
+
+let triviaIdx = 0;
+let triviaAnswered = false;
+
+function loadTrivia() {
+  if (triviaIdx >= triviaData.length) {
+    markDone(1);
+    goGame(2);
+    return;
+  }
+  triviaAnswered = false;
+  const item = triviaData[triviaIdx];
+  document.getElementById('trivialProgress').textContent = `Pregunta ${triviaIdx + 1} de ${triviaData.length}`;
+  document.getElementById('trivialQuestion').textContent = item.q;
+  document.getElementById('trivialFeedback').className = 'feedback';
+  document.getElementById('trivialFeedback').textContent = '';
+  document.getElementById('trivialNext').style.display = 'none';
+  document.getElementById('trivialSol').style.display = 'none';
+
+  const shuffled = shuffleArray(item.opts.map((o, i) => ({text: o, orig: i})));
+  const container = document.getElementById('trivialOptions');
+  container.innerHTML = '';
+  shuffled.forEach(({text, orig}) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.textContent = text;
+    btn.onclick = () => answerTrivia(orig === item.ok, btn, container);
+    container.appendChild(btn);
+  });
+}
+
+function answerTrivia(correct, btn, container) {
+  if (triviaAnswered) return;
+  if (correct) {
+    triviaAnswered = true;
+    btn.classList.add('correct');
+    container.querySelectorAll('.opt-btn').forEach(b => b.disabled = true);
+    const fb = document.getElementById('trivialFeedback');
+    fb.className = 'feedback ok';
+    fb.textContent = '✅ ' + triviaData[triviaIdx].fb;
+    document.getElementById('trivialNext').style.display = 'flex';
+    addScore(20);
+  } else {
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    const fb = document.getElementById('trivialFeedback');
+    fb.className = 'feedback err';
+    fb.textContent = '❌ Eso no es. Prueba con otra opción.';
+    document.getElementById('trivialSol').style.display = 'flex';
+  }
+}
+
+function showTrivialSol() {
+  triviaAnswered = true;
+  const item = triviaData[triviaIdx];
+  const container = document.getElementById('trivialOptions');
+  container.querySelectorAll('.opt-btn').forEach((btn, i) => {
+    btn.disabled = true;
+    if (btn.textContent === item.opts[item.ok]) btn.classList.add('correct');
+  });
+  const fb = document.getElementById('trivialFeedback');
+  fb.className = 'feedback ok';
+  fb.textContent = '💡 ' + item.fb;
+  document.getElementById('trivialNext').style.display = 'flex';
+  document.getElementById('trivialSol').style.display = 'none';
+}
+
+function nextTrivia() {
+  triviaIdx++;
+  if (triviaIdx >= triviaData.length) {
+    markDone(1);
+    goGame(2);
+    initSort();
+  } else {
+    loadTrivia();
+  }
+}
+
+function resetTrivial() {
+  triviaIdx = 0;
+  loadTrivia();
+}
+
+// ══════════════════════════════════════════════════════════════
+// JUEGO 2 — ORDENAR
+// ══════════════════════════════════════════════════════════════
+
+const sortCorrect = [
+  "1️⃣ Comprobar que los tubos están llenos de agua y sin burbujas",
+  "2️⃣ Colocar la mano hidráulica enfrente del objeto a coger",
+  "3️⃣ Empujar el pistón muy despacio para iniciar el cierre suave",
+  "4️⃣ Detectar resistencia (el objeto opone fuerza al dedo)",
+  "5️⃣ Mantener la presión justa para sostener sin aplastar",
+  "6️⃣ Aflojar el pistón gradualmente para soltar el objeto"
+];
+
+let sortLoaded = false;
+let dragSrc = null;
+
+function initSort() {
+  sortLoaded = true;
+  const shuffled = shuffleArray([...sortCorrect]);
+  renderSort(shuffled);
+  document.getElementById('sortFeedback').className = 'feedback';
+  document.getElementById('sortNext').style.display = 'none';
+  document.getElementById('sortSol').style.display = 'flex';
+}
+
+function renderSort(items) {
+  const list = document.getElementById('sortList');
+  list.innerHTML = '';
+  items.forEach((text, i) => {
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.draggable = true;
+    div.textContent = text.replace(/^\d+️⃣\s/, '🔵 ');
+    div.dataset.orig = text;
+    div.addEventListener('dragstart', e => {
+      dragSrc = div;
+      div.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('dragging');
+      list.querySelectorAll('.sort-item').forEach(s => s.classList.remove('over'));
+    });
+    div.addEventListener('dragover', e => {
+      e.preventDefault();
+      list.querySelectorAll('.sort-item').forEach(s => s.classList.remove('over'));
+      div.classList.add('over');
+    });
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrc && dragSrc !== div) {
+        const items = [...list.children];
+        const srcIdx = items.indexOf(dragSrc);
+        const tgtIdx = items.indexOf(div);
+        if (srcIdx < tgtIdx) list.insertBefore(dragSrc, div.nextSibling);
+        else list.insertBefore(dragSrc, div);
+      }
+      list.querySelectorAll('.sort-item').forEach(s => s.classList.remove('over'));
+      checkSort();
+    });
+    list.appendChild(div);
+  });
+}
+
+function checkSort() {
+  const items = [...document.querySelectorAll('#sortList .sort-item')];
+  const current = items.map(d => d.dataset.orig);
+  const ok = current.every((v, i) => v === sortCorrect[i]);
+  const fb = document.getElementById('sortFeedback');
+  if (ok) {
+    fb.className = 'feedback ok';
+    fb.textContent = '✅ ¡Orden perfecto! Así funciona el agarre controlado con la mano hidráulica.';
+    document.getElementById('sortNext').style.display = 'flex';
+    document.getElementById('sortSol').style.display = 'none';
+    addScore(25);
+  }
+}
+
+function showSortSol() {
+  renderSortSolved();
+  const fb = document.getElementById('sortFeedback');
+  fb.className = 'feedback ok';
+  fb.textContent = '💡 Aquí está el orden correcto. Cada paso es fundamental para no romper el objeto.';
+  document.getElementById('sortNext').style.display = 'flex';
+  document.getElementById('sortSol').style.display = 'none';
+}
+
+function renderSortSolved() {
+  const list = document.getElementById('sortList');
+  list.innerHTML = '';
+  sortCorrect.forEach(text => {
+    const div = document.createElement('div');
+    div.className = 'sort-item';
+    div.style.borderColor = 'var(--success)';
+    div.textContent = text;
+    list.appendChild(div);
+  });
+}
+
+function resetSort() {
+  sortLoaded = false;
+  document.getElementById('sortFeedback').className = 'feedback';
+  document.getElementById('sortNext').style.display = 'none';
+  initSort();
+}
+
+// ══════════════════════════════════════════════════════════════
+// JUEGO 3 — EMPAREJAR
+// ══════════════════════════════════════════════════════════════
+
+const matchPairs = [
+  { term: "💧 Agua en el tubo",         def: "Transmite la fuerza sin pérdidas" },
+  { term: "🫧 Burbuja de aire",          def: "Arruina el control: absorbe la presión" },
+  { term: "🔵 Pistón de empuje",         def: "Genera la presión que mueve el dedo" },
+  { term: "✋ Fuerza proporcional",       def: "Más presión aplicada → más fuerza en el dedo" },
+  { term: "🟢 PRESIONAR 20%",            def: "Agarre delicado para objetos frágiles" },
+];
+
+let matchLoaded = false;
+let matchSelected = null;
+let matchDone = 0;
+
+function initMatch() {
+  matchLoaded = true;
+  matchDone = 0;
+  matchSelected = null;
+  document.getElementById('matchProgress').textContent = '0 de 5 pares encontrados';
+  document.getElementById('matchFeedback').className = 'feedback';
+  document.getElementById('matchNext').style.display = 'none';
+  document.getElementById('matchSol').style.display = 'flex';
+
+  const terms = shuffleArray(matchPairs.map((p, i) => ({text: p.term, id: i, side: 'term'})));
+  const defs  = shuffleArray(matchPairs.map((p, i) => ({text: p.def,  id: i, side: 'def'})));
+
+  const grid = document.getElementById('matchGrid');
+  grid.innerHTML = '';
+  const allItems = [];
+  for (let i = 0; i < matchPairs.length; i++) {
+    allItems.push(terms[i]);
+    allItems.push(defs[i]);
+  }
+  allItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'match-item';
+    div.textContent = item.text;
+    div.dataset.id = item.id;
+    div.dataset.side = item.side;
+    div.onclick = () => handleMatch(div, item);
+    grid.appendChild(div);
+  });
+}
+
+function handleMatch(div, item) {
+  if (div.classList.contains('matched')) return;
+  if (matchSelected === null) {
+    matchSelected = {div, item};
+    div.classList.add('selected');
+  } else {
+    const prev = matchSelected;
+    if (prev.div === div) { div.classList.remove('selected'); matchSelected = null; return; }
+    if (prev.item.id === item.id && prev.item.side !== item.side) {
+      prev.div.classList.remove('selected');
+      prev.div.classList.add('matched');
+      div.classList.add('matched');
+      matchDone++;
+      document.getElementById('matchProgress').textContent = `${matchDone} de 5 pares encontrados`;
+      addScore(10);
+      matchSelected = null;
+      if (matchDone === matchPairs.length) {
+        const fb = document.getElementById('matchFeedback');
+        fb.className = 'feedback ok';
+        fb.textContent = '✅ ¡Todos los pares encontrados! Dominas el vocabulario de la mano hidráulica.';
+        document.getElementById('matchNext').style.display = 'flex';
+        document.getElementById('matchSol').style.display = 'none';
+        markDone(3);
+      }
+    } else {
+      prev.div.classList.remove('selected');
+      [prev.div, div].forEach(d => {
+        d.classList.add('wrong-flash');
+        setTimeout(() => d.classList.remove('wrong-flash'), 600);
+      });
+      const fb = document.getElementById('matchFeedback');
+      fb.className = 'feedback err';
+      fb.textContent = '❌ No son pareja. Prueba de nuevo.';
+      matchSelected = null;
+    }
+  }
+}
+
+function showMatchSol() {
+  const grid = document.getElementById('matchGrid');
+  grid.innerHTML = '';
+  matchPairs.forEach(p => {
+    [p.term, p.def].forEach(text => {
+      const div = document.createElement('div');
+      div.className = 'match-item matched';
+      div.textContent = text;
+      grid.appendChild(div);
+    });
+  });
+  const fb = document.getElementById('matchFeedback');
+  fb.className = 'feedback ok';
+  fb.textContent = '💡 Aquí están todos los pares correctos.';
+  document.getElementById('matchNext').style.display = 'flex';
+  document.getElementById('matchSol').style.display = 'none';
+}
+
+function resetMatch() {
+  matchLoaded = false;
+  initMatch();
+}
+
+// ══════════════════════════════════════════════════════════════
+// JUEGO 4 — RETO FINAL
+// ══════════════════════════════════════════════════════════════
+
+const retoData = [
+  {
+    hud: drawHudFuerza,
+    q: "La mano hidráulica va a coger un vaso de cristal fino. ¿Qué valor de PRESIONAR es el más adecuado?",
+    opts: ["PRESIONAR 5%", "PRESIONAR 30%", "PRESIONAR 80%", "PRESIONAR 100%"],
+    ok: 1,
+    fb: "30% es suficiente para sostener el vaso sin romperlo. 80-100% lo haría añicos."
+  },
+  {
+    hud: drawHudBurbuja,
+    q: "Ejecutas PRESIONAR 50% pero el dedo apenas se mueve. El indicador muestra burbuja en el tubo. ¿Cuál es el problema?",
+    opts: ["La mano necesita más corriente eléctrica","El pistón está roto","Hay aire en el tubo: el aire absorbe la presión y la fuerza no llega","El objeto es demasiado pesado"],
+    ok: 2,
+    fb: "El aire se comprime. Al comprimir el pistón, el aire cede en lugar de transmitir la fuerza al dedo."
+  },
+  {
+    hud: drawHudTubos,
+    q: "¿Por qué la mano hidráulica tiene 5 tubos separados en lugar de uno solo para todos los dedos?",
+    opts: ["Para que sea más cara y tenga más piezas","Porque el agua necesita más espacio","Para controlar cada dedo por separado y adaptar la fuerza a cada uno","Para que el agua circule más rápido"],
+    ok: 2,
+    fb: "Con 5 circuitos independientes, puedes cerrar solo el pulgar, solo el índice, o todos a la vez con distinta fuerza."
+  },
+  {
+    hud: drawHudComparacion,
+    q: "El bloque PRESIONAR 0% se ejecuta. ¿Qué hace la mano?",
+    opts: ["Los dedos se cierran al máximo","No pasa nada: fuerza cero significa mano abierta y sin presión","La mano se apaga","El agua sale del tubo"],
+    ok: 1,
+    fb: "0% de fuerza significa que no se empuja el pistón. La mano queda completamente abierta y sin tensión."
+  }
+];
+
+let retoIdx = 0;
+let retoAnswered = false;
+
+function loadReto() {
+  if (retoIdx >= retoData.length) {
+    markDone(4);
+    goGame(5);
+    document.getElementById('finTrophy').textContent = totalScore >= 80 ? '🏆' : totalScore >= 50 ? '🥈' : '🥉';
+    document.getElementById('finPuntos').textContent = `Has conseguido ${totalScore} puntos`;
+    return;
+  }
+  retoAnswered = false;
+  const item = retoData[retoIdx];
+  const container = document.getElementById('retoContainer');
+  container.innerHTML = '';
+
+  // HUD canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = 500; canvas.height = 180;
+  canvas.className = 'hud-canvas';
+  container.appendChild(canvas);
+  item.hud(canvas);
+
+  // Pregunta y opciones
+  const card = document.createElement('div');
+  card.className = 'question-card';
+  card.innerHTML = `
+    <p class="progress-text">Escenario ${retoIdx + 1} de ${retoData.length}</p>
+    <p class="question-text">${item.q}</p>
+    <div class="options" id="retoOpts"></div>
+    <div class="feedback" id="retoFb"></div>
+    <div class="action-row">
+      <button class="btn-reset" onclick="resetReto()">Reiniciar 🔄</button>
+      <button class="btn-solucion" id="retoSol" onclick="showRetoSol()">Ver Solución 💡</button>
+      <button class="btn-next" id="retoNext" onclick="nextReto()">Siguiente ➜</button>
+    </div>`;
+  container.appendChild(card);
+
+  const shuffled = shuffleArray(item.opts.map((o, i) => ({text: o, orig: i})));
+  const optsDiv = document.getElementById('retoOpts');
+  shuffled.forEach(({text, orig}) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.textContent = text;
+    btn.onclick = () => answerReto(orig === item.ok, btn, optsDiv);
+    optsDiv.appendChild(btn);
+  });
+}
+
+function answerReto(correct, btn, container) {
+  if (retoAnswered) return;
+  if (correct) {
+    retoAnswered = true;
+    btn.classList.add('correct');
+    container.querySelectorAll('.opt-btn').forEach(b => b.disabled = true);
+    const fb = document.getElementById('retoFb');
+    fb.className = 'feedback ok';
+    fb.textContent = '✅ ' + retoData[retoIdx].fb;
+    document.getElementById('retoNext').style.display = 'flex';
+    document.getElementById('retoSol').style.display = 'none';
+    addScore(20);
+  } else {
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    const fb = document.getElementById('retoFb');
+    fb.className = 'feedback err';
+    fb.textContent = '❌ No es esa. Piénsalo bien y prueba otra opción.';
+    document.getElementById('retoSol').style.display = 'flex';
+  }
+}
+
+function showRetoSol() {
+  retoAnswered = true;
+  const item = retoData[retoIdx];
+  const container = document.getElementById('retoOpts');
+  container.querySelectorAll('.opt-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn.textContent === item.opts[item.ok]) btn.classList.add('correct');
+  });
+  const fb = document.getElementById('retoFb');
+  fb.className = 'feedback ok';
+  fb.textContent = '💡 ' + item.fb;
+  document.getElementById('retoNext').style.display = 'flex';
+  document.getElementById('retoSol').style.display = 'none';
+}
+
+function nextReto() {
+  retoIdx++;
+  loadReto();
+}
+
+function resetReto() {
+  retoIdx = 0;
+  loadReto();
+}
+
+// ── HUDs DEL RETO FINAL ───────────────────────────────────────
+
+function drawHudFuerza(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#0d0d25';
+  ctx.fillRect(0, 0, W, H);
+
+  // Título
+  ctx.fillStyle = '#00f2ff';
+  ctx.font = 'bold 15px Segoe UI';
+  ctx.fillText('SELECTOR DE FUERZA — PRESIONAR X%', 16, 28);
+
+  // Barra de gradiente
+  const grd = ctx.createLinearGradient(16, 0, W - 16, 0);
+  grd.addColorStop(0,    '#00aaff');
+  grd.addColorStop(0.30, '#00cc44');
+  grd.addColorStop(0.70, '#ffaa00');
+  grd.addColorStop(1,    '#ff3333');
+  ctx.fillStyle = grd;
+  ctx.beginPath();
+  ctx.roundRect(16, 48, W - 32, 28, 6);
+  ctx.fill();
+
+  // Etiquetas
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '13px Segoe UI';
+  ctx.fillText('0%', 14, 98);
+  ctx.fillText('25%', W * 0.25 - 12, 98);
+  ctx.fillText('50%', W * 0.5 - 14, 98);
+  ctx.fillText('75%', W * 0.75 - 14, 98);
+  ctx.fillText('100%', W - 42, 98);
+
+  // Iconos objetos
+  const items = [
+    {x: 60,  emoji: '🍇', label: 'uva'},
+    {x: 170, emoji: '🥚', label: 'huevo'},
+    {x: 280, emoji: '🍊', label: 'naranja'},
+    {x: 380, emoji: '🔩', label: 'tornillo'},
+    {x: W-60,emoji: '🪨', label: 'piedra'},
+  ];
+  items.forEach(it => {
+    ctx.font = '26px serif';
+    ctx.fillText(it.emoji, it.x - 12, 148);
+    ctx.font = '11px Segoe UI';
+    ctx.fillStyle = '#aaaacc';
+    ctx.fillText(it.label, it.x - 14, 168);
+    ctx.fillStyle = '#ffffff';
+  });
+}
+
+function drawHudBurbuja(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#0d0d25';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#00f2ff';
+  ctx.font = 'bold 15px Segoe UI';
+  ctx.fillText('DIAGNÓSTICO — SISTEMA HIDRÁULICO', 16, 28);
+
+  // Pistón
+  ctx.fillStyle = '#888899';
+  ctx.fillRect(20, 55, 60, 100);
+  ctx.fillStyle = '#aaaacc';
+  ctx.fillRect(30, 40, 40, 20);
+  ctx.fillStyle = '#aaddff';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('Pistón', 22, 170);
+
+  // Tubo
+  ctx.strokeStyle = '#555577';
+  ctx.lineWidth = 18;
+  ctx.beginPath(); ctx.moveTo(80, 105); ctx.lineTo(380, 105); ctx.stroke();
+
+  // Agua azul
+  ctx.strokeStyle = '#0055ff';
+  ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.moveTo(82, 105); ctx.lineTo(180, 105); ctx.stroke();
+
+  // Burbuja roja
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath(); ctx.arc(230, 105, 16, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 18px serif';
+  ctx.fillText('!', 225, 112);
+  ctx.fillStyle = '#ff8888';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('Burbuja', 212, 135);
+
+  // Dedo
+  ctx.fillStyle = '#FF6B1A';
+  ctx.fillRect(410, 60, 30, 80);
+  ctx.fillRect(425, 40, 20, 25);
+  ctx.fillStyle = '#aaddff';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('Dedo', 408, 160);
+
+  // Estado
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 13px Segoe UI';
+  ctx.fillText('⚠ La fuerza no llega — hay aire en el tubo', 20, H - 10);
+}
+
+function drawHudTubos(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#0d0d25';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#00f2ff';
+  ctx.font = 'bold 15px Segoe UI';
+  ctx.fillText('CIRCUITOS HIDRÁULICOS INDEPENDIENTES', 16, 28);
+
+  const fingers = ['Pulgar','Índice','Medio','Anular','Meñique'];
+  const colors  = ['#ff6b1a','#00aaff','#00cc44','#ffaa00','#cc44ff'];
+  const pressures = [60, 20, 80, 20, 40];
+
+  fingers.forEach((name, i) => {
+    const y = 55 + i * 24;
+    // Etiqueta
+    ctx.fillStyle = colors[i];
+    ctx.font = '13px Segoe UI';
+    ctx.fillText(name, 14, y + 13);
+    // Barra de fuerza
+    ctx.fillStyle = '#1a1a3a';
+    ctx.fillRect(90, y, 340, 18);
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(90, y, 340 * pressures[i] / 100, 18);
+    // Porcentaje
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px Segoe UI';
+    ctx.fillText(pressures[i] + '%', 440, y + 13);
+  });
+
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = '12px Segoe UI';
+  ctx.fillText('Cada tubo controla un dedo de forma independiente', 14, H - 10);
+}
+
+function drawHudComparacion(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#0d0d25';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#00f2ff';
+  ctx.font = 'bold 15px Segoe UI';
+  ctx.fillText('COMPARATIVA — PRESIONAR 0% vs 100%', 16, 28);
+
+  // Panel izquierdo — 0%
+  ctx.fillStyle = '#111130';
+  ctx.strokeStyle = '#00aaff';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(16, 44, 210, 120, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#00aaff';
+  ctx.font = 'bold 16px Segoe UI';
+  ctx.fillText('PRESIONAR 0%', 30, 68);
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = '13px Segoe UI';
+  ctx.fillText('Fuerza: nula', 30, 92);
+  ctx.fillText('Mano abierta', 30, 112);
+  ctx.fillStyle = '#00aaff';
+  ctx.font = '32px serif';
+  ctx.fillText('✋', 150, 145);
+
+  // Panel derecho — 100%
+  ctx.fillStyle = '#111130';
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(274, 44, 210, 120, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 16px Segoe UI';
+  ctx.fillText('PRESIONAR 100%', 288, 68);
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = '13px Segoe UI';
+  ctx.fillText('Fuerza: máxima', 288, 92);
+  ctx.fillText('Mano cerrada fuerte', 288, 112);
+  ctx.fillStyle = '#ff4444';
+  ctx.font = '32px serif';
+  ctx.fillText('✊', 410, 145);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+goGame(0);
+</script>
+</body>
+</html>
