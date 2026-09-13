@@ -500,6 +500,23 @@
                 ? (hipHeights[targetSkin] / hipHeights[sourceSkin]) 
                 : 1.0;
 
+            // Compensación fina de holgura de pierna y calzado para que ningún pie penetre el suelo
+            const retargetOffsets = {
+                salsa: {
+                    capoeira: 0.050,  // Amy adaptando acrobacias/patadas de The Boss
+                    combate: 0.058    // Amy adaptando zancadas/ataques pesados de María Ong
+                },
+                capoeira: {
+                    salsa: 0.0,
+                    combate: 0.0
+                },
+                combate: {
+                    salsa: 0.0,
+                    capoeira: 0.0
+                }
+            };
+            const yOffset = (retargetOffsets[targetSkin] && retargetOffsets[targetSkin][sourceSkin]) || 0;
+
             // Importar temporalmente el archivo que contiene la animación MOCAP
             const tempRes = await BABYLON.SceneLoader.ImportMeshAsync("", animData.folder, animData.file, scene);
             const sourceAg = tempRes.animationGroups[0];
@@ -527,8 +544,9 @@
                         let animToUse = ta.animation;
                         const isHips = ta.target.name && ta.target.name.toLowerCase().includes("hips");
 
-                        // Si es la posición de la cadera (Hips translation), adaptamos la escala para que los pies toquen el suelo
-                        if (isHips && ta.animation.targetProperty === "position" && Math.abs(scaleFactor - 1.0) > 0.005) {
+                        // Si es la posición de la cadera (Hips translation), adaptamos la escala y la holgura
+                        const needsCorrection = Math.abs(scaleFactor - 1.0) > 0.005 || Math.abs(yOffset) > 0.001;
+                        if (isHips && ta.animation.targetProperty === "position" && needsCorrection) {
                             animToUse = new BABYLON.Animation(
                                 ta.animation.name + "_scaled",
                                 ta.animation.targetProperty,
@@ -543,7 +561,7 @@
                                     frame: k.frame,
                                     value: new BABYLON.Vector3(
                                         k.value.x * scaleFactor,
-                                        k.value.y * scaleFactor,
+                                        k.value.y * scaleFactor + yOffset,
                                         k.value.z * scaleFactor
                                     )
                                 };
