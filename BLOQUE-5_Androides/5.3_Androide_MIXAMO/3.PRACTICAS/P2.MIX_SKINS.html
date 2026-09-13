@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P2: Mezclador de Skins y Animaciones (Mixamo Retargeting)</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
@@ -16,7 +16,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html {
-            width: 100%; height: 100%; overflow: hidden;
+            width: 100vw; height: 100vh; overflow: hidden; position: fixed;
             background-color: var(--bg);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #f8fafc;
@@ -24,115 +24,167 @@
         }
 
         #renderCanvas {
-            width: 100%; height: 100%; touch-action: none; outline: none;
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
         }
 
         /* Barra Superior: Selector de Skin (Cuerpo) */
         #skinBar {
-            position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
-            z-index: 100; display: flex; gap: 12px; align-items: center;
-            background: var(--panel-bg); padding: 10px 22px;
-            border-radius: 40px; border: 1px solid var(--border);
-            backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 100; display: flex; gap: 8px; align-items: center;
+            background: var(--panel-bg); padding: 6px 14px;
+            border-radius: 30px; border: 1px solid var(--border);
+            backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            white-space: nowrap; max-width: 95vw;
         }
         .bar-label {
-            font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px;
-            color: #94a3b8; text-transform: uppercase; margin-right: 6px;
+            font-size: 0.72rem; font-weight: 800; letter-spacing: 1px;
+            color: #94a3b8; text-transform: uppercase; margin-right: 4px;
         }
         .skin-btn {
             background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid var(--border);
-            padding: 8px 18px; border-radius: 20px; font-weight: 700; font-size: 0.88rem;
-            cursor: pointer; transition: all 0.25s ease; display: flex; align-items: center; gap: 8px;
+            padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
         }
         .skin-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
         .skin-btn.active {
             background: var(--primary); color: #06090e; border-color: var(--primary);
-            box-shadow: 0 0 18px rgba(0, 210, 255, 0.5);
+            box-shadow: 0 0 14px rgba(0, 210, 255, 0.45);
         }
+
+        /* Botón genérico de toggle/colapso */
+        .toggle-btn {
+            background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+            color: #94a3b8; border-radius: 6px; width: 24px; height: 24px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .toggle-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
 
         /* Panel Izquierdo: Selector de Animación (MOCAP) */
         #animPanel {
-            position: absolute; top: 90px; left: 20px; width: 310px;
+            position: absolute; top: 68px; left: 14px; width: 220px;
             background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 14px; padding: 20px; z-index: 100;
-            backdrop-filter: blur(12px); box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; gap: 12px;
+            border-radius: 12px; padding: 12px; z-index: 100;
+            backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; gap: 8px;
+            max-height: calc(100vh - 84px);
+            transition: width 0.25s ease, padding 0.25s ease;
         }
+        #animPanel.collapsed {
+            width: 42px; padding: 8px 6px; overflow: hidden;
+        }
+        #animPanel.collapsed .panel-title,
+        #animPanel.collapsed .anim-list {
+            display: none !important;
+        }
+        #animPanel.collapsed .panel-header {
+            border-bottom: none; padding-bottom: 0; justify-content: center;
+        }
+
         .panel-header {
             display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--border); padding-bottom: 8px;
+            border-bottom: 1px solid var(--border); padding-bottom: 6px; gap: 6px;
         }
         .panel-title {
-            font-size: 0.8rem; font-weight: 800; letter-spacing: 2px;
-            text-transform: uppercase; color: var(--accent);
+            font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;
+            text-transform: uppercase; color: var(--accent); white-space: nowrap;
         }
         .anim-list {
-            display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 145px);
+            overflow-y: auto; padding-right: 2px;
         }
+        .anim-list::-webkit-scrollbar { width: 4px; }
+        .anim-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         .anim-btn {
             background: rgba(255,255,255,0.05); color: #e2e8f0; border: 1px solid var(--border);
-            padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+            padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
             cursor: pointer; transition: all 0.2s ease; text-align: left;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; gap: 4px;
         }
-        .anim-btn:hover { background: rgba(255,255,255,0.12); color: #fff; transform: translateX(3px); }
+        .anim-btn:hover { background: rgba(255,255,255,0.12); color: #fff; transform: translateX(2px); }
         .anim-btn.active {
-            background: linear-gradient(90deg, rgba(230, 126, 34, 0.25), rgba(230, 126, 34, 0.08));
+            background: linear-gradient(90deg, rgba(230, 126, 34, 0.3), rgba(230, 126, 34, 0.1));
             border-color: var(--accent); color: #ffedd5;
-            box-shadow: 0 0 12px rgba(230, 126, 34, 0.35);
+            box-shadow: 0 0 10px rgba(230, 126, 34, 0.3);
         }
         .anim-badge {
-            font-size: 0.65rem; padding: 2px 6px; border-radius: 4px;
-            background: rgba(0,0,0,0.4); color: #94a3b8; font-weight: 800;
+            font-size: 0.62rem; padding: 2px 5px; border-radius: 4px;
+            background: rgba(0,0,0,0.4); color: #94a3b8; font-weight: 700; flex-shrink: 0;
         }
 
         /* Panel Derecho: Controles y Concepto Pedagógico */
         #ctrlPanel {
-            position: absolute; top: 90px; right: 20px; width: 330px;
+            position: absolute; top: 68px; right: 14px; width: 230px;
             background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 14px; padding: 20px; z-index: 100;
-            backdrop-filter: blur(12px); box-shadow: 0 15px 35px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; gap: 16px;
+            border-radius: 12px; padding: 12px; z-index: 100;
+            backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; gap: 10px;
+            max-height: calc(100vh - 84px); overflow-y: auto;
+            transition: width 0.25s ease, padding 0.25s ease;
         }
+        #ctrlPanel::-webkit-scrollbar { width: 4px; }
+        #ctrlPanel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        #ctrlPanel.collapsed {
+            width: 42px; padding: 8px 6px; overflow: hidden;
+        }
+        #ctrlPanel.collapsed .panel-title,
+        #ctrlPanel.collapsed .ctrl-content {
+            display: none !important;
+        }
+        #ctrlPanel.collapsed .panel-header {
+            border-bottom: none; padding-bottom: 0; justify-content: center;
+        }
+
+        .ctrl-content {
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
         .info-card {
-            background: rgba(0,0,0,0.35); border-radius: 8px; padding: 12px;
+            background: rgba(0,0,0,0.35); border-radius: 8px; padding: 8px 10px;
             border-left: 3px solid var(--primary);
         }
-        .info-title { font-size: 0.78rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; text-transform: uppercase; }
-        .info-desc { font-size: 0.82rem; color: #cbd5e1; line-height: 1.45; }
+        .info-title { font-size: 0.72rem; font-weight: 800; color: var(--primary); margin-bottom: 3px; text-transform: uppercase; }
+        .info-desc { font-size: 0.74rem; color: #cbd5e1; line-height: 1.35; }
 
-        .ctrl-row {
-            display: flex; gap: 8px;
-        }
+        .ctrl-row { display: flex; gap: 6px; }
         .btn-action {
             flex: 1; background: rgba(255,255,255,0.08); color: white; border: 1px solid var(--border);
-            padding: 10px; border-radius: 8px; font-weight: 700; font-size: 0.82rem;
-            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 8px; border-radius: 6px; font-weight: 700; font-size: 0.76rem;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
         }
         .btn-action:hover { background: rgba(255,255,255,0.18); }
-        .btn-action.active { background: #3b82f6; border-color: #60a5fa; color: white; }
+        .btn-action.active { background: #0284c7; border-color: #38bdf8; color: white; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
 
         .btn-random {
             background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none;
-            color: white; padding: 12px; border-radius: 10px; font-weight: 800;
-            font-size: 0.88rem; cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+            color: white; padding: 10px; border-radius: 8px; font-weight: 800;
+            font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
         }
-        .btn-random:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(236, 72, 153, 0.5); }
+        .btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(236, 72, 153, 0.45); }
 
         .speed-control {
             display: flex; align-items: center; justify-content: space-between;
-            background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px;
+            background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px;
         }
-        .speed-label { font-size: 0.78rem; color: #94a3b8; font-weight: 700; }
+        .speed-label { font-size: 0.72rem; color: #94a3b8; font-weight: 700; }
         .speed-btns { display: flex; gap: 4px; }
         .speed-btn {
             background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-            color: #cbd5e1; font-size: 0.72rem; font-weight: 800; padding: 4px 8px;
+            color: #cbd5e1; font-size: 0.7rem; font-weight: 800; padding: 3px 6px;
             border-radius: 4px; cursor: pointer;
         }
         .speed-btn.active { background: var(--primary); color: #06090e; border-color: var(--primary); }
+
+        /* Responsividad para pantallas medianas / iPad */
+        @media (max-width: 900px) {
+            #animPanel { width: 195px; left: 8px; top: 60px; }
+            #ctrlPanel { width: 205px; right: 8px; top: 60px; }
+            .bar-label { display: none; }
+            #skinBar { top: 8px; padding: 4px 10px; gap: 6px; }
+            .skin-btn { font-size: 0.74rem; padding: 5px 10px; }
+        }
 
         /* Pantalla de Carga */
         #loadingScreen {
@@ -142,12 +194,12 @@
             gap: 16px; backdrop-filter: blur(8px);
         }
         .spinner {
-            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1);
             border-top-color: var(--primary); border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-        #loadingText { font-size: 1.1rem; font-weight: 700; color: #e2e8f0; }
+        #loadingText { font-size: 1rem; font-weight: 700; color: #e2e8f0; }
     </style>
 </head>
 <body>
@@ -159,17 +211,17 @@
 
 <!-- Selector de Skin Superior -->
 <div id="skinBar">
-    <span class="bar-label">Skin / Malla:</span>
-    <button class="skin-btn active" data-skin="salsa">💃 Amy (Salsa)</button>
-    <button class="skin-btn" data-skin="capoeira">🤸 The Boss (Capoeira)</button>
-    <button class="skin-btn" data-skin="combate">⚔️ María Ong (Guerrera)</button>
+    <span class="bar-label">Skin:</span>
+    <button class="skin-btn active" data-skin="salsa">💃 Amy</button>
+    <button class="skin-btn" data-skin="capoeira">🤸 The Boss</button>
+    <button class="skin-btn" data-skin="combate">⚔️ María Ong</button>
 </div>
 
 <!-- Selector de Animación Izquierdo -->
 <div id="animPanel">
     <div class="panel-header">
-        <span class="panel-title">Animación / MOCAP</span>
-        <span class="anim-badge" id="animBadge">Mixamo</span>
+        <span class="panel-title">💃 Animaciones (MOCAP)</span>
+        <button id="btnToggleAnim" class="toggle-btn" title="Minimizar panel">◀</button>
     </div>
     <div class="anim-list" id="animList">
         <!-- Generado dinámicamente -->
@@ -178,39 +230,45 @@
 
 <!-- Panel de Control y Concepto Derecho -->
 <div id="ctrlPanel">
-    <button class="btn-random" id="btnRandom">
-        🎲 ¡MEZCLA ALEATORIA!
-    </button>
-
-    <div class="ctrl-row">
-        <button class="btn-action" id="btnSkinning">
-            💀 MOCAP (Rayos X)
+    <div class="panel-header">
+        <span class="panel-title">⚙️ Controles</span>
+        <button id="btnToggleCtrl" class="toggle-btn" title="Minimizar panel">▶</button>
+    </div>
+    <div class="ctrl-content" id="ctrlContent">
+        <button class="btn-random" id="btnRandom">
+            🎲 ¡MEZCLA ALEATORIA!
         </button>
-        <button class="btn-action" id="btnCameraReset">
-            🎯 Centrar
-        </button>
-    </div>
 
-    <div class="speed-control">
-        <span class="speed-label">Velocidad:</span>
-        <div class="speed-btns">
-            <button class="speed-btn" data-speed="0.5">0.5x</button>
-            <button class="speed-btn active" data-speed="1.0">1.0x</button>
-            <button class="speed-btn" data-speed="1.5">1.5x</button>
+        <div class="ctrl-row">
+            <button class="btn-action" id="btnSkinning">
+                💀 MOCAP (Rayos X)
+            </button>
+            <button class="btn-action" id="btnCameraReset">
+                🎯 Centrar
+            </button>
         </div>
-    </div>
 
-    <div class="info-card">
-        <div class="info-title">Concepto: Retargeting 3D</div>
-        <div class="info-desc">
-            Al compartir la misma jerarquía de huesos (<strong>Mixamo Rig</strong>), cualquier animación capturada por MOCAP puede aplicarse a cualquier modelo sin distorsión.
+        <div class="speed-control">
+            <span class="speed-label">Velocidad:</span>
+            <div class="speed-btns">
+                <button class="speed-btn" data-speed="0.5">0.5x</button>
+                <button class="speed-btn active" data-speed="1.0">1.0x</button>
+                <button class="speed-btn" data-speed="1.5">1.5x</button>
+            </div>
         </div>
-    </div>
 
-    <div class="info-card" style="border-left-color: var(--accent);">
-        <div class="info-title" id="mixStatusTitle">Mezcla Actual</div>
-        <div class="info-desc" id="mixStatusDesc">
-            Cargando combinación...
+        <div class="info-card">
+            <div class="info-title">Concepto: Retargeting 3D</div>
+            <div class="info-desc">
+                Al compartir el mismo esqueleto (<strong>Mixamo Rig</strong>) y adaptar dinámicamente la altura de la cadera (<em>Hips</em>), cualquier animación se acopla a cualquier cuerpo sin que los pies se hundan ni floten.
+            </div>
+        </div>
+
+        <div class="info-card" style="border-left-color: var(--accent);">
+            <div class="info-title" id="mixStatusTitle">Mezcla Actual</div>
+            <div class="info-desc" id="mixStatusDesc">
+                Cargando combinación...
+            </div>
         </div>
     </div>
 </div>
@@ -224,6 +282,8 @@
     let scene = null;
     let camera = null;
     let activeMeshGroup = [];
+    let activeTransformNodes = [];
+    let activeSkeleton = null;
     let skeletonViewer = null;
     let currentAnimGroup = null;
     let isXRay = false;
@@ -232,60 +292,62 @@
     let currentSkinKey = "salsa";
     let currentAnimKey = "salsa_base";
 
+    // Alturas de cadera en reposo para cada personaje (calculadas desde los archivos GLB)
+    // Imprescindibles para el escalado proporcional de retargeting:
+    const hipHeights = {
+        salsa: 0.697715,      // Amy (Bailarina)
+        capoeira: 0.963758,   // The Boss (Capoeirista)
+        combate: 1.052462     // María Ong (Guerrera)
+    };
+
     // Catálogo de Skins (Cuerpos base con malla completa)
     const skins = {
         salsa: {
             name: "Amy (Bailarina)",
             folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/",
-            file: "Salsa Dancing.glb",
-            scale: 1.0,
-            yOffset: 0
+            file: "Salsa Dancing.glb"
         },
         capoeira: {
             name: "The Boss (Capoeirista)",
             folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/",
-            file: "Chapaeu De Couro.glb",
-            scale: 1.0,
-            yOffset: 0
+            file: "Chapaeu De Couro.glb"
         },
         combate: {
             name: "María Ong (Guerrera)",
             folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/",
-            file: "Great Sword Walk.glb",
-            scale: 1.0,
-            yOffset: 0
+            file: "Great Sword Walk.glb"
         }
     };
 
     // Catálogo de Animaciones MOCAP disponibles para mezclar
     const animLibrary = [
-        { id: "salsa_base", name: "Salsa: Paso Base", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing.glb", category: "Baile" },
-        { id: "salsa_cruce", name: "Salsa: Cruce Elegante", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-2.glb", category: "Baile" },
-        { id: "salsa_giro", name: "Salsa: Giro Rápido", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-3.glb", category: "Baile" },
-        { id: "salsa_adorno", name: "Salsa: Adorno & Ritmo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-4.glb", category: "Baile" },
-        { id: "cap_chapaeu", name: "Capoeira: Chapéu de Couro", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Chapaeu De Couro.glb", category: "Acrobacia" },
-        { id: "cap_esquiva", name: "Capoeira: Esquiva Ágil", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Esquiva 1.glb", category: "Defensa" },
-        { id: "cap_macaco", name: "Capoeira: Macaco Aéreo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Macaco Side.glb", category: "Acrobacia" },
-        { id: "cap_meia_lua", name: "Capoeira: Meia Lua Giratoria", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Meia Lua De Compasso Back.glb", category: "Ataque" },
-        { id: "com_walk", name: "Combate: Marcha Pesada", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Walk.glb", category: "Combate" },
-        { id: "com_jump", name: "Combate: Salto con Mandoble", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Jump.glb", category: "Combate" },
-        { id: "com_kick", name: "Combate: Patada Táctica", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Kick.glb", category: "Combate" },
-        { id: "com_cast", name: "Combate: Invocación / Hechizo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Casting.glb", category: "Magia" }
+        { id: "salsa_base", name: "Salsa: Paso Base", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing.glb", category: "Baile", sourceSkin: "salsa" },
+        { id: "salsa_cruce", name: "Salsa: Cruce Elegante", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-2.glb", category: "Baile", sourceSkin: "salsa" },
+        { id: "salsa_giro", name: "Salsa: Giro Rápido", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-3.glb", category: "Baile", sourceSkin: "salsa" },
+        { id: "salsa_adorno", name: "Salsa: Adorno & Ritmo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Salsa/", file: "Salsa Dancing-4.glb", category: "Baile", sourceSkin: "salsa" },
+        { id: "cap_chapaeu", name: "Capoeira: Chapéu de Couro", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Chapaeu De Couro.glb", category: "Acrobacia", sourceSkin: "capoeira" },
+        { id: "cap_esquiva", name: "Capoeira: Esquiva Ágil", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Esquiva 1.glb", category: "Defensa", sourceSkin: "capoeira" },
+        { id: "cap_macaco", name: "Capoeira: Macaco Aéreo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Macaco Side.glb", category: "Acrobacia", sourceSkin: "capoeira" },
+        { id: "cap_meia_lua", name: "Capoeira: Meia Lua Giratoria", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Capoeira/", file: "Meia Lua De Compasso Back.glb", category: "Ataque", sourceSkin: "capoeira" },
+        { id: "com_walk", name: "Combate: Marcha Pesada", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Walk.glb", category: "Combate", sourceSkin: "combate" },
+        { id: "com_jump", name: "Combate: Salto con Mandoble", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Jump.glb", category: "Combate", sourceSkin: "combate" },
+        { id: "com_kick", name: "Combate: Patada Táctica", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Kick.glb", category: "Combate", sourceSkin: "combate" },
+        { id: "com_cast", name: "Combate: Invocación / Hechizo", folder: "../1.FICHEROS-AUXILIARES/MIXAMO/Combate/", file: "Great Sword Casting.glb", category: "Magia", sourceSkin: "combate" }
     ];
 
     const initScene = () => {
         scene = new BABYLON.Scene(engine);
         scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.1, 1);
 
-        camera = new BABYLON.ArcRotateCamera("cam", Math.PI / 2, Math.PI / 2.2, 3.8, new BABYLON.Vector3(0, 0.8, 0), scene);
+        camera = new BABYLON.ArcRotateCamera("cam", Math.PI / 2, Math.PI / 2.2, 3.6, new BABYLON.Vector3(0, 0.85, 0), scene);
         camera.attachControl(canvas, true);
         camera.wheelPrecision = 60;
-        camera.lowerRadiusLimit = 1.2;
+        camera.lowerRadiusLimit = 1.0;
         camera.upperRadiusLimit = 10;
 
         // Iluminación escénica
         const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
-        hemi.intensity = 0.5;
+        hemi.intensity = 0.55;
 
         const keyLight = new BABYLON.DirectionalLight("keyLight", new BABYLON.Vector3(-1, -2, 1), scene);
         keyLight.position = new BABYLON.Vector3(5, 10, -5);
@@ -348,7 +410,7 @@
         document.getElementById("mixStatusTitle").innerText = `${skin.name} + ${anim.category}`;
         document.getElementById("mixStatusDesc").innerHTML = `
             <strong>Malla / Skin:</strong> ${skin.name}<br>
-            <strong>Movimiento MOCAP:</strong> ${anim.name}
+            <strong>MOCAP:</strong> ${anim.name}
         `;
     };
 
@@ -361,9 +423,15 @@
 
         currentSkinKey = skinKey;
 
-        // Limpiar mallas y esqueletos previos
+        // Limpiar mallas, nodos de transformación y esqueletos previos
         activeMeshGroup.forEach(m => m.dispose());
         activeMeshGroup = [];
+        activeTransformNodes.forEach(tn => tn.dispose());
+        activeTransformNodes = [];
+        if (activeSkeleton) {
+            activeSkeleton.dispose();
+            activeSkeleton = null;
+        }
         if (skeletonViewer) {
             skeletonViewer.dispose();
             skeletonViewer = null;
@@ -375,19 +443,32 @@
         try {
             const res = await BABYLON.SceneLoader.ImportMeshAsync("", skinData.folder, skinData.file, scene);
             activeMeshGroup = res.meshes;
+            activeTransformNodes = res.transformNodes || [];
             
             // Apagar animación nativa embebida (la sobreescribiremos con retargeting)
             if (res.animationGroups.length > 0) {
                 res.animationGroups[0].stop();
             }
 
-            // Crear SkeletonViewer si el modo rayos X está activo
+            // Crear SkeletonViewer con autoUpdate activado para modo MOCAP Rayos X dinámico
             if (res.skeletons && res.skeletons.length > 0) {
-                skeletonViewer = new BABYLON.Debug.SkeletonViewer(res.skeletons[0], activeMeshGroup[0], scene, false, 3, {
-                    displayMode: BABYLON.Debug.SkeletonViewer.DISPLAY_LINES
-                });
+                activeSkeleton = res.skeletons[0];
+                const rootNode = activeMeshGroup[0];
+                skeletonViewer = new BABYLON.Debug.SkeletonViewer(
+                    activeSkeleton, rootNode, scene, true, 1, 
+                    {
+                        displayMode: BABYLON.Debug.SkeletonViewer.DISPLAY_SPHERE_AND_SPURS,
+                        returnToRest: false,
+                        displayOptions: { sphereBaseSize: 0.03, spurLength: 0.1 }
+                    }
+                );
+                skeletonViewer.color = new BABYLON.Color3(0, 1, 1);
                 skeletonViewer.isEnabled = isXRay;
             }
+
+            // Centrar cámara en el centro de masa del personaje
+            const charHipY = hipHeights[skinKey] || 0.85;
+            camera.setTarget(new BABYLON.Vector3(0, charHipY * 0.95, 0));
 
             // Aplicar la animación actualmente seleccionada
             const targetAnim = animLibrary.find(a => a.id === currentAnimKey) || animLibrary[0];
@@ -402,7 +483,7 @@
         }
     };
 
-    // Aplicar animación usando Retargeting sobre el skin activo
+    // Aplicar animación usando Retargeting con adaptación de altura de cadera
     const applyAnimation = async (animData, showLoading = true) => {
         const loading = document.getElementById("loadingScreen");
         const loadText = document.getElementById("loadingText");
@@ -412,7 +493,14 @@
         }
 
         try {
-            // Importar temporalmente el archivo que contiene la animación
+            // Factor de escalado vertical entre la fuente original del movimiento y el personaje receptor
+            const sourceSkin = animData.sourceSkin || (animData.id.startsWith("salsa") ? "salsa" : animData.id.startsWith("cap") ? "capoeira" : "combate");
+            const targetSkin = currentSkinKey;
+            const scaleFactor = (hipHeights[targetSkin] && hipHeights[sourceSkin]) 
+                ? (hipHeights[targetSkin] / hipHeights[sourceSkin]) 
+                : 1.0;
+
+            // Importar temporalmente el archivo que contiene la animación MOCAP
             const tempRes = await BABYLON.SceneLoader.ImportMeshAsync("", animData.folder, animData.file, scene);
             const sourceAg = tempRes.animationGroups[0];
 
@@ -423,14 +511,65 @@
             }
 
             if (sourceAg) {
-                // Clonar la animación buscando los huesos homónimos en la malla activa (Retargeting)
+                // Mapa rápido de nodos del personaje receptor activo
+                const targetNodeMap = new Map();
+                activeTransformNodes.forEach(n => targetNodeMap.set(n.name, n));
+
+                // Crear el grupo de animación retargeteado
                 currentAnimGroup = new BABYLON.AnimationGroup("activeRetargetedAnim");
 
                 sourceAg.targetedAnimations.forEach(ta => {
-                    const targetBone = scene.transformNodes.find(n => n.name === ta.target.name) || 
+                    const targetBone = targetNodeMap.get(ta.target.name) || 
+                                       scene.transformNodes.find(n => n.name === ta.target.name) || 
                                        scene.getBoneByName(ta.target.name);
+
                     if (targetBone) {
-                        currentAnimGroup.addTargetedAnimation(ta.animation, targetBone);
+                        let animToUse = ta.animation;
+                        const isHips = ta.target.name && ta.target.name.toLowerCase().includes("hips");
+
+                        // Si es la posición de la cadera (Hips translation), adaptamos la escala para que los pies toquen el suelo
+                        if (isHips && ta.animation.targetProperty === "position" && Math.abs(scaleFactor - 1.0) > 0.005) {
+                            animToUse = new BABYLON.Animation(
+                                ta.animation.name + "_scaled",
+                                ta.animation.targetProperty,
+                                ta.animation.framePerSecond,
+                                ta.animation.dataType,
+                                ta.animation.loopMode
+                            );
+
+                            const origKeys = ta.animation.getKeys();
+                            const scaledKeys = origKeys.map(k => {
+                                const nk = {
+                                    frame: k.frame,
+                                    value: new BABYLON.Vector3(
+                                        k.value.x * scaleFactor,
+                                        k.value.y * scaleFactor,
+                                        k.value.z * scaleFactor
+                                    )
+                                };
+                                if (k.inTangent && typeof k.inTangent.x === "number") {
+                                    nk.inTangent = new BABYLON.Vector3(
+                                        k.inTangent.x * scaleFactor,
+                                        k.inTangent.y * scaleFactor,
+                                        k.inTangent.z * scaleFactor
+                                    );
+                                }
+                                if (k.outTangent && typeof k.outTangent.x === "number") {
+                                    nk.outTangent = new BABYLON.Vector3(
+                                        k.outTangent.x * scaleFactor,
+                                        k.outTangent.y * scaleFactor,
+                                        k.outTangent.z * scaleFactor
+                                    );
+                                }
+                                if (k.interpolation !== undefined) {
+                                    nk.interpolation = k.interpolation;
+                                }
+                                return nk;
+                            });
+                            animToUse.setKeys(scaledKeys);
+                        }
+
+                        currentAnimGroup.addTargetedAnimation(animToUse, targetBone);
                     }
                 });
 
@@ -442,6 +581,7 @@
             // Eliminar la malla auxiliar importada para la animación
             tempRes.meshes.forEach(m => m.dispose());
             if (tempRes.skeletons) tempRes.skeletons.forEach(s => s.dispose());
+            if (tempRes.transformNodes) tempRes.transformNodes.forEach(tn => tn.dispose());
 
             updateStatusCard();
         } catch (err) {
@@ -452,14 +592,18 @@
     };
 
     const applyXRayState = () => {
+        // Ocultar/mostrar mallas visuales (manteniendo __root__)
         activeMeshGroup.forEach(m => {
-            if (m.material) {
+            if (m.name !== "__root__") {
                 m.isVisible = !isXRay;
             }
         });
+
+        // Activar/desactivar visualizador del esqueleto articulado
         if (skeletonViewer) {
             skeletonViewer.isEnabled = isXRay;
         }
+
         const btn = document.getElementById("btnSkinning");
         if (isXRay) {
             btn.classList.add("active");
@@ -468,6 +612,22 @@
             btn.classList.remove("active");
             btn.innerHTML = "💀 MOCAP (Rayos X)";
         }
+    };
+
+    // Colapso/Expansión de paneles para pantallas reducidas o enfoque completo
+    const animPanel = document.getElementById("animPanel");
+    const ctrlPanel = document.getElementById("ctrlPanel");
+    const btnToggleAnim = document.getElementById("btnToggleAnim");
+    const btnToggleCtrl = document.getElementById("btnToggleCtrl");
+
+    btnToggleAnim.onclick = () => {
+        animPanel.classList.toggle("collapsed");
+        btnToggleAnim.innerText = animPanel.classList.contains("collapsed") ? "▶" : "◀";
+    };
+
+    btnToggleCtrl.onclick = () => {
+        ctrlPanel.classList.toggle("collapsed");
+        btnToggleCtrl.innerText = ctrlPanel.classList.contains("collapsed") ? "◀" : "▶";
     };
 
     // Eventos UI
@@ -488,10 +648,11 @@
     };
 
     document.getElementById("btnCameraReset").onclick = () => {
-        camera.setTarget(new BABYLON.Vector3(0, 0.8, 0));
+        const charHipY = hipHeights[currentSkinKey] || 0.85;
+        camera.setTarget(new BABYLON.Vector3(0, charHipY * 0.95, 0));
         camera.alpha = Math.PI / 2;
         camera.beta = Math.PI / 2.2;
-        camera.radius = 3.8;
+        camera.radius = 3.6;
     };
 
     document.getElementById("btnRandom").onclick = () => {
