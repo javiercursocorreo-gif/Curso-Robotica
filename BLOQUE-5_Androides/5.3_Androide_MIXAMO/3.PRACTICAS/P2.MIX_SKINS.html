@@ -30,20 +30,20 @@
         /* Barra Superior: Selector de Skin (Cuerpo) */
         #skinBar {
             position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-            z-index: 100; display: flex; gap: 8px; align-items: center;
-            background: var(--panel-bg); padding: 6px 14px;
+            z-index: 100; display: flex; gap: 10px; align-items: center;
+            background: var(--panel-bg); padding: 8px 18px;
             border-radius: 30px; border: 1px solid var(--border);
             backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             white-space: nowrap; max-width: 95vw;
         }
         .bar-label {
-            font-size: 0.72rem; font-weight: 800; letter-spacing: 1px;
-            color: #94a3b8; text-transform: uppercase; margin-right: 4px;
+            font-size: 0.85rem; font-weight: 800; letter-spacing: 1px;
+            color: #94a3b8; text-transform: uppercase; margin-right: 6px;
         }
         .skin-btn {
             background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid var(--border);
-            padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.8rem;
-            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
         }
         .skin-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
         .skin-btn.active {
@@ -54,24 +54,24 @@
         /* Botón genérico de toggle/colapso */
         .toggle-btn {
             background: rgba(255,255,255,0.08); border: 1px solid var(--border);
-            color: #94a3b8; border-radius: 6px; width: 24px; height: 24px;
+            color: #94a3b8; border-radius: 6px; width: 28px; height: 28px;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 0.75rem; transition: all 0.2s ease; flex-shrink: 0;
+            font-size: 0.9rem; transition: all 0.2s ease; flex-shrink: 0;
         }
         .toggle-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
 
         /* Panel Izquierdo: Selector de Animación (MOCAP) */
         #animPanel {
-            position: absolute; top: 68px; left: 14px; width: 220px;
+            position: absolute; top: 68px; left: 14px; width: 260px;
             background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 12px; z-index: 100;
+            border-radius: 12px; padding: 14px; z-index: 100;
             backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; gap: 8px;
+            display: flex; flex-direction: column; gap: 10px;
             max-height: calc(100vh - 84px);
             transition: width 0.25s ease, padding 0.25s ease;
         }
         #animPanel.collapsed {
-            width: 42px; padding: 8px 6px; overflow: hidden;
+            width: 44px; padding: 8px 6px; overflow: hidden;
         }
         #animPanel.collapsed .panel-title,
         #animPanel.collapsed .anim-list {
@@ -83,23 +83,23 @@
 
         .panel-header {
             display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--border); padding-bottom: 6px; gap: 6px;
+            border-bottom: 1px solid var(--border); padding-bottom: 8px; gap: 8px;
         }
         .panel-title {
-            font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;
+            font-size: 0.92rem; font-weight: 800; letter-spacing: 1px;
             text-transform: uppercase; color: var(--accent); white-space: nowrap;
         }
         .anim-list {
-            display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 145px);
+            display: flex; flex-direction: column; gap: 7px; max-height: calc(100vh - 150px);
             overflow-y: auto; padding-right: 2px;
         }
         .anim-list::-webkit-scrollbar { width: 4px; }
         .anim-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         .anim-btn {
             background: rgba(255,255,255,0.05); color: #e2e8f0; border: 1px solid var(--border);
-            padding: 7px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+            padding: 9px 12px; border-radius: 8px; font-size: 0.92rem; font-weight: 600;
             cursor: pointer; transition: all 0.2s ease; text-align: left;
-            display: flex; justify-content: space-between; align-items: center; gap: 4px;
+            display: flex; justify-content: space-between; align-items: center; gap: 6px;
         }
         .anim-btn:hover { background: rgba(255,255,255,0.12); color: #fff; transform: translateX(2px); }
         .anim-btn.active {
@@ -108,24 +108,24 @@
             box-shadow: 0 0 10px rgba(230, 126, 34, 0.3);
         }
         .anim-badge {
-            font-size: 0.62rem; padding: 2px 5px; border-radius: 4px;
-            background: rgba(0,0,0,0.4); color: #94a3b8; font-weight: 700; flex-shrink: 0;
+            font-size: 0.72rem; padding: 2px 6px; border-radius: 4px;
+            background: rgba(0,0,0,0.4); color: #94a3b8; font-weight: 800; flex-shrink: 0;
         }
 
         /* Panel Derecho: Controles y Concepto Pedagógico */
         #ctrlPanel {
-            position: absolute; top: 68px; right: 14px; width: 230px;
+            position: absolute; top: 68px; right: 14px; width: 270px;
             background: var(--panel-bg); border: 1px solid var(--border);
-            border-radius: 12px; padding: 12px; z-index: 100;
+            border-radius: 12px; padding: 14px; z-index: 100;
             backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-            display: flex; flex-direction: column; gap: 10px;
+            display: flex; flex-direction: column; gap: 12px;
             max-height: calc(100vh - 84px); overflow-y: auto;
             transition: width 0.25s ease, padding 0.25s ease;
         }
         #ctrlPanel::-webkit-scrollbar { width: 4px; }
         #ctrlPanel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
         #ctrlPanel.collapsed {
-            width: 42px; padding: 8px 6px; overflow: hidden;
+            width: 44px; padding: 8px 6px; overflow: hidden;
         }
         #ctrlPanel.collapsed .panel-title,
         #ctrlPanel.collapsed .ctrl-content {
@@ -136,54 +136,54 @@
         }
 
         .ctrl-content {
-            display: flex; flex-direction: column; gap: 10px;
+            display: flex; flex-direction: column; gap: 12px;
         }
 
         .info-card {
-            background: rgba(0,0,0,0.35); border-radius: 8px; padding: 8px 10px;
+            background: rgba(0,0,0,0.35); border-radius: 8px; padding: 10px 12px;
             border-left: 3px solid var(--primary);
         }
-        .info-title { font-size: 0.72rem; font-weight: 800; color: var(--primary); margin-bottom: 3px; text-transform: uppercase; }
-        .info-desc { font-size: 0.74rem; color: #cbd5e1; line-height: 1.35; }
+        .info-title { font-size: 0.85rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; text-transform: uppercase; }
+        .info-desc { font-size: 0.88rem; color: #cbd5e1; line-height: 1.45; }
 
-        .ctrl-row { display: flex; gap: 6px; }
+        .ctrl-row { display: flex; gap: 8px; }
         .btn-action {
             flex: 1; background: rgba(255,255,255,0.08); color: white; border: 1px solid var(--border);
-            padding: 8px; border-radius: 6px; font-weight: 700; font-size: 0.76rem;
-            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px;
+            padding: 10px; border-radius: 8px; font-weight: 700; font-size: 0.88rem;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
         }
         .btn-action:hover { background: rgba(255,255,255,0.18); }
         .btn-action.active { background: #0284c7; border-color: #38bdf8; color: white; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
 
         .btn-random {
             background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none;
-            color: white; padding: 10px; border-radius: 8px; font-weight: 800;
-            font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 6px;
+            color: white; padding: 12px; border-radius: 8px; font-weight: 800;
+            font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
         }
         .btn-random:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(236, 72, 153, 0.45); }
 
         .speed-control {
             display: flex; align-items: center; justify-content: space-between;
-            background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px;
+            background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px;
         }
-        .speed-label { font-size: 0.72rem; color: #94a3b8; font-weight: 700; }
-        .speed-btns { display: flex; gap: 4px; }
+        .speed-label { font-size: 0.85rem; color: #94a3b8; font-weight: 700; }
+        .speed-btns { display: flex; gap: 6px; }
         .speed-btn {
             background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-            color: #cbd5e1; font-size: 0.7rem; font-weight: 800; padding: 3px 6px;
+            color: #cbd5e1; font-size: 0.82rem; font-weight: 800; padding: 4px 8px;
             border-radius: 4px; cursor: pointer;
         }
         .speed-btn.active { background: var(--primary); color: #06090e; border-color: var(--primary); }
 
         /* Responsividad para pantallas medianas / iPad */
         @media (max-width: 900px) {
-            #animPanel { width: 195px; left: 8px; top: 60px; }
-            #ctrlPanel { width: 205px; right: 8px; top: 60px; }
+            #animPanel { width: 230px; left: 8px; top: 60px; }
+            #ctrlPanel { width: 240px; right: 8px; top: 60px; }
             .bar-label { display: none; }
-            #skinBar { top: 8px; padding: 4px 10px; gap: 6px; }
-            .skin-btn { font-size: 0.74rem; padding: 5px 10px; }
+            #skinBar { top: 8px; padding: 6px 12px; gap: 6px; }
+            .skin-btn { font-size: 0.85rem; padding: 6px 12px; }
         }
 
         /* Pantalla de Carga */
