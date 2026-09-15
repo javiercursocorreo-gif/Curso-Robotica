@@ -1,0 +1,959 @@
+<!-- MEJORAS TÉCNICAS Y DIDÁCTICAS APLICADAS:
+  - Fix Campana (Recuperación): Normalizado el eje Z tras la caída para evitar desenrollar las vueltas acumuladas.
+  - Fix Alabeo de Estabilización: Reducida la velocidad de giro sobre su propio eje a 1/3 en recuperaciones bruscas (Lerp 0.015 y alabeo 1.3rad/s).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P2.EJEMPLO-REAL (ACROBACIAS MEJORADO)</title>
+    <style>
+        :root {
+            --cyan: #00f2ff;
+            --bg-dark: #0d1117;
+            --bg-panel: #161b22;
+            --border: #30363d;
+            --orange: #FF6F00;
+        }
+
+        body { 
+            margin: 0; padding: 0; overflow: hidden; height: 100vh; 
+            background: #000; font-family: 'Segoe UI', sans-serif; 
+            display: flex; flex-direction: column; user-select: none;
+        }
+
+        /* HEADER */
+        header { 
+            height: 70px; flex-shrink: 0; background: rgba(0,0,0,0.85); 
+            border-bottom: 2px solid var(--cyan); z-index: 100; display: flex; 
+            align-items: center; padding: 0 30px; gap: 20px;
+        }
+        .header-title { font-size: 26px; color: var(--cyan); letter-spacing: 5px; margin: 0; font-weight: bold; }
+        .header-subtitle { font-size: 16px; color: #aaaaaa; }
+
+        /* MAIN LAYOUT */
+        #main-area { flex: 1; display: flex; flex-direction: row; min-height: 0; overflow: hidden; }
+
+        /* CANVAS AREA */
+        #canvas-container { flex: 1; position: relative; min-width: 0; display: flex; }
+        #renderCanvas { flex: 1; width: 100%; height: 100%; display: block; outline: none; }
+
+        /* HUD SUPERIOR Y BRÚJULA */
+        #hud-top {
+            position: absolute; top: 20px; left: 20px; display: flex; gap: 15px; z-index: 10; pointer-events: none;
+        }
+        #hud-speed-alt {
+            background: rgba(13, 26, 51, 0.85); border: 2px solid var(--cyan); border-radius: 8px;
+            padding: 15px 20px; display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); min-width: 160px;
+        }
+        .hud-value { font-size: 24px; font-weight: bold; color: #fff; font-family: monospace; display: flex; justify-content: space-between; gap: 20px; }
+        .hud-label { font-size: 14px; color: var(--cyan); text-transform: uppercase; align-self: flex-end; margin-bottom: 3px; }
+
+        #compass-container {
+            width: 110px; height: 110px; background: rgba(13, 26, 51, 0.85); border: 2px solid var(--cyan);
+            border-radius: 8px; box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); display: flex; justify-content: center; align-items: center;
+        }
+        #compass-svg { width: 95%; height: 95%; }
+
+        #hud-camera-btns { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 10; }
+        .cam-btn { width: 55px; height: 55px; background: rgba(0,0,0,0.8); border: 2px solid #444; border-radius: 8px; font-size: 24px; color: #fff; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; }
+        .cam-btn:hover { border-color: var(--cyan); background: rgba(0,242,255,0.2); }
+
+        #btn-reiniciar { position: absolute; top: 20px; right: 20px; width: 110px; height: 45px; background: #B71C1C; border: 2px solid #ff4444; border-radius: 6px; color: #fff; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        #btn-reiniciar:hover { background: #ff4444; transform: scale(1.05); }
+
+        #crash-screen { position: absolute; inset: 0; z-index: 999; background: rgba(200,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; animation: shake 0.4s infinite; }
+        #crash-screen h1 { color: white; font-size: 60px; text-shadow: 0 0 20px #000; margin: 0; font-weight: bold; }
+        #crash-reason { color: #fff; font-size: 24px; text-shadow: 0 0 10px #000; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; margin-top: 15px;}
+        @keyframes shake { 0% { transform: translate(2px, 1px) rotate(0deg); } 25% { transform: translate(-1px, -2px) rotate(-1deg); } 50% { transform: translate(-3px, 0px) rotate(1deg); } 75% { transform: translate(3px, 2px) rotate(0deg); } 100% { transform: translate(1px, -1px) rotate(-1deg); } }
+
+        /* PANEL DERECHO */
+        #right-panel { width: 300px; flex-shrink: 0; background: var(--bg-dark); border-left: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; gap: 0; padding: 15px; box-sizing: border-box; }
+        #maneuver-indicator { background: var(--bg-panel); border-radius: 10px; padding: 16px; margin-bottom: 20px; border-left: 5px solid var(--cyan); transition: opacity 0.3s; }
+        #maneuver-title { font-size: 20px; color: var(--cyan); font-weight: bold; margin-bottom: 8px; display:flex; align-items:center; gap:10px;}
+        #maneuver-desc { font-size: 14px; color: #8b949e; line-height: 1.4; }
+        .section-title { font-size: 14px; color: var(--cyan); letter-spacing: 3px; font-weight: bold; margin: 0 0 12px; }
+        #servo-panel { display: flex; flex-direction: column; gap: 8px; margin-bottom: 25px; }
+        .servo-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg-panel); padding: 8px 12px; border-radius: 6px; }
+        .servo-name { font-size: 13px; color: #ccc; width: 45px; font-weight: 500; }
+        .servo-bar-container { flex: 1; height: 8px; background: #222; margin: 0 12px; position: relative; border-radius: 4px; overflow: hidden; }
+        .servo-bar { position: absolute; height: 100%; top: 0; transition: all 0.1s; border-radius: 4px; }
+        .servo-val { font-size: 13px; width: 35px; text-align: right; font-variant-numeric: tabular-nums; font-weight: bold;}
+        #explanation-box { border-left: 4px solid var(--orange); background: var(--bg-panel); padding: 15px; border-radius: 8px; font-size: 15px; color: #eee; line-height: 1.5; min-height: 80px; }
+
+        /* CONTROLES INFERIORES */
+        #controls-panel { height: 115px; flex-shrink: 0; background: rgba(0, 0, 0, 0.92); border-top: 2px solid #1a1a1a; overflow-x: auto; overflow-y: hidden; display: flex; align-items: center; gap: 6px; padding: 0 12px; box-sizing: border-box; }
+        #controls-panel::-webkit-scrollbar { height: 10px; } 
+        #controls-panel::-webkit-scrollbar-track { background: #111; } 
+        #controls-panel::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; } 
+        .control-group { display: flex; gap: 6px; height: 100%; align-items: center; position: relative; padding-top: 15px; }
+        .group-label { position: absolute; top: 4px; left: 4px; font-size: 10px; color: #888; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        .divider { width: 2px; height: 70%; background: #333; margin: 0 8px; flex-shrink: 0; }
+        .btn { flex-shrink: 0; width: 92px; height: 85px; border-radius: 8px; border: 1px solid #333; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: all 0.15s; box-sizing: border-box; padding: 2px; }
+        .btn:hover { filter: brightness(1.2); }
+        .btn.active { border: 2px solid var(--cyan); box-shadow: 0 0 8px rgba(0,242,255,0.3); filter: brightness(1.3); }
+        .btn.active.danger { border-color: #ff4444; box-shadow: 0 0 8px rgba(255,68,68,0.4); }
+        .btn.active.acro { border-color: #ff00aa; box-shadow: 0 0 8px rgba(255,0,170,0.5); background: rgba(255,0,170,0.15); }
+        
+        .btn-g1 { background: #0d1a33; } .btn-g2 { background: #1a0d33; } .btn-g3 { background: #330d0d; } .btn-g4 { background: #26001a; }
+        .btn-icon { font-size: 22px; } 
+        .btn-name { font-size: 10px; font-weight: bold; color: #ddd; text-align: center; line-height: 1.1; } 
+        .btn-key { font-size: 10px; color: var(--cyan); letter-spacing: 1px; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">P2. EJEMPLO REAL</div>
+        <div class="header-subtitle">CLASE 3.6 — FÍSICAS VECTORIALES Y ACROBACIAS</div>
+    </header>
+
+    <div id="main-area">
+        <div id="canvas-container">
+            <canvas id="renderCanvas"></canvas>
+            
+            <div id="hud-top">
+                <div id="hud-speed-alt">
+                    <div class="hud-value"><span class="hud-label">Rumbo</span> <span id="hud-heading">000°</span></div>
+                    <div class="hud-value"><span class="hud-label">V.Aire</span> <span id="hud-speed">0 km/h</span></div>
+                    <div class="hud-value"><span class="hud-label">Altitud</span> <span id="hud-alt">0 m</span></div>
+                </div>
+                <div id="compass-container">
+                    <svg id="compass-svg" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" fill="rgba(13,26,51,0.8)" stroke="var(--cyan)" stroke-width="2"/>
+                        <g id="compass-rose">
+                            <text x="50" y="20" fill="var(--cyan)" font-size="14" font-weight="bold" text-anchor="middle">N</text>
+                            <text x="50" y="90" fill="#fff" font-size="12" text-anchor="middle">S</text>
+                            <text x="88" y="54" fill="#fff" font-size="12" text-anchor="middle">E</text>
+                            <text x="12" y="54" fill="#fff" font-size="12" text-anchor="middle">W</text>
+                            <line x1="50" y1="5" x2="50" y2="10" stroke="var(--cyan)" stroke-width="2"/>
+                            <line x1="50" y1="90" x2="50" y2="95" stroke="#fff" stroke-width="2"/>
+                            <line x1="5" y1="50" x2="10" y2="50" stroke="#fff" stroke-width="2"/>
+                            <line x1="90" y1="50" x2="95" y2="50" stroke="#fff" stroke-width="2"/>
+                        </g>
+                        <polygon points="50,22 55,50 45,50" fill="var(--orange)"/>
+                        <polygon points="50,78 55,50 45,50" fill="#fff"/>
+                        <circle cx="50" cy="50" r="4" fill="#fff"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div id="hud-camera-btns">
+                <button class="cam-btn" onclick="setCamView('trasera')" title="Vista Trasera">🔙</button>
+                <button class="cam-btn" onclick="setCamView('lateral')" title="Vista Lateral">👁</button>
+                <button class="cam-btn" onclick="setCamView('inferior')" title="Vista Inferior">⬇</button>
+            </div>
+
+            <button id="btn-reiniciar" onclick="resetSim()">🔄 REINICIAR</button>
+
+            <div id="crash-screen">
+                <h1>💥 AVIÓN ESTRELLADO 💥</h1>
+                <p id="crash-reason">El avión ha colisionado</p>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div id="maneuver-indicator">
+                <div id="maneuver-title"><span>✈️</span> ESTABLE</div>
+                <div id="maneuver-desc">Crucero nivelado.</div>
+            </div>
+            <div class="section-title">SERVOS FÍSICOS</div>
+            <div id="servo-panel"></div>
+            <div class="section-title">EXPLICACIÓN DE LA MANIOBRA</div>
+            <div id="explanation-box">Todos los servos a 0°. El avión vuela solo gracias a su forma. Los servos descansan.</div>
+        </div>
+    </div>
+
+    <!-- BOTONERA INFERIOR TIPO COCKPIT -->
+    <div id="controls-panel"></div>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <script>
+        let engine, scene, camera, planeRoot;
+        let controlSurfaces = {}, propRoot, propBlades = [], propDiscoMat = null;
+        let servosInfo = {};
+        let clouds = [], ilsRings = [], strobes = [];
+        let pipeline, glow, smokeSystem;
+
+        let targetAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+        let currentAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+        let targetPitch = 0, targetBank = 0, targetYawRate = 0, targetVSpeed = 0, targetSpeed = 0;
+        let currentSpeed = 0, currentRPM = 0, targetRPM = 0;
+        
+        let turbulenceActive = false, turbulenceStrength = 0;
+        let spiralMode = false, spiralIntensity = 0;
+        let activeManeuver = 'arranque', isCrashed = false;
+        let prevPlaneY = 1.54;
+        let camTransition = { active: false, t: 0, sA: 0, sB: 0, sR: 0, tA: 0, tB: 0, tR: 0 };
+        let manualInput = 0; 
+
+        // Variables de Acrobacias y Rebote
+        let acroState = 0;
+        let acroTimer = 0;
+        let currentBounceOffset = 0;
+        let bounceTimer = 0;
+
+        const maniobrasInfo = {
+            'arranque':    {e:'🔑', n:'ARRANQUE',     c:'btn-g1', k:'1', desc:"Motor en ralentí. Servos a 0°. Espera en cabecera de pista.", grp:'normal'},
+            'despegue':    {e:'🛫', n:'DESPEGUE',     c:'btn-g1', k:'2', desc:"El avión acelera. Al llegar a 110 km/h los elevadores a -25° levantan el morro.", grp:'normal'},
+            'subir':       {e:'📈', n:'SUBIR',        c:'btn-g1', k:'3', desc:"Elevadores -15°. Cabeceo suave hacia arriba.", grp:'normal'},
+            'bajar':       {e:'📉', n:'BAJAR',        c:'btn-g1', k:'4', desc:"Elevadores +15°. El morro desciende para perder altura.", grp:'normal'},
+            'giroIzq':     {e:'↩️', n:'GIRO IZQ.',    c:'btn-g1', k:'5', desc:"Alerón izq -25°, der +25°. Alabeo a la izquierda y timón -20°.", grp:'normal'},
+            'estable':     {e:'✈️', n:'ESTABLE',      c:'btn-g1', k:'6', desc:"Vuelo nivelado manteniendo el rumbo actual.", grp:'normal'},
+            'giroDer':     {e:'↪️', n:'GIRO DER.',    c:'btn-g1', k:'7', desc:"Alerón izq +25°, der -25°. Alabeo a la derecha y timón +20°.", grp:'normal'},
+            'aproxAuto':   {e:'🎯', n:'APROX AUTO',   c:'btn-g1', k:'8', desc:"Descenso automático en la senda ILS.", grp:'normal'},
+            'aproxManual': {e:'🕹️', n:'APROX MAN',    c:'btn-g1', k:'9', desc:"Usa las teclas (Izquierda/Derecha) para alinear el avión manualmente.", grp:'normal'},
+            'aterrAuto':   {e:'🛬', n:'ATERR AUTO',   c:'btn-g1', k:'0', desc:"Flare. Elevadores -15° levantan el morro para tocar pista suavemente.", grp:'normal'},
+            'aterrManual': {e:'⚠️', n:'ATERR MAN',    c:'btn-g1', k:'Q', desc:"Flare manual. Cuidado al tocar pista.", grp:'normal'},
+            'frenada':     {e:'🛑', n:'FRENADA',      c:'btn-g1', k:'W', desc:"Alerones -35° (Spoilerons) frenan. Elevadores -35° aseguran agarre.", grp:'normal'},
+            
+            'vientoDer':   {e:'💨', n:'VIENTO DER',  c:'btn-g2', k:'E', desc:"Mandos cruzados: inclina al viento (AlL +10, AlR -10). Timón compensa (-10).", grp:'adv'},
+            'vientoIzq':   {e:'💨', n:'VIENTO IZQ',  c:'btn-g2', k:'R', desc:"Mandos cruzados: inclina al viento (AlL -10, AlR +10). Timón compensa (+10).", grp:'adv'},
+            'turbSuave':   {e:'〰️', n:'TURB SUAVE', c:'btn-g2', k:'T', desc:"Correcciones rápidas oscilantes (±5°) en alas y elevadores.", grp:'adv'},
+            'turbFuerte':  {e:'⚡', n:'TURB FUERTE', c:'btn-g2', k:'Y', desc:"Correcciones severas oscilantes (±15°). Peligro de desestabilización.", grp:'adv'},
+            
+            'looping':     {e:'🔄', n:'LOOPING',      c:'btn-g4', k:'Z', desc:"Bucle vertical completo. Elevadores a tope obligan al avión a trazar 360°.", grp:'acro'},
+            'rasante':     {e:'🛩️', n:'V. RASANTE',   c:'btn-g4', k:'X', desc:"Picado, vuelo a ras de suelo a 400 km/h con alabeos laterales y trepada vertical.", grp:'acro'},
+            'invertido':   {e:'🙃', n:'INVERTIDO',    c:'btn-g4', k:'C', desc:"Vuelo continuo del revés. Elevadores aplicados inversamente para no caer.", grp:'acro'},
+            'tonneau':     {e:'🌪️', n:'TONNEAU',      c:'btn-g4', k:'V', desc:"Tonel horizontal. Máximo alerón para rotar 360° en avance.", grp:'acro'},
+            'campana':     {e:'🔔', n:'CAMPANA',      c:'btn-g4', k:'B', desc:"Trepada vertical, fallo de sustentación y caída a plomo revertida.", grp:'acro'},
+            'immelmann':   {e:'⤴️', n:'IMMELMANN',    c:'btn-g4', k:'N', desc:"Medio looping para ganar altura, recuperando con medio tonel.", grp:'acro'},
+            'splits':      {e:'⤵️', n:'SPLIT S',      c:'btn-g4', k:'M', desc:"Medio tonel (boca abajo) y medio looping hacia abajo para descender rápido.", grp:'acro'},
+            
+            'espiral':     {e:'🌀', n:'ESPIRAL',      c:'btn-g3', k:'D', desc:"⚠️ PÉRDIDA DE CONTROL. Caída destructiva. Humo visible.", grp:'danger'},
+            'remontar':    {e:'⬆️', n:'REMONTAR',     c:'btn-g3', k:'F', desc:"✈️ Lucha por recuperar control. Motores a máxima y elevadores al 100%.", grp:'danger'}
+        };
+
+        function createBtnHTML(id, isDanger) {
+            const info = maniobrasInfo[id];
+            return `<div class="btn ${info.c}" id="btn-${id}" onclick="setManiobra('${id}')">
+                        <div class="btn-icon">${info.e}</div>
+                        <div class="btn-name">${info.n}</div>
+                        <div class="btn-key">(${info.k})</div>
+                    </div>`;
+        }
+
+        function buildUI() {
+            const panel = document.getElementById('controls-panel');
+            panel.innerHTML = `
+                <div class="control-group">
+                    <div class="group-label">VUELO NORMAL</div>
+                    ${createBtnHTML('arranque')}
+                    ${createBtnHTML('despegue')}
+                    ${createBtnHTML('subir')}
+                    ${createBtnHTML('bajar')}
+                    ${createBtnHTML('giroIzq')}
+                    ${createBtnHTML('estable')}
+                    ${createBtnHTML('giroDer')}
+                    ${createBtnHTML('aproxAuto')}
+                    ${createBtnHTML('aproxManual')}
+                    ${createBtnHTML('aterrAuto')}
+                    ${createBtnHTML('aterrManual')}
+                    ${createBtnHTML('frenada')}
+                </div>
+                <div class="divider"></div>
+                <div class="control-group">
+                    <div class="group-label">ADVERSAS</div>
+                    ${createBtnHTML('vientoDer')}
+                    ${createBtnHTML('vientoIzq')}
+                    ${createBtnHTML('turbSuave')}
+                    ${createBtnHTML('turbFuerte')}
+                </div>
+                <div class="divider"></div>
+                <div class="control-group">
+                    <div class="group-label" style="color:#ff00aa;">ACROBACIAS</div>
+                    ${createBtnHTML('looping')}
+                    ${createBtnHTML('rasante')}
+                    ${createBtnHTML('invertido')}
+                    ${createBtnHTML('tonneau')}
+                    ${createBtnHTML('campana')}
+                    ${createBtnHTML('immelmann')}
+                    ${createBtnHTML('splits')}
+                </div>
+                <div class="divider"></div>
+                <div class="control-group">
+                    <div class="group-label" style="color:#ff4444;">EMERGENCIA</div>
+                    ${createBtnHTML('espiral', true)}
+                    ${createBtnHTML('remontar', true)}
+                </div>
+            `;
+
+            const servosUI = [
+                { id:'srv-alL', label:'A.Izq' }, { id:'srv-alR', label:'A.Der' },
+                { id:'srv-elL', label:'E.Izq' }, { id:'srv-elR', label:'E.Der' },
+                { id:'srv-tim', label:'Timón' }
+            ];
+            const p = document.getElementById('servo-panel');
+            servosUI.forEach(s => {
+                p.innerHTML += `
+                <div class="servo-row" id="${s.id}">
+                    <div class="servo-name">${s.label}</div>
+                    <div class="servo-bar-container"><div class="servo-bar"></div></div>
+                    <div class="servo-val">0°</div>
+                </div>`;
+            });
+        }
+
+        function updateServoPanelUI() {
+            const map = [
+                { id:'srv-alL', val: currentAngles.aleronIzq },
+                { id:'srv-alR', val: currentAngles.aleronDer },
+                { id:'srv-elL', val: currentAngles.elevIzq },
+                { id:'srv-elR', val: currentAngles.elevDer },
+                { id:'srv-tim', val: currentAngles.timon }
+            ];
+            map.forEach(s => {
+                const row = document.getElementById(s.id); 
+                if(!row) return;
+                const bar = row.querySelector('.servo-bar'), valTxt = row.querySelector('.servo-val');
+                const v = Math.round(s.val);
+                valTxt.innerText = (v > 0 ? '+' : '') + v + '°'; 
+                valTxt.style.color = v === 0 ? '#555' : 'var(--orange)';
+                const w = Math.min(1, Math.abs(v)/45) * 50; 
+                bar.style.width = w + '%'; 
+                bar.style.left = (v < 0 ? 50 - w : 50) + '%';
+                bar.style.backgroundColor = v === 0 ? '#555' : 'var(--orange)';
+            });
+        }
+
+        async function initEngine() {
+            buildUI();
+            const canvas = document.getElementById('renderCanvas');
+            try {
+                if (await BABYLON.WebGPUEngine.IsSupportedAsync) {
+                    engine = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+                    await engine.initAsync();
+                } else throw new Error();
+            } catch(e) {
+                engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+            }
+            createScene();
+            
+            engine.runRenderLoop(() => {
+                try { 
+                    updateFlightPhysics();
+                    if (scene) scene.render(); 
+                } catch(err) { console.error("Render error:", err); }
+            });
+            window.addEventListener('resize', () => engine.resize());
+
+            document.addEventListener('keydown', e => {
+                if(isCrashed) return;
+                const mapKey = {
+                    '1':'arranque', '2':'despegue', '3':'subir', '4':'bajar',
+                    '5':'giroIzq', '6':'estable', '7':'giroDer', '8':'aproxAuto', '9':'aproxManual',
+                    '0':'aterrAuto', 'q':'aterrManual', 'w':'frenada',
+                    'e':'vientoDer', 'r':'vientoIzq', 't':'turbSuave', 'y':'turbFuerte',
+                    'z':'looping', 'x':'rasante', 'c':'invertido', 'v':'tonneau', 'b':'campana', 'n':'immelmann', 'm':'splits',
+                    'd':'espiral', 'f':'remontar'
+                };
+                const id = mapKey[e.key.toLowerCase()];
+                if(id) setManiobra(id);
+
+                if(e.key === 'ArrowLeft') manualInput = -1;
+                if(e.key === 'ArrowRight') manualInput = 1;
+            });
+
+            document.addEventListener('keyup', e => {
+                if(e.key === 'ArrowLeft' && manualInput === -1) manualInput = 0;
+                if(e.key === 'ArrowRight' && manualInput === 1) manualInput = 0;
+            });
+        }
+        window.onload = () => initEngine();
+
+        function createPBR(name, hex, r, m) {
+            const mat = new BABYLON.PBRMaterial(name, scene);
+            mat.albedoColor = BABYLON.Color3.FromHexString(hex);
+            mat.roughness = r; mat.metallic = m;
+            return mat;
+        }
+
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = BABYLON.Color4.FromHexString("#3A7BD5FF");
+            const canvas = engine.getRenderingCanvas();
+
+            scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+            scene.fogStart = 4000; scene.fogEnd = 25000; scene.fogColor = BABYLON.Color3.FromHexString("#3A7BD5");
+
+            const env = scene.createDefaultEnvironment({ createSkybox: true, skyboxSize: 30000, enableGroundMirror: false, groundYBias: 0.01 });
+            if (env && env.skybox) env.skybox.applyFog = false;
+
+            scene.environmentTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("https://playground.babylonjs.com/textures/environment.env", scene);
+            scene.environmentIntensity = 0.6;
+
+            const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemi.intensity = 0.6; hemi.groundColor = new BABYLON.Color3(0.2, 0.3, 0.2);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -1.5, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 30, 20); dirLight.intensity = 2.5;
+
+            const shadowGen = new BABYLON.ShadowGenerator(2048, dirLight);
+            shadowGen.useContactHardeningShadow = true; shadowGen.contactHardeningLightSizeUVRatio = 0.05;
+
+            buildEnvironment(shadowGen);
+            buildPlane(shadowGen);
+            buildILS();
+
+            camera = new BABYLON.ArcRotateCamera("chase", -Math.PI/2 + 0.3, Math.PI/3.5, 30, BABYLON.Vector3.Zero(), scene);
+            camera.lockedTarget = planeRoot; 
+            camera.minZ = 0.5; camera.maxZ = 50000;
+            camera.lowerRadiusLimit = 8; camera.upperRadiusLimit = 60;
+            camera.lowerBetaLimit = 0.1; camera.upperBetaLimit = Math.PI/2;
+            camera.attachControl(canvas, true);
+
+            pipeline = new BABYLON.DefaultRenderingPipeline("pipeline", true, scene, [camera]);
+            pipeline.msaaSamples = 4; pipeline.bloomEnabled = true; pipeline.bloomThreshold = 0.9; pipeline.bloomWeight = 0.25;
+            pipeline.vignetteEnabled = true; pipeline.vignetteWeight = 1.0; pipeline.fxaaEnabled = true;
+            pipeline.imageProcessingEnabled = true; pipeline.imageProcessing.toneMappingEnabled = true;
+            pipeline.imageProcessing.toneMappingType = BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+            pipeline.imageProcessing.exposure = 1.2; pipeline.imageProcessing.contrast = 1.1;
+            pipeline.sharpenEnabled = true; pipeline.sharpen.edgeAmount = 0.3; pipeline.sharpen.colorAmount = 1.0;
+            pipeline.chromaticAberrationEnabled = true; pipeline.chromaticAberration.aberrationAmount = 0;
+
+            glow = new BABYLON.GlowLayer("glow", scene);
+            glow.intensity = 1.0;
+
+            const cloudMat = createPBR("cloudMat", "#FFFFFF", 0.9, 0.0);
+            cloudMat.alpha = 0.8; cloudMat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            for(let i=0; i<350; i++) {
+                const s = 30 + Math.random()*50;
+                const c = BABYLON.MeshBuilder.CreateSphere("c", {diameterX: s*1.5, diameterY: s*0.6, diameterZ: s}, scene);
+                c.position.set((Math.random()-0.5)*8000, 200 + Math.random()*800, (Math.random()-0.5)*15000);
+                c.material = cloudMat; clouds.push(c);
+            }
+
+            setManiobra('arranque');
+        }
+
+        function buildEnvironment(shadowGen) {
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10000, height:10000, subdivisions:250}, scene);
+            const positions = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+            for (let i=0; i<positions.length; i+=3) {
+                const x=positions[i], z=positions[i+2];
+                let y = (Math.sin(x*0.005)*Math.cos(z*0.005)*25) + (Math.sin(x*0.02)*Math.sin(z*0.02)*10) + (Math.random()*1.5);
+                const dist = Math.abs(x);
+                if (dist<200 && z>-2500 && z<4500) y = 0.0;
+                else if (dist<350 && z>-2500 && z<4500) y = BABYLON.Scalar.Lerp(0.0, y, (dist-200)/150);
+                positions[i+1] = y;
+            }
+            ground.setVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+            ground.createNormals(true);
+            ground.material = createPBR("gMat","#2E6B2E", 0.95, 0.0);
+            ground.receiveShadows = true;
+
+            const runway = BABYLON.MeshBuilder.CreateBox("rwy",{width:20, height:0.02, depth:6000}, scene);
+            runway.position = new BABYLON.Vector3(0, 0.50, 1000);
+            runway.material = createPBR("rwyM","#37474F", 0.9, 0.0);
+            runway.receiveShadows = true;
+
+            const lMat = createPBR("lMat", "#FFFFFF", 0.9, 0.0);
+            for (let z = -1997; z < 3900; z += 16) {
+                const l = BABYLON.MeshBuilder.CreatePlane("l",{width:0.8,height:6},scene);
+                l.rotation.x = Math.PI/2; l.position = new BABYLON.Vector3(0,0.52,z); l.material = lMat;
+            }
+
+            const strobeMat = new BABYLON.StandardMaterial("strobeMat", scene);
+            strobeMat.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1); strobeMat.disableLighting = true;
+            for (let x = -15; x <= 15; x += 3) {
+                const light = BABYLON.MeshBuilder.CreateSphere("strobe", {diameter: 0.6}, scene);
+                light.position = new BABYLON.Vector3(x, 0.52, -2000); light.material = strobeMat;
+                strobes.push(light);
+            }
+        }
+
+        function buildILS() {
+            const ilsMat = new BABYLON.StandardMaterial("ilsMat", scene);
+            ilsMat.emissiveColor = new BABYLON.Color3(0, 1, 1); ilsMat.alpha = 0.8; ilsMat.disableLighting = true; ilsMat.backFaceCulling = false;
+            for (let i = 0; i < 25; i++) {
+                const t = i / 24;
+                const ringS = BABYLON.MeshBuilder.CreateTorus("ilsS_"+i, {diameter: 250-(t*120), thickness: 6.0, tessellation: 32}, scene);
+                ringS.position.set(0, BABYLON.Scalar.Lerp(120,5,t), BABYLON.Scalar.Lerp(-3500,-2000,t));
+                ringS.rotation.x = Math.PI/2; ringS.material = ilsMat; ringS.isVisible = false;
+                ilsRings.push(ringS);
+            }
+        }
+
+        function buildPlane(shadowGen) {
+            planeRoot = new BABYLON.TransformNode("planeRoot", scene);
+            planeRoot.position = new BABYLON.Vector3(0, 1.54, -2000);
+
+            const matWhite = createPBR("matW", "#F0F0F0", 0.2, 0.1); matWhite.clearCoat.isEnabled = true; matWhite.clearCoat.intensity = 1.0;
+            const matBlue   = createPBR("matB", "#1565C0", 0.3, 0.1); const matRed    = createPBR("matR", "#C62828", 0.3, 0.1);
+            const matWing   = createPBR("matWing", "#E8EAF6", 0.3, 0.1); const matControl= createPBR("matControl", "#8B0000", 0.3, 0.1);
+            const matDark   = createPBR("matD", "#212121", 0.8, 0.1); const matGear   = createPBR("matG", "#455A64", 0.6, 0.8);
+            const matGlass  = createPBR("matGlass","#90CAF9", 0.1, 0.0); matGlass.alpha = 0.55; matGlass.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+
+            const fuseGrp = new BABYLON.TransformNode("p_fuse", scene); fuseGrp.parent = planeRoot;
+            const b1 = BABYLON.MeshBuilder.CreateCylinder("b1", {height:1.2, diameterTop:1.0, diameterBottom:1.2, tessellation:24}, scene); b1.position.z=1.4; b1.position.y=0.1; b1.rotation.x=Math.PI/2;
+            const b2 = BABYLON.MeshBuilder.CreateCylinder("b2", {height:1.6, diameterTop:1.2, diameterBottom:1.2, tessellation:24}, scene); b2.position.z=0; b2.position.y=0.1; b2.rotation.x=Math.PI/2;
+            const b3 = BABYLON.MeshBuilder.CreateCylinder("b3", {height:1.6, diameterTop:1.2, diameterBottom:0.8, tessellation:24}, scene); b3.position.z=-1.6; b3.position.y=0.1; b3.rotation.x=Math.PI/2;
+            const b4 = BABYLON.MeshBuilder.CreateCylinder("b4", {height:1.4, diameterTop:0.8, diameterBottom:0.4, tessellation:24}, scene); b4.position.z=-3.1; b4.position.y=0.15; b4.rotation.x=Math.PI/2;
+            const b5 = BABYLON.MeshBuilder.CreateCylinder("b5", {height:1.0, diameterTop:0.4, diameterBottom:0.1, tessellation:24}, scene); b5.position.z=-4.3; b5.position.y=0.2; b5.rotation.x=Math.PI/2;
+            [b1,b2,b3,b4,b5].forEach(b => { b.parent=fuseGrp; b.material=matWhite; shadowGen.addShadowCaster(b); b.receiveShadows=true;});
+            const s1L = BABYLON.MeshBuilder.CreateCylinder("s1L",{height:4.5,diameter:0.1},scene); s1L.rotation.x=Math.PI/2; s1L.position=new BABYLON.Vector3(-0.55,0.1,-0.5); s1L.parent=fuseGrp; s1L.material=matBlue;
+            const s1R = s1L.clone("s1R"); s1R.position.x=0.55;
+            const s2L = BABYLON.MeshBuilder.CreateCylinder("s2L",{height:4.5,diameter:0.06},scene); s2L.rotation.x=Math.PI/2; s2L.position=new BABYLON.Vector3(-0.52,0.25,-0.5); s2L.parent=fuseGrp; s2L.material=matRed;
+            const s2R = s2L.clone("s2R"); s2R.position.x=0.52;
+            const createLeg = (x, y, z, r, length) => {
+                const leg = BABYLON.MeshBuilder.CreateCylinder("leg",{diameter:0.15,height:length},scene); leg.position=new BABYLON.Vector3(x,y,z); leg.parent=fuseGrp; leg.material=matGear; shadowGen.addShadowCaster(leg);
+                const w = BABYLON.MeshBuilder.CreateCylinder("wh",{diameter:r*2,height:0.3,tessellation:24},scene); w.rotation.z=Math.PI/2; w.position=new BABYLON.Vector3(x,y-length/2,z); w.parent=fuseGrp; w.material=matDark; shadowGen.addShadowCaster(w);
+            };
+            createLeg(0,-0.6,1.2,0.35,1.0); createLeg(-0.9,-0.6,0.2,0.45,1.0); createLeg(0.9,-0.6,0.2,0.45,1.0);
+
+            const alaIGrp = new BABYLON.TransformNode("p_alai",scene); alaIGrp.parent=planeRoot; alaIGrp.position=new BABYLON.Vector3(-0.6,0.3,0); alaIGrp.rotation.z=-5*Math.PI/180;
+            const wL = BABYLON.MeshBuilder.CreateCapsule("wL",{height:4.2,radius:0.8,tessellation:16},scene); wL.rotation.z=Math.PI/2; wL.scaling=new BABYLON.Vector3(0.08,1,1); wL.position.x=-2.0; wL.parent=alaIGrp; wL.material=matWing; shadowGen.addShadowCaster(wL);
+            const alerPivotI=new BABYLON.TransformNode("alerPivotI",scene); alerPivotI.parent=alaIGrp; alerPivotI.position=new BABYLON.Vector3(-2.5,0,-0.8);
+            const aleronI=BABYLON.MeshBuilder.CreateBox("alI",{width:0.8,height:1.9,depth:0.8},scene); aleronI.rotation.z=Math.PI/2; aleronI.scaling=new BABYLON.Vector3(0.3,1,1); aleronI.position.z=-0.2; aleronI.parent=alerPivotI; aleronI.material=matControl; shadowGen.addShadowCaster(aleronI); controlSurfaces.aleronIzq=alerPivotI;
+
+            const alaDGrp=new BABYLON.TransformNode("p_alad",scene); alaDGrp.parent=planeRoot; alaDGrp.position=new BABYLON.Vector3(0.6,0.3,0); alaDGrp.rotation.z=5*Math.PI/180;
+            const wR=BABYLON.MeshBuilder.CreateCapsule("wR",{height:4.2,radius:0.8,tessellation:16},scene); wR.rotation.z=Math.PI/2; wR.scaling=new BABYLON.Vector3(0.08,1,1); wR.position.x=2.0; wR.parent=alaDGrp; wR.material=matWing; shadowGen.addShadowCaster(wR);
+            const alerPivotD=new BABYLON.TransformNode("alerPivotD",scene); alerPivotD.parent=alaDGrp; alerPivotD.position=new BABYLON.Vector3(2.5,0,-0.8);
+            const aleronD=BABYLON.MeshBuilder.CreateBox("alD",{width:0.8,height:1.9,depth:0.8},scene); aleronD.rotation.z=Math.PI/2; aleronD.scaling=new BABYLON.Vector3(0.3,1,1); aleronD.position.z=-0.2; aleronD.parent=alerPivotD; aleronD.material=matControl; shadowGen.addShadowCaster(aleronD); controlSurfaces.aleronDer=alerPivotD;
+
+            const cHGrp=new BABYLON.TransformNode("p_colah",scene); cHGrp.parent=planeRoot; cHGrp.position=new BABYLON.Vector3(0,0.45,-4.2);
+            const chBox=BABYLON.MeshBuilder.CreateCapsule("ch",{height:3.4,radius:0.4,tessellation:16},scene); chBox.rotation.z=Math.PI/2; chBox.scaling=new BABYLON.Vector3(0.1,1,1); chBox.parent=cHGrp; chBox.material=matWing; shadowGen.addShadowCaster(chBox);
+            const elevPivotI=new BABYLON.TransformNode("elevPivotI",scene); elevPivotI.parent=cHGrp; elevPivotI.position=new BABYLON.Vector3(-0.8,0,-0.4);
+            const elI=BABYLON.MeshBuilder.CreateBox("elI",{width:0.7,height:1.4,depth:0.7},scene); elI.rotation.z=Math.PI/2; elI.scaling=new BABYLON.Vector3(0.2,1,1); elI.position.z=-0.25; elI.parent=elevPivotI; elI.material=matControl; shadowGen.addShadowCaster(elI); controlSurfaces.elevIzq=elevPivotI;
+            const elevPivotD=new BABYLON.TransformNode("elevPivotD",scene); elevPivotD.parent=cHGrp; elevPivotD.position=new BABYLON.Vector3(0.8,0,-0.4);
+            const elD=BABYLON.MeshBuilder.CreateBox("elD",{width:0.7,height:1.4,depth:0.7},scene); elD.rotation.z=Math.PI/2; elD.scaling=new BABYLON.Vector3(0.2,1,1); elD.position.z=-0.25; elD.parent=elevPivotD; elD.material=matControl; shadowGen.addShadowCaster(elD); controlSurfaces.elevDer=elevPivotD;
+
+            const cVGrp=new BABYLON.TransformNode("p_colav",scene); cVGrp.parent=planeRoot; cVGrp.position=new BABYLON.Vector3(0,0.5,-4.0);
+            const cvBox=BABYLON.MeshBuilder.CreateCapsule("cv",{height:1.6,radius:0.5,tessellation:16},scene); cvBox.scaling=new BABYLON.Vector3(0.1,1,1); cvBox.position.y=0.7; cvBox.position.z=-0.2; cvBox.parent=cVGrp; cvBox.material=matWing; shadowGen.addShadowCaster(cvBox);
+            const timonPivot=new BABYLON.TransformNode("timonPivot",scene); timonPivot.parent=cVGrp; timonPivot.position=new BABYLON.Vector3(0,0.7,-0.7);
+            const tBox=BABYLON.MeshBuilder.CreateBox("tB",{width:0.8,height:1.3,depth:0.8},scene); tBox.scaling=new BABYLON.Vector3(0.2,1,1); tBox.position.z=-0.3; tBox.parent=timonPivot; tBox.material=matControl; shadowGen.addShadowCaster(tBox); controlSurfaces.timon=timonPivot;
+
+            const motGrp=new BABYLON.TransformNode("p_motor",scene); motGrp.parent=planeRoot; motGrp.position=new BABYLON.Vector3(0,0.1,2.0);
+            const motor=BABYLON.MeshBuilder.CreateCylinder("mot",{diameter:1.1,height:0.8},scene); motor.rotation.x=Math.PI/2; motor.parent=motGrp; motor.material=matGear; shadowGen.addShadowCaster(motor);
+            propRoot=new BABYLON.TransformNode("propRoot",scene); propRoot.parent=motGrp; propRoot.position.z=0.45;
+            const propBuz=BABYLON.MeshBuilder.CreateCylinder("buz",{diameter:0.3,height:0.2},scene); propBuz.rotation.x=Math.PI/2; propBuz.parent=propRoot; propBuz.material=matWhite;
+            const prop1=BABYLON.MeshBuilder.CreateCapsule("pr1",{height:3.4,radius:0.1,tessellation:12},scene); prop1.scaling=new BABYLON.Vector3(1,1,0.2); prop1.parent=propRoot; prop1.material=matDark;
+            const prop2=BABYLON.MeshBuilder.CreateCapsule("pr2",{height:3.4,radius:0.1,tessellation:12},scene); prop2.rotation.z=Math.PI/2; prop2.scaling=new BABYLON.Vector3(1,1,0.2); prop2.parent=propRoot; prop2.material=matDark;
+            const propDisco=BABYLON.MeshBuilder.CreateCylinder("propDisco",{diameter:3.6,height:0.04,tessellation:48},scene); propDisco.parent=propRoot; propDisco.rotation.x=Math.PI/2;
+            const matDisco=new BABYLON.PBRMaterial("matDisco",scene); matDisco.albedoColor=BABYLON.Color3.FromHexString("#8AABCC"); matDisco.alpha=0.0; matDisco.metallic=0.1; matDisco.roughness=0.1; matDisco.transparencyMode=BABYLON.PBRMaterial.PBRMATERIAL_ALPHABLEND;
+            propDisco.material=matDisco; propBlades=[prop1,prop2]; propDiscoMat=matDisco;
+
+            const cabGrp=new BABYLON.TransformNode("p_cabina",scene); cabGrp.parent=planeRoot; cabGrp.position=new BABYLON.Vector3(0,0.7,-0.8);
+            const glassPivot=new BABYLON.TransformNode("glassPivot",scene); glassPivot.parent=cabGrp; glassPivot.scaling=new BABYLON.Vector3(0.8,0.9,1.0);
+            const cabMain=BABYLON.MeshBuilder.CreateCylinder("cabMain",{height:1.8,diameter:1.0,arc:0.5,enclose:true,tessellation:24},scene); cabMain.parent=glassPivot; cabMain.rotation.x=Math.PI/2; cabMain.rotation.y=Math.PI; cabMain.material=matGlass;
+            const cabFront=BABYLON.MeshBuilder.CreateCylinder("cabFront",{height:1.0,diameterTop:1.0,diameterBottom:0,arc:0.5,enclose:true,tessellation:24},scene); cabFront.parent=glassPivot; cabFront.position.z=1.4; cabFront.rotation.x=Math.PI/2; cabFront.rotation.y=Math.PI; cabFront.material=matGlass;
+
+            smokeSystem = new BABYLON.ParticleSystem("smoke", 1000, scene);
+            smokeSystem.particleTexture = new BABYLON.Texture("https://playground.babylonjs.com/textures/cloud.png", scene);
+            smokeSystem.emitter = planeRoot; smokeSystem.minEmitBox = new BABYLON.Vector3(-0.2, 0.2, -4.5); smokeSystem.maxEmitBox = new BABYLON.Vector3(0.2, 0.5, -4.5);
+            smokeSystem.color1 = new BABYLON.Color4(0.1, 0.1, 0.1, 0.8); smokeSystem.color2 = new BABYLON.Color4(0.3, 0.3, 0.3, 0.6); smokeSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+            smokeSystem.minSize = 1.0; smokeSystem.maxSize = 4.0; smokeSystem.minLifeTime = 1.0; smokeSystem.maxLifeTime = 3.0; smokeSystem.emitRate = 0; 
+            smokeSystem.gravity = new BABYLON.Vector3(0, -2, 0); smokeSystem.direction1 = new BABYLON.Vector3(-0.5, 0.5, -1); smokeSystem.direction2 = new BABYLON.Vector3(0.5, 1, -1);
+            smokeSystem.minEmitPower = 2; smokeSystem.maxEmitPower = 5; smokeSystem.updateSpeed = 0.02;
+
+            const createServo=(id, parentPos, parentRotZ, posOffset, rotY)=>{
+                const sGrp=new BABYLON.TransformNode(id,scene); sGrp.parent=planeRoot; sGrp.position=parentPos.clone(); sGrp.rotation.z=parentRotZ;
+                const sw=new BABYLON.TransformNode("sw",scene); sw.parent=sGrp; sw.position=posOffset; sw.rotation.y=rotY;
+                const mBase=new BABYLON.PBRMaterial(id+"_base",scene); mBase.albedoColor=BABYLON.Color3.FromHexString("#B0BEC5"); mBase.metallic=0.8; mBase.roughness=0.4;
+                const mArm=new BABYLON.PBRMaterial(id+"_arm",scene); mArm.albedoColor=BABYLON.Color3.FromHexString("#00b0f0"); mArm.metallic=0.2; mArm.roughness=0.2;
+                const base=BABYLON.MeshBuilder.CreateBox("b",{width:0.25,height:0.2,depth:0.15},scene); base.parent=sw; base.position.y=0.1; base.material=mBase; shadowGen.addShadowCaster(base);
+                const aPivot=new BABYLON.TransformNode("ap",scene); aPivot.parent=sw; aPivot.position=new BABYLON.Vector3(0,0.25,0);
+                const arm=BABYLON.MeshBuilder.CreateBox("a",{width:0.06,height:0.25,depth:0.06},scene); arm.parent=aPivot; arm.position.y=0.1; arm.material=mArm; shadowGen.addShadowCaster(arm);
+                servosInfo[id] = {armPivot: aPivot};
+            };
+            createServo('s_alai', alaIGrp.position, alaIGrp.rotation.z, new BABYLON.Vector3(-2.5,0.1,-0.4), 0);
+            createServo('s_alad', alaDGrp.position, alaDGrp.rotation.z, new BABYLON.Vector3(2.5,0.1,-0.4), 0);
+            createServo('s_elevi', cHGrp.position, 0, new BABYLON.Vector3(-0.8,0.1,0), 0);
+            createServo('s_elevd', cHGrp.position, 0, new BABYLON.Vector3(0.8,0.1,0), 0);
+            createServo('s_timon', cVGrp.position, 0, new BABYLON.Vector3(0.1,1.0,-0.4), Math.PI/2);
+        }
+
+        function setManiobra(id) {
+            if(isCrashed) return;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active', 'danger', 'acro'));
+            const activeBtn = document.getElementById('btn-'+id);
+            if(activeBtn) {
+                activeBtn.classList.add('active');
+                if(maniobrasInfo[id].grp === 'danger') activeBtn.classList.add('danger');
+                if(maniobrasInfo[id].grp === 'acro') activeBtn.classList.add('acro');
+            }
+            
+            const info = maniobrasInfo[id];
+            if(info) {
+                const colors = { 'normal':'var(--cyan)', 'adv':'#d05ce3', 'danger':'#ff4444', 'acro':'#ff00aa'};
+                const col = colors[info.grp] || 'var(--cyan)';
+                document.getElementById('maneuver-title').innerHTML = `<span>${info.e}</span> ${info.n}`;
+                document.getElementById('maneuver-title').style.color = col;
+                document.getElementById('maneuver-desc').innerText = "Activada.";
+                
+                const ind = document.getElementById('maneuver-indicator');
+                ind.style.borderLeftColor = col; ind.style.opacity = '0'; setTimeout(()=> ind.style.opacity = '1', 50);
+
+                document.getElementById('explanation-box').innerText = info.desc;
+                document.getElementById('explanation-box').style.borderLeftColor = col;
+            }
+
+            activeManeuver = id; 
+            turbulenceActive = false; spiralMode = false;
+            if(pipeline) pipeline.chromaticAberration.aberrationAmount = 0;
+            ilsRings.forEach(r => r.isVisible = ['aproxManual','aterrManual'].includes(id));
+
+            if (info && info.grp === 'acro') { acroState = 0; acroTimer = 0; }
+
+            targetAngles = {aleronIzq:0, aleronDer:0, elevIzq:0, elevDer:0, timon:0};
+            targetPitch = 0; targetBank = 0; targetYawRate = 0; targetVSpeed = 0;
+            
+            switch(id) {
+                case 'arranque': planeRoot.position.set(0, 1.54, -2000); planeRoot.rotation.set(0,0,0); targetSpeed=0; targetRPM=800; currentSpeed=0; currentRPM=800; break;
+                case 'despegue': targetSpeed=140; targetRPM=2700; targetAngles.elevIzq=0; targetAngles.elevDer=0; break;
+                case 'subir': targetSpeed=160; targetVSpeed=20; targetPitch=-0.3; targetRPM=2600; targetAngles.elevIzq=-15; targetAngles.elevDer=-15; break;
+                case 'bajar': targetSpeed=150; targetVSpeed=-15; targetPitch=0.2; targetRPM=2200; targetAngles.elevIzq=15; targetAngles.elevDer=15; break;
+                case 'giroIzq': targetSpeed=180; targetBank=0.45; targetYawRate=-0.2; targetRPM=2400; targetAngles.aleronIzq=-25; targetAngles.aleronDer=25; targetAngles.timon=-20; break;
+                case 'giroDer': targetSpeed=180; targetBank=-0.45; targetYawRate=0.2; targetRPM=2400; targetAngles.aleronIzq=25; targetAngles.aleronDer=-25; targetAngles.timon=20; break;
+                case 'estable': targetSpeed=200; targetRPM=2400; break;
+                case 'aproxAuto': case 'aproxManual': planeRoot.position.set(id === 'aproxManual' ? 15 : 0, 30, -2300); planeRoot.rotation.set(0, id === 'aproxManual' ? -0.05 : 0, 0); targetSpeed=120; currentSpeed=140; targetRPM=1500; targetAngles.elevIzq=10; targetAngles.elevDer=10; break;
+                case 'aterrAuto': case 'aterrManual': targetSpeed=90; targetRPM=1000; targetAngles.aleronIzq=0; targetAngles.aleronDer=0; targetAngles.timon=0; targetAngles.elevIzq=-15; targetAngles.elevDer=-15; break;
+                case 'frenada': targetSpeed=0; targetRPM=800; targetAngles.aleronIzq=-35; targetAngles.aleronDer=-35; targetAngles.elevIzq=-35; targetAngles.elevDer=-35; targetAngles.timon=0; break;
+                
+                case 'vientoDer': targetSpeed=180; targetBank=-0.15; targetRPM=2400; targetAngles.aleronIzq=10; targetAngles.aleronDer=-10; targetAngles.timon=-10; break;
+                case 'vientoIzq': targetSpeed=180; targetBank=0.15; targetRPM=2400; targetAngles.aleronIzq=-10; targetAngles.aleronDer=10; targetAngles.timon=10; break;
+                case 'turbSuave': turbulenceActive=true; turbulenceStrength=5; targetSpeed=200; targetRPM=2400; break;
+                case 'turbFuerte': turbulenceActive=true; turbulenceStrength=15; targetSpeed=180; targetRPM=2400; break;
+                
+                case 'espiral': spiralMode = true; targetRPM = 2700; spiralIntensity = 0; targetAngles.aleronIzq = -35; targetAngles.aleronDer = 35; targetAngles.elevIzq = 30; targetAngles.elevDer = 30; targetAngles.timon = 25; break;
+                case 'remontar': remontarTimer = 0; targetRPM = 2400; targetSpeed = 160; targetAngles.elevIzq = -20; targetAngles.elevDer = -20; break;
+            }
+        }
+
+        function setCamView(type) {
+            camTransition.active = true; camTransition.t = 0;
+            camTransition.sA = camera.alpha; camTransition.sB = camera.beta; camTransition.sR = camera.radius;
+            if(type === 'trasera') { camTransition.tA = -Math.PI/2; camTransition.tB = Math.PI/3.5; camTransition.tR = 30; }
+            if(type === 'lateral') { camTransition.tA = 0; camTransition.tB = Math.PI/2.5; camTransition.tR = 24; }
+            if(type === 'inferior') { camTransition.tA = -Math.PI/2; camTransition.tB = Math.PI/2 - 0.1; camTransition.tR = 20; }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RENDER LOOP & FÍSICAS VECTORIALES (VUELO 3D TOTAL)
+        // ═══════════════════════════════════════════════════════════════
+        function updateFlightPhysics() {
+            if (!planeRoot || isCrashed) return;
+            const dt = engine.getDeltaTime() / 1000;
+            const t = performance.now() / 1000;
+
+            const strobeOn = (performance.now() % 1000) < 150; strobes.forEach(s => s.isVisible = strobeOn);
+
+            planeRoot.position.y -= currentBounceOffset; // Separamos visual del motor físico
+
+            currentSpeed = BABYLON.Scalar.Lerp(currentSpeed, targetSpeed, 0.02);
+            currentRPM = BABYLON.Scalar.Lerp(currentRPM, targetRPM, 0.05);
+
+            propRoot.rotation.z += (currentRPM / 100) * dt;
+            const BLUR_START=8, BLUR_FULL=24; const td = BABYLON.Scalar.Clamp(((currentRPM/100) - BLUR_START)/(BLUR_FULL - BLUR_START), 0, 1);
+            if(propDiscoMat) propDiscoMat.alpha = td * 0.45; propBlades.forEach(p => p.visibility = 1 - td);
+
+            let baseAngles = { ...targetAngles };
+            let appliedTargetPitch = targetPitch, appliedTargetBank = targetBank, appliedTargetYawRate = targetYawRate, appliedTargetVSpeed = targetVSpeed;
+
+            let isManualSteering = (activeManeuver === 'aproxManual' || activeManeuver === 'aterrManual');
+            if (isManualSteering) {
+                if (manualInput !== 0) {
+                    targetBank = manualInput * -0.5; targetYawRate = manualInput * 0.35;
+                    baseAngles.aleronIzq = manualInput * 25; baseAngles.aleronDer = manualInput * -25; baseAngles.timon = manualInput * 20; 
+                } else { targetBank = 0; targetYawRate = 0; baseAngles.aleronIzq = 0; baseAngles.aleronDer = 0; baseAngles.timon = 0; }
+                appliedTargetBank = BABYLON.Scalar.Lerp(planeRoot.rotation.z, targetBank, 0.1);
+                appliedTargetYawRate = targetYawRate; 
+            }
+            
+            if (turbulenceActive) {
+                const osc = turbulenceStrength===15 ? 3.5 : turbulenceStrength/5;
+                baseAngles.aleronIzq += Math.sin(t*8.3)*5*osc; baseAngles.aleronDer -= Math.sin(t*8.3)*5*osc;
+                baseAngles.elevIzq += Math.sin(t*9.1)*5*osc; baseAngles.elevDer -= Math.sin(t*9.1)*5*osc;
+                appliedTargetPitch += Math.sin(t*7.2)*0.008*osc; appliedTargetBank += Math.sin(t*6.8)*0.006*osc;
+            }
+
+            let isAcrobatic = ['looping', 'rasante', 'invertido', 'tonneau', 'campana', 'immelmann', 'splits'].includes(activeManeuver);
+            
+            // LOGICA ACROBACIAS
+            if (activeManeuver === 'looping') {
+                baseAngles.elevIzq = -35; baseAngles.elevDer = -35; targetSpeed = 250;
+                planeRoot.rotation.x -= 1.8 * dt; 
+                if (planeRoot.rotation.x <= -Math.PI * 2) { 
+                    planeRoot.rotation.x += Math.PI * 2; 
+                    setManiobra('estable'); 
+                }
+            } else if (activeManeuver === 'tonneau') {
+                baseAngles.aleronIzq = -35; baseAngles.aleronDer = 35; targetSpeed = 250;
+                planeRoot.rotation.z -= 4.0 * dt; 
+                if (planeRoot.rotation.z <= -Math.PI * 2) { planeRoot.rotation.z += Math.PI * 2; setManiobra('estable'); }
+            } else if (activeManeuver === 'invertido') {
+                if (acroState === 0) {
+                    baseAngles.aleronIzq = -35; baseAngles.aleronDer = 35; 
+                    planeRoot.rotation.z += 4.0 * dt;
+                    if (planeRoot.rotation.z >= Math.PI) {
+                        planeRoot.rotation.z = Math.PI;
+                        acroState = 1;
+                    }
+                } else if (acroState === 1) {
+                    baseAngles.aleronIzq = 0; baseAngles.aleronDer = 0; 
+                    baseAngles.elevIzq = 15; baseAngles.elevDer = 15;
+                    planeRoot.rotation.z = Math.PI;
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.05);
+                }
+            } else if (activeManeuver === 'rasante') {
+                if (acroState === 0) { 
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0.35, 0.05); targetSpeed = 400;
+                    if (planeRoot.position.y < 12) { acroState = 1; acroTimer = 0; }
+                } else if (acroState === 1) { 
+                    acroTimer += dt;
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.1); 
+                    planeRoot.position.y = BABYLON.Scalar.Lerp(planeRoot.position.y, 6.0, 0.1);
+                    planeRoot.rotation.z = Math.sin(acroTimer * 6) * 1.2;
+                    baseAngles.aleronIzq = Math.sin(acroTimer * 6) * 35; baseAngles.aleronDer = -Math.sin(acroTimer * 6) * 35;
+                    if (acroTimer > 4.0) acroState = 2;
+                } else if (acroState === 2) { 
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, -0.7, 0.05);
+                    planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, 0, 0.05);
+                    if (planeRoot.position.y > 600) setManiobra('estable');
+                }
+            } else if (activeManeuver === 'campana') {
+                if (acroState === 0) {
+                    baseAngles.elevIzq = -35; baseAngles.elevDer = -35; 
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, -Math.PI/2, 0.04); targetSpeed = 300;
+                    planeRoot.position.y += 200 * dt; 
+                    if (planeRoot.position.y > 2000) { acroState = 1; acroTimer = 0; }
+                } else if (acroState === 1) { 
+                    acroTimer += dt; targetSpeed = 0; currentSpeed = BABYLON.Scalar.Lerp(currentSpeed, 0, 0.05);
+                    planeRoot.rotation.x = -Math.PI/2; propBlades.forEach(p => p.visibility = 0.1); 
+                    if (acroTimer > 4.0) acroState = 2;
+                } else if (acroState === 2) { 
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, Math.PI/2, 0.05);
+                    planeRoot.rotation.z += 1.5 * dt; 
+                    targetSpeed = 350; currentSpeed = BABYLON.Scalar.Lerp(currentSpeed, 350, 0.02);
+                    baseAngles.aleronIzq = -25; baseAngles.aleronDer = 25; smokeSystem.emitRate = 200;
+                    if (planeRoot.position.y < 1000) { 
+                        acroState = 3; 
+                        acroTimer = 0; 
+                        // NORMALIZACIÓN: Calculamos el ángulo equivalente en rango [-Pi, Pi]
+                        // Esto evita que el avión "desenrolle" mágicamente y de golpe las vueltas acumuladas en la caída.
+                        let normZ = planeRoot.rotation.z % (2 * Math.PI);
+                        if (normZ > Math.PI) normZ -= 2 * Math.PI;
+                        if (normZ < -Math.PI) normZ += 2 * Math.PI;
+                        planeRoot.rotation.z = normZ;
+                    }
+                } else if (acroState === 3) { 
+                    acroTimer += dt; smokeSystem.emitRate = 0;
+                    planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.03); 
+                    // Reducida la velocidad de recuperación (Lerp alabeo z a 1/3 del antiguo valor)
+                    planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, 0, 0.015);
+                    if (acroTimer > 3.0) setManiobra('estable');
+                }
+            } else if (activeManeuver === 'immelmann') {
+                if (acroState === 0) {
+                    baseAngles.elevIzq = -35; baseAngles.elevDer = -35; planeRoot.rotation.x -= 1.8 * dt; targetSpeed=250;
+                    if (planeRoot.rotation.x <= -Math.PI) acroState = 1;
+                } else if (acroState === 1) {
+                    baseAngles.aleronIzq = -35; baseAngles.aleronDer = 35; planeRoot.rotation.z -= 4.0 * dt;
+                    if (planeRoot.rotation.z <= -Math.PI) { 
+                        planeRoot.rotation.y += Math.PI; 
+                        planeRoot.rotation.x += Math.PI; 
+                        planeRoot.rotation.z += Math.PI; 
+                        setManiobra('estable'); 
+                    }
+                }
+            } else if (activeManeuver === 'splits') {
+                if (acroState === 0) {
+                    baseAngles.aleronIzq = -35; baseAngles.aleronDer = 35; planeRoot.rotation.z -= 4.0 * dt; targetSpeed=250;
+                    if (planeRoot.rotation.z <= -Math.PI) acroState = 1;
+                } else if (acroState === 1) {
+                    baseAngles.elevIzq = -35; baseAngles.elevDer = -35; planeRoot.rotation.x += 1.8 * dt; 
+                    if (planeRoot.rotation.x >= Math.PI) { 
+                        planeRoot.rotation.y += Math.PI; 
+                        planeRoot.rotation.x -= Math.PI; 
+                        planeRoot.rotation.z += Math.PI; 
+                        setManiobra('estable'); 
+                    }
+                }
+            }
+            
+            // OTRAS FÍSICAS (Despegue, Flare, Espiral, Remontar)
+            if (activeManeuver === 'despegue') {
+                if (currentSpeed < 110) { 
+                    appliedTargetPitch = 0; 
+                    appliedTargetVSpeed = 0; 
+                    baseAngles.elevIzq = 0; 
+                    baseAngles.elevDer = 0; 
+                } else { 
+                    appliedTargetPitch = -0.25; 
+                    appliedTargetVSpeed = 15; 
+                    baseAngles.elevIzq = -25; 
+                    baseAngles.elevDer = -25; 
+                }
+            } else if (activeManeuver === 'aterrAuto' || activeManeuver === 'aterrManual') {
+                if (planeRoot.position.y > 4.0) { // Mayor a 10m
+                    appliedTargetVSpeed = -8.0; 
+                    appliedTargetPitch = -0.15;
+                }
+                else if (planeRoot.position.y > 1.55) { // Menor a 10m
+                    appliedTargetVSpeed = -0.8; 
+                    appliedTargetPitch = -0.05; 
+                }
+                else { // Tocando pista
+                    appliedTargetVSpeed = -0.5; 
+                    if (planeRoot.position.y <= 1.54) appliedTargetPitch = 0; 
+                }
+            } else if (spiralMode) {
+                spiralIntensity = Math.min(spiralIntensity + 0.3 * dt, 1.0);
+                appliedTargetBank = -6.0 * spiralIntensity; appliedTargetYawRate = 3.0 * spiralIntensity;
+                appliedTargetPitch = -1.5 * spiralIntensity; appliedTargetVSpeed = -55 * spiralIntensity;
+                targetSpeed = 160 + 200 * spiralIntensity; smokeSystem.emitRate = 300 * spiralIntensity;
+                camera.radius = BABYLON.Scalar.Lerp(camera.radius, 45, 0.03); pipeline.vignetteWeight = 1.8 + 1.5 * spiralIntensity;
+                pipeline.chromaticAberration.aberrationAmount = 40 * spiralIntensity; glow.intensity = 0.8 + 1.0 * spiralIntensity;
+            }
+            if (activeManeuver !== 'espiral' && activeManeuver !== 'campana' && smokeSystem) smokeSystem.emitRate = 0;
+
+            if (activeManeuver === 'remontar') {
+                remontarTimer += dt; turbulenceActive = true; turbulenceStrength = Math.max(0, 15 - remontarTimer*1.5);
+                camera.radius = BABYLON.Scalar.Lerp(camera.radius, 40, 0.02);
+                if (remontarTimer < 3.0) { 
+                    appliedTargetPitch = BABYLON.Scalar.Lerp(planeRoot.rotation.x, -0.6, 0.015); 
+                    appliedTargetVSpeed = BABYLON.Scalar.Lerp(targetVSpeed, -30, 0.015); 
+                }
+                else if (remontarTimer < 6.0) { 
+                    appliedTargetPitch = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0.35, 0.015); 
+                    appliedTargetVSpeed = BABYLON.Scalar.Lerp(targetVSpeed, 15, 0.015); 
+                }
+                else if (remontarTimer < 9.0) { 
+                    appliedTargetPitch = BABYLON.Scalar.Lerp(planeRoot.rotation.x, 0, 0.02); 
+                    appliedTargetVSpeed = BABYLON.Scalar.Lerp(targetVSpeed, 0, 0.02); 
+                }
+                else { 
+                    turbulenceActive = false; 
+                    camera.radius = BABYLON.Scalar.Lerp(camera.radius, 30, 0.02); 
+                    setManiobra('estable');
+                }
+                pipeline.vignetteWeight = 1.0 + 1.5 * Math.max(0, 1 - remontarTimer/8); 
+                pipeline.chromaticAberration.aberrationAmount = 40 * Math.max(0, 1 - remontarTimer/8);
+            }
+
+            let maxServoDiff = 0;
+            Object.keys(baseAngles).forEach(k => {
+                currentAngles[k] = BABYLON.Scalar.Lerp(currentAngles[k], baseAngles[k], 0.08);
+                maxServoDiff = Math.max(maxServoDiff, Math.abs(currentAngles[k] - baseAngles[k]));
+                const rad = currentAngles[k] * Math.PI / 180;
+                if(controlSurfaces[k]) {
+                    if(k === 'timon') controlSurfaces[k].rotation.y = -rad * 1.5; else controlSurfaces[k].rotation.x = -rad * 2.0; 
+                }
+                const sid = k==='aleronIzq'?'s_alai' : k==='aleronDer'?'s_alad' : k==='elevIzq'?'s_elevi' : k==='elevDer'?'s_elevd' : 's_timon';
+                if(servosInfo[sid] && servosInfo[sid].armPivot) servosInfo[sid].armPivot.rotation.x = -rad * 1.5;
+            });
+
+            let servosReady = maxServoDiff < 5.0;
+
+            if ((servosReady || turbulenceActive || isManualSteering) && !spiralMode && activeManeuver !== 'remontar' && !isAcrobatic) {
+                planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, appliedTargetPitch, 0.05);
+                
+                // Retorno de grandes ángulos (Invertido, loop incompleto) usando Alerones Activos
+                let diffZ = appliedTargetBank - planeRoot.rotation.z;
+                while (diffZ > Math.PI) diffZ -= 2*Math.PI;
+                while (diffZ < -Math.PI) diffZ += 2*Math.PI;
+                
+                if (Math.abs(diffZ) > 0.1 && activeManeuver === 'estable') {
+                    baseAngles.aleronIzq = diffZ > 0 ? -35 : 35;
+                    baseAngles.aleronDer = diffZ > 0 ? 35 : -35;
+                    // Reducida la velocidad máxima de giro al recuperar vuelo normal a aproximadamente 1/3 (1.5rad en lugar de 4.0rad)
+                    planeRoot.rotation.z += Math.sign(diffZ) * 1.5 * dt; 
+                    if (Math.abs(diffZ) < 1.5 * dt) {
+                        planeRoot.rotation.z = appliedTargetBank;
+                    }
+                } else {
+                    planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, appliedTargetBank, 0.05);
+                }
+                
+                // Alineación al Norte solo en maniobras iniciales obligatorias (NO EN ESTABLE)
+                const autoAlignStates = ['arranque', 'aproxAuto', 'aterrAuto'];
+                if(autoAlignStates.includes(activeManeuver)){
+                    let cy = planeRoot.rotation.y % (2*Math.PI); if(cy > Math.PI) cy -= 2*Math.PI; if(cy < -Math.PI) cy += 2*Math.PI;
+                    planeRoot.rotation.y = BABYLON.Scalar.Lerp(cy, 0, 0.035);
+                } else planeRoot.rotation.y += appliedTargetYawRate * dt;
+                
+                if (['aproxAuto', 'aterrAuto', 'arranque', 'despegue'].includes(activeManeuver)) planeRoot.position.x = BABYLON.Scalar.Lerp(planeRoot.position.x, 0, 0.015);
+            } else if (spiralMode || activeManeuver === 'remontar') {
+                planeRoot.rotation.x = BABYLON.Scalar.Lerp(planeRoot.rotation.x, appliedTargetPitch, 0.06);
+                planeRoot.rotation.z = BABYLON.Scalar.Lerp(planeRoot.rotation.z, appliedTargetBank, 0.06);
+                planeRoot.rotation.y += appliedTargetYawRate * dt;
+            }
+
+            // MOVIMIENTO 3D VECTORIAL
+            let speedMs = currentSpeed * 0.277;
+            if (isAcrobatic) {
+                let forward = planeRoot.getDirection(new BABYLON.Vector3(0, 0, 1));
+                planeRoot.position.addInPlace(forward.scale(speedMs * dt));
+            } else {
+                planeRoot.position.z += Math.cos(planeRoot.rotation.y) * speedMs * dt;
+                planeRoot.position.x += Math.sin(planeRoot.rotation.y) * speedMs * dt;
+                if (servosReady || spiralMode || activeManeuver === 'remontar' || activeManeuver === 'despegue' || ['aterrAuto','aterrManual', 'aproxAuto', 'aproxManual'].includes(activeManeuver)) {
+                    planeRoot.position.y += appliedTargetVSpeed * dt;
+                }
+            }
+            
+            if (planeRoot.position.z > 5000) { planeRoot.position.z -= 7000; clouds.forEach(c => c.position.z -= 7000); }
+            clouds.forEach(c => { if (planeRoot.position.z - c.position.z > 2000) c.position.z += 10000; });
+
+            // COLISIONES, SUELO Y REBOTE REALISTA
+            let isLandingMode = ['aterrAuto', 'aterrManual', 'frenada', 'arranque', 'despegue'].includes(activeManeuver);
+            
+            if (planeRoot.position.y <= 1.54 && prevPlaneY > 1.54) {
+                bounceTimer = 0.8; 
+            }
+            prevPlaneY = planeRoot.position.y;
+            planeRoot.position.y = Math.max(1.54, planeRoot.position.y); 
+
+            if (planeRoot.position.y <= 1.54 && !isLandingMode && currentSpeed > 50 && prevPlaneY > 2.0 && !isAcrobatic) {
+                triggerCrash("Impacto contra el suelo a alta velocidad");
+            } else if (!isLandingMode && planeRoot.position.y < 10 && !['aproxAuto', 'aproxManual'].includes(activeManeuver) && !isAcrobatic) {
+                triggerCrash("Vuelo demasiado bajo - Impacto inminente");
+            }
+
+            // APLICAR REBOTE VISUAL AISLADO
+            if (bounceTimer > 0) {
+                bounceTimer -= dt * 1.5;
+                currentBounceOffset = Math.abs(Math.sin(bounceTimer * Math.PI * 5)) * Math.max(0, bounceTimer) * 0.6;
+            } else {
+                currentBounceOffset = 0;
+            }
+            planeRoot.position.y += currentBounceOffset;
+
+            // TRANSICIONES CÁMARA
+            if(camTransition.active) {
+                camTransition.t += Math.min(dt * 3, 1); const ease = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; const progress = ease(camTransition.t);
+                camera.alpha = BABYLON.Scalar.Lerp(camTransition.sA, camTransition.tA, progress); camera.beta = BABYLON.Scalar.Lerp(camTransition.sB, camTransition.tB, progress); camera.radius = BABYLON.Scalar.Lerp(camTransition.sR, camTransition.tR, progress);
+                if(camTransition.t >= 1) camTransition.active = false;
+            }
+
+            // UI UPDATES Y BRÚJULA
+            document.getElementById('hud-speed').innerText = `${Math.round(currentSpeed)} km/h`;
+            document.getElementById('hud-alt').innerText = `${Math.round(Math.max(0, planeRoot.position.y*4 - 6))} m`;
+            
+            let heading = (planeRoot.rotation.y * 180 / Math.PI) % 360; if (heading < 0) heading += 360;
+            document.getElementById('hud-heading').innerText = Math.round(heading).toString().padStart(3, '0') + '°';
+            document.getElementById('compass-rose').setAttribute('transform', 'rotate(' + (-heading) + ' 50 50)');
+
+            updateServoPanelUI();
+        }
+
+        function triggerCrash(reason) {
+            isCrashed = true; document.getElementById('crash-screen').style.display = 'flex'; document.getElementById('crash-reason').innerText = reason;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active', 'danger', 'acro'));
+            targetSpeed = 0; currentSpeed = 0; targetRPM = 0; currentRPM = 0; targetVSpeed = 0;
+            if (smokeSystem) smokeSystem.emitRate = 0;
+            if (pipeline) { pipeline.vignetteWeight = 3.0; pipeline.chromaticAberration.aberrationAmount = 50; }
+        }
+
+        function resetSim() {
+            isCrashed = false; document.getElementById('crash-screen').style.display = 'none';
+            if (pipeline) { pipeline.vignetteWeight = 1.0; pipeline.chromaticAberration.aberrationAmount = 0; }
+            spiralIntensity = 0; spiralMode = false; turbulenceActive = false; manualInput = 0; acroTimer = 0; bounceTimer = 0; currentBounceOffset = 0;
+            if (smokeSystem) smokeSystem.emitRate = 0; setManiobra('arranque');
+        }
+    </script>
+</body>
+</html>
