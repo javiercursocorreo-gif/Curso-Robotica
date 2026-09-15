@@ -1,0 +1,844 @@
+<!-- MEJORAS:
+- Corregido el artefacto visual de la carcasa: Se ha desactivado el 'castShadow' para el material transparente (que generaba una caja negra de sombra que parecía una pieza deforme debajo) y se ha configurado 'depthWrite: false' y 'DoubleSide' para un renderizado de cristal impecable.
+- Añadido control manual de transición: La simulación ya no salta automáticamente. Al finalizar, aparece un botón "INICIAR SIMULACIÓN" en la parte inferior para que el alumno pueda observar tranquilamente su cámara girando en 3D antes de pasar al modo demo.
+- Mantenidas todas las reglas estrictas de Three.js (PointLight con 3 parámetros, emissive como objeto Color, etc.) y la técnica del wrapper para la animación de piezas.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>P1.CONSTRUCCION</title>
+<style>
+    :root {
+        --cyan: #00f2ff;
+        --bg-dark: #1a1a2e;
+        --panel-bg: rgba(20, 20, 35, 0.9);
+        --text-main: #ffffff;
+        --text-sub: #aaaaaa;
+    }
+    
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg-dark);
+        font-family: 'Segoe UI', sans-serif;
+        color: var(--text-main);
+        user-select: none;
+    }
+
+    /* HEADER OBLIGATORIO */
+    header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70px;
+        background: rgba(0, 0, 0, 0.85);
+        border-bottom: 2px solid var(--cyan);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
+    }
+
+    header h1 {
+        margin: 0;
+        font-size: 26px;
+        color: var(--cyan);
+        letter-spacing: 5px;
+        text-transform: uppercase;
+    }
+
+    header p {
+        margin: 4px 0 0 0;
+        font-size: 16px;
+        color: var(--text-sub);
+    }
+
+    /* LAYOUT: 3 ZONAS */
+    #main-container {
+        position: absolute;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 70px);
+        display: flex;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    .panel {
+        height: 100%;
+        box-sizing: border-box;
+        pointer-events: auto;
+        background: var(--panel-bg);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #left-panel {
+        width: 30%;
+        padding: 20px;
+        border-right: 1px solid #333;
+    }
+
+    #center-zone {
+        width: 40%;
+        pointer-events: none;
+    }
+
+    #right-panel {
+        width: 30%;
+        border-left: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* TEXTOS Y ACCESIBILIDAD */
+    h2 {
+        font-size: 22px;
+        color: var(--cyan);
+        margin-top: 0;
+    }
+
+    p {
+        font-size: 18px;
+        line-height: 1.5;
+    }
+
+    /* BOTONES */
+    .btn-container {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding-bottom: 20px;
+    }
+
+    button {
+        min-height: 70px;
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+        background: #333;
+        color: white;
+        border: 2px solid #555;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    button:hover {
+        background: #444;
+        border-color: var(--cyan);
+    }
+
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* BANDEJA DE PIEZAS */
+    #pieces-tray {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .piece-card {
+        background: #2a2a3e;
+        border: 2px dashed #666;
+        padding: 15px;
+        border-radius: 8px;
+        cursor: grab;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .piece-card:active {
+        cursor: grabbing;
+    }
+
+    .piece-card.installed {
+        opacity: 0.4;
+        cursor: default;
+        border: 2px solid #333;
+    }
+
+    .piece-name {
+        font-size: 18px;
+        font-weight: bold;
+        color: var(--cyan);
+        margin-bottom: 5px;
+    }
+
+    .piece-desc {
+        font-size: 16px;
+        color: #ccc;
+    }
+
+    /* BANNER TRANSICIÓN Y FINAL */
+    #banner-iniciar {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 200;
+        display: none;
+    }
+
+    #banner-iniciar button {
+        background: var(--cyan);
+        color: #000;
+        border: none;
+        padding: 15px 40px;
+        font-size: 24px;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+    }
+
+    #banner-iniciar button:hover {
+        background: #fff;
+        box-shadow: 0 0 30px rgba(0, 242, 255, 0.8);
+    }
+
+    #banner-completado {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 242, 255, 0.15);
+        border: 2px solid var(--cyan);
+        padding: 20px 40px;
+        border-radius: 12px;
+        text-align: center;
+        z-index: 200;
+        display: none;
+        backdrop-filter: blur(5px);
+    }
+
+    #banner-completado h2 {
+        margin: 0;
+        font-size: 28px;
+        color: var(--cyan);
+        animation: pulse 1.5s infinite;
+        text-transform: uppercase;
+    }
+
+    @keyframes pulse {
+        0% { text-shadow: 0 0 5px var(--cyan); }
+        50% { text-shadow: 0 0 20px var(--cyan); }
+        100% { text-shadow: 0 0 5px var(--cyan); }
+    }
+
+    /* DASHBOARD DE IA (Demo) */
+    #ai-dashboard {
+        display: none;
+        flex-direction: column;
+        padding: 20px;
+        height: 100%;
+        background: #111;
+        box-sizing: border-box;
+    }
+
+    .ai-stat {
+        background: #222;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 5px solid #555;
+        transition: all 0.3s;
+    }
+
+    .ai-stat.active {
+        border-left-color: #ffff00;
+        background: #333300;
+    }
+
+    .ai-title {
+        font-size: 18px;
+        color: #aaa;
+        margin-bottom: 8px;
+    }
+
+    .ai-value {
+        font-size: 26px;
+        font-weight: bold;
+    }
+
+    .ai-log {
+        flex: 1;
+        background: #0a0a0a;
+        border: 1px solid #333;
+        padding: 15px;
+        font-family: monospace;
+        font-size: 18px;
+        color: #00ff00;
+        overflow-y: auto;
+        border-radius: 4px;
+        line-height: 1.4;
+    }
+
+    /* TRACKER 2D (Caja IA) */
+    #tracker-box {
+        position: absolute;
+        border: 3px solid #ffff00;
+        box-shadow: 0 0 10px #ffff00, inset 0 0 10px #ffff00;
+        pointer-events: none;
+        z-index: 50;
+        display: none;
+        transform: translate(-50%, -50%);
+    }
+
+    #tracker-label {
+        position: absolute;
+        top: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #ffff00;
+        color: #000;
+        padding: 6px 12px;
+        font-weight: bold;
+        font-size: 18px;
+        white-space: nowrap;
+        border-radius: 4px;
+    }
+</style>
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+    }
+}
+</script>
+</head>
+<body>
+
+<header>
+    <h1>MONTAJE DE LA CÁMARA DE SEGURIDAD</h1>
+    <p>Construye la cámara que reconoce personas</p>
+</header>
+
+<div id="main-container">
+    <div id="left-panel" class="panel">
+        <h2>INSTRUCCIONES</h2>
+        <p>Arrastra las piezas de la derecha hacia el centro para ensamblar la cámara de seguridad.</p>
+        <p>El sistema cuenta con 10 componentes clave. Debes instalarlos todos para activar el sistema.</p>
+        
+        <div class="btn-container">
+            <button id="btn-next" onclick="highlightNext()">SIGUIENTE PASO</button>
+            <button id="btn-skip" onclick="skipAll()">SALTAR TODO</button>
+            <button id="btn-reset" onclick="location.reload()">REINICIAR</button>
+        </div>
+    </div>
+
+    <div id="center-zone"></div>
+
+    <div id="right-panel" class="panel">
+        <h2 id="tray-title" style="padding: 20px 20px 0 20px;">PIEZAS (10)</h2>
+        <div id="pieces-tray">
+            <!-- Inyectado via JS -->
+        </div>
+        
+        <div id="ai-dashboard">
+            <h2 style="color:var(--cyan); margin-bottom: 25px; margin-top:0;">SISTEMA DE IA</h2>
+            <div id="stat-persona" class="ai-stat">
+                <div class="ai-title">VARIABLE "PERSONA DETECTADA"</div>
+                <div class="ai-value" id="val-persona">NO</div>
+            </div>
+            <div id="stat-luz" class="ai-stat">
+                <div class="ai-title">ESTADO LUZ PORTAL</div>
+                <div class="ai-value" id="val-luz">APAGADA</div>
+            </div>
+            <div class="ai-title" style="margin-top:10px;">REGISTRO DE EVENTOS:</div>
+            <div class="ai-log" id="ai-log">
+                > Sistema inicializado...<br>
+                > Esperando detecciones...<br>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Botón manual para iniciar demo -->
+<div id="banner-iniciar">
+    <button onclick="iniciarSimulacion()">INICIAR SIMULACIÓN</button>
+</div>
+
+<div id="banner-completado">
+    <h2>¡CÁMARA ACTIVA!</h2>
+    <p style="margin: 5px 0 0 0; color: #fff; font-size: 20px;">Monitorizando el portal...</p>
+</div>
+
+<div id="tracker-box">
+    <div id="tracker-label">PERSONA DETECTADA</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// GLOBALES
+let scene, camera, renderer, robotGroup, floor, grid;
+let demoMode = false;
+let orbitAngle = 0;
+const instaladas = {};
+const meshes = {};
+let portalLight, personGroup;
+let demoTime = 0;
+let personInZone = false;
+let lightTimeout = 0;
+let isLightOn = false;
+
+// PIEZAS (Colores vivos y únicos)
+// Frontal = Z- | Derecha = X+ | Izquierda = X-
+const piezasData = [
+    { 
+        id: 'p1', name: 'CARCASA EXTERIOR', 
+        desc: 'Cuerpo resistente al agua. Protege componentes internos.',
+        geo: new THREE.BoxGeometry(8, 6, 10), 
+        color: 0x2288ff, pos: [0, 0, 0], 
+        matProps: { transparent: true, opacity: 0.35, roughness: 0.2 } // La sombra sólida se desactiva en JS
+    },
+    { 
+        id: 'p2', name: 'OBJETIVO (LENTE)', 
+        desc: 'Lente gran angular para el campo de visión.',
+        geo: new THREE.CylinderGeometry(2, 2, 2, 32), 
+        color: 0x336699, pos: [0, 0, -5.5], rot: [Math.PI/2, 0, 0],
+        matProps: { roughness: 0.1, metalness: 0.8 }
+    },
+    { 
+        id: 'p3', name: 'SENSOR DE IMAGEN', 
+        desc: 'Convierte la luz en datos digitales analizables.',
+        geo: new THREE.BoxGeometry(3, 3, 0.5), 
+        color: 0x11cc44, pos: [0, 0, -4.2] 
+    },
+    { 
+        id: 'p4', name: 'ILUMINACIÓN INFRARROJA', 
+        desc: 'LEDs infrarrojos para ver en la oscuridad.',
+        geo: new THREE.TorusGeometry(2.5, 0.3, 16, 32), 
+        color: 0xff1133, pos: [0, 0, -5.6] 
+    },
+    { 
+        id: 'p5', name: 'MICRÓFONO', 
+        desc: 'Captura sonido ambiente y ruidos.',
+        geo: new THREE.CylinderGeometry(0.5, 0.5, 1, 16), 
+        color: 0xaa33cc, pos: [-2, -2.5, -4], rot: [Math.PI/2, 0, 0] 
+    },
+    { 
+        id: 'p6', name: 'MÓDULO DE RED', 
+        desc: 'Transmite imágenes en tiempo real.',
+        geo: new THREE.BoxGeometry(2, 4, 2), 
+        color: 0xeeee22, pos: [0, 2, 3] 
+    },
+    { 
+        id: 'p7', name: 'ALTAVOZ', 
+        desc: 'Permite hablar desde el teléfono móvil.',
+        geo: new THREE.CylinderGeometry(1.5, 1.5, 0.5, 32), 
+        color: 0xff8800, pos: [2, -2.8, -2]
+    },
+    { 
+        id: 'p8', name: 'BATERÍA DE RESPALDO', 
+        desc: 'Mantiene la cámara activa sin electricidad.',
+        geo: new THREE.BoxGeometry(4, 2, 4), 
+        color: 0xdd4488, pos: [0, -1.8, 2] 
+    },
+    { 
+        id: 'p9', name: 'SOPORTE AJUSTABLE', 
+        desc: 'Permite orientar la cámara exactamente.',
+        geo: new THREE.CylinderGeometry(1, 1, 4, 16), 
+        color: 0x22aa88, pos: [0, 0, 6], rot: [Math.PI/2, 0, 0] 
+    },
+    { 
+        id: 'p10', name: 'MÓDULO DE IA', 
+        desc: 'El cerebro. Analiza imágenes y detecta personas.',
+        geo: new THREE.BoxGeometry(2.5, 0.5, 2.5), 
+        color: 0x00f2ff, pos: [0, 0.5, 0],
+        matProps: { emissive: new THREE.Color(0x004455) }
+    }
+];
+
+init();
+animate();
+
+function init() {
+    // ESCENA
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    // CÁMARA OBLIGATORIA (Cenital, lookAt a -1 Z)
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.set(0, 28, 0);
+    camera.lookAt(0, 0, -1);
+
+    // RENDERER
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    renderer.domElement.style.cssText = 'position:absolute;top:0;left:0;z-index:1;';
+    document.body.appendChild(renderer.domElement);
+
+    // LUCES
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 3.5));
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 4);
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    scene.add(dirLight);
+
+    // PointLight (Siempre 3 argumentos)
+    const ptLight = new THREE.PointLight(0x00f2ff, 60, 50);
+    ptLight.position.set(-10, 10, 5);
+    scene.add(ptLight);
+
+    // SUELO Y GRID
+    floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6, emissive: new THREE.Color(0,0,0) })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    grid = new THREE.GridHelper(100, 50, 0x888888, 0x555555);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    // GRUPO DEL ROBOT
+    robotGroup = new THREE.Group();
+    robotGroup.position.set(0, 5, 0); 
+    scene.add(robotGroup);
+
+    // RESIZE
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // POBLAR UI
+    const tray = document.getElementById('pieces-tray');
+    piezasData.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'piece-card';
+        card.id = `card-${p.id}`;
+        card.draggable = true;
+        
+        card.innerHTML = `
+            <div class="piece-name">${p.name}</div>
+            <div class="piece-desc">${p.desc}</div>
+        `;
+        
+        card.addEventListener('dragstart', (e) => {
+            if (instaladas[p.id]) {
+                e.preventDefault();
+                return;
+            }
+            e.dataTransfer.setData('text/plain', p.id);
+        });
+
+        tray.appendChild(card);
+    });
+
+    // DROP ZONE
+    document.addEventListener('dragover', e => e.preventDefault());
+    document.addEventListener('drop', e => {
+        e.preventDefault();
+        const id = e.dataTransfer.getData('text/plain');
+        if (id) installPiece(id);
+    });
+
+    // EXPORTAR FUNCIONES AL WINDOW
+    window.skipAll = skipAll;
+    window.highlightNext = highlightNext;
+    window.iniciarSimulacion = iniciarSimulacion;
+}
+
+// TÉCNICA WRAPPER OBLIGATORIA (Animación de aparición)
+function installPiece(id) {
+    if (instaladas[id] || demoMode) return;
+    
+    const pData = piezasData.find(p => p.id === id);
+    if (!pData) return;
+
+    // Actualizar UI - NUNCA pointer-events:none
+    instaladas[id] = true;
+    const card = document.getElementById(`card-${id}`);
+    card.classList.add('installed');
+    card.draggable = false;
+    card.style.cursor = 'default'; 
+
+    // Material y Malla - Emissive SIEMPRE como objeto Color
+    const props = Object.assign({
+        color: pData.color,
+        emissive: new THREE.Color(0,0,0)
+    }, pData.matProps || {});
+    
+    const mat = new THREE.MeshStandardMaterial(props);
+    
+    // CORRECCIÓN: Si la pieza es transparente (la carcasa), quitamos que arroje sombras
+    // para evitar un bloque oscuro irreal debajo, y habilitamos DoubleSide para el renderizado cristalino.
+    if (props.transparent) {
+        mat.depthWrite = false;
+        mat.side = THREE.DoubleSide;
+    }
+    
+    const mesh = new THREE.Mesh(pData.geo, mat);
+    mesh.castShadow = !props.transparent; 
+    mesh.receiveShadow = true;
+
+    // WRAPPER: Origen en la posición final, mesh crece desde 0,0,0 local
+    const wrapper = new THREE.Group();
+    wrapper.position.set(...pData.pos);
+    if (pData.rot) wrapper.rotation.set(...pData.rot);
+    
+    mesh.position.set(0, 0, 0);
+    mesh.scale.setScalar(0.01);
+    
+    wrapper.add(mesh);
+    robotGroup.add(wrapper); 
+    meshes[id] = mesh;
+
+    // Animación 500ms
+    const t0 = performance.now();
+    (function animatePop(ts) {
+        const p = Math.min((ts - t0) / 500, 1);
+        const f = 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2); // easeOutBack
+        mesh.scale.setScalar(0.01 + 0.99 * Math.max(0, f));
+        
+        if (p < 1) requestAnimationFrame(animatePop);
+        else afterInstall();
+    })(performance.now());
+}
+
+function afterInstall() {
+    if (Object.keys(instaladas).length === piezasData.length) {
+        // En lugar de saltar automático, mostramos botón para que el usuario observe el modelo 3D
+        document.getElementById('banner-iniciar').style.display = 'block';
+        document.getElementById('btn-next').disabled = true;
+        document.getElementById('btn-skip').disabled = true;
+    }
+}
+
+// INVOCADA AL PULSAR EL BOTÓN FINAL
+function iniciarSimulacion() {
+    document.getElementById('banner-iniciar').style.display = 'none';
+    initDemo();
+}
+
+// FUNCIONES BOTONES DE CONSTRUCCIÓN
+async function skipAll() {
+    document.getElementById('btn-skip').disabled = true;
+    for (let p of piezasData) {
+        if (!instaladas[p.id]) {
+            installPiece(p.id);
+            await new Promise(r => setTimeout(r, 600)); // Secuencial obligatorio
+        }
+    }
+}
+
+function highlightNext() {
+    const next = piezasData.find(p => !instaladas[p.id]);
+    if (next) {
+        const card = document.getElementById(`card-${next.id}`);
+        card.style.borderColor = '#ffff00';
+        setTimeout(() => card.style.borderColor = '', 1000);
+    }
+}
+
+// INICIO DEMO (Se ejecuta tras pulsar "INICIAR SIMULACIÓN")
+function initDemo() {
+    demoMode = true;
+    
+    // UI Layout
+    document.getElementById('banner-completado').style.display = 'block';
+    document.getElementById('pieces-tray').style.display = 'none';
+    document.getElementById('tray-title').style.display = 'none';
+    document.getElementById('ai-dashboard').style.display = 'flex';
+    document.getElementById('left-panel').style.opacity = '0.3';
+    document.getElementById('left-panel').style.pointerEvents = 'none';
+
+    // Limpiar escena de montaje
+    scene.remove(floor);
+    scene.remove(grid);
+
+    // Preparar escenario del Portal (Noche)
+    scene.background = new THREE.Color(0x050508);
+    scene.add(new THREE.AmbientLight(0x111122, 2.0));
+
+    // Suelo
+    const pFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshStandardMaterial({ color: 0x222222, emissive: new THREE.Color(0,0,0) })
+    );
+    pFloor.rotation.x = -Math.PI / 2;
+    scene.add(pFloor);
+
+    // Pared del edificio
+    const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(60, 30, 2),
+        new THREE.MeshStandardMaterial({ color: 0x332222, emissive: new THREE.Color(0,0,0) })
+    );
+    wall.position.set(0, 15, -15);
+    scene.add(wall);
+
+    // Puerta
+    const door = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 20, 2.5),
+        new THREE.MeshStandardMaterial({ color: 0x554433, emissive: new THREE.Color(0,0,0) })
+    );
+    door.position.set(0, 10, -15);
+    scene.add(door);
+
+    // Colocar cámara montada en la pared enfocando abajo
+    robotGroup.rotation.y = 0; // Resetear giro
+    robotGroup.position.set(0, 22, -13);
+    robotGroup.rotation.set(-Math.PI / 6, 0, 0);
+    
+    // Cámara de ThreeJS para la vista cenital/picada
+    camera.position.set(0, 35, 15);
+    camera.lookAt(0, 0, -5);
+
+    // Luz del portal
+    portalLight = new THREE.SpotLight(0xffffcc, 0);
+    portalLight.position.set(0, 25, -10);
+    portalLight.angle = Math.PI / 4;
+    portalLight.penumbra = 0.5;
+    portalLight.target.position.set(0, 0, 0);
+    scene.add(portalLight);
+    scene.add(portalLight.target);
+
+    // Modelo Persona
+    personGroup = new THREE.Group();
+    const body = new THREE.Mesh(
+        new THREE.CapsuleGeometry(1.5, 4, 4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x22bb88, emissive: new THREE.Color(0,0,0) })
+    );
+    body.position.y = 3.5;
+    const head = new THREE.Mesh(
+        new THREE.SphereGeometry(1.2, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xffccaa, emissive: new THREE.Color(0,0,0) })
+    );
+    head.position.y = 7.5;
+    personGroup.add(body);
+    personGroup.add(head);
+    
+    personGroup.position.set(20, 0, 5); 
+    scene.add(personGroup);
+
+    logAi("SISTEMA ARMADO. Visión artificial iniciada.");
+}
+
+function logAi(msg) {
+    const log = document.getElementById('ai-log');
+    const time = new Date().toLocaleTimeString();
+    log.innerHTML += `[${time}] ${msg}<br>`;
+    log.scrollTop = log.scrollHeight;
+}
+
+// BUCLE DE RENDER
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (!demoMode) {
+        // Fase de montaje: Cámara orbital infinita hasta pulsar Iniciar
+        orbitAngle += 0.004;
+        robotGroup.rotation.y = orbitAngle;
+    } else {
+        // Fase Demo: Movimiento de la persona
+        demoTime += 0.016;
+        const cycle = demoTime % 8; // 8 segundos por ciclo total
+        
+        if (cycle < 5) {
+            const progress = cycle / 5;
+            personGroup.position.x = -20 + (progress * 40);
+            personGroup.position.z = -5 + Math.sin(progress * Math.PI) * 5; 
+            
+            // Detección central
+            const inCameraZone = personGroup.position.x > -8 && personGroup.position.x < 8;
+            
+            if (inCameraZone && !personInZone) {
+                personInZone = true;
+                triggerDetection(true);
+            } else if (!inCameraZone && personInZone) {
+                personInZone = false;
+                triggerDetection(false);
+            }
+        } else {
+            personGroup.position.x = 100; 
+            if (personInZone) {
+                personInZone = false;
+                triggerDetection(false);
+            }
+        }
+
+        if (personInZone) updateTracker();
+
+        // Máquina de estados: Apagado de luz
+        if (isLightOn && !personInZone && performance.now() > lightTimeout) {
+            isLightOn = false;
+            portalLight.intensity = 0;
+            document.getElementById('stat-luz').classList.remove('active');
+            document.getElementById('val-luz').innerText = "APAGADA";
+            logAi("Luz apagada (Temporizador completado).");
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
+function triggerDetection(detected) {
+    const statPersona = document.getElementById('stat-persona');
+    const valPersona = document.getElementById('val-persona');
+    const tracker = document.getElementById('tracker-box');
+
+    if (detected) {
+        statPersona.classList.add('active');
+        valPersona.innerText = "SÍ";
+        tracker.style.display = 'block';
+        
+        isLightOn = true;
+        portalLight.intensity = 100;
+        document.getElementById('stat-luz').classList.add('active');
+        document.getElementById('val-luz').innerText = "ENCENDIDA";
+        
+        logAi("¡ALERTA! Persona detectada.");
+        logAi("Grabando clip de seguridad...");
+        logAi("Notificación push enviada al móvil.");
+        
+    } else {
+        statPersona.classList.remove('active');
+        valPersona.innerText = "NO";
+        tracker.style.display = 'none';
+        
+        lightTimeout = performance.now() + 10000;
+        logAi("Persona fuera de plano.");
+        logAi("Iniciando temporizador de luz (10s)...");
+    }
+}
+
+function updateTracker() {
+    const pos3D = new THREE.Vector3();
+    pos3D.copy(personGroup.position);
+    pos3D.y += 4; // Centro del cuerpo
+
+    pos3D.project(camera);
+
+    const x = (pos3D.x *  0.5 + 0.5) * window.innerWidth;
+    const y = (pos3D.y * -0.5 + 0.5) * window.innerHeight;
+
+    const tracker = document.getElementById('tracker-box');
+    tracker.style.left = `${x}px`;
+    tracker.style.top = `${y}px`;
+    tracker.style.width = '100px';
+    tracker.style.height = '200px';
+}
+</script>
+</body>
+</html>
