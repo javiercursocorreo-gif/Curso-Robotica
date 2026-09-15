@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clase 3.3 • Control Aerodinámico con Servomotores — Mapa Mental Interactivo</title>
+    <title>Clase 4.4 • Muñeca Robótica: Variable de Posición — Mapa Mental Interactivo</title>
     <style>
         :root {
             --bg-base: #070b14;
             --bg-card: rgba(15, 23, 42, 0.9);
-            --border-glow: rgba(2, 132, 199, 0.45);
+            --border-glow: rgba(52, 211, 153, 0.45);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
             --text-muted: #64748b;
-            --primary: #0284c7;
+            --primary: #34d399;
             --cyan: #38bdf8;
             --emerald: #34d399;
             --amber: #fbbf24;
@@ -56,7 +56,7 @@
             font-size: 2rem;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #ffffff 40%, #0284c7 100%);
+            background: linear-gradient(135deg, #ffffff 40%, #34d399 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 6px;
@@ -277,20 +277,20 @@
         <div class="header-pill">
             <span>🤖 Curso de Robótica</span>
             <span>•</span>
-            <span>Bloque 3 • Movimiento Avanzado</span>
+            <span>Bloque 4 • Brazo Robótico</span>
         </div>
-        <h1>CLASE 3.3: CONTROL AERODINÁMICO CON SERVOMOTORES</h1>
+        <h1>CLASE 4.4: MUÑECA ROBÓTICA: VARIABLE DE POSICIÓN</h1>
         <p class="subtitle">
-            Cuaderno interactivo de la clase. Explora las tres fases del proyecto: desde el debate y la física del movimiento hasta el montaje 3D, simuladores de cabina/vuelo y programación con retos.
+            Cuaderno interactivo de la clase. Explora las tres fases del proyecto: desde el debate y la física del movimiento hasta el montaje 3D, calibración cinemática y programación con retos.
         </p>
     </header>
 
     <main class="mindmap-canvas">
 
         <div class="core-node">
-            <span class="core-icon">✈️</span>
-            <h2 class="core-title">Control Aerodinámico con Servomotores</h2>
-            <p class="core-desc">Servomotores de Precisión • Ángulo Exacto (0°-180°) • Alerones y Timones • Simulador de Cabina y Vuelo</p>
+            <span class="core-icon">🖐️</span>
+            <h2 class="core-title">Muñeca Robótica: Variable de Posición</h2>
+            <p class="core-desc">Orientación Terminal • Variable Numérica de Inclinación • Precisión Milimétrica • 4 Motores</p>
         </div>
 
         <div class="branches-container">
@@ -300,7 +300,7 @@
                 <div class="branch-header">
                     <span class="branch-badge">FASE 1</span>
                     <h3 class="branch-title">Teoría y Audiovisual</h3>
-                    <span class="branch-count">4 recursos</span>
+                    <span class="branch-count">3 recursos</span>
                 </div>
                 <div class="file-stack">
                     
@@ -309,7 +309,7 @@
                 <span class="file-tag tag-pdf">T0</span>
                 <div class="file-details">
                     <span class="file-title">T0.DEBATE.pdf</span>
-                    <span class="file-desc">Debate: ¿Por qué un servo va a un ángulo exacto y no gira sin parar?</span>
+                    <span class="file-desc">Debate: ¿Por qué la muñeca es la articulación que da precisión final?</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--cyan);">↗</span>
@@ -320,7 +320,7 @@
                 <span class="file-tag tag-pdf">T1</span>
                 <div class="file-details">
                     <span class="file-title">T1.TEORIA.pdf</span>
-                    <span class="file-desc">El servomotor: control en lazo cerrado, potenciómetro y grados.</span>
+                    <span class="file-desc">Biología de la muñeca y control fino de variables angulares.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--cyan);">↗</span>
@@ -331,18 +331,7 @@
                 <span class="file-tag tag-mp4">T2</span>
                 <div class="file-details">
                     <span class="file-title">T2.VIDEO.mp4</span>
-                    <span class="file-desc">Vídeo del movimiento de alerones y timones mediante servos.</span>
-                </div>
-            </div>
-            <span class="file-arrow" style="color: var(--cyan);">↗</span>
-        </a>
-    
-        <a href="Control%20de%20los%20servos%20de%20un%20avion.pdf" target="_blank" class="file-card">
-            <div class="file-left">
-                <span class="file-tag tag-pdf">GUÍA</span>
-                <div class="file-details">
-                    <span class="file-title">Control de los servos de un avion.pdf</span>
-                    <span class="file-desc">Documento técnico: superficies de control y ángulos aerodinámicos.</span>
+                    <span class="file-desc">Vídeo del ajuste de muñeca para orientar herramientas robóticas.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--cyan);">↗</span>
@@ -356,7 +345,7 @@
                 <div class="branch-header">
                     <span class="branch-badge">FASE 2</span>
                     <h3 class="branch-title">Montaje y Gemelo Digital</h3>
-                    <span class="branch-count">6 simuladores</span>
+                    <span class="branch-count">3 simuladores</span>
                 </div>
                 <div class="file-stack">
                     
@@ -365,62 +354,29 @@
                 <span class="file-tag tag-html">P1</span>
                 <div class="file-details">
                     <span class="file-title">P1.CONSTRUCCIÓN 3D</span>
-                    <span class="file-desc">Montaje 3D: Posicionamiento de servos en alerones y timón.</span>
+                    <span class="file-desc">Montaje 3D: Instalación de la muñeca en el extremo del codo.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--emerald);">↗</span>
         </a>
     
-        <a href="3.PRACTICAS/P2.1.SIMULACION-COCKPIT-MANUAL.html" target="_blank" class="file-card">
+        <a href="3.PRACTICAS/P2.EJEMPLO_REAL.html" target="_blank" class="file-card">
             <div class="file-left">
-                <span class="file-tag tag-html">P2.1</span>
+                <span class="file-tag tag-html">P2</span>
                 <div class="file-details">
-                    <span class="file-title">P2.1.CABINA-MANUAL.html</span>
-                    <span class="file-desc">Simulador de cabina: mandos manuales e instrumental de vuelo.</span>
+                    <span class="file-title">P2.EJEMPLO_REAL.html</span>
+                    <span class="file-desc">Gemelo digital: Orientación constante de la muñeca en movimiento.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--emerald);">↗</span>
         </a>
     
-        <a href="3.PRACTICAS/P2.1.SIMULACION-COCKPIT-MANUAL-SONIDO.html" target="_blank" class="file-card">
+        <a href="3.PRACTICAS/TEST_DIAL_muneca.html" target="_blank" class="file-card">
             <div class="file-left">
-                <span class="file-tag tag-html">P2.1S</span>
+                <span class="file-tag tag-html">DIAL</span>
                 <div class="file-details">
-                    <span class="file-title">P2.1.CABINA-CON-SONIDO.html</span>
-                    <span class="file-desc">Simulador de cabina con audio interactivo de motor y alarmas.</span>
-                </div>
-            </div>
-            <span class="file-arrow" style="color: var(--emerald);">↗</span>
-        </a>
-    
-        <a href="3.PRACTICAS/P2.2.SIMULACION-COCKPIT-AUTO.html" target="_blank" class="file-card">
-            <div class="file-left">
-                <span class="file-tag tag-html">P2.2</span>
-                <div class="file-details">
-                    <span class="file-title">P2.2.CABINA-PILOTO-AUTO.html</span>
-                    <span class="file-desc">Simulador de cabina en piloto automático regulando servos.</span>
-                </div>
-            </div>
-            <span class="file-arrow" style="color: var(--emerald);">↗</span>
-        </a>
-    
-        <a href="3.PRACTICAS/P2.3.SIMULACION-VUELO-AUTO.html" target="_blank" class="file-card">
-            <div class="file-left">
-                <span class="file-tag tag-html">P2.3</span>
-                <div class="file-details">
-                    <span class="file-title">P2.3.VUELO-EXTERIOR-AUTO.html</span>
-                    <span class="file-desc">Simulador 3D exterior: demostración automática de acrobacias.</span>
-                </div>
-            </div>
-            <span class="file-arrow" style="color: var(--emerald);">↗</span>
-        </a>
-    
-        <a href="3.PRACTICAS/P2.4.SIMULACION-VUELO-MANUAL.html" target="_blank" class="file-card">
-            <div class="file-left">
-                <span class="file-tag tag-html">P2.4</span>
-                <div class="file-details">
-                    <span class="file-title">P2.4.VUELO-EXTERIOR-MANUAL.html</span>
-                    <span class="file-desc">Simulador 3D exterior: vuelo manual pilotando las superficies.</span>
+                    <span class="file-title">TEST_DIAL_MUÑECA.html</span>
+                    <span class="file-desc">Calibrador interactivo: Control milimétrico de la posición angular.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--emerald);">↗</span>
@@ -438,12 +394,12 @@
                 </div>
                 <div class="file-stack">
                     
-        <a href="3.PRACTICAS/P3.AVERIAS.html" target="_blank" class="file-card">
+        <a href="3.PRACTICAS/P3.BLOQUES.html" target="_blank" class="file-card">
             <div class="file-left">
                 <span class="file-tag tag-html">P3</span>
                 <div class="file-details">
-                    <span class="file-title">P3.AVERÍAS-EN-VUELO.html</span>
-                    <span class="file-desc">Taller de fallos: compensación aerodinámica ante avería de un servo.</span>
+                    <span class="file-title">P3.BLOQUES.html</span>
+                    <span class="file-desc">Programación: Cálculo de la variable ángulo para mantener la horizontal.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--amber);">↗</span>
@@ -454,7 +410,7 @@
                 <span class="file-tag tag-html">P4</span>
                 <div class="file-details">
                     <span class="file-title">P4.JUEGO.html</span>
-                    <span class="file-desc">Reto gamificado: Misiones aéreas y aterrizaje guiado por servos.</span>
+                    <span class="file-desc">Reto gamificado: Equilibra la bandeja orientando la muñeca sin volcar.</span>
                 </div>
             </div>
             <span class="file-arrow" style="color: var(--amber);">↗</span>
@@ -468,7 +424,7 @@
         <div class="bottom-bar">
             <div>
                 <span class="status-dot"></span>
-                <span>Clase activa e independiente • 12 recursos vinculados</span>
+                <span>Clase activa e independiente • 8 recursos vinculados</span>
             </div>
             <div>
                 <span>Solo un enlace en Classroom para toda la clase</span>
