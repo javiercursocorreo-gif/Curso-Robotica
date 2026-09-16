@@ -1,0 +1,97 @@
+# GUÍA DE TALLER: CREACIÓN Y ANIMACIÓN DE PERSONAJES NATIVOS EN ADOBE MIXAMO
+## Fuente Maestra para Generación de Presentación Paso a Paso en NotebookLM
+### Bloque 5: Androides — Clase 5.3: El Flujo Nativo de Mixamo y los 3 Personajes de Clase
+
+---
+
+### INTRODUCCIÓN Y OBJETIVO
+Antes de enfrentarse al reto avanzado de subir modelos externos desde internet (Upload desde Sketchfab), todo ingeniero y animador debe dominar el **Flujo de Trabajo Nativo** en Adobe Mixamo.
+
+En esta sesión el alumno aprenderá a:
+1. Navegar por el catálogo de personajes pre-configurados de Mixamo.
+2. Seleccionar la identidad visual de su androide o humanoide.
+3. Inyectar animaciones de captura de movimiento (MOCAP) de la biblioteca.
+4. Ajustar la dinámica motora mediante los deslizadores (*Overdrive*, *Arm-Space*, *In Place*).
+5. Descargar el asset completo y entender cómo se construyeron los 3 personajes reales de nuestras prácticas: **Salsa**, **Capoeira** y **Combate**.
+
+---
+
+### FASE 1: ACCESO Y EXPLORACIÓN DEL CATÁLOGO (TAB "CHARACTERS")
+Adobe Mixamo (`www.mixamo.com`) es un repositorio profesional en la nube gratuito de Adobe.
+1. Iniciar sesión con cuenta gratuita de Adobe (o mediante Google/Apple).
+2. En la barra superior, seleccionar la pestaña **"Characters"**.
+3. Mixamo ofrece más de 100 personajes con esqueleto profesional (*Rigged*) listos para usar:
+   - **Robots y Androides:** *Y-Bot*, *X-Bot*, ciborgs estilizados y androides de laboratorio.
+   - **Personajes Temáticos:** Bailarines (*Michelle*), maestros de artes marciales (*Boss*), guerreros acorazados (*Paladin*, *Vampire*), zombis y soldados espaciales.
+4. Al hacer clic sobre cualquier personaje, la plataforma lo carga instantáneamente en el visor 3D central en su postura base (**T-Pose**).
+
+---
+
+### FASE 2: INYECTAR EL ALMA MOTORA (TAB "ANIMATIONS")
+Una vez seleccionado el personaje:
+1. Hacer clic en la pestaña superior izquierda **"Animations"**.
+2. Mixamo cuenta con más de 2.000 clips de movimiento capturados con sensores reales de actores y atletas (MOCAP).
+3. **El buscador temático:**
+   - Buscar por disciplina o estilo: *"Dance"*, *"Martial Arts"*, *"Combat"*, *"Locomotion"*, *"Acrobatic"*.
+4. Al seleccionar una animación, el personaje de la pantalla comienza a reproducirla en bucle en tiempo real sobre el escenario virtual.
+
+---
+
+### FASE 3: EL PANEL DE CONTROL DINÁMICO (CALIBRANDO EL MOVIMIENTO)
+En la columna lateral derecha aparecen controles deslizantes indispensables para adaptar la animación al robot:
+1. **Overdrive (Velocidad / Agilidad):**
+   - Regula la aceleración temporal del movimiento. Un robot ligero y ágil usará valores altos (70-100%); un mecha blindado o pesado usará valores más lentos y contundentes (30-45%).
+2. **Character Arm-Space (Separación de Brazos):**
+   - ¡El ajuste más importante! Si el personaje tiene hombreras anchas, armadura de placas o un torso voluminoso, aumentar este valor para evitar que las manos atraviesen el cuerpo (*clipping*).
+3. **In Place (Animación en el Sitio):**
+   - Vital para videojuegos y simuladores web (como Babylon.js). Si la animación es de caminar, correr o esquivar, activar *"In Place"* hace que el personaje ejecute los pasos sobre el centro del escenario sin salir disparado fuera de la cámara.
+4. **Trim (Recorte de Fotogramas):**
+   - Permite acortar el inicio o el final del movimiento para quedarse solo con el golpe o el giro exacto.
+
+---
+
+### FASE 4: CÓMO SE CONSTRUYERON LOS 3 PERSONAJES DE NUESTRA CLASE
+En las prácticas del curso (`P1.CONSTRUCCION.html` y `P2.MIX_SKINS.html`), utilizamos tres arquetipos clave construidos con este proceso exacto:
+
+#### 1. El Personaje de Salsa (Coordinación Rítmica y Flexibilidad)
+- **Modelo elegido:** Bailarina estilizada con ropa ligera para estudiar la deformación fluida de caderas y hombros.
+- **Pack de animaciones:** 
+  - `Happy Idle` (respiración en reposo).
+  - Serie `Salsa Dancing 1` a `5`: Giros elegantes de 360 grados, cruces de pies y balanceo rítmico de brazos.
+- **Objetivo en clase:** Demostrar cómo el Skinning logra que las curvas y telas sigan a los huesos sin roturas poligonales.
+
+#### 2. El Personaje de Capoeira (Biomecánica Acrobática y Centro de Gravedad)
+- **Modelo elegido:** Atleta con pantalón tradicional y torso descubierto (*Boss*).
+- **Pack de animaciones:** 
+  - `Sad Idle-2` (postura baja de guardia).
+  - Maniobras acrobáticas reales: `Chapaeu De Couro`, `Esquiva 1`, `Macaco Side`, `Meia Lua De Compasso Back` y `Queshada 2`.
+- **Objetivo en clase:** Estudiar cómo un robot bípedo distribuye su masa al poner las manos en el suelo y lanzar patadas circulares invertidas.
+
+#### 3. El Personaje de Combate (Inercia, Peso y Armas Pesadas)
+- **Modelo elegido:** Guerrero con armadura medieval/cibernética completa y espadón a dos manos (*Great Sword*).
+- **Pack de animaciones:** 
+  - `Great Sword Idle` (guardia con el mandoble apoyado).
+  - Secuencias de acción: `Great Sword Walk`, `Impact`, `Jump`, `Kick` y `Casting`.
+- **Objetivo en clase:** Analizar la física de impacto, el peso visual de la armadura y la sincronización entre el esqueleto humanoide y un objeto rígido externo (la espada).
+
+---
+
+### FASE 5: EXPORTACIÓN PROFESIONAL (DESCARGA DEL ASSET)
+Cuando el personaje y su animación están calibrados:
+1. Hacer clic en el botón superior derecho **"Download"**.
+2. **Configuración para la Primera Descarga (Personaje + Animación):**
+   - **Format:** `FBX Binary (.fbx)`.
+   - **Skin:** `With Skin` (para que el archivo contenga la malla 3D, los materiales y el esqueleto).
+   - **Frames per Second:** `30 fps` (estándar para simulación web y animación).
+   - **Keyframe Reduction:** `None` (máxima fidelidad de curvas).
+3. **Para Animaciones Secundarias (Retargeting):**
+   - Si se quieren descargar más movimientos para el mismo personaje, se puede seleccionar `Without Skin` (solo guarda los datos matemáticos del esqueleto, ocupando mucho menos espacio).
+
+---
+
+### FASE 6: PRUEBA EN EL LABORATORIO WEB
+1. Abrir en Google Chrome el visor web oficial de Babylon.js:  
+   **`sandbox.babylonjs.com`**
+2. Arrastrar el archivo `.fbx` descargado directamente sobre la ventana.
+3. El escenario cargará el modelo con sombras dinámicas, texturas completas y reproduciendo la animación MOCAP elegida.
+4. **Reflexión de Taller:** El alumno ya domina el catálogo nativo y está preparado para el siguiente nivel: importar modelos externos personalizados desde Sketchfab.
