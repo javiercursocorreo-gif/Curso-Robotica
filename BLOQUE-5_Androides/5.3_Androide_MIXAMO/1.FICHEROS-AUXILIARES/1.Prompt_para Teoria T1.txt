@@ -1,39 +1,28 @@
 PROMPT MAESTRO PARA NOTEBOOKLM: TEORÍA T1 (10 DIAPOSITIVAS)
 ======================================================================
-INSTRUCCIONES DE USO:
-1. Sube a tu libreta de NotebookLM el archivo:
-   "1.Fuente para Teoria T1.txt"
-2. Copia y pega el siguiente prompt en el chat de NotebookLM:
+INSTRUCCIONES:
+1. Sube a NotebookLM: "1.Fuente para Teoria T1.txt"
+2. Copia y pega el siguiente prompt (ultra-corto para que quepa 100%):
 ======================================================================
 
 --- COPIAR A PARTIR DE AQUÍ ---
 
-Actúa como Diseñador Curricular y Director Tecnológico en Robótica Avanzada y Animación 3D.
+Actúa como Diseñador Curricular en Robótica Avanzada.
+Basándote en la fuente, genera el guion para una presentación de 10 diapositivas titulada:
+"EL ALMA DE LA MÁQUINA: DEL CHASIS RÍGIDO AL ANDROIDE BIOMIMÉTICO" (Clase 5.3).
 
-Basándote exclusivamente en la fuente cargada, genera el guion estructurado completo para una presentación magistral de 10 diapositivas titulada:
-"EL ALMA DE LA MÁQUINA: DE LA MECÁNICA RÍGIDA AL ANDROIDE BIOMIMÉTICO"
-(Clase 5.3: Androide MIXAMO — Bloque 5: Androides)
+Para cada diapositiva proporciona: Título, Concepto Clave, 3 viñetas didácticas, Metáfora Visual y Notas del Orador.
 
-TONO Y ESTILO:
-Vanguardista, motivador y tecnológico (estilo Keynote de Tesla y Boston Dynamics). Sin código. Usa metáforas claras: la estatua inerte, los hilos invisibles del skinning, el fantasma sin física y el cerebro motor transferible.
+Estructura de las 10 diapositivas:
+1. Portada y el Salto Evolutivo (de servos a biomimetismo).
+2. El Gemelo Digital (simulación web y Software-in-the-Loop).
+3. El Problema del Fantasma (física, Hitbox, masa y gravedad).
+4. Malla vs Esqueleto (la estatua inerte frente al Rigging).
+5. Skinning y Pesos (deformación elástica de la piel al doblar articulaciones).
+6. MOCAP con Mixamo (datos biomecánicos de actores reales).
+7. Retargeting (un cerebro motor para múltiples robots).
+8. Control Autónomo (AnimationGroups, Blending y FSM).
+9. Making Of P1 (Babylon.js, rayos X y botón Aplicar Piel).
+10. Conclusión (de constructores a directores de vida artificial).
 
-ESTRUCTURA DE CADA DIAPOSITIVA:
-Para cada diapositiva proporciona:
-- Título y Concepto Clave
-- 3 o 4 Puntos Explicativos en viñetas (claros, didácticos y con rigor)
-- Metáfora Visual / Idea de Imagen
-- Notas del Profesor / Orador
-
-MAPA DE LAS 10 DIAPOSITIVAS:
-D1. Portada y el Gran Salto Evolutivo: De mover motores grado a grado (Bloques 1-4) al control biomimético orgánico del androide moderno (Bloque 5).
-D2. El Gemelo Digital (Digital Twin): Software-in-the-Loop (SITL) y simulación web en Babylon.js (equivalente a Nvidia Isaac Sim).
-D3. El Problema del Fantasma: Por qué un modelo 3D sin física es un espectro y cómo el motor le añade Hitbox, masa (-9.81 m/s²) y gravedad.
-D4. Anatomía del Androide: La Malla exterior (Mesh/estatua inerte) frente al Esqueleto interno (Rigging/articulaciones).
-D5. Skinning y Pesos (Weighting): Los hilos invisibles que deforman elásticamente la piel al mover los huesos sin romper los polígonos.
-D6. El Robo del Alma (MOCAP con Mixamo): Captura de movimiento con actores reales y control basado en datos biomecánicos (Data-Driven).
-D7. El Arte del Retargeting: Separación de Hardware (cuerpo) y Software (animación) para transferir una danza a múltiples robots.
-D8. Control Autónomo: AnimationGroups, Blending (transiciones suaves sin tirones) y Máquinas de Estados Finitos (FSM).
-D9. Detrás de las Cámaras (Making Of P1): Carga asíncrona modular, modo MOCAP en rayos X (SkeletonViewer) y botón "Aplicar Piel".
-D10. Conclusión y Futuro: De constructores mecánicos a directores de la vida artificial. ¡Bienvenidos al futuro!
-
-Genera el contenido completo diapositiva a diapositiva listo para PowerPoint.
+Genera las 10 diapositivas completas para PowerPoint.

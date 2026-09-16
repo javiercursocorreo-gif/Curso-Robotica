@@ -1,40 +1,28 @@
 PROMPT MAESTRO PARA NOTEBOOKLM: GUÍA DE TALLER MIXAMO (10 DIAPOSITIVAS)
 ======================================================================
-INSTRUCCIONES DE USO:
-1. Sube a tu libreta de NotebookLM el archivo:
-   "1.Fuente para Guía MIXAMO.txt"
-2. Copia y pega el siguiente prompt en el chat de NotebookLM:
+INSTRUCCIONES:
+1. Sube a NotebookLM: "1.Fuente para Guía MIXAMO.txt"
+2. Copia y pega el siguiente prompt (ultra-corto para que quepa 100%):
 ======================================================================
 
 --- COPIAR A PARTIR DE AQUÍ ---
 
-Actúa como Diseñador Curricular y Mentor de Tecnología en Animación 3D y Rigging.
+Actúa como Mentor en Animación 3D y Rigging.
+Basándote en la fuente, genera una "GUÍA DE TALLER PASO A PASO" en 10 diapositivas:
+"MISIÓN: DEL MODELO INERTE AL ANDROIDE VIVO" (Taller Sketchfab + Mixamo).
 
-Basándote exclusivamente en la fuente cargada, genera el guion estructurado completo para una presentación tipo "GUÍA DE TALLER PASO A PASO" de 10 diapositivas titulada:
-"MISIÓN: DEL MODELO INERTE AL ANDROIDE VIVO"
-(Subtítulo: Taller Práctico de Caza en Sketchfab, Auto-Rigging y MOCAP en Adobe Mixamo)
-Clase: 5.3 Androide MIXAMO — Taller de Creación
+Para cada diapositiva proporciona: Título de la Misión, Pasos numerados, Alerta Pro y Notas del Profesor.
 
-TONO Y ESTILO:
-Gamificado, claro y orientado a la acción (estilo tutorial de videojuego). Con instrucciones directas, pasos numerados, alertas de fallos típicos y secretos pro.
+Estructura de las 10 diapositivas:
+1. Portada y Misión (crear un androide propio en 3D).
+2. Caza en Sketchfab (filtros: Downloadable, formato FBX o ZIP).
+3. La Regla de la Postura (obligatorio T-Pose o A-Pose con brazos abiertos).
+4. Subir a Mixamo (Upload Character y orientación frontal).
+5. Auto-Rigging (colocar los 5 marcadores: barbilla, muñecas, codos, rodillas e ingle).
+6. Control de Calidad (diagnóstico 360º del Skinning y ajuste).
+7. Inyectar MOCAP (catálogo de danzas/combate y controles Overdrive/Arm-Space).
+8. Exportación del Asset (FBX Binary, With Skin, 30 fps).
+9. Probar en la Web (soltar en sandbox.babylonjs.com).
+10. Presentación y Reto en Aula (demostración del androide vivo).
 
-FORMATO PARA CADA DIAPOSITIVA:
-- Título de la Misión / Paso
-- Instrucciones de Acción (paso a paso numerado)
-- 'Alerta de Error / Secreto Pro' (destacado)
-- Indicación Visual para el diseño de la diapositiva
-- Notas para el Profesor / Guía de aula
-
-MAPA DE LAS 10 DIAPOSITIVAS:
-D1. Portada & Tu Nuevo Rol: De usuario de simuladores a creador de androides en la industria 3D (Sketchfab + Mixamo).
-D2. Misión 1 — La Cacería en Sketchfab: Búsqueda de modelos humanoides (*Cyborg, Robot*), filtro obligatorio "Downloadable" y formatos FBX o ZIP.
-D3. La Regla de Oro de la Postura: Por qué debe estar en T-Pose o A-Pose (brazos abiertos) y por qué están prohibidas las poses de acción o sentadas.
-D4. Misión 2 — Entrando en Adobe Mixamo: Botón "Upload Character", subida por arrastre y comprobación de orientación frontal del robot.
-D5. Misión 3 — El Rito del Auto-Rigging: Colocación de los 5 marcadores (Chin, Wrists, Elbows, Knees, Groin) y truco de esqueleto "No Fingers".
-D6. Misión 4 — Diagnóstico y Control de Calidad: Revisión 360º del Skinning (evitar axilas pegadas o piernas fusionadas) y reprocesado si es necesario.
-D7. Misión 5 — Inyectar el Alma (MOCAP): Biblioteca de movimientos (Combate, Danza, Acrobacia) y ajustes de Overdrive, Arm-Space e In Place.
-D8. Misión 6 — Exportación del Asset: Configuración exacta de descarga (FBX Binary, With Skin, 30 fps, Keyframe Reduction: None).
-D9. Misión 7 — El Gran Escenario: Probar el androide arrastrándolo al visor web oficial de Babylon.js (`sandbox.babylonjs.com`).
-D10. Presentación y Autoevaluación: Reto en el aula, muestra de tu androide en acción y reflexión sobre los problemas de rigging superados.
-
-Genera el contenido completo diapositiva a diapositiva listo para PowerPoint.
+Genera las 10 diapositivas completas para PowerPoint.
