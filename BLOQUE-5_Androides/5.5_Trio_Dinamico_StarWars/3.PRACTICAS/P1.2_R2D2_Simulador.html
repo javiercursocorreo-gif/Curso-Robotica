@@ -45,6 +45,7 @@
         let wrapper, rootMesh, headNode;
         let holoNode, ledMat;
         let isMoving = false;
+        let targetPosition = null;
         let sfxAudio = new Audio("./r2_d2.mp3");
         sfxAudio.onerror = () => {
             sfxAudio = new Audio("../1.FICHEROS-AUXILIARES/r2_d2.mp3");
