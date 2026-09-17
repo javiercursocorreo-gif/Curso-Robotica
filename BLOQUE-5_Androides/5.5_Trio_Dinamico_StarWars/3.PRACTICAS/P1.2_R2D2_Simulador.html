@@ -45,8 +45,38 @@
         let wrapper, rootMesh, headNode;
         let holoNode, ledMat;
         let isMoving = false;
-        let targetPosition = null;
-        let sfxAudio = new Audio("../../MODELOS/r2_d2.mp3");
+        let sfxAudio = new Audio("./r2_d2.mp3");
+        sfxAudio.onerror = () => {
+            sfxAudio = new Audio("../1.FICHEROS-AUXILIARES/r2_d2.mp3");
+        };
+
+        // Sintetizador Web Audio API de R2-D2 como fallback infalible y auténtico
+        let r2AudioCtx = null;
+        function playR2D2Synth() {
+            try {
+                if (!r2AudioCtx) {
+                    r2AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (r2AudioCtx.state === 'suspended') {
+                    r2AudioCtx.resume();
+                }
+                const now = r2AudioCtx.currentTime;
+                const freqs = [1600, 2400, 1900, 2900, 1400, 2600, 2100];
+                freqs.forEach((f, i) => {
+                    const osc = r2AudioCtx.createOscillator();
+                    const gain = r2AudioCtx.createGain();
+                    osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+                    osc.frequency.setValueAtTime(f, now + i * 0.08);
+                    osc.frequency.exponentialRampToValueAtTime(f + (i % 2 === 0 ? 550 : -450), now + (i + 1) * 0.08);
+                    gain.gain.setValueAtTime(0.2, now + i * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.001, now + (i + 1) * 0.08);
+                    osc.connect(gain);
+                    gain.connect(r2AudioCtx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + (i + 1) * 0.08);
+                });
+            } catch(e) { console.warn(e); }
+        }
 
         const createScene = async function () {
             const scene = new BABYLON.Scene(engine);
@@ -180,62 +210,74 @@
                 holoNode = new BABYLON.TransformNode("holoNode", scene);
                 holoNode.parent = wrapper;
 
-                // Cargar Obi-Wan desde el OBJ extraído para asegurar compatibilidad total en web
-                try {
-                    BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "ObiWan.obj", scene).then((holoResult) => {
-                        let holoMat = new BABYLON.StandardMaterial("holoMat", scene);
-                        holoMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0); // Cian
-                        holoMat.alpha = 0.6; // Semitransparente
-                        holoMat.wireframe = false;
+                // Material holográfico cian resplandeciente
+                let holoMat = new BABYLON.StandardMaterial("holoMat", scene);
+                holoMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0); // Cian brillante
+                holoMat.alpha = 0.75;
+                holoMat.wireframe = false;
 
+                // --- CREAR EL CONO DE PROYECCIÓN DIRECTAMENTE ---
+                window.holoCone = BABYLON.MeshBuilder.CreateCylinder("holoCone", {
+                    diameterTop: 0.9,      // Base ancha frente al holograma
+                    diameterBottom: 0.05,  // Foco estrecho en el proyector de R2-D2
+                    height: 0.78,          // Distancia exacta entre proyector (0,0.8,0.2) y holograma (0,0.45,0.9)
+                    tessellation: 32
+                }, scene);
+                
+                let coneMat = new BABYLON.StandardMaterial("coneMat", scene);
+                coneMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
+                coneMat.alpha = 0.22; // Visible y translúcido
+                coneMat.disableLighting = true;
+                coneMat.wireframe = false;
+                window.holoCone.material = coneMat;
+                window.holoCone.parent = wrapper;
+                window.holoCone.position = new BABYLON.Vector3(0, 0.625, 0.55);
+                window.holoCone.rotation.x = Math.atan2(0.7, -0.35); 
+                window.holoCone.setEnabled(false);
+
+                // Cargar Obi-Wan desde OBJ con fallback inteligente
+                const setupHologramMesh = async () => {
+                    let holoResult = null;
+                    try {
+                        holoResult = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "ObiWan.obj", scene);
+                    } catch(e1) {
+                        try {
+                            holoResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "ObiWan.obj", scene);
+                        } catch(e2) {
+                            console.warn("ObiWan.obj no disponible, creando silueta holográfica procedural", e2);
+                        }
+                    }
+
+                    if (holoResult && holoResult.meshes && holoResult.meshes.length > 0) {
                         holoResult.meshes.forEach(m => {
                             m.parent = holoNode;
                             m.material = holoMat;
                         });
-                        
-                        // El origen del OBJ ya tiene los pies en Z=0. Al rotarlo, Z pasa a ser Y (altura).
-                        holoNode.setPivotMatrix(BABYLON.Matrix.Translation(0, 0, 0), false);
-                        
-                        // Doble de tamaño como pediste y flotando
                         holoNode.scaling = new BABYLON.Vector3(0.006, 0.006, 0.006);
-                        holoNode.rotation.x = -Math.PI / 2; // Ajustar rotación porque viene de Blender
-                        
-                        // Posición relativa al cuerpo de R2D2 (flotando a 0.45m y 0.9m hacia adelante)
+                        holoNode.rotation.x = -Math.PI / 2;
                         holoNode.position = new BABYLON.Vector3(0, 0.45, 0.9);
-                        
-                        // Ocultar por defecto
-                        holoNode.setEnabled(false);
+                    } else {
+                        // Silueta procedural Jedi de Obi-Wan con túnica y capucha
+                        const jediBody = BABYLON.MeshBuilder.CreateCylinder("jediBody", { diameterTop: 0.2, diameterBottom: 0.45, height: 0.75, tessellation: 16 }, scene);
+                        jediBody.position.y = 0.38;
+                        jediBody.material = holoMat;
+                        jediBody.parent = holoNode;
 
-                        // --- CREAR EL CONO DE PROYECCIÓN ---
-                        window.holoCone = BABYLON.MeshBuilder.CreateCylinder("holoCone", {
-                            diameterTop: 0.9,      // Base del holograma
-                            diameterBottom: 0.05,  // Proyector en R2D2
-                            height: 0.78,          // Distancia exacta entre proyector (0,0.8,0.2) y holograma (0,0.45,0.9)
-                            tessellation: 32
-                        }, scene);
-                        
-                        let coneMat = new BABYLON.StandardMaterial("coneMat", scene);
-                        coneMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
-                        coneMat.alpha = 0.15; // Translúcido y sutil
-                        coneMat.disableLighting = true;
-                        coneMat.wireframe = false;
-                        window.holoCone.material = coneMat;
-                        
-                        // Anclar al cuerpo de R2D2 (el headNode de Blender tenía escala x100 interna oculta)
-                        window.holoCone.parent = wrapper;
-                        
-                        // Posicionar en el punto medio entre proyector (0, 0.8, 0.2) y holograma (0, 0.45, 0.9)
-                        window.holoCone.position = new BABYLON.Vector3(0, 0.625, 0.55);
-                        
-                        // Rotar para que apunte del proyector al holograma (deltaZ = 0.7, deltaY = -0.35)
-                        window.holoCone.rotation.x = Math.atan2(0.7, -0.35); 
-                        
-                        window.holoCone.setEnabled(false);
+                        const jediHead = BABYLON.MeshBuilder.CreateSphere("jediHead", { diameter: 0.22 }, scene);
+                        jediHead.position.y = 0.85;
+                        jediHead.material = holoMat;
+                        jediHead.parent = holoNode;
 
-                    }).catch((e) => { console.log("Error asíncrono cargando OBJ:", e); });
-                } catch(errHolo) {
-                    console.log("No se pudo iniciar la carga del OBJ.");
-                }
+                        const jediHood = BABYLON.MeshBuilder.CreateCylinder("jediHood", { diameterTop: 0.08, diameterBottom: 0.3, height: 0.3 }, scene);
+                        jediHood.position.y = 0.82;
+                        jediHood.material = holoMat;
+                        jediHood.parent = holoNode;
+
+                        holoNode.position = new BABYLON.Vector3(0, 0.3, 0.9);
+                    }
+                    holoNode.setEnabled(false);
+                };
+                setupHologramMesh();
 
                 window.triggerAction = function(type) {
                     if (type === 'head' && headNode) {
@@ -263,29 +305,38 @@
                             }, 16);
                         }
                     }
-                    if (type === 'holo' && holoNode) {
-                        let isShowing = holoNode.isEnabled();
-                        holoNode.setEnabled(!isShowing);
-                        if(window.holoCone) window.holoCone.setEnabled(!isShowing);
+                    if (type === 'holo') {
+                        let isShowing = holoNode ? holoNode.isEnabled() : false;
+                        if (holoNode) holoNode.setEnabled(!isShowing);
+                        if (window.holoCone) window.holoCone.setEnabled(!isShowing);
                     }
                     if (type === 'speak') {
-                        sfxAudio.currentTime = 0;
-                        sfxAudio.play();
+                        // Resplandor del panel de control
                         document.getElementById('ui').style.borderColor = '#FFEB3B';
                         
-                        // Encender nuestro LED creado
+                        // Encender el LED rojo del ojo de R2-D2
                         if (ledMat) {
                             ledMat.emissiveColor = new BABYLON.Color3(1, 0.2, 0.2); // Rojo brillante
                         }
 
-                        setTimeout(()=> {
+                        // Sonido auténtico de R2-D2 (Web Audio Synth + Audio HTML5)
+                        playR2D2Synth();
+                        try {
+                            if (sfxAudio) {
+                                sfxAudio.currentTime = 0;
+                                let p = sfxAudio.play();
+                                if (p && p.catch) p.catch(() => {});
+                            }
+                        } catch(e) {}
+
+                        setTimeout(() => {
                             document.getElementById('ui').style.borderColor = '#00E5FF';
                             if (ledMat) {
                                 ledMat.emissiveColor = new BABYLON.Color3(0, 0, 0); // Apagar
                             }
                         }, 1500);
                     }
-                }
+                };
 
             } catch (e) { console.error(e); }
 

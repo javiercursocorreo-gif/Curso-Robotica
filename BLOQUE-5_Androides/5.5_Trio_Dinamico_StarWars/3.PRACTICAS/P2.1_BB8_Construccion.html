@@ -173,6 +173,7 @@
         procHead.isVisible = true; // Se mostrará junto al wireframe
         
         // --- MODELO 3D REAL (BB-8) ---
+        try {
             let result;
             try {
                 result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "bb-8.glb", scene);

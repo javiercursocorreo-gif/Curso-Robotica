@@ -116,6 +116,7 @@
             return {min, max, size: max.subtract(min)};
         };
 
+        try {
             let result;
             try {
                 result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "bb-8.glb", scene);
