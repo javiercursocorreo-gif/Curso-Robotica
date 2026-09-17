@@ -35,10 +35,9 @@
         <button onclick="setRoutine('SALTO_VERTICAL')">7. Salto Vertical</button>
         <button onclick="setRoutine('SALTO_LONGITUD')">8. Salto Longitud</button>
         <button onclick="setRoutine('ROBOT')">9. Baile Robot</button>
-        <button onclick="setRoutine('PAQUETE')">10. Recoger Paquete</button>
-        <button onclick="setRoutine('GRULLA')">11. La Grulla</button>
-        <button onclick="setRoutine('CAMINAR_ATRAS')">12. Caminar Atrás</button>
-        <button onclick="setRoutine('ESCALERAS')">13. Atravesar Escaleras</button>
+        <button onclick="setRoutine('GRULLA')">10. La Grulla</button>
+        <button onclick="setRoutine('CAMINAR_ATRAS')">11. Caminar Atrás</button>
+        <button onclick="setRoutine('ESCALERAS')">12. Atravesar Escaleras</button>
         <button onclick="setRoutine('REPOSO')" class="btn-reset">Reset / Reposo</button>
     </div>
     
@@ -179,6 +178,7 @@
     window.packageMesh = B.MeshBuilder.CreateBox("package", {size: 1.5}, scene);
     window.packageMesh.material = mOrange;
     window.packageMesh.position = v3(20, 3.0, 0);
+    window.packageMesh.isVisible = false;
 
     let stairsNode = new B.TransformNode("stairsNode", scene);
     stairsNode.setEnabled(false);
