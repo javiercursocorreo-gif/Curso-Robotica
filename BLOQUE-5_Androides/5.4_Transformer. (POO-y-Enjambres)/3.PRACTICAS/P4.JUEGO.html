@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4.JUEGO — Transformer POO & Enjambres</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+<style>
+:root {
+  --primary: #00f2ff;
+  --accent: #f59e0b;
+  --bg: #06090e;
+  --bg2: #101622;
+  --glass: rgba(12, 18, 28, 0.94);
+  --text: #ffffff;
+  --sub: #8a9ba8;
+  --success: #00ff88;
+  --danger: #ff3355;
+  --warning: #ffdd00;
+  --teal: #00BFA5;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; user-select: none; }
+body {
+  background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; display: flex; flex-direction: column;
+}
+#header {
+  height: 70px; background: rgba(6, 9, 14, 0.95); border-bottom: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+}
+#header h1 { font-size: 20px; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; font-weight: 800; }
+#header .subtitle { font-size: 13px; color: var(--sub); }
+#score-display { font-size: 20px; color: var(--warning); font-weight: 800; background: rgba(255,221,0,0.1); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(255,221,0,0.3); }
+
+#progress-bar {
+  position: fixed; top: 70px; left: 0; right: 0; height: 56px; background: rgba(12, 16, 24, 0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 999; padding: 8px 16px; gap: 10px;
+}
+.prog-btn {
+  flex: 1; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  color: var(--sub); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 10px; transition: all 0.25s;
+}
+.prog-btn:hover { border-color: var(--primary); color: #fff; }
+.prog-btn.active { border-color: var(--primary); color: var(--bg); background: var(--primary); box-shadow: 0 0 15px rgba(0,242,255,0.4); }
+.prog-btn.done { border-color: var(--success); color: var(--success); background: rgba(0,255,136,0.1); }
+
+#main {
+  margin-top: 136px; flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.pantalla { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 850px; width: 100%; }
+.pantalla.activa { display: flex; }
+
+/* PORTADA */
+.portada-emojis { font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(0,242,255,0.5)); }
+.portada-titulo { font-size: 34px; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 1px; }
+.portada-desc { font-size: 17px; color: var(--sub); margin-bottom: 30px; max-width: 650px; line-height: 1.6; }
+.badges-container { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
+.badge-card { background: rgba(0,242,255,0.08); border: 1px solid var(--primary); border-radius: 12px; padding: 12px 20px; font-size: 15px; font-weight: 700; color: var(--primary); }
+
+.btn-empezar {
+  background: linear-gradient(135deg, #00f2ff, #00ff88); color: #06090e; border: none; padding: 18px 54px;
+  font-size: 22px; font-weight: 800; border-radius: 14px; cursor: pointer; transition: all 0.25s; box-shadow: 0 0 30px rgba(0,242,255,0.5);
+}
+.btn-empezar:hover { transform: scale(1.05); box-shadow: 0 0 45px rgba(0,255,136,0.8); }
+
+/* TARJETA DE JUEGO */
+.game-card {
+  background: var(--glass); border: 2px solid rgba(0,242,255,0.35); border-radius: 24px; padding: 36px; max-width: 850px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(0,242,255,0.15); text-align: left;
+}
+.game-title { font-size: 14px; letter-spacing: 3px; color: var(--primary); text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
+.game-question { font-size: 21px; line-height: 1.4; margin-bottom: 24px; color: #fff; font-weight: 700; }
+
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.opt-btn {
+  padding: 18px 20px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 14px; transition: all 0.2s; text-align: left; line-height: 1.35;
+}
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(0,242,255,0.1); transform: translateY(-2px); }
+.opt-btn.correct { border-color: var(--success); background: rgba(0,255,136,0.15); color: var(--success); }
+.opt-btn.wrong { border-color: var(--danger); background: rgba(255,51,85,0.15); color: var(--danger); opacity: 0.6; }
+
+.feedback { padding: 16px 20px; border-radius: 12px; font-size: 17px; font-weight: 600; margin-bottom: 20px; display: none; line-height: 1.4; }
+.feedback.show { display: block; }
+.feedback.ok { background: rgba(0,255,136,0.12); border: 1px solid var(--success); color: var(--success); }
+.feedback.ko { background: rgba(255,51,85,0.12); border: 1px solid var(--danger); color: #ff8899; }
+
+.btn-siguiente, .btn-solucion {
+  display: none; width: 100%; padding: 16px; border: none; border-radius: 14px; font-size: 18px; font-weight: 800; cursor: pointer; transition: all 0.2s; margin-bottom: 12px;
+}
+.btn-siguiente.show, .btn-solucion.show { display: block; }
+.btn-siguiente { background: var(--success); color: #06090e; box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+.btn-siguiente:hover { transform: scale(1.02); background: #fff; }
+.btn-solucion { background: var(--warning); color: #06090e; }
+.btn-reiniciar { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: var(--sub); padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.btn-reiniciar:hover { color: #fff; border-color: #fff; }
+
+/* DRAG & DROP ORDENAR */
+.sortable-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.sort-item {
+  padding: 16px 20px; background: rgba(0, 242, 255, 0.05); border: 2px solid rgba(0, 242, 255, 0.3);
+  border-radius: 14px; font-size: 16px; font-weight: 600; cursor: grab; display: flex; align-items: center; gap: 16px; transition: all 0.2s;
+}
+.sort-item:hover { border-color: var(--primary); background: rgba(0,242,255,0.12); }
+.sort-num { width: 36px; height: 36px; background: var(--primary); color: #06090e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.btn-verificar { width: 100%; padding: 16px; background: var(--primary); color: #06090e; font-size: 18px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; margin-bottom: 14px; box-shadow: 0 0 20px rgba(0,242,255,0.4); }
+
+/* EMPAREJAR */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.match-col { display: flex; flex-direction: column; gap: 12px; }
+.match-item {
+  padding: 16px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
+  border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.25s; display: flex; align-items: center;
+}
+.match-item.selected { border-color: var(--primary); background: rgba(0,242,255,0.15); transform: scale(1.02); }
+.match-item.matched { opacity: 0.65; cursor: default; border-style: dashed; }
+.match-pair-0 { border-color: #00ff88 !important; background: rgba(0,255,136,0.15) !important; color: #00ff88; }
+.match-pair-1 { border-color: #00f2ff !important; background: rgba(0,242,255,0.15) !important; color: #00f2ff; }
+.match-pair-2 { border-color: #ffdd00 !important; background: rgba(255,221,0,0.15) !important; color: #ffdd00; }
+.match-pair-3 { border-color: #ff3355 !important; background: rgba(255,51,85,0.15) !important; color: #ff3355; }
+.match-pair-4 { border-color: #ab47bc !important; background: rgba(171,71,188,0.15) !important; color: #ab47bc; }
+.match-badge { margin-left: auto; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(0,0,0,0.4); color: #fff; }
+
+/* RETO FINAL 3D INTERACTIVO */
+#canvas-container { width: 100%; height: 380px; border-radius: 18px; overflow: hidden; border: 2px solid var(--primary); margin-bottom: 20px; position: relative; background: #0b0f19; }
+#renderCanvas { width: 100%; height: 100%; display: block; outline: none; }
+.sim-controls {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10;
+}
+.sim-btn {
+  background: rgba(6, 9, 14, 0.85); color: var(--primary); border: 1px solid var(--primary); border-radius: 8px;
+  padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(6px);
+}
+.sim-btn:hover { background: var(--primary); color: #000; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Transformer POO · P4.JUEGO</h1>
+    <div class="subtitle">Desafío de Evaluación Interactiva V5: POO y Enjambres</div>
+  </div>
+  <div id="score-display">⭐ 0 puntos</div>
+</div>
+
+<div id="progress-bar" style="display: none;">
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial POO</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Secuencia Enjambre</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar Conceptos</button>
+  <button class="prog-btn" onclick="goGame(3)">🤖 Reto Final 3D</button>
+</div>
+
+<div id="main">
+  <!-- PORTADA -->
+  <div id="pantalla-inicio" class="pantalla activa">
+    <div class="portada-emojis">🤖🚗⚡🐝</div>
+    <div class="portada-titulo">Evaluación Final: Transformer POO</div>
+    <div class="portada-desc">Demuestra tu dominio sobre la Programación Orientada a Objetos (POO), arquitectura modular con clases, máquinas de estados y coordinación de enjambres robóticos multi-instancia en 3D.</div>
+    <div class="badges-container">
+      <div class="badge-card">🎯 Trivial POO y Robótica</div>
+      <div class="badge-card">📦 Secuencia de Instanciación</div>
+      <div class="badge-card">🔗 Emparejar Conceptos</div>
+      <div class="badge-card">🤖 Simulación 3D</div>
+    </div>
+    <button class="btn-empezar" onclick="iniciar()">¡COMENZAR RETO!</button>
+  </div>
+
+  <div id="game-area" style="display: none; width: 100%; max-width: 850px;"></div>
+</div>
+
+<script>
+let score = 0;
+let currentGame = 0;
+const completedGames = [false, false, false, false];
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function updateScore(n) {
+  score += n;
+  document.getElementById('score-display').textContent = '⭐ ' + score + ' puntos';
+}
+
+function updateProgressBar() {
+  document.querySelectorAll('.prog-btn').forEach((b, i) => {
+    b.className = 'prog-btn';
+    if (completedGames[i]) b.classList.add('done');
+    if (i === currentGame) b.classList.add('active');
+  });
+}
+
+function iniciar() {
+  document.getElementById('pantalla-inicio').classList.remove('activa');
+  document.getElementById('pantalla-inicio').style.display = 'none';
+  document.getElementById('progress-bar').style.display = 'flex';
+  document.getElementById('game-area').style.display = 'block';
+  score = 0; currentGame = 0; completedGames.fill(false);
+  updateScore(0); updateProgressBar();
+  game1();
+}
+
+function goGame(n) { currentGame = n; updateProgressBar(); games[n](); }
+function nextGame() {
+  completedGames[currentGame] = true; updateProgressBar();
+  if (currentGame < 3) { currentGame++; updateProgressBar(); games[currentGame](); }
+  else { showFinal(); }
+}
+
+// ─── JUEGO 1: TRIVIAL POO & ROBÓTICA (5 Preguntas) ─────────────────────────
+const trivia = [
+  {
+    q: "¿Cuál es la principal ventaja de encapsular el robot en una `class Transformer` en lugar de programarlo todo con variables globales sueltas?",
+    opts: [
+      "Hace que el navegador cargue el modelo 3D al doble de velocidad por defecto",
+      "Permite crear múltiples robots independientes (instancias) con su propio estado, posición e IA sin duplicar código",
+      "Permite que el robot vuele sin necesidad de motor de físicas en BabylonJS",
+      "Evita tener que usar JavaScript en la página web"
+    ],
+    ok: 1,
+    exp: "✅ ¡Exacto! Una clase sirve como molde (blueprint) que nos permite instanciar decenas de transformers independientes (`new Transformer()`) reutilizando la misma lógica."
+  },
+  {
+    q: "En la máquina de estados del Transformer, ¿por qué es crítico tener un estado intermedio `\"TRANSFORMANDO\"` entre `\"ROBOT\"` y `\"VEHICULO\"`?",
+    opts: [
+      "Para bloquear nuevas órdenes contradictorias mientras la animación cinemática está en ejecución",
+      "Para desconectar temporalmente la pantalla y ahorrar memoria RAM",
+      "Porque el lenguaje JavaScript obliga a tener siempre tres estados en cualquier variable",
+      "Para que el robot se vuelva invisible durante el cambio de forma"
+    ],
+    ok: 0,
+    exp: "✅ ¡Correcto! Mientras el robot se transforma (promesa asíncrona activa), no debe aceptar órdenes de marcha ni nuevas metamorfosis para prevenir fallos visuales y de estado."
+  },
+  {
+    q: "¿Por qué utilizamos un `AssetContainer` (`LoadAssetContainerAsync`) en la práctica de enjambres en vez de llamar a `ImportMeshAsync` cada vez que creamos un robot?",
+    opts: [
+      "Porque los navegadores prohíben descargar un archivo más de 3 veces seguidas",
+      "Porque `ImportMeshAsync` solo funciona con robots de una sola rueda",
+      "Porque descarga el archivo GLB pesado una sola vez en RAM y luego clona rápidamente las mallas e instancias sin recargar la red",
+      "Porque el contenedor de assets transforma automáticamente el modelo en un vehículo espacial"
+    ],
+    ok: 2,
+    exp: "✅ ¡Impecable! Con `AssetContainer`, el modelo se descarga una única vez (10 MB) y después `instantiateModelsToScene` genera al vuelo tantos clones como queramos al instante."
+  },
+  {
+    q: "¿Cómo resuelve el Transformer el movimiento hacia su objetivo para evitar giros bruscos e instantáneos de 180º?",
+    opts: [
+      "Usando un temporizador `setTimeout` de 5 segundos antes de cada giro",
+      "Mediante interpolación angular suave (`BABYLON.Scalar.Lerp`) corrigiendo el salto de frontera entre -π y +π",
+      "Apagando la cámara 3D hasta que el robot haya terminado de orientarse",
+      "Obligando al robot a caminar siempre en línea recta hacia adelante"
+    ],
+    ok: 1,
+    exp: "✅ ¡Muy bien! `Scalar.Lerp` calcula una transición gradual fotograma a fotograma entre el ángulo actual y el deseado, dotando al robot de una cinemática realista."
+  },
+  {
+    q: "En un sistema de enjambre robótico (Swarm Robotics), ¿cómo se logra que las unidades no colisionen al recibir la orden masiva de \"Ir al Marcador\"?",
+    opts: [
+      "Apagando la física de todos los robots para que se atraviesen como fantasmas",
+      "Enviando a cada robot a un servidor web diferente en la nube",
+      "Calculando para cada robot un desfase de posición en formación (por ejemplo, distribución circular con ángulos y radios)",
+      "Esperando a que el primer robot llegue a destino para que empiece a moverse el segundo"
+    ],
+    ok: 2,
+    exp: "✅ ¡Exacto! Al repartir los puntos de llegada en un anillo circular mediante trigonometría (coseno y seno), todo el enjambre se posiciona de forma ordenada y espectacular."
+  }
+];
+
+let triviaIdx = 0; let triviaAnswered = false; let triviaAttempts = 0;
+function game1() { triviaIdx = 0; renderTrivia(); }
+function renderTrivia() {
+  if (triviaIdx >= trivia.length) { nextGame(); return; }
+  const q = trivia[triviaIdx]; triviaAnswered = false; triviaAttempts = 0;
+  const shuffled = shuffleArray([0, 1, 2, 3]); const correctShuffled = shuffled.indexOf(q.ok);
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🎯 Trivial POO y Robótica · Pregunta ${triviaIdx+1} / ${trivia.length}</div>
+      <div class="game-question">${q.q}</div>
+      <div class="options-grid">
+        ${shuffled.map((i, pos) => `<button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>`).join('')}
+      </div>
+      <div class="feedback" id="fb"></div>
+      <button class="btn-solucion" id="btn-sol" onclick="showTriviaSolution(${correctShuffled})">VER EXPLICACIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig" onclick="triviaNext()">SIGUIENTE PREGUNTA →</button>
+      <button class="btn-reiniciar" onclick="game1()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+}
+
+function answerTrivia(btn, pos, correctPos) {
+  if (triviaAnswered) return;
+  const q = trivia[triviaIdx]; const btns = document.querySelectorAll('.opt-btn'); const fb = document.getElementById('fb');
+  if (pos === correctPos) {
+    triviaAnswered = true; btns.forEach(b => b.disabled = true); btn.classList.add('correct');
+    fb.className = 'feedback show ok'; fb.textContent = q.exp;
+    updateScore(triviaAttempts === 0 ? 20 : 10);
+    document.getElementById('btn-sol').classList.remove('show'); document.getElementById('btn-sig').classList.add('show');
+  } else {
+    triviaAttempts++; btn.classList.add('wrong'); btn.disabled = true;
+    fb.className = 'feedback show ko'; fb.textContent = '❌ Respuesta incorrecta. ¡Analiza los conceptos de POO e inténtalo de nuevo!';
+    document.getElementById('btn-sol').classList.add('show');
+  }
+}
+function showTriviaSolution(correctPos) {
+  triviaAnswered = true; const q = trivia[triviaIdx]; const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => { b.disabled = true; b.classList.remove('wrong'); });
+  btns[correctPos].classList.add('correct');
+  const fb = document.getElementById('fb'); fb.className = 'feedback show ok'; fb.textContent = '💡 ' + q.exp;
+  document.getElementById('btn-sol').classList.remove('show'); document.getElementById('btn-sig').classList.add('show');
+}
+function triviaNext() { triviaIdx++; renderTrivia(); }
+
+// ─── JUEGO 2: ORDENAR SECUENCIA (6 Pasos) ────────────────────────────────
+const sortItems = [
+  { id: 'a', text: '📥 El navegador descarga en memoria el contenedor 3D maestro (LoadAssetContainerAsync)' },
+  { id: 'b', text: '🖱️ El usuario pulsa el botón «INVOCAR REFUERZOS» para solicitar una nueva unidad' },
+  { id: 'c', text: '🧬 El contenedor clona las mallas y grupos de animación (instantiateModelsToScene)' },
+  { id: 'd', text: '🧠 Se ejecuta el constructor new Transformer(scene, pos, cloneData) asociando el nodo raíz' },
+  { id: 'e', text: '📋 El nuevo objeto robot se añade a la lista activa del ejército (ejercito.push)' },
+  { id: 'f', text: '⚡ El bucle principal actualiza la IA y cinemática de cada unidad a 60 FPS (r.update)' }
+];
+const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f']; let sortCurrentOrder = []; let sortDone = false; let sortAttempts = 0;
+
+function game2() { sortCurrentOrder = shuffleArray([...sortItems]); sortDone = false; sortAttempts = 0; renderSort(); }
+function renderSort() {
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">📦 Ordenar · Secuencia de Instanciación de Enjambre</div>
+      <div class="game-question">Arrastra los bloques para ordenar cronológicamente el ciclo de vida: desde la descarga del asset hasta la ejecución en tiempo real del ejército de robots.</div>
+      <div class="sortable-list" id="sort-list">
+        ${sortCurrentOrder.map((item, i) => `
+          <div class="sort-item" draggable="true" data-id="${item.id}">
+            <div class="sort-num">${i+1}</div><span>${item.text}</span>
+          </div>`).join('')}
+      </div>
+      <button class="btn-verificar" onclick="checkSort()">✔ VERIFICAR ORDEN</button>
+      <div class="feedback" id="fb-sort"></div>
+      <button class="btn-solucion" id="btn-sol2" onclick="showSortSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig2" onclick="nextGame()">SIGUIENTE MINIJUEGO →</button>
+      <button class="btn-reiniciar" onclick="game2()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+  initDragSort();
+}
+function initDragSort() {
+  const list = document.getElementById('sort-list'); let dragEl = null;
+  list.querySelectorAll('.sort-item').forEach(item => {
+    item.addEventListener('dragstart', () => { dragEl = item; item.style.opacity = '0.4'; });
+    item.addEventListener('dragend', () => { item.style.opacity = '1'; dragEl = null; renumberSort(); });
+    item.addEventListener('dragover', e => { e.preventDefault(); });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragEl && dragEl !== item) {
+        const items = [...list.querySelectorAll('.sort-item')];
+        if (items.indexOf(dragEl) < items.indexOf(item)) list.insertBefore(dragEl, item.nextSibling);
+        else list.insertBefore(dragEl, item);
+      }
+    });
+  });
+}
+function renumberSort() { document.querySelectorAll('.sort-item').forEach((el, i) => el.querySelector('.sort-num').textContent = i + 1); }
+function checkSort() {
+  if (sortDone) return;
+  const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
+  const fb = document.getElementById('fb-sort');
+  if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
+    fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Impecable! La precarga del contenedor antecede a la instanciación de clones y al bucle de simulación.';
+    if (sortAttempts === 0) updateScore(30);
+    sortDone = true; document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
+  } else {
+    sortAttempts++; fb.className = 'feedback show ko'; fb.textContent = '❌ El orden tiene fallos. Piensa: descarga del contenedor -> evento de usuario -> clonación -> constructor -> array de ejército -> bucle update.';
+    document.getElementById('btn-sol2').classList.add('show');
+  }
+}
+function showSortSolution() {
+  sortDone = true; const list = document.getElementById('sort-list'); list.innerHTML = '';
+  sortCorrect.forEach((id, i) => {
+    const item = sortItems.find(x => x.id === id);
+    list.innerHTML += `<div class="sort-item"><div class="sort-num">${i+1}</div><span>${item.text}</span></div>`;
+  });
+  const fb = document.getElementById('fb-sort'); fb.className = 'feedback show ok'; fb.textContent = '💡 Solución ordenada mostrada en pantalla.';
+  document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
+}
+
+// ─── JUEGO 3: EMPAREJAR CONCEPTOS POO & ENJAMBRES (5 Conceptos) ────────────
+const matchPairs = [
+  { left: 'Clase (Class Transformer)', right: 'Molde o plantilla que define propiedades, métodos y estados' },
+  { left: 'Objeto / Instancia', right: 'Entidad autónoma con su propia posición, IA y velocidad en el mundo' },
+  { left: 'Máquina de Estados', right: 'Regula si el robot está en modo ROBOT, VEHICULO o TRANSFORMANDO' },
+  { left: 'AssetContainer', right: 'Guarda el modelo 3D en RAM para clonarlo infinitamente sin re-descarga' },
+  { left: 'Formación Circular', right: 'Distribución trigonométrica (seno/coseno) para evitar colisiones' }
+];
+let matchSelected = null; let matchDone = 0; let matchAutoCount = 0;
+function game3() {
+  matchSelected = null; matchDone = 0; matchAutoCount = 0;
+  const leftItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].left }));
+  const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🔗 Emparejar · Conceptos POO y Arquitectura de Enjambres</div>
+      <div class="game-question">Selecciona un elemento conceptual a la izquierda y conéctalo con su definición técnica a la derecha.</div>
+      <div class="match-grid">
+        <div class="match-col" id="left-col">${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
+        <div class="match-col" id="right-col">${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
+      </div>
+      <div class="feedback" id="fb-match"></div>
+      <button class="btn-solucion" id="btn-sol3" onclick="showMatchSolution()">VER SOLUCIÓN 💡</button>
+      <button class="btn-siguiente" id="btn-sig3" onclick="nextGame()">SIGUIENTE MINIJUEGO →</button>
+      <button class="btn-reiniciar" onclick="game3()">🔄 REINICIAR MINIJUEGO</button>
+    </div>`;
+}
+function selectMatch(el) {
+  if (el.classList.contains('matched')) return;
+  const side = el.dataset.side;
+  if (!matchSelected) { if (side === 'left') { matchSelected = el; el.classList.add('selected'); } }
+  else {
+    if (side !== 'right') { matchSelected.classList.remove('selected'); el.classList.add('selected'); matchSelected = el; return; }
+    const idxA = parseInt(matchSelected.dataset.idx); const idxB = parseInt(el.dataset.idx);
+    if (idxA === idxB) {
+      matchSelected.classList.remove('selected'); matchSelected.classList.add('matched', 'match-pair-' + idxA);
+      el.classList.add('matched', 'match-pair-' + idxA);
+      const badges = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E'];
+      matchSelected.innerHTML += `<span class="match-badge">${badges[idxA]}</span>`; el.innerHTML += `<span class="match-badge">${badges[idxA]}</span>`;
+      matchDone++;
+      if (matchDone === matchPairs.length) {
+        updateScore((matchPairs.length - matchAutoCount) * 6);
+        const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Perfecto! Conoces con precisión la arquitectura de clases y sistemas distribuidos.';
+        document.getElementById('btn-sol3').classList.remove('show'); document.getElementById('btn-sig3').classList.add('show');
+      }
+    } else {
+      matchSelected.classList.remove('selected'); el.style.borderColor = '#ff3355'; setTimeout(() => el.style.borderColor = '', 500);
+      document.getElementById('btn-sol3').classList.add('show');
+    }
+    matchSelected = null;
+  }
+}
+function showMatchSolution() {
+  document.querySelectorAll('#left-col .match-item').forEach((l) => {
+    const i = parseInt(l.dataset.idx); const r = Array.from(document.querySelectorAll('#right-col .match-item')).find(el => parseInt(el.dataset.idx) === i);
+    if (!l.classList.contains('matched')) {
+      l.classList.add('matched', 'match-pair-' + i); r.classList.add('matched', 'match-pair-' + i);
+      const badges = ['Par A', 'Par B', 'Par C', 'Par D', 'Par E']; l.innerHTML += `<span class="match-badge">${badges[i]}</span>`; r.innerHTML += `<span class="match-badge">${badges[i]}</span>`;
+    }
+  });
+  matchAutoCount = matchPairs.length - matchDone; matchDone = matchPairs.length;
+  const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '💡 Solución emparejada mostrada arriba.';
+  document.getElementById('btn-sol3').classList.remove('show'); document.getElementById('btn-sig3').classList.add('show');
+}
+
+// ─── JUEGO 4: RETO FINAL 3D (Simulador e Inspección) ─────────────────────
+const finalScenarios = [
+  {
+    title: "Misión 1: Cinemática de Transformación",
+    desc: "Observa el Transformer en el visor 3D interactivo. Cuando el robot pasa de modo vehículo a modo robot humanoide, la animación se reproduce a velocidad positiva (speedRatio = 1.5). Para volver a plegarse como vehículo, ¿qué operación matemática se aplica a la animación?",
+    opts: [
+      "Invertir la velocidad de reproducción a valor negativo (speedRatio = -1.5)",
+      "Borrar la malla del robot y descargar un archivo GLB nuevo desde internet",
+      "Duplicar la gravedad del escenario hacia arriba",
+      "Multiplicar la escala geométrica por cero"
+    ],
+    ok: 0,
+    exp: "✅ ¡Exacto! Al aplicar un speedRatio negativo (-1.5), BabylonJS reproduce la cinemática en sentido inverso, transformando el robot humanoide de vuelta en vehículo fluidamente."
+  },
+  {
+    title: "Misión 2: Coordinación Orgánica del Enjambre",
+    desc: "En una simulación de enjambre con múltiples unidades Transformer avanzando hacia una misma posición, ¿por qué es una buena práctica añadir una variación aleatoria a la velocidad de cada robot (`this.speed += Math.random() * 4 - 2`)?",
+    opts: [
+      "Porque los cables virtuales de los robots se enredan si van igual",
+      "Para que el enjambre parezca un escuadrón orgánico y dinámico, evitando que se muevan como un bloque rígido y artificial",
+      "Porque el navegador se bloquea si dos objetos tienen la misma velocidad",
+      "Para ahorrar ancho de banda en la conexión a internet"
+    ],
+    ok: 1,
+    exp: "✅ ¡Perfecto! La micro-variación estocástica en los atributos de cada instancia dota al enjambre de realismo visual y evita apelotonamientos antinaturales."
+  }
+];
+let finalIdx = 0; let finalAnswered = false;
+
+function game4() {
+  finalIdx = 0;
+  renderFinalStage();
+}
+
+function renderFinalStage() {
+  if (finalIdx >= finalScenarios.length) { showFinal(); return; }
+  const sc = finalScenarios[finalIdx]; finalAnswered = false;
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card">
+      <div class="game-title">🤖 Reto Final 3D · ${sc.title}</div>
+      <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+        <div class="sim-controls">
+          <button class="sim-btn" id="btn-transform">🔄 TRANSFORMAR</button>
+          <button class="sim-btn" id="btn-reset-cam">🎥 RECENTRAR</button>
+        </div>
+      </div>
+      <div class="game-question">${sc.desc}</div>
+      <div class="options-grid">
+        ${sc.opts.map((opt, i) => `<button class="opt-btn" onclick="answerFinal(this, ${i}, ${sc.ok})">${opt}</button>`).join('')}
+      </div>
+      <div class="feedback" id="fb-final"></div>
+      <button class="btn-siguiente" id="btn-sig-final" onclick="finalIdx++; renderFinalStage();">SIGUIENTE MISIÓN →</button>
+    </div>`;
+  setTimeout(initBabylonMini, 50);
+}
+
+function answerFinal(btn, idx, ok) {
+  if (finalAnswered) return;
+  const btns = document.querySelectorAll('.opt-btn'); const fb = document.getElementById('fb-final');
+  if (idx === ok) {
+    finalAnswered = true; btns.forEach(b => b.disabled = true); btn.classList.add('correct');
+    fb.className = 'feedback show ok'; fb.textContent = finalScenarios[finalIdx].exp;
+    updateScore(30); document.getElementById('btn-sig-final').classList.add('show');
+  } else {
+    btn.classList.add('wrong'); btn.disabled = true; fb.className = 'feedback show ko'; fb.textContent = '❌ Analiza el modelo 3D superior y los principios de cinemática inversa e inténtalo de nuevo.';
+  }
+}
+
+let activeAnimGroup = null;
+let isRobotState = true;
+
+function initBabylonMini() {
+  const canvas = document.getElementById("renderCanvas"); if (!canvas) return;
+  const engine = new BABYLON.Engine(canvas, true);
+  const scene = new BABYLON.Scene(engine); scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.1, 1);
+  
+  const cam = new BABYLON.ArcRotateCamera("c", -Math.PI / 2, Math.PI / 2.2, 55, new BABYLON.Vector3(0, 10, 0), scene);
+  cam.attachControl(canvas, true); cam.wheelPrecision = 20; cam.lowerRadiusLimit = 15; cam.upperRadiusLimit = 120;
+  
+  const hemi = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene); hemi.intensity = 0.9;
+  const dir = new BABYLON.DirectionalLight("d", new BABYLON.Vector3(-1, -2, -1), scene); dir.position = new BABYLON.Vector3(20, 40, 20); dir.intensity = 1.2;
+
+  // Cuadrícula táctica mecha
+  const g = BABYLON.MeshBuilder.CreateGround("g", {width: 120, height: 120}, scene);
+  const mg = new BABYLON.StandardMaterial("mg", scene); mg.diffuseColor = new BABYLON.Color3(0.05, 0.12, 0.2); mg.wireframe = true; g.material = mg;
+
+  const root = new BABYLON.TransformNode("rootTransformer", scene);
+  root.position = new BABYLON.Vector3(0, 0, 0);
+
+  // Cargar transformer.glb con fallback y soporte completo
+  async function loadModel() {
+    let result = null;
+    try {
+      result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "transformer.glb", scene);
+    } catch(e) {
+      try {
+        result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "transformer.glb", scene);
+      } catch(err) {
+        console.warn("No se pudo cargar transformer.glb para el visor mini", err);
+      }
+    }
+    if (result && result.meshes.length > 0) {
+      const rootMesh = result.meshes[0];
+      rootMesh.parent = root;
+      rootMesh.scaling = new BABYLON.Vector3(27, 27, 27);
+      if (result.animationGroups && result.animationGroups.length > 0) {
+        activeAnimGroup = result.animationGroups.find(ag => ag.name.includes("transform_to_main_hero")) || result.animationGroups[0];
+        if (activeAnimGroup) {
+          activeAnimGroup.stop();
+          activeAnimGroup.start(false, 1.0, activeAnimGroup.to, activeAnimGroup.to, false);
+          isRobotState = true;
+        }
+      }
+    } else {
+      // Fallback holográfico si el GLB tarda en cargar
+      const holoMecha = BABYLON.MeshBuilder.CreateCylinder("holo", {height: 20, diameter: 8}, scene);
+      holoMecha.parent = root; holoMecha.position.y = 10;
+      const mh = new BABYLON.StandardMaterial("mh", scene); mh.diffuseColor = new BABYLON.Color3(0, 1, 1); mh.wireframe = true; holoMecha.material = mh;
+    }
+  }
+
+  loadModel();
+
+  // Controles del visor
+  const btnTrans = document.getElementById("btn-transform");
+  if (btnTrans) {
+    btnTrans.onclick = () => {
+      if (!activeAnimGroup) return;
+      if (isRobotState) {
+        activeAnimGroup.speedRatio = -1.5;
+        activeAnimGroup.play(false);
+        isRobotState = false;
+        btnTrans.innerText = "🚗 A ROBOT";
+      } else {
+        activeAnimGroup.speedRatio = 1.5;
+        activeAnimGroup.play(false);
+        isRobotState = true;
+        btnTrans.innerText = "🤖 A VEHÍCULO";
+      }
+    };
+  }
+
+  const btnReset = document.getElementById("btn-reset-cam");
+  if (btnReset) {
+    btnReset.onclick = () => {
+      cam.alpha = -Math.PI / 2;
+      cam.beta = Math.PI / 2.2;
+      cam.radius = 55;
+      cam.setTarget(new BABYLON.Vector3(0, 10, 0));
+    };
+  }
+
+  scene.onBeforeRenderObservable.add(() => {
+    cam.alpha += 0.002;
+  });
+
+  engine.runRenderLoop(() => scene.render());
+  window.addEventListener("resize", () => engine.resize());
+}
+
+function showFinal() {
+  document.getElementById('game-area').innerHTML = `
+    <div class="game-card" style="text-align: center;">
+      <div style="font-size: 70px; margin-bottom: 16px;">🏆🎉🤖</div>
+      <h2 style="font-size: 32px; color: var(--primary); margin-bottom: 12px;">¡ENHORABUENA, INGENIERO ROBÓTICO!</h2>
+      <p style="font-size: 18px; color: var(--sub); margin-bottom: 24px;">Has completado con éxito la evaluación interactiva sobre Programación Orientada a Objetos, Máquinas de Estados y Enjambres con Transformers.</p>
+      <div style="font-size: 26px; color: var(--warning); font-weight: 800; margin-bottom: 30px;">Puntuación Final: ${score} Puntos</div>
+      <button class="btn-empezar" onclick="iniciar()">🔄 REPETIR EVALUACIÓN</button>
+    </div>`;
+}
+
+const games = [game1, game2, game3, game4];
+</script>
+</body>
+</html>

@@ -124,12 +124,12 @@ CLASSES_DEF_B5 = [
             { "code": "T2", "ext": "MP4", "name": "T2.VIDEO.mp4", "desc": "Vídeo explicativo de robots metamórficos y microrobots en enjambre.", "rel": "2.TEORIA/T2.VIDEO.mp4" }
         ],
         "practices_phase2": [
-            { "code": "P1", "ext": "HTML", "name": "P1.CLASE_BASE", "desc": "Simulador 3D: Definición de la clase robot base y estados de transformación.", "rel": "3.PRACTICAS/P1.CLASE_BASE/app.html" },
-            { "code": "P2", "ext": "HTML", "name": "P2.IA_Y_MOVIMIENTO", "desc": "Simulador 3D: Cinemática de vehículo y androide bípedo transformable.", "rel": "3.PRACTICAS/P2.IA_Y_MOVIMIENTO/app.html" }
+            { "code": "P1", "ext": "HTML", "name": "P1.CLASE_BASE.html", "desc": "Simulador 3D: Definición de la clase robot base y estados de transformación.", "rel": "3.PRACTICAS/P1.CLASE_BASE.html" },
+            { "code": "P2", "ext": "HTML", "name": "P2.IA_Y_MOVIMIENTO.html", "desc": "Simulador 3D: Cinemática de vehículo y androide bípedo transformable.", "rel": "3.PRACTICAS/P2.IA_Y_MOVIMIENTO.html" }
         ],
         "practices_phase3": [
-            { "code": "P3", "ext": "HTML", "name": "P3.ENJAMBRES", "desc": "Simulador 3D: Algoritmos de bandada (Boids) y alineación de enjambres.", "rel": "3.PRACTICAS/P3.ENJAMBRES/app.html" },
-            { "code": "P4", "ext": "HTML", "name": "P4.JUEGO_DEFENSA", "desc": "Reto gamificado: Defiende la base coordinando escuadrones de robots transformables.", "rel": "3.PRACTICAS/P4.JUEGO_DEFENSA/app.html" }
+            { "code": "P3", "ext": "HTML", "name": "P3.ENJAMBRES.html", "desc": "Simulador 3D: Algoritmos de enjambre y control multi-instancia.", "rel": "3.PRACTICAS/P3.ENJAMBRES.html" },
+            { "code": "P4", "ext": "HTML", "name": "P4.JUEGO.html", "desc": "Evaluación interactiva oficial: Trivial POO, ordenación, emparejamiento y reto 3D.", "rel": "3.PRACTICAS/P4.JUEGO.html" }
         ]
     },
     {
@@ -606,3 +606,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

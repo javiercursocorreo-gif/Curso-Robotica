@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5.4 - Transformer POO (P2: IA y Máquina de Estados)</title>
+    
+    <!-- BabylonJS Core and Loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a2e; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #renderCanvas { width: 100vw; height: 100vh; touch-action: none; outline: none; }
+        
+        #uiContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(15, 15, 30, 0.85);
+            padding: 16px 24px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,255,255,0.2);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+        
+        .cyber-btn {
+            background: linear-gradient(135deg, #002244, #004488);
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            padding: 10px 18px;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,255,255,0.1);
+        }
+        .cyber-btn:hover { background: #00ffff; color: #001f3f; box-shadow: 0 0 20px rgba(0,255,255,0.6); transform: translateY(-2px); }
+        .cyber-btn.active { background: #ff0055; color: white; border-color: #ff0055; box-shadow: 0 0 20px rgba(255,0,85,0.6); }
+
+        #topPanel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            background: rgba(10, 15, 25, 0.85);
+            padding: 16px 20px;
+            border-left: 4px solid #00ffff;
+            border-radius: 8px;
+            font-size: 14px;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 380px;
+            line-height: 1.4;
+        }
+        #topPanel h3 { margin: 0 0 6px 0; font-size: 15px; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+        #statusText { font-weight: bold; color: #34d399; margin-top: 6px; }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="topPanel">
+        <h3>5.4 · P2: IA y Navegación Autónomo</h3>
+        <p>1. Haz clic en el suelo para fijar un objetivo (diana).</p>
+        <p>2. Envía órdenes a la IA para viajar como Titán o Manada.</p>
+        <p id="statusText">Estado IA: ESPERANDO ÓRDENES</p>
+    </div>
+
+    <div id="uiContainer">
+        <button class="cyber-btn" id="btnIrMarcador">IR AL MARCADOR</button>
+        <button class="cyber-btn" id="btnBase">LLAMAR A BASE</button>
+        <button class="cyber-btn" id="btnPatrulla">PATRULLA AUTO</button>
+        <button class="cyber-btn" id="btnModoViaje">VIAJE: MANADA</button>
+        <button class="cyber-btn" id="btnPresentacion">PRESENTACIÓN</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        
+        // ==========================================
+        // LA CLASE TRANSFORMER (INTELIGENCIA ARTIFICIAL)
+        // ==========================================
+        class Transformer {
+            constructor(scene, position) {
+                this.scene = scene;
+                
+                this.wrapper = new BABYLON.TransformNode("transformer_wrapper", this.scene);
+                this.wrapper.position = position;
+                
+                this.cameraTarget = new BABYLON.TransformNode("cam_target", this.scene);
+                this.cameraTarget.parent = this.wrapper;
+                this.cameraTarget.position = new BABYLON.Vector3(0, 15, 0);
+                
+                this.animationGroup = null;
+                this.state = "ROBOT"; 
+                
+                this.targetPos = null;
+                this.speed = 15.0;
+                this.turnSpeed = 5.0;
+                this.isPatrolling = false;
+
+                this.loadModel();
+            }
+
+            async loadModel() {
+                try {
+                    let result;
+                    try {
+                        result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "transformer.glb", this.scene);
+                    } catch(e) {
+                        result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "transformer.glb", this.scene);
+                    }
+                    
+                    let rootMesh = result.meshes[0];
+                    rootMesh.parent = this.wrapper; 
+                    rootMesh.scaling = new BABYLON.Vector3(27, 27, 27); 
+
+                    if (result.animationGroups.length > 0) {
+                        this.animationGroup = result.animationGroups.find(ag => ag.name === "transform_to_main_hero") || result.animationGroups[0];
+                        if (this.animationGroup) {
+                            this.animationGroup.stop();
+                            this.animationGroup.start(false, 1.0, this.animationGroup.to, this.animationGroup.to, false);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error al cargar:", error);
+                }
+            }
+
+            async transformarAVehiculo() {
+                if (this.state === "VEHICULO" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                updateStatus("Transformando a Vehículo...");
+                
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = -1.5;
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "VEHICULO";
+                        resolve();
+                    });
+                });
+            }
+
+            async transformarARobot() {
+                if (this.state === "ROBOT" || !this.animationGroup) return;
+                this.state = "TRANSFORMANDO";
+                updateStatus("Transformando a Robot...");
+                
+                return new Promise(resolve => {
+                    this.animationGroup.speedRatio = 1.5;
+                    this.animationGroup.play(false);
+                    this.animationGroup.onAnimationEndObservable.addOnce(() => {
+                        this.state = "ROBOT";
+                        resolve();
+                    });
+                });
+            }
+
+            darOrdenIrA(punto, autoPatrulla = false) {
+                this.isPatrolling = autoPatrulla;
+                this.wrapper.position.y = 0;
+                
+                if (!punto) return;
+                this.targetPos = punto.clone();
+                this.targetPos.y = 0;
+            }
+
+            update(deltaTime) {
+                if (!this.targetPos) return;
+                if (this.state === "TRANSFORMANDO") return;
+
+                if (globalModoViaje === "MANADA" && this.state === "ROBOT") {
+                    this.transformarAVehiculo();
+                    return;
+                }
+                if (globalModoViaje === "TITAN" && this.state === "VEHICULO") {
+                    this.transformarARobot();
+                    return;
+                }
+
+                let distance = BABYLON.Vector3.Distance(this.wrapper.position, this.targetPos);
+                
+                if (distance < 1.0) {
+                    this.targetPos = null;
+                    if (this.isPatrolling) {
+                        updateStatus("Objetivo alcanzado. Buscando nueva ruta...");
+                        setTimeout(() => {
+                            let randomX = (Math.random() - 0.5) * 80;
+                            let randomZ = (Math.random() - 0.5) * 80;
+                            this.darOrdenIrA(new BABYLON.Vector3(randomX, 0, randomZ), true);
+                        }, 2000);
+                        if (globalModoViaje === "MANADA") {
+                            updateStatus("Objetivo alcanzado. Ensamblando Titán.");
+                            this.transformarARobot();
+                        } else {
+                            updateStatus("Objetivo alcanzado. En espera.");
+                        }
+                    }
+                    return;
+                }
+
+                let direction = this.targetPos.subtract(this.wrapper.position).normalize();
+                let targetAngle = Math.atan2(direction.x, direction.z);
+                let currentSpeed = this.speed;
+                
+                if (this.state === "ROBOT") {
+                    targetAngle += Math.PI;
+                    currentSpeed = -this.speed;
+                }
+                
+                let currentAngle = this.wrapper.rotation.y;
+                while (currentAngle - targetAngle > Math.PI) currentAngle -= Math.PI * 2;
+                while (targetAngle - currentAngle > Math.PI) currentAngle += Math.PI * 2;
+                this.wrapper.rotation.y = currentAngle;
+                
+                this.wrapper.rotation.y = BABYLON.Scalar.Lerp(this.wrapper.rotation.y, targetAngle, this.turnSpeed * deltaTime);
+
+                updateStatus("Viajando a coordenadas...");
+                let forward = new BABYLON.Vector3(Math.sin(this.wrapper.rotation.y), 0, Math.cos(this.wrapper.rotation.y));
+                this.wrapper.position.addInPlace(forward.scale(currentSpeed * deltaTime));
+            }
+        }
+
+        let globalMarker = null;
+        let optimus = null;
+        let globalModoViaje = "MANADA";
+        const statusText = document.getElementById("statusText");
+
+        function updateStatus(text) {
+            statusText.innerText = "Estado IA: " + text;
+        }
+
+        const createScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.1, 1);
+
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.2, 110, new BABYLON.Vector3(0, 15, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 20; 
+            camera.maxZ = 100000;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.8;
+            
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 200, height: 200}, scene);
+            const gridMat = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+            gridMat.wireframe = true;
+            ground.material = gridMat;
+
+            globalMarker = BABYLON.MeshBuilder.CreateTorus("marker", {diameter: 4, thickness: 0.5}, scene);
+            let markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+            markerMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+            globalMarker.material = markerMat;
+            globalMarker.position.y = 0.25;
+            globalMarker.isVisible = false;
+
+            optimus = new Transformer(scene, BABYLON.Vector3.Zero());
+
+            scene.onPointerDown = function (evt, pickResult) {
+                if (evt.button === 0 && pickResult.hit && pickResult.pickedMesh === ground) {
+                    globalMarker.position.x = pickResult.pickedPoint.x;
+                    globalMarker.position.z = pickResult.pickedPoint.z;
+                    globalMarker.isVisible = true;
+                }
+            };
+
+            document.getElementById("btnIrMarcador").onclick = () => {
+                if (!globalMarker.isVisible) {
+                    alert("¡Primero haz clic en el suelo para poner una diana!");
+                    return;
+                }
+                optimus.darOrdenIrA(globalMarker.position, false);
+                document.getElementById("btnPatrulla").classList.remove("active");
+            };
+
+            document.getElementById("btnBase").onclick = () => {
+                globalMarker.position = new BABYLON.Vector3(0, 0.25, 0);
+                globalMarker.isVisible = true;
+                optimus.darOrdenIrA(BABYLON.Vector3.Zero(), false);
+                document.getElementById("btnPatrulla").classList.remove("active");
+            };
+
+            document.getElementById("btnPatrulla").onclick = (e) => {
+                e.target.classList.add("active");
+                globalMarker.isVisible = false;
+                let randomX = (Math.random() - 0.5) * 80;
+                let randomZ = (Math.random() - 0.5) * 80;
+                optimus.darOrdenIrA(new BABYLON.Vector3(randomX, 0, randomZ), true);
+            };
+
+            const btnModoViaje = document.getElementById("btnModoViaje");
+            btnModoViaje.onclick = () => {
+                if (globalModoViaje === "MANADA") {
+                    globalModoViaje = "TITAN";
+                    btnModoViaje.innerText = "VIAJE: TITÁN";
+                    btnModoViaje.classList.add("active");
+                } else {
+                    globalModoViaje = "MANADA";
+                    btnModoViaje.innerText = "VIAJE: MANADA";
+                    btnModoViaje.classList.remove("active");
+                }
+            };
+
+            document.getElementById("btnPresentacion").onclick = async () => {
+                globalMarker.isVisible = false;
+                optimus.targetPos = null;
+                optimus.isPatrolling = false;
+                document.getElementById("btnPatrulla").classList.remove("active");
+
+                updateStatus("Modo Presentación: Alineando unidades en el aire...");
+                optimus.wrapper.position = new BABYLON.Vector3(0, 15, 0);
+                optimus.wrapper.rotation.y = 0; 
+
+                if (optimus.state === "ROBOT") {
+                    await optimus.transformarAVehiculo();
+                }
+                
+                updateStatus("Presentación lista. Usa el ratón para rotar y hacer zoom.");
+                camera.setTarget(new BABYLON.Vector3(0, 15, 0));
+            };
+
+            scene.onBeforeRenderObservable.add(() => {
+                let dt = engine.getDeltaTime() / 1000.0;
+                if (optimus) optimus.update(dt);
+            });
+
+            return scene;
+        };
+
+        const scene = createScene();
+        engine.runRenderLoop(() => { scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>
