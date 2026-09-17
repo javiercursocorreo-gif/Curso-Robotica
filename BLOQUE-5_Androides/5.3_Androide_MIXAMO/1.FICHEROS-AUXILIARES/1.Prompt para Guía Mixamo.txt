@@ -1,25 +1,28 @@
-PROMPT MAESTRO PARA NOTEBOOKLM: GUÍA T2 (MIXAMO BÁSICO)
+PROMPT MAESTRO PARA NOTEBOOKLM: GUÍA MIXAMO NATIVO (10 DIAPOSITIVAS)
 ======================================================================
 INSTRUCCIONES:
 1. Sube a NotebookLM: "1.Fuente para Guia Mixamo.txt"
-2. Copia y pega el siguiente prompt:
+2. Copia y pega el siguiente prompt (ultra-corto para que quepa 100%):
 ======================================================================
 
 --- COPIAR A PARTIR DE AQUÍ ---
 
-Genera una presentación tipo GUÍA de 8 diapositivas basada en la fuente:
-"GUÍA PASO A PASO: ELEGIR Y ANIMAR EN MIXAMO (T2)".
-PROHIBIDO teoría o relleno. SOLO lista de acciones que hace el alumno con ratón y teclado.
-Cada diapositiva: Título del Paso, 2 acciones concretas ("Haz clic en...", "Escribe...") y Consejo breve.
+Actúa como Mentor en Animación 3D y Biomecánica Robótica.
+Basándote en la fuente, genera una "GUÍA DE TALLER: SELECCIÓN Y ANIMACIÓN EN MIXAMO" en 10 diapositivas:
+"DE LA BIBLIOTECA NATIVA A LA WEB: CASOS SALSA, CAPOEIRA Y COMBATE" (Clase 5.3).
 
-Estructura:
-1. Portada: Elige tu personaje y anímalo en 2 minutos.
-2. Paso 1: Entrar en www.mixamo.com e iniciar sesión con Google.
-3. Paso 2: Pestaña Characters y elegir muñeco (Y-Bot o Michelle).
-4. Paso 3: Pestaña Animations y buscar movimiento (Salsa o Dance).
-5. Paso 4: Ajustar brazos con la barra Character Arm-Space.
-6. Paso 5: Marcar casilla In Place para bailar en el sitio.
-7. Paso 6: Botón Download (FBX Binary, With Skin, 30 fps).
-8. ¡Misión cumplida! Tu personaje guardado en Descargas.
+Para cada diapositiva proporciona: Título, Pasos/Puntos clave, Secreto Pro y Notas del Profesor.
 
-Entrega las 8 diapositivas para PowerPoint.
+Estructura de las 10 diapositivas:
+1. Portada y Objetivo (dominar el catálogo nativo de Mixamo antes del upload).
+2. Explorar Personajes (pestaña Characters, robots Y-Bot, bailarines y guerreros).
+3. Inyectar MOCAP (pestaña Animations, más de 2000 clips de captura humana).
+4. Calibrar Dinámica (controles Overdrive, Arm-Space e In Place).
+5. Caso 1: Personaje de Salsa (fluidez rítmica y deformación sin roturas).
+6. Caso 2: Personaje de Capoeira (acrobacia marcial y centro de gravedad).
+7. Caso 3: Personaje de Combate (inercia con espadón y armadura pesada).
+8. Exportación del Asset (FBX Binary, With Skin, 30 fps).
+9. Prueba en la Web (soltar en sandbox.babylonjs.com y ver en simulador P1).
+10. Conclusión y Reto (listos para el siguiente nivel: Upload de Sketchfab).
+
+Genera las 10 diapositivas completas para PowerPoint.

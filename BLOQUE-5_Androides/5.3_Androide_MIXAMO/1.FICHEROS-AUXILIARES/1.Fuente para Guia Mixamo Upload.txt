@@ -1,53 +1,103 @@
-# GUÍA MIXAMO UPLOAD: CAZAR EN SKETCHFAB Y SUBIR A MIXAMO (T3)
-## Lista directa de acciones paso a paso para el alumno (Sin teoría)
-### Clase 5.3: Androides
+# GUÍA DE TALLER: DE LA ESTATUA INERTE AL ANDROIDE VIVO (SKETCHFAB + ADOBE MIXAMO)
+## Fuente Maestra para Generación de Presentación Paso a Paso en NotebookLM
+### Bloque 5: Androides — Clase 5.3: Taller Práctico de Creación de Personajes
 
 ---
 
-### PASO A PASO DIRECTO:
+### INTRODUCCIÓN AL TALLER
+En las prácticas anteriores (`P1`, `P2` y `P3`) los alumnos experimentaron con personajes ya preparados: observaron los esqueletos en rayos X, mezclaron pieles y animaciones mediante retargeting, y programaron coreografías en la línea de tiempo.
 
-PASO 1: BUSCAR EN SKETCHFAB
-- Entra en tu navegador a: www.sketchfab.com
-- En la barra de búsqueda superior escribe: Robot o Cyborg
+Ahora llega el **Gran Reto**: el alumno deja de ser un usuario de simuladores y se convierte en un **Ingeniero de Rigging y Animación**. Aprenderá a conseguir cualquier modelo 3D gratuito en internet, crearle un esqueleto artificial desde cero y hacer que se mueva con la agilidad de un actor humano.
 
-PASO 2: FILTRO OBLIGATORIO (GRATIS)
-- En la columna de la izquierda, marca la casilla "Downloadable" (para ver solo los gratuitos).
+---
 
-PASO 3: ELEGIR EL ROBOT ADECUADO (POSTURA EN CRUZ)
-- Elige un robot que esté de pie con los brazos abiertos en cruz o en "A".
-- NUNCA elijas robots sentados, agachados o con espadas cruzadas en el pecho.
+### FASE 1: LA CACERÍA EN SKETCHFAB (EL MODELO ESTÁTICO)
+¿Qué es Sketchfab? Es el mayor repositorio mundial de modelos 3D interactivos, utilizado por desarrolladores de videojuegos, artistas y diseñadores.
 
-PASO 4: DESCARGAR EL ARCHIVO
-- Haz clic en el robot elegido y pulsa el botón "Download 3D Model".
-- Descarga la opción "Autodesk FBX" o el paquete "OBJ".
+#### Las 4 Reglas de Oro para elegir un modelo compatible con Mixamo:
+1. **El Filtro Descargable:** En el buscador de Sketchfab (ej. buscando *"Cyborg"*, *"Robot"*, *"Android"* o *"Mecha"*), es obligatorio activar la casilla de filtro **"Downloadable"** (modelos con licencia gratuita de descarga).
+2. **Anatomía Humanoide Bípede:** El modelo debe tener dos piernas, dos brazos, torso y cabeza. Los robots cuadrúpedos o con formas abstractas no son compatibles con el auto-rigging estándar de Mixamo.
+3. **La Postura Sagrada (T-Pose o A-Pose):**
+   - El modelo **DEBE** tener los brazos separados del cuerpo (en cruz horizontal formando una "T" o caídos a 45º formando una "A") y las piernas ligeramente abiertas.
+   - **Prohibido:** No descargar modelos que ya estén en una pose dramática (agachados, sentados o con una espada cruzada sobre el pecho), porque el algoritmo de Mixamo confundirá los brazos con el torso y los fusionará.
+4. **Formatos de Descarga Ideales:**
+   - La mejor opción es descargar el formato **Autodesk FBX (.fbx)** o **OBJ (.obj)**.
+   - Si el archivo se descarga en una carpeta comprimida `.zip`, no es necesario descomprimirla; Mixamo acepta archivos `.zip` que contengan el modelo y sus texturas.
 
-PASO 5: ENTRAR EN MIXAMO
-- Abre una pestaña nueva y entra a: www.mixamo.com
-- Inicia sesión con tu cuenta de Google.
+---
 
-PASO 6: SUBIR EL ROBOT
-- En la columna de la derecha, haz clic en el botón grande: "Upload Character".
-- Arrastra el archivo que descargaste de Sketchfab dentro de la ventana de Mixamo.
+### FASE 2: ENTRADA AL LABORATORIO DE BIOMECÁNICA (ADOBE MIXAMO)
+¿Qué es Adobe Mixamo? Es una plataforma en la nube completamente gratuita de Adobe que automatiza dos de los procesos más difíciles y costosos de la industria 3D: el **Rigging** (crear el esqueleto) y el **Skinning** (atar la piel a los huesos).
 
-PASO 7: PONER DE FRENTE
-- Si el robot sale mirando de lado o al revés, usa las flechas circulares inferiores para ponerlo de frente.
-- Haz clic en "Next".
+#### Pasos para subir el modelo:
+1. Acceder a `www.mixamo.com` con una cuenta gratuita de Adobe (o mediante Google/Apple).
+2. En la columna derecha de la pantalla, hacer clic en el botón azul grande: **"Upload Character"**.
+3. Arrastrar el archivo descargado (`.fbx`, `.obj` o `.zip`) a la ventana emergente de carga.
+4. **Comprobación de Orientación:** Mixamo mostrará una vista previa del modelo. Si el robot aparece de perfil o boca abajo, utilizar los botones de rotación circulares inferiores hasta que mire directamente hacia el alumno de frente. Pulsar **"Next"**.
 
-PASO 8: COLOCAR LOS 5 CÍRCULOS (PUNTOS DEL CUERPO)
-- Arrastra los 5 círculos de colores a su sitio exacto:
-  * CHIN -> en la barbilla.
-  * WRISTS -> en las dos muñecas.
-  * ELBOWS -> en los dos codos.
-  * KNEES -> en las dos rodillas.
-  * GROIN -> en la entrepierna.
+---
 
-PASO 9: MANOS DEL ROBOT
-- Abajo, en "Skeleton LOD", si el robot tiene armadura gruesa o manoplas, elige: "No Fingers (25)".
-- Haz clic en "Next" y espera 1 minuto a que el robot cobre vida.
-- Cuando termine y mueva la cabeza, haz clic en "Next" para confirmar.
+### FASE 3: EL RITO DEL AUTO-RIGGING (LOS 5 MARCADORES ANATÓMICOS)
+Aparecerá la pantalla de configuración del esqueleto con una silueta de referencia a la derecha y 5 círculos de colores que representan las articulaciones clave.
 
-PASO 10: PONER ANIMACIÓN Y DESCARGAR
-- Ve a la pestaña "Animations" y elige el baile o movimiento que quieras.
-- Haz clic en el botón "Download" (arriba a la derecha).
-- Comprueba: FBX Binary, With Skin, 30 fps.
-- Haz clic en el botón azul "Download". ¡Listo! Tu robot personalizado ya está guardado en tu ordenador.
+#### Colocación de los Marcadores (Drag & Drop):
+1. **CHIN (Barbilla - Círculo Verde/Azul):** Arrastrar y soltar exactamente en la punta de la mandíbula o barbilla del robot.
+2. **WRISTS (Muñecas):** Situar en el centro de la muñeca, justo donde termina el antebrazo y empieza la mano.
+3. **ELBOWS (Codos):** Colocar en el vértice exterior del codo flexionado.
+4. **KNEES (Rodillas):** Colocar en el centro exacto de la rótula de cada pierna.
+5. **GROIN (Ingle / Pelvis):** Colocar en la base central de la entrepierna (la base del tronco que une ambas caderas).
+
+#### Selector de Complejidad de Manos (Skeleton LOD):
+En la parte inferior de la pantalla hay un selector de esqueleto:
+- **Standard Skeleton (65 huesos):** Para modelos con 5 dedos bien modelados.
+- **No Fingers (25 huesos):** ¡Recomendado para robots! Si el modelo lleva guantes gruesos, garras, pinzas mecánicas o si el alumno quiere evitar fallos de deformación en las manos, esta opción crea un esqueleto limpio y ahorra memoria.
+
+Pulsar **"Next"** para iniciar el cálculo matemático en los servidores de Adobe (tardará entre 1 y 2 minutos).
+
+---
+
+### FASE 4: DIAGNÓSTICO Y CONTROL DE CALIDAD DEL SKINNING
+Cuando el cálculo termine, el androide aparecerá cobrando vida y moviendo la cabeza y los brazos ante el alumno.
+
+#### Checklist de Control de Calidad:
+- Girar la cámara 360 grados usando el botón izquierdo del ratón.
+- **¿Las axilas se estiran bien?** Si la piel del costado se estira hacia el brazo como chicle, los codos estaban colocados demasiado pegados al torso.
+- **¿Las piernas caminan independientes?** Si ambas piernas parecen pegadas, el marcador *Groin* estaba colocado demasiado bajo.
+- **Solución:** Si algo no se ve perfecto, pulsar el botón **"Back"**, ajustar la posición de los marcadores unos milímetros y volver a procesar.
+- Si la animación de prueba se ve limpia y fluida, pulsar **"Next"**. ¡El androide ya tiene esqueleto funcional!
+
+---
+
+### FASE 5: INYECTAR EL ALMA (LA BIBLIOTECA MOCAP)
+El alumno verá a su propio androide cargado en la ventana principal de Mixamo. En la pestaña superior izquierda **"Animations"**, tiene acceso a más de 2.000 capturas de movimiento reales.
+
+#### Personalización de la Animación en el Panel Lateral:
+1. **Elegir la Personalidad del Robot:**
+   - Para un robot de combate: Buscar *"Sword Slash"*, *"Punching"*, *"Combat Stance"*.
+   - Para un robot acróbata: Buscar *"Capoeira"*, *"Backflip"*, *"Parkour"*.
+   - Para un robot con ritmo: Buscar *"Salsa Dancing"*, *"Hip Hop"*, *"Macarena"*.
+2. **Control de Parámetros Dinámicos (Sliders):**
+   - **Overdrive:** Regula la velocidad del movimiento. Un robot pesado necesita valores bajos; un ciborg ágil necesita valores altos.
+   - **Character Arm-Space (Espacio de Brazos):** Si el androide tiene hombreras anchas o armadura metálica voluminosa, subir este control para separar los brazos y evitar que las manos atraviesen el pecho.
+   - **In Place (En el Sitio):** Para animaciones de correr o caminar, activar esta casilla para que el personaje no se desplace por la pantalla, dejándolo listo para su uso en un videojuego o simulador.
+
+---
+
+### FASE 6: EXPORTACIÓN DEL ASSET PROFESIONAL
+Una vez satisfecho con la animación y el estilo del androide:
+1. Pulsar el botón superior derecho **"Download"**.
+2. **Configuración de Descarga recomendada:**
+   - **Format:** `FBX Binary (.fbx)`.
+   - **Skin:** `With Skin` (vital para descargar la malla texturizada junto con los huesos y la animación).
+   - **Frames per Second:** `30 fps` (estándar óptimo para web y rendimiento).
+   - **Keyframe Reduction:** `None` (para no perder la precisión de la captura de movimiento original).
+3. Hacer clic en **"Download"**. El archivo se guardará en el ordenador del alumno listo para ser usado.
+
+---
+
+### FASE 7: EL GRAN ESCENARIO (VISUALIZACIÓN Y RETO FINAL)
+Para cerrar el taller con broche de oro:
+- El alumno puede arrastrar su archivo exportado directamente al visor web oficial de Babylon.js:  
+  **`sandbox.babylonjs.com`**
+- Al soltar el archivo en la ventana del navegador, el escenario web 3D cargará instantáneamente su robot con texturas completas, luces dinámicas y reproduciendo la animación MOCAP elegida.
+- **Presentación al Grupo:** Cada alumno presenta su creación explicando qué robot eligió, qué estilo de movimiento le dio y qué problemas de marcadores anatómicos tuvo que resolver durante el auto-rigging.
