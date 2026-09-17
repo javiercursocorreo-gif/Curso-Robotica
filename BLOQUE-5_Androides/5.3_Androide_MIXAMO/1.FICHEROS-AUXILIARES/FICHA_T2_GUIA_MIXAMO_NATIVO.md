@@ -1,4 +1,4 @@
-# FICHA T2: GUIABURROS — ELEGIR PERSONAJE Y ANIMAR EN MIXAMO
+# FICHA T2: GUÍA — ELEGIR PERSONAJE Y ANIMAR EN MIXAMO
 **Clase 5.3: Androides — Lista directa de acciones paso a paso para el alumno**
 
 > **Objetivo:** Descargar un personaje con baile o movimiento en 2 minutos sin explicaciones teóricas.
@@ -46,3 +46,4 @@
 12. **Descargar archivo:**
     - Pulsa el botón azul **"Download"**. 
     - *¡Listo! El archivo descargado ya está en tu carpeta de Descargas del ordenador.*
+

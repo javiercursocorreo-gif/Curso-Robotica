@@ -1,4 +1,4 @@
-# FICHA T3: GUIABURROS — CAZAR EN SKETCHFAB Y SUBIR A MIXAMO
+# FICHA T3: GUÍA — CAZAR EN SKETCHFAB Y SUBIR A MIXAMO
 **Clase 5.3: Androides — Lista directa de acciones paso a paso para el alumno**
 
 > **Objetivo:** Conseguir cualquier modelo 3D en internet, ponerle esqueleto con 5 puntos y hacerlo bailar.
@@ -56,3 +56,4 @@
 14. **Descargar terminado:**
     - Pulsa **"Download"** (con **FBX Binary**, **With Skin** y **30 fps**) y dale al botón azul **"Download"**.
     - *¡Listo! Tu robot personalizado ya está vivo y guardado en tu ordenador.*
+
