@@ -116,9 +116,13 @@
         mat.wireframe = true;
         ground.material = mat;
 
-        // Cargar Modelo
-        const modelPath = "../1.FICHEROS-AUXILIARES/mech_neck_walker_-_bge_free_download.glb";
-        const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelPath, "", scene);
+        // Cargar Modelo con fallback
+        let result;
+        try {
+            result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "mech_neck_walker_-_bge_free_download.glb", scene);
+        } catch(e) {
+            result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "mech_neck_walker_-_bge_free_download.glb", scene);
+        }
         
         // Ajustar escala y posición
         const rootNode = result.meshes[0];

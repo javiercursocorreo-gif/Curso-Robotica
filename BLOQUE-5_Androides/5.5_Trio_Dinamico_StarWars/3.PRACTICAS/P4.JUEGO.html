@@ -3,17 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P4.JUEGO — Robot Mecha de Combate</title>
+<title>P4.JUEGO — Trío Dinámico Star Wars</title>
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 <style>
 :root {
-  --primary: #ef4444;
-  --accent: #f59e0b;
-  --cyan: #00f2ff;
+  --primary: #eab308;
+  --accent: #38bdf8;
   --bg: #06090e;
   --bg2: #101622;
-  --glass: rgba(16, 12, 18, 0.94);
+  --glass: rgba(12, 18, 28, 0.94);
   --text: #ffffff;
   --sub: #8a9ba8;
   --success: #00ff88;
@@ -25,7 +24,7 @@ body {
   background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; display: flex; flex-direction: column;
 }
 #header {
-  height: 70px; background: rgba(14, 8, 9, 0.95); border-bottom: 2px solid var(--primary);
+  height: 70px; background: rgba(6, 9, 14, 0.95); border-bottom: 2px solid var(--primary);
   display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   box-shadow: 0 4px 20px rgba(0,0,0,0.8);
 }
@@ -34,7 +33,7 @@ body {
 #score-display { font-size: 20px; color: var(--warning); font-weight: 800; background: rgba(255,221,0,0.1); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(255,221,0,0.3); }
 
 #progress-bar {
-  position: fixed; top: 70px; left: 0; right: 0; height: 56px; background: rgba(18, 12, 14, 0.95);
+  position: fixed; top: 70px; left: 0; right: 0; height: 56px; background: rgba(12, 16, 24, 0.95);
   border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 999; padding: 8px 16px; gap: 10px;
 }
 .prog-btn {
@@ -42,7 +41,7 @@ body {
   color: var(--sub); font-size: 14px; font-weight: 700; cursor: pointer; border-radius: 10px; transition: all 0.25s;
 }
 .prog-btn:hover { border-color: var(--primary); color: #fff; }
-.prog-btn.active { border-color: var(--primary); color: var(--bg); background: var(--primary); box-shadow: 0 0 15px rgba(239,68,68,0.4); }
+.prog-btn.active { border-color: var(--primary); color: var(--bg); background: var(--primary); box-shadow: 0 0 15px rgba(234,179,8,0.4); }
 .prog-btn.done { border-color: var(--success); color: var(--success); background: rgba(0,255,136,0.1); }
 
 #main {
@@ -52,22 +51,22 @@ body {
 .pantalla.activa { display: flex; }
 
 /* PORTADA */
-.portada-emojis { font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(239,68,68,0.5)); }
+.portada-emojis { font-size: 72px; margin-bottom: 16px; filter: drop-shadow(0 0 20px rgba(234,179,8,0.5)); }
 .portada-titulo { font-size: 34px; font-weight: 800; color: var(--primary); margin-bottom: 12px; letter-spacing: 1px; }
 .portada-desc { font-size: 17px; color: var(--sub); margin-bottom: 30px; max-width: 650px; line-height: 1.6; }
 .badges-container { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 36px; }
-.badge-card { background: rgba(239,68,68,0.08); border: 1px solid var(--primary); border-radius: 12px; padding: 12px 20px; font-size: 15px; font-weight: 700; color: var(--primary); }
+.badge-card { background: rgba(234,179,8,0.08); border: 1px solid var(--primary); border-radius: 12px; padding: 12px 20px; font-size: 15px; font-weight: 700; color: var(--primary); }
 
 .btn-empezar {
-  background: linear-gradient(135deg, #ef4444, #f59e0b); color: #06090e; border: none; padding: 18px 54px;
-  font-size: 22px; font-weight: 800; border-radius: 14px; cursor: pointer; transition: all 0.25s; box-shadow: 0 0 30px rgba(239,68,68,0.5);
+  background: linear-gradient(135deg, #eab308, #38bdf8); color: #06090e; border: none; padding: 18px 54px;
+  font-size: 22px; font-weight: 800; border-radius: 14px; cursor: pointer; transition: all 0.25s; box-shadow: 0 0 30px rgba(234,179,8,0.5);
 }
-.btn-empezar:hover { transform: scale(1.05); box-shadow: 0 0 45px rgba(245,158,11,0.8); }
+.btn-empezar:hover { transform: scale(1.05); box-shadow: 0 0 45px rgba(56,189,248,0.8); }
 
 /* TARJETA DE JUEGO */
 .game-card {
-  background: var(--glass); border: 2px solid rgba(239,68,68,0.35); border-radius: 24px; padding: 36px; max-width: 850px; width: 100%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(239,68,68,0.15); text-align: left;
+  background: var(--glass); border: 2px solid rgba(234,179,8,0.35); border-radius: 24px; padding: 36px; max-width: 850px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(234,179,8,0.15); text-align: left;
 }
 .game-title { font-size: 14px; letter-spacing: 3px; color: var(--primary); text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
 .game-question { font-size: 21px; line-height: 1.4; margin-bottom: 24px; color: #fff; font-weight: 700; }
@@ -77,7 +76,7 @@ body {
   padding: 18px 20px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
   color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 14px; transition: all 0.2s; text-align: left; line-height: 1.35;
 }
-.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(239,68,68,0.1); transform: translateY(-2px); }
+.opt-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(234,179,8,0.1); transform: translateY(-2px); }
 .opt-btn.correct { border-color: var(--success); background: rgba(0,255,136,0.15); color: var(--success); }
 .opt-btn.wrong { border-color: var(--danger); background: rgba(255,51,85,0.15); color: var(--danger); opacity: 0.6; }
 
@@ -99,12 +98,12 @@ body {
 /* DRAG & DROP ORDENAR */
 .sortable-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .sort-item {
-  padding: 16px 20px; background: rgba(239, 68, 68, 0.05); border: 2px solid rgba(239, 68, 68, 0.3);
+  padding: 16px 20px; background: rgba(234, 179, 8, 0.05); border: 2px solid rgba(234, 179, 8, 0.3);
   border-radius: 14px; font-size: 16px; font-weight: 600; cursor: grab; display: flex; align-items: center; gap: 16px; transition: all 0.2s;
 }
-.sort-item:hover { border-color: var(--primary); background: rgba(239,68,68,0.12); }
-.sort-num { width: 36px; height: 36px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
-.btn-verificar { width: 100%; padding: 16px; background: var(--primary); color: #fff; font-size: 18px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; margin-bottom: 14px; box-shadow: 0 0 20px rgba(239,68,68,0.4); }
+.sort-item:hover { border-color: var(--primary); background: rgba(234,179,8,0.12); }
+.sort-num { width: 36px; height: 36px; background: var(--primary); color: #06090e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.btn-verificar { width: 100%; padding: 16px; background: var(--primary); color: #06090e; font-size: 18px; font-weight: 800; border: none; border-radius: 14px; cursor: pointer; margin-bottom: 14px; box-shadow: 0 0 20px rgba(234,179,8,0.4); }
 
 /* EMPAREJAR */
 .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
@@ -113,12 +112,12 @@ body {
   padding: 16px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);
   border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.25s; display: flex; align-items: center;
 }
-.match-item.selected { border-color: var(--primary); background: rgba(239,68,68,0.15); transform: scale(1.02); }
+.match-item.selected { border-color: var(--primary); background: rgba(234,179,8,0.15); transform: scale(1.02); }
 .match-item.matched { opacity: 0.65; cursor: default; border-style: dashed; }
 .match-pair-0 { border-color: #00ff88 !important; background: rgba(0,255,136,0.15) !important; color: #00ff88; }
-.match-pair-1 { border-color: #ef4444 !important; background: rgba(239,68,68,0.15) !important; color: #ef4444; }
+.match-pair-1 { border-color: #38bdf8 !important; background: rgba(56,189,248,0.15) !important; color: #38bdf8; }
 .match-pair-2 { border-color: #ffdd00 !important; background: rgba(255,221,0,0.15) !important; color: #ffdd00; }
-.match-pair-3 { border-color: #00f2ff !important; background: rgba(0,242,255,0.15) !important; color: #00f2ff; }
+.match-pair-3 { border-color: #ff3355 !important; background: rgba(255,51,85,0.15) !important; color: #ff3355; }
 .match-pair-4 { border-color: #ab47bc !important; background: rgba(171,71,188,0.15) !important; color: #ab47bc; }
 .match-badge { margin-left: auto; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 800; background: rgba(0,0,0,0.4); color: #fff; }
 
@@ -129,40 +128,40 @@ body {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10;
 }
 .sim-btn {
-  background: rgba(14, 8, 9, 0.85); color: var(--primary); border: 1px solid var(--primary); border-radius: 8px;
+  background: rgba(6, 9, 14, 0.85); color: var(--primary); border: 1px solid var(--primary); border-radius: 8px;
   padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(6px);
 }
-.sim-btn:hover { background: var(--primary); color: #fff; }
+.sim-btn:hover { background: var(--primary); color: #000; }
 </style>
 </head>
 <body>
 
 <div id="header">
   <div>
-    <h1>Robot Mecha de Combate · P4.JUEGO</h1>
-    <div class="subtitle">Desafío de Evaluación Interactiva V5: Blindaje y Cinemática de Alta Energía</div>
+    <h1>Trío Dinámico Star Wars · P4.JUEGO</h1>
+    <div class="subtitle">Desafío de Evaluación Interactiva V5: R2-D2, BB-8 y C-3PO</div>
   </div>
   <div id="score-display">⭐ 0 puntos</div>
 </div>
 
 <div id="progress-bar" style="display: none;">
-  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial Mecha</button>
-  <button class="prog-btn" onclick="goGame(1)">📦 Secuencia Reacción</button>
-  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar Combate</button>
-  <button class="prog-btn" onclick="goGame(3)">🦾 Reto Final 3D</button>
+  <button class="prog-btn active" onclick="goGame(0)">🎯 Trivial Droides</button>
+  <button class="prog-btn" onclick="goGame(1)">📦 Secuencia Hangar</button>
+  <button class="prog-btn" onclick="goGame(2)">🔗 Emparejar Cinemática</button>
+  <button class="prog-btn" onclick="goGame(3)">⭐ Reto Final 3D</button>
 </div>
 
 <div id="main">
   <!-- PORTADA -->
   <div id="pantalla-inicio" class="pantalla activa">
-    <div class="portada-emojis">⚔️🤖🛡️💥</div>
-    <div class="portada-titulo">Evaluación Final: Robot Mecha de Combate</div>
-    <div class="portada-desc">Demuestra tus conocimientos de ingeniería de combate: blindajes de titanio grado 5, centros de gravedad estables, almacenamiento de energía cinética en spinners y máquinas de estados de combate.</div>
+    <div class="portada-emojis">⭐🤖🪐🛰️</div>
+    <div class="portada-titulo">Evaluación Final: Trío Dinámico de Droides</div>
+    <div class="portada-desc">Demuestra tus conocimientos sobre la cinemática diferencial de R2-D2, la locomoción esférica pendular magnética de BB-8 y la marcha bípeda de protocolo de C-3PO en el hangar rebelde.</div>
     <div class="badges-container">
-      <div class="badge-card">🎯 Trivial Mecha</div>
-      <div class="badge-card">📦 Secuencia Reacción</div>
-      <div class="badge-card">🔗 Emparejar Combate</div>
-      <div class="badge-card">🦾 Simulación 3D</div>
+      <div class="badge-card">🎯 Trivial de Droides</div>
+      <div class="badge-card">📦 Secuencia Hangar</div>
+      <div class="badge-card">🔗 Emparejar Cinemática</div>
+      <div class="badge-card">⭐ Simulación 3D</div>
     </div>
     <button class="btn-empezar" onclick="iniciar()">¡COMENZAR RETO!</button>
   </div>
@@ -213,62 +212,62 @@ function nextGame() {
   else { showFinal(); }
 }
 
-// ─── JUEGO 1: TRIVIAL TÉCNICO (5 Preguntas) ────────────────────────────────
+// ─── JUEGO 1: TRIVIAL DROIDES (5 Preguntas) ────────────────────────────────
 const trivia = [
   {
-    q: "¿Por qué los robots de combate pesados y mechas sitúan las baterías y servomotores lo más pegados posible al suelo?",
+    q: "¿Qué configuración cinemática y motriz utiliza R2-D2 para avanzar y girar sobre su propio eje en el suelo?",
     opts: [
-      "Para que las ruedas se calienten más rápido",
-      "Para bajar al mínimo su centro de gravedad (CdG) y evitar el vuelco ante impactos horizontales severos",
-      "Para que el piloto no sufra vértigo durante las maniobras",
-      "Para que las ondas de radio viajen mejor por el piso metálico"
+      "Dirección tipo coche convencional con cremallera delantera",
+      "Tracción diferencial con dos ruedas motrices laterales y una rueda loca pivotante frontal",
+      "Levitación magnética pasiva sin contacto físico",
+      "Propulsión neumática mediante toberas de gas"
     ],
     ok: 1,
-    exp: "✅ ¡Exacto! Un centro de gravedad ultrabajo maximiza el momento restaurador frente a fuerzas laterales, impidiendo que el robot vuelque en la arena."
+    exp: "✅ ¡Exacto! R2-D2 es un triciclo con tracción diferencial: variando la velocidad relativa de sus dos patas motrices puede girar en un radio de cero metros."
   },
   {
-    q: "¿Cómo almacena y transfiere energía destructiva un arma de disco o barra giratoria (Spinner cinético)?",
+    q: "¿Cómo consigue BB-8 desplazarse siendo su cuerpo exterior una esfera completamente lisa y sellada?",
     opts: [
-      "Acumula energía cinética rotacional (E = ½ · I · ω²) a miles de RPM y la transfiere en microsegundos al impactar",
-      "Genera un rayo láser térmico al cortar el aire rápidamente",
-      "Quema combustible diésel directamente sobre el rival",
-      "Emite ultrasonidos que desarman los tornillos del chasis enemigo"
+      "Un mecanismo interno con péndulo motorizado desequilibra el centro de masas haciéndola rodar, mientras imanes sostienen la cabeza",
+      "Expulsando aire comprimido por micro-orificios en la chapa",
+      "Mediante patines telescópicos ocultos bajo las placas circulares",
+      "Utilizando electroimanes en el suelo de la nave"
     ],
     ok: 0,
-    exp: "✅ ¡Correcto! La masa rotatoria girando a altísimas RPM acumula decenas de kilojulios de energía cinética que pulverizan el blindaje en el instante del choque."
+    exp: "✅ ¡Correcto! El péndulo interno desequilibra el centro de gravedad rodando la esfera esféricamente, y los imanes de neodimio mantienen la cabeza estabilizada en la cumbre."
   },
   {
-    q: "En una contienda de empuje directo entre dos androides de combate, ¿qué parámetro motriz determina cuál desplazará al rival?",
+    q: "¿Por qué la locomoción de C-3PO es tan rígida y medida en comparación con los robots bípedos ágiles?",
     opts: [
-      "La velocidad punta en vacío sin carga",
-      "El Par Motor (Torque) en el tren de tracción combinado con el coeficiente de fricción de los neumáticos u orugas",
-      "La resolución de la cámara frontal",
-      "El nivel de volumen del altavoz de sonido de provocación"
-    ],
-    ok: 1,
-    exp: "✅ ¡Muy bien! El torque proporciona la fuerza de empuje neta contra el suelo; de nada sirve una alta velocidad si las ruedas patinan sobre el suelo."
-  },
-  {
-    q: "¿Qué propiedad mecánica convierte al titanio Grado 5 (Ti-6Al-4V) en el material predilecto para el blindaje frontal de mechas pesados?",
-    opts: [
-      "Su coste extremadamente bajo de fabricación",
-      "Su excepcional relación resistencia-peso y alta tenacidad para absorber impactos sin fractura frágil",
-      "Que conduce la electricidad mejor que el cobre",
-      "Que se vuelve completamente invisible en la oscuridad"
-    ],
-    ok: 1,
-    exp: "✅ ¡Impecable! El titanio Grado 5 resiste impactos violentos pesando casi la mitad que el acero blindado, lo cual es crítico para no exceder los límites de peso de la categoría."
-  },
-  {
-    q: "En el control de un mecha con animaciones complejas (trote, salto, guardia, ataque), ¿qué técnica previene bugs de estado al pulsar botones rápidamente?",
-    opts: [
-      "Una Máquina de Estados Finitos (FSM) con transiciones bloqueantes y tiempos de recuperación (cooldown)",
-      "Un bucle infinito while(true) sin pausas",
-      "Ejecutar todas las animaciones simultáneamente al máximo volumen",
-      "Reiniciar el navegador tras cada golpe recibido"
+      "Porque está diseñado como droide de protocolo con servos de rango angular limitado para garantizar estabilidad estática",
+      "Porque funciona a baja tensión con una sola pila de 9V",
+      "Porque el oro de su armadura pesa demasiado para doblar las rodillas",
+      "Porque los diseñadores olvidaron programar la cinemática inversa"
     ],
     ok: 0,
-    exp: "✅ ¡Perfecto! La FSM asegura que mientras el mecha está en el aire (estado SALTO), no pueda iniciar una embestida hasta tocar tierra y volver a reposo."
+    exp: "✅ ¡Muy bien! C-3PO es un androide diplomático cuyas articulaciones cuentan con topes mecánicos y control cinemático estático para evitar caídas en salas de embajadas."
+  },
+  {
+    q: "De los tres droides, ¿cuál posee una movilidad 'holonómica' u omnidireccional capaz de cambiar de rumbo al instante sin girar primero su chasis?",
+    opts: [
+      "R2-D2",
+      "BB-8, gracias a su geometría esférica completa",
+      "C-3PO",
+      "Ninguno de ellos"
+    ],
+    ok: 1,
+    exp: "✅ ¡Impecable! La esfera permite acelerar en cualquier vector (X, Z) del plano de inmediato sin necesidad de rotar primero la orientación del cuerpo."
+  },
+  {
+    q: "¿Qué ventaja mecánica logra R2-D2 al pasar de modo bípedo (2 patas) a modo triciclo (3 patas con inclinación hacia atrás)?",
+    opts: [
+      "Apagar las luces del morro para ahorrar energía",
+      "Aumentar drásticamente el polígono de sustentación y retrasar el centro de gravedad para una marcha estable a alta velocidad",
+      "Desconectar el procesador de navegación",
+      "Girar la cabeza a 3000 revoluciones por minuto"
+    ],
+    ok: 1,
+    exp: "✅ ¡Perfecto! Al extender la pata central inclinándose hacia atrás, la base de apoyo triangular impide cualquier riesgo de vuelco durante aceleraciones intensas."
   }
 ];
 
@@ -280,7 +279,7 @@ function renderTrivia() {
   const shuffled = shuffleArray([0, 1, 2, 3]); const correctShuffled = shuffled.indexOf(q.ok);
   document.getElementById('game-area').innerHTML = `
     <div class="game-card">
-      <div class="game-title">🎯 Trivial Mecha · Pregunta ${triviaIdx+1} / ${trivia.length}</div>
+      <div class="game-title">🎯 Trivial Droides · Pregunta ${triviaIdx+1} / ${trivia.length}</div>
       <div class="game-question">${q.q}</div>
       <div class="options-grid">
         ${shuffled.map((i, pos) => `<button class="opt-btn" onclick="answerTrivia(this, ${pos}, ${correctShuffled})">${q.opts[i]}</button>`).join('')}
@@ -302,7 +301,7 @@ function answerTrivia(btn, pos, correctPos) {
     document.getElementById('btn-sol').classList.remove('show'); document.getElementById('btn-sig').classList.add('show');
   } else {
     triviaAttempts++; btn.classList.add('wrong'); btn.disabled = true;
-    fb.className = 'feedback show ko'; fb.textContent = '❌ Respuesta incorrecta. ¡Analiza los principios de física e ingeniería de impacto e inténtalo de nuevo!';
+    fb.className = 'feedback show ko'; fb.textContent = '❌ Respuesta incorrecta. ¡Analiza los principios mecánicos de cada droide e inténtalo de nuevo!';
     document.getElementById('btn-sol').classList.add('show');
   }
 }
@@ -317,12 +316,12 @@ function triviaNext() { triviaIdx++; renderTrivia(); }
 
 // ─── JUEGO 2: ORDENAR SECUENCIA (6 Pasos) ────────────────────────────────
 const sortItems = [
-  { id: 'a', text: '📡 El sensor LiDAR frontal detecta al adversario aproximándose a velocidad de choque (3.5 m/s)' },
-  { id: 'b', text: '🧠 La CPU calcula el vector de impacto y determina que la guardia frontal no resistirá' },
-  { id: 'c', text: '⚡ El servocontrol activa los actuadores de cadera y ejecuta una esquiva lateral rápida' },
-  { id: 'd', text: '🔄 El arma cinética (spinner) acelera a 8.000 RPM acumulando máxima energía rotacional' },
-  { id: 'e', text: '💥 El mecha embiste con toda la potencia aprovechando el flanco desprotegido del rival' },
-  { id: 'f', text: '🛡️ Los amortiguadores hidroneumáticos disipan el retroceso volviendo a la postura de guardia' }
+  { id: 'a', text: '📡 El ordenador del hangar transmite la orden de activación simultánea al convoy de droides' },
+  { id: 'b', text: '⚡ R2-D2 despliega su pata central telescópica y reclina el chasis a modo triciclo' },
+  { id: 'c', text: '🧲 BB-8 sincroniza su péndulo interior y ancla la cúpula superior con neodimio' },
+  { id: 'd', text: '🦾 C-3PO despierta sus servomotores bípedos y ajusta su postura erguida de protocolo' },
+  { id: 'e', text: '🚀 BB-8 y R2-D2 inician la marcha diferencial y esférica rodando en vanguardia' },
+  { id: 'f', text: '🤝 C-3PO camina tras ellos guiando al equipo hacia la rampa del Halcón Milenario' }
 ];
 const sortCorrect = ['a', 'b', 'c', 'd', 'e', 'f']; let sortCurrentOrder = []; let sortDone = false; let sortAttempts = 0;
 
@@ -330,8 +329,8 @@ function game2() { sortCurrentOrder = shuffleArray([...sortItems]); sortDone = f
 function renderSort() {
   document.getElementById('game-area').innerHTML = `
     <div class="game-card">
-      <div class="game-title">📦 Ordenar · Maniobra de Reacción y Contraataque</div>
-      <div class="game-question">Arrastra los bloques para ordenar cronológicamente la secuencia autónoma: desde la detección del choque inminente hasta la disipación del retroceso.</div>
+      <div class="game-title">📦 Ordenar · Secuencia de Despliegue en Hangar</div>
+      <div class="game-question">Arrastra los bloques para ordenar cronológicamente la sincronización y salida operativa del Trío Dinámico.</div>
       <div class="sortable-list" id="sort-list">
         ${sortCurrentOrder.map((item, i) => `
           <div class="sort-item" draggable="true" data-id="${item.id}">
@@ -368,11 +367,11 @@ function checkSort() {
   const current = [...document.querySelectorAll('.sort-item')].map(el => el.dataset.id);
   const fb = document.getElementById('fb-sort');
   if (JSON.stringify(current) === JSON.stringify(sortCorrect)) {
-    fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Impecable! La detección temprana y la esquiva anteceden a la acumulación de energía cinética y al contraataque.';
+    fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Excelente! La calibración de estabilidad y el encendido motriz preceden a la navegación coordinada.';
     if (sortAttempts === 0) updateScore(30);
     sortDone = true; document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
   } else {
-    sortAttempts++; fb.className = 'feedback show ko'; fb.textContent = '❌ El orden tiene fallos. Piensa: detección sensor -> cálculo de vector -> esquiva lateral -> giro de spinner -> embestida de impacto -> absorción en guardia.';
+    sortAttempts++; fb.className = 'feedback show ko'; fb.textContent = '❌ El orden tiene fallos. Piensa: señal general -> estabilización de apoyos de cada droide -> marcha de avance hacia la nave.';
     document.getElementById('btn-sol2').classList.add('show');
   }
 }
@@ -386,13 +385,13 @@ function showSortSolution() {
   document.getElementById('btn-sol2').classList.remove('show'); document.getElementById('btn-sig2').classList.add('show');
 }
 
-// ─── JUEGO 3: EMPAREJAR ANATOMÍA Y COMBATE (5 Conceptos) ───────────────────
+// ─── JUEGO 3: EMPAREJAR CINEMÁTICA Y ANATOMÍA (5 Conceptos) ────────────────
 const matchPairs = [
-  { left: 'Centro de Gravedad Bajo', right: 'Evita que el mecha vuelque al recibir embestidas laterales' },
-  { left: 'Arma Cinética (Spinner)', right: 'Acumula energía rotacional a altas RPM para destrozar el blindaje' },
-  { left: 'Orugas de Alto Agarre', right: 'Maximizan el torque de arrastre y la tracción en la arena' },
-  { left: 'Coraza de Titanio Grado 5', right: 'Absorbe impactos cinéticos extremos sin fractura estructural' },
-  { left: 'Máquina de Estados (FSM)', right: 'Regula las transiciones de animación y tiempos de recuperación' }
+  { left: 'Rueda loca pivotante 360º', right: 'Punto de apoyo delantero pasivo para giro diferencial en R2-D2' },
+  { left: 'Péndulo interno motorizado', right: 'Desplaza el centro de masa rodando la esfera de BB-8' },
+  { left: 'Acoplamiento Magnético', right: 'Sujeta la cabeza de BB-8 a través del casco esférico' },
+  { left: 'Tracción Diferencial', right: 'Permite rotación sobre el propio eje sin radio de giro previo' },
+  { left: 'Control Bípedo Acotado', right: 'Marcha de etiqueta con estabilidad estática estricta en C-3PO' }
 ];
 let matchSelected = null; let matchDone = 0; let matchAutoCount = 0;
 function game3() {
@@ -401,8 +400,8 @@ function game3() {
   const rightItems = shuffleArray([0, 1, 2, 3, 4]).map(i => ({ idx: i, text: matchPairs[i].right }));
   document.getElementById('game-area').innerHTML = `
     <div class="game-card">
-      <div class="game-title">🔗 Emparejar · Componentes y Funciones de Combate</div>
-      <div class="game-question">Conecta cada componente mecánico de la izquierda con su función y comportamiento defensivo/ofensivo a la derecha.</div>
+      <div class="game-title">🔗 Emparejar · Mecanismos y Cinemáticas de Droides</div>
+      <div class="game-question">Conecta cada componente mecánico de la izquierda con su función y comportamiento físico a la derecha.</div>
       <div class="match-grid">
         <div class="match-col" id="left-col">${leftItems.map(item => `<div class="match-item left" data-idx="${item.idx}" data-side="left" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
         <div class="match-col" id="right-col">${rightItems.map(item => `<div class="match-item right" data-idx="${item.idx}" data-side="right" onclick="selectMatch(this)">${item.text}</div>`).join('')}</div>
@@ -428,7 +427,7 @@ function selectMatch(el) {
       matchDone++;
       if (matchDone === matchPairs.length) {
         updateScore((matchPairs.length - matchAutoCount) * 6);
-        const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Perfecto! Conoces exactamente el propósito de cada elemento en robots pesados.';
+        const fb = document.getElementById('fb-match'); fb.className = 'feedback show ok'; fb.textContent = '✅ ¡Perfecto! Dominas los 3 principios de locomoción de la saga.';
         document.getElementById('btn-sol3').classList.remove('show'); document.getElementById('btn-sig3').classList.add('show');
       }
     } else {
@@ -454,28 +453,28 @@ function showMatchSolution() {
 // ─── JUEGO 4: RETO FINAL 3D (Simulador e Inspección) ─────────────────────
 const finalScenarios = [
   {
-    title: "Misión 1: Cinemática de Locomoción del Mecha",
-    desc: "Observa al Mecha en el visor 3D interactivo. Pulsa 'TROTE' para iniciar su marcha bípeda. ¿Cómo equilibra el robot el centro de gravedad mientras avanza?",
+    title: "Misión 1: Cinemática Diferencial de R2-D2",
+    desc: "Inspecciona el modelo de R2-D2 en el visor 3D interactivo. Para girar sobre su propio eje hacia la derecha en un pasillo estrecho de la Estrella de la Muerte, ¿cómo deben actuar sus motores laterales?",
     opts: [
-      "Arrastra ambas patas a la vez sin despegarse del suelo",
-      "Aplica una marcha de zancada simétrica con balanceo lateral compensatorio del torso hacia la pierna de apoyo",
-      "Gira sobre una sola rueda interna oculta",
-      "Flota 5 centímetros por encima de la arena"
+      "Ambos motores giran hacia adelante a la misma velocidad",
+      "El motor izquierdo gira hacia adelante y el motor derecho hacia atrás a la misma velocidad",
+      "Se apagan ambos motores y se gira la cúpula",
+      "El robot salta con amortiguadores de gas"
     ],
     ok: 1,
-    exp: "✅ ¡Exacto! Los mechas bípedos trasladan el peso corporal alternativamente hacia la pierna que mantiene contacto con el suelo para evitar caer hacia los lados."
+    exp: "✅ ¡Exacto! Aplicando velocidades opuestas (+V en la rueda izquierda y -V en la derecha), el centro del eje permanece estacionario produciendo un giro puro."
   },
   {
-    title: "Misión 2: Mecánica del Salto y Absorción de Impacto",
-    desc: "Pulsa el botón 'SALTO' en el simulador. Al aterrizar, las articulaciones de rodilla y tobillo se flexionan de forma pronunciada. ¿Por qué es fundamental esta compresión mecánica?",
+    title: "Misión 2: Acoplamiento Magnético de BB-8",
+    desc: "En el droide esférico BB-8, la cabeza parece flotar sobre la esfera rodante. ¿Qué fenómeno físico asegura que la cabeza no caiga al suelo cuando el robot frena en seco?",
     opts: [
-      "Para disipar la energía cinética del aterrizaje mediante amortiguación, protegiendo los servomotores de sobrepresión",
-      "Para cargar las baterías mediante dinamo de pisada",
-      "Para marcar el suelo con el logotipo del equipo",
-      "Para reducir la altura del robot y que el rival no lo vea"
+      "Atracción de imanes de neodimio combinada con rodillos lubricados con servocontrol interno",
+      "Un mástil de titanio invisible que atraviesa la esfera",
+      "Una corriente de aire constante que la succiona",
+      "Pegamento químico autolimpiable"
     ],
     ok: 0,
-    exp: "✅ ¡Perfecto! La flexión de rodilla aumenta el tiempo de deceleración (Δt), lo que reduce drásticamente el pico de fuerza de impacto (F = Δp/Δt) salvaguardando los engranajes."
+    exp: "✅ ¡Perfecto! El carro interno con imanes de neodimio se desplaza por el interior de la carcasa esférica arrastrando magnéticamente la cabeza exterior equipada con rodillos."
   }
 ];
 let finalIdx = 0; let finalAnswered = false;
@@ -490,14 +489,13 @@ function renderFinalStage() {
   const sc = finalScenarios[finalIdx]; finalAnswered = false;
   document.getElementById('game-area').innerHTML = `
     <div class="game-card">
-      <div class="game-title">🦾 Reto Final 3D · ${sc.title}</div>
+      <div class="game-title">⭐ Reto Final 3D · ${sc.title}</div>
       <div id="canvas-container">
         <canvas id="renderCanvas"></canvas>
         <div class="sim-controls">
-          <button class="sim-btn" id="btn-anim-idle">🛑 ESPERA</button>
-          <button class="sim-btn" id="btn-anim-trot">🏃 TROTE</button>
-          <button class="sim-btn" id="btn-anim-jump">🦘 SALTO</button>
-          <button class="sim-btn" id="btn-anim-taunt">⚡ PROVOCACIÓN</button>
+          <button class="sim-btn" id="btn-show-c3po">🤖 C-3PO</button>
+          <button class="sim-btn" id="btn-show-r2">🚙 R2-D2</button>
+          <button class="sim-btn" id="btn-show-bb8">⚪ BB-8</button>
           <button class="sim-btn" id="btn-reset-cam">🎥 RECENTRAR</button>
         </div>
       </div>
@@ -519,70 +517,78 @@ function answerFinal(btn, idx, ok) {
     fb.className = 'feedback show ok'; fb.textContent = finalScenarios[finalIdx].exp;
     updateScore(30); document.getElementById('btn-sig-final').classList.add('show');
   } else {
-    btn.classList.add('wrong'); btn.disabled = true; fb.className = 'feedback show ko'; fb.textContent = '❌ Analiza la cinemática del modelo 3D superior e inténtalo de nuevo.';
+    btn.classList.add('wrong'); btn.disabled = true; fb.className = 'feedback show ko'; fb.textContent = '❌ Analiza el modelo 3D superior y los principios biomecánicos e inténtalo de nuevo.';
   }
 }
-
-let mechaAnimGroup = null;
 
 function initBabylonMini() {
   const canvas = document.getElementById("renderCanvas"); if (!canvas) return;
   const engine = new BABYLON.Engine(canvas, true);
-  const scene = new BABYLON.Scene(engine); scene.clearColor = new BABYLON.Color4(0.04, 0.05, 0.08, 1);
+  const scene = new BABYLON.Scene(engine); scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.1, 1);
   
-  const cam = new BABYLON.ArcRotateCamera("c", Math.PI / 3, Math.PI / 2.3, 10, new BABYLON.Vector3(0, 2.5, 0), scene);
-  cam.attachControl(canvas, true); cam.wheelPrecision = 20; cam.lowerRadiusLimit = 4; cam.upperRadiusLimit = 25;
+  const cam = new BABYLON.ArcRotateCamera("c", -Math.PI / 2, Math.PI / 2.3, 12, new BABYLON.Vector3(0, 1.5, 0), scene);
+  cam.attachControl(canvas, true); cam.wheelPrecision = 20; cam.lowerRadiusLimit = 3; cam.upperRadiusLimit = 35;
   
   const hemi = new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0, 1, 0), scene); hemi.intensity = 0.9;
-  const dir = new BABYLON.DirectionalLight("d", new BABYLON.Vector3(-1, -2, -1), scene); dir.position = new BABYLON.Vector3(20, 40, 20); dir.intensity = 1.3;
+  const dir = new BABYLON.DirectionalLight("d", new BABYLON.Vector3(-1, -2, -1), scene); dir.position = new BABYLON.Vector3(20, 40, 20); dir.intensity = 1.2;
 
-  // Cuadrícula de combate
-  const g = BABYLON.MeshBuilder.CreateGround("g", {width: 25, height: 25}, scene);
-  const mg = new BABYLON.StandardMaterial("mg", scene); mg.diffuseColor = new BABYLON.Color3(0.2, 0.05, 0.05); mg.wireframe = true; g.material = mg;
+  // Cuadrícula de hangar
+  const g = BABYLON.MeshBuilder.CreateGround("g", {width: 40, height: 40}, scene);
+  const mg = new BABYLON.StandardMaterial("mg", scene); mg.diffuseColor = new BABYLON.Color3(0.05, 0.15, 0.25); mg.wireframe = true; g.material = mg;
 
-  const root = new BABYLON.TransformNode("rootMecha", scene);
+  const nodeR2 = new BABYLON.TransformNode("nR2", scene);
+  const nodeBB8 = new BABYLON.TransformNode("nBB8", scene);
+  const nodeC3PO = new BABYLON.TransformNode("nC3PO", scene);
 
-  async function loadMecha() {
-    let result = null;
+  nodeR2.position = new BABYLON.Vector3(-3.5, 0, 0);
+  nodeBB8.position = new BABYLON.Vector3(3.5, 0, 0);
+  nodeC3PO.position = new BABYLON.Vector3(0, 0, 0);
+
+  const safeImport = async (file) => {
     try {
-      result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "mech_neck_walker_-_bge_free_download.glb", scene);
+      return await BABYLON.SceneLoader.ImportMeshAsync("", "./", file, scene);
     } catch(e) {
-      try {
-        result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "mech_neck_walker_-_bge_free_download.glb", scene);
-      } catch(err) {
-        console.warn("Fallo al cargar mecha:", err);
-      }
+      return await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", file, scene);
     }
-    if (result && result.meshes.length > 0) {
-      const rootMesh = result.meshes[0];
-      rootMesh.parent = root;
-      rootMesh.scaling = new BABYLON.Vector3(0.45, 0.45, 0.45);
-      if (result.animationGroups && result.animationGroups.length > 0) {
-        mechaAnimGroup = result.animationGroups[0];
-        mechaAnimGroup.start(true, 1.0, 0, 554); // Espera por defecto
-      }
-    }
-  }
-
-  loadMecha();
-
-  // Controles
-  const playAnimRange = (from, to, loop, speed = 1.0) => {
-    if (!mechaAnimGroup) return;
-    mechaAnimGroup.stop();
-    mechaAnimGroup.start(loop, speed, from, to, false);
   };
 
-  const btnIdle = document.getElementById("btn-anim-idle");
-  if (btnIdle) btnIdle.onclick = () => playAnimRange(0, 554, true, 1.0);
-  const btnTrot = document.getElementById("btn-anim-trot");
-  if (btnTrot) btnTrot.onclick = () => playAnimRange(555, 1181, true, 1.5);
-  const btnJump = document.getElementById("btn-anim-jump");
-  if (btnJump) btnJump.onclick = () => playAnimRange(1407, 1631, false, 1.2);
-  const btnTaunt = document.getElementById("btn-anim-taunt");
-  if (btnTaunt) btnTaunt.onclick = () => playAnimRange(4575, 5889, true, 1.0);
+  // Cargar R2-D2
+  safeImport("R2D2_perfect.glb").then(r => {
+    if (r && r.meshes.length > 0) {
+      r.meshes[0].parent = nodeR2;
+      nodeR2.scaling = new BABYLON.Vector3(2.5, 2.5, 2.5);
+    }
+  }).catch(e => console.warn(e));
+
+  // Cargar BB-8
+  safeImport("bb-8.glb").then(r => {
+    if (r && r.meshes.length > 0) {
+      const root = r.meshes[0];
+      root.parent = nodeBB8;
+      nodeBB8.rotation.z = Math.PI;
+      nodeBB8.rotate(BABYLON.Axis.X, Math.PI/2, BABYLON.Space.LOCAL);
+      nodeBB8.scaling = new BABYLON.Vector3(0.02, 0.02, 0.02);
+      nodeBB8.position.y = 1.0;
+    }
+  }).catch(e => console.warn(e));
+
+  // Cargar C-3PO
+  safeImport("C-3PO_Base.glb").then(r => {
+    if (r && r.meshes.length > 0) {
+      r.meshes[0].parent = nodeC3PO;
+      nodeC3PO.scaling = new BABYLON.Vector3(1.2, 1.2, 1.2);
+    }
+  }).catch(e => console.warn(e));
+
+  // Controles
+  const btnR2 = document.getElementById("btn-show-r2");
+  if (btnR2) btnR2.onclick = () => { cam.setTarget(nodeR2.position.add(new BABYLON.Vector3(0, 1.2, 0))); cam.radius = 8; };
+  const btnBB8 = document.getElementById("btn-show-bb8");
+  if (btnBB8) btnBB8.onclick = () => { cam.setTarget(nodeBB8.position.add(new BABYLON.Vector3(0, 0.8, 0))); cam.radius = 6; };
+  const btnC3PO = document.getElementById("btn-show-c3po");
+  if (btnC3PO) btnC3PO.onclick = () => { cam.setTarget(nodeC3PO.position.add(new BABYLON.Vector3(0, 1.5, 0))); cam.radius = 8; };
   const btnReset = document.getElementById("btn-reset-cam");
-  if (btnReset) btnReset.onclick = () => { cam.setTarget(new BABYLON.Vector3(0, 2.5, 0)); cam.radius = 10; };
+  if (btnReset) btnReset.onclick = () => { cam.setTarget(new BABYLON.Vector3(0, 1.5, 0)); cam.radius = 12; };
 
   scene.onBeforeRenderObservable.add(() => {
     cam.alpha += 0.002;
@@ -595,9 +601,9 @@ function initBabylonMini() {
 function showFinal() {
   document.getElementById('game-area').innerHTML = `
     <div class="game-card" style="text-align: center;">
-      <div style="font-size: 70px; margin-bottom: 16px;">🏆🎉⚔️</div>
-      <h2 style="font-size: 32px; color: var(--primary); margin-bottom: 12px;">¡ENHORABUENA, INGENIERO MECHA!</h2>
-      <p style="font-size: 18px; color: var(--sub); margin-bottom: 24px;">Has completado con éxito la evaluación interactiva sobre Robots Mecha de Combate, cinemática pesada y blindajes.</p>
+      <div style="font-size: 70px; margin-bottom: 16px;">🏆🎉⭐</div>
+      <h2 style="font-size: 32px; color: var(--primary); margin-bottom: 12px;">¡ENHORABUENA, INGENIERO DE DROIDES!</h2>
+      <p style="font-size: 18px; color: var(--sub); margin-bottom: 24px;">Has completado con éxito la evaluación interactiva del Trío Dinámico (R2-D2, BB-8 y C-3PO).</p>
       <div style="font-size: 26px; color: var(--warning); font-weight: 800; margin-bottom: 30px;">Puntuación Final: ${score} Puntos</div>
       <button class="btn-empezar" onclick="iniciar()">🔄 REPETIR EVALUACIÓN</button>
     </div>`;

@@ -322,9 +322,13 @@
         mat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
         ground.material = mat;
 
-        // Cargar Modelo usando AssetContainer para instanciar eficientemente
-        const modelPath = "../1.FICHEROS-AUXILIARES/mech_neck_walker_-_bge_free_download.glb";
-        const container = await BABYLON.SceneLoader.LoadAssetContainerAsync("", modelPath, scene);
+        // Cargar Modelo usando AssetContainer para instanciar eficientemente con fallback
+        let container;
+        try {
+            container = await BABYLON.SceneLoader.LoadAssetContainerAsync("", "./mech_neck_walker_-_bge_free_download.glb", scene);
+        } catch(e) {
+            container = await BABYLON.SceneLoader.LoadAssetContainerAsync("", "../1.FICHEROS-AUXILIARES/mech_neck_walker_-_bge_free_download.glb", scene);
+        }
         
         let inst1 = container.instantiateModelsToScene(name => "P1_" + name);
         let inst2 = container.instantiateModelsToScene(name => "P2_" + name);

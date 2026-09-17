@@ -157,7 +157,8 @@ CLASSES_DEF_B5 = [
         ],
         "practices_phase3": [
             { "code": "P3.1", "ext": "HTML", "name": "P3.1.C3PO_Simulador.html", "desc": "Simulador 3D: Marcha bípeda de protocolo y servomotores de C-3PO.", "rel": "3.PRACTICAS/P3.1_C3PO_Simulador.html" },
-            { "code": "P4", "ext": "HTML", "name": "P4.TRIO_DINAMICO.html", "desc": "Simulador 3D: Misión interactiva coordinando a R2-D2, BB-8 y C-3PO en el hangar.", "rel": "3.PRACTICAS/P4_TRIO_DINAMICO.html" }
+            { "code": "P3.2", "ext": "HTML", "name": "P4_TRIO_DINAMICO.html", "desc": "Simulador 3D: Misión interactiva coordinando a R2-D2, BB-8 y C-3PO en el hangar.", "rel": "3.PRACTICAS/P4_TRIO_DINAMICO.html" },
+            { "code": "P4", "ext": "HTML", "name": "P4.JUEGO.html", "desc": "Evaluación interactiva oficial: Trivial de droides, hangar, cinemática y reto 3D.", "rel": "3.PRACTICAS/P4.JUEGO.html" }
         ]
     },
     {
@@ -183,7 +184,7 @@ CLASSES_DEF_B5 = [
         ],
         "practices_phase3": [
             { "code": "P3", "ext": "HTML", "name": "P3.LUCHA_DE-MECHAS.html", "desc": "Simulador 3D: Duelo de mechas en arena con físicas y barra de integridad.", "rel": "3.PRACTICAS/P3.LUCHA_DE-MECHAS.html" },
-            { "code": "P4", "ext": "HTML", "name": "P4.JUEGO.html", "desc": "Reto gamificado: Supera oleadas de androides calibrando tiempos de reacción.", "rel": "3.PRACTICAS/P4.JUEGO.html" }
+            { "code": "P4", "ext": "HTML", "name": "P4.JUEGO.html", "desc": "Evaluación interactiva oficial: Trivial mecha, contraataque, blindaje y reto 3D.", "rel": "3.PRACTICAS/P4.JUEGO.html" }
         ]
     }
 ]

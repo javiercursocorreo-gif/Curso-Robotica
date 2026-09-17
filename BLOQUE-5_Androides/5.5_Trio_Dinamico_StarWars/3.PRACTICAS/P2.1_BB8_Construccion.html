@@ -173,8 +173,12 @@
         procHead.isVisible = true; // Se mostrará junto al wireframe
         
         // --- MODELO 3D REAL (BB-8) ---
-        try {
-            const result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+            let result;
+            try {
+                result = await BABYLON.SceneLoader.ImportMeshAsync("", "./", "bb-8.glb", scene);
+            } catch(e) {
+                result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+            }
             const root = result.meshes[0];
             
             const modelPivot = new BABYLON.TransformNode("modelPivot", scene);

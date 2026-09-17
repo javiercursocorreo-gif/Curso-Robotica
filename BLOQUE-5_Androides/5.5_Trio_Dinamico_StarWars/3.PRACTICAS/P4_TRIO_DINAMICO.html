@@ -136,9 +136,18 @@
                 return {min, max, size: max.subtract(min)};
             };
 
+            // Helper de carga robusta con fallback
+            const safeImportMesh = async (filename) => {
+                try {
+                    return await BABYLON.SceneLoader.ImportMeshAsync("", "./", filename, scene);
+                } catch(e) {
+                    return await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", filename, scene);
+                }
+            };
+
             // --- CARGAR C-3PO (Interactivo) ---
             try {
-                const c3poResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "C-3PO_Base.glb", scene);
+                const c3poResult = await safeImportMesh("C-3PO_Base.glb");
                 c3poRoot = c3poResult.meshes[0];
                 c3poRoot.position = new BABYLON.Vector3(0, 0, 0);
                 
@@ -152,7 +161,7 @@
 
                 const baseNodes = [c3poRoot, ...c3poRoot.getDescendants(false)];
                 
-                const animResult = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "C-3PO_Macarena.glb", scene);
+                const animResult = await safeImportMesh("C-3PO_Macarena.glb");
                 const macarenaAnim = animResult.animationGroups[0];
                 macarenaAnim.stop();
                 const clonedAnim = macarenaAnim.clone("Macarena_Cloned", (oldTarget) => {
@@ -175,7 +184,7 @@
                 r2RootP4.scaling = new BABYLON.Vector3(10.0, 10.0, 10.0);
                 r2RootP4.rotation.y = -Math.PI / 4;
 
-                const r2Result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "R2D2_perfect.glb", scene);
+                const r2Result = await safeImportMesh("R2D2_perfect.glb");
                 const r2RootMesh = r2Result.meshes[0];
                 r2RootMesh.parent = r2RootP4; // Anclar el GLB al wrapper
                 r2Result.meshes.forEach(m => m.isPickable = false); // Evitar oclusión del ratón
@@ -225,7 +234,7 @@
 
             // --- CARGAR BB-8 (Controlable - Código EXACTO de P3) ---
             try {
-                const bb8Result = await BABYLON.SceneLoader.ImportMeshAsync("", "../1.FICHEROS-AUXILIARES/", "bb-8.glb", scene);
+                const bb8Result = await safeImportMesh("bb-8.glb");
                 
                 bb8Root = new BABYLON.TransformNode("bb8Root", scene);
                 bb8Sphere = new BABYLON.TransformNode("bb8Sphere", scene);
