@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cámaras e Interiores (7) - Mapa Mental Radial</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #020509; color: #f8fafc; min-height: 100vh; overflow-x: auto;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
+                radial-gradient(1px 1px at 35px 45px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 220px 320px, rgba(56, 189, 248, 0.6) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 620px 520px, rgba(239, 68, 68, 0.6) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 1150px 820px, rgba(16, 185, 129, 0.6) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px, 500px 500px;
+            display: flex; flex-direction: column; align-items: center; padding-bottom: 50px;
+        }
+
+        /* Barra Superior */
+        .top-bar {
+            width: 100%; max-width: 1600px; margin: 14px auto 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 24px; z-index: 50;
+        }
+        .brand-wrap { display: flex; align-items: center; gap: 14px; }
+        .hub-link {
+            background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4);
+            color: #f59e0b; padding: 8px 18px; border-radius: 8px; font-weight: 800; text-decoration: none;
+            font-size: 0.88rem; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .hub-link:hover { background: #f59e0b; color: #06090e; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+        .brand-tag {
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 16px; border-radius: 999px;
+        }
+
+        /* Lienzo del Mapa Mental */
+        .mindmap-canvas {
+            position: relative; width: 1600px; height: 860px;
+            margin: 10px auto 20px;
+        }
+
+        /* Capa SVG */
+        .tree-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+        .branch-line {
+            fill: none; stroke-linecap: round; transition: all 0.3s ease;
+        }
+
+        /* Núcleo Central */
+        .center-core {
+            position: absolute; top: 42%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 210px; height: 210px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(30, 58, 138, 0.92) 0%, rgba(10, 15, 28, 0.98) 75%);
+            border: 2px solid #38bdf8; box-shadow: 0 0 50px rgba(56, 189, 248, 0.4), inset 0 0 30px rgba(56, 189, 248, 0.25);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 16px; cursor: default; z-index: 30; backdrop-filter: blur(14px);
+            animation: pulse-core 4s ease-in-out infinite;
+        }
+        @keyframes pulse-core {
+            0%, 100% { box-shadow: 0 0 45px rgba(56, 189, 248, 0.35); }
+            50% { box-shadow: 0 0 70px rgba(56, 189, 248, 0.6); }
+        }
+        .center-core-icon { font-size: 2.3rem; margin-bottom: 4px; }
+        .center-core-title {
+            font-size: 1.15rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; line-height: 1.25;
+        }
+        .center-core-sub {
+            font-size: 0.72rem; color: #38bdf8; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            margin-top: 6px;
+        }
+
+        /* Hubs de Categoría / Facciones */
+        .category-hub {
+            position: absolute; z-index: 25;
+            padding: 10px 22px; border-radius: 999px; text-decoration: none;
+            background: rgba(10, 15, 28, 0.95); border: 2px solid var(--fac-color);
+            display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 0.96rem;
+            letter-spacing: 1.5px; text-transform: uppercase; color: #ffffff;
+            box-shadow: 0 0 25px var(--fac-glow), 0 8px 20px rgba(0, 0, 0, 0.7);
+            transform: translate(-50%, -50%); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(12px); cursor: pointer; white-space: nowrap;
+        }
+        .category-hub:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            box-shadow: 0 0 40px var(--fac-glow), 0 12px 28px rgba(0, 0, 0, 0.8);
+        }
+        .category-icon { font-size: 1.15rem; }
+
+        /* Contenedores de Nodos */
+        .column-box {
+            position: absolute; z-index: 20; display: flex; flex-direction: column; gap: 8px;
+        }
+        .grid-2col {
+            display: grid; grid-template-columns: 320px 320px; gap: 8px 14px;
+        }
+
+        /* Nodo Individual */
+        .item-node {
+            display: flex; align-items: center; gap: 9px; width: 340px;
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 3.5px solid var(--item-color);
+            padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #f1f5f9;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(8px);
+        }
+        .item-node:hover {
+            background: rgba(30, 41, 59, 0.98); border-color: var(--item-color);
+            transform: translateX(4px) scale(1.02);
+            box-shadow: 0 0 16px var(--item-color)44, 0 6px 16px rgba(0, 0, 0, 0.6);
+            color: #ffffff; z-index: 40;
+        }
+        .item-num {
+            font-size: 0.82rem; font-weight: 800; color: var(--item-color);
+            background: rgba(0, 0, 0, 0.5); padding: 2px 7px; border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .item-name {
+            font-size: 1.02rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-wrap">
+            <a href="../index_radial.html" class="hub-link">🏛️ Volver al Gran Museo</a>
+            <div class="brand-tag">Cámaras Galácticas • 7 Entornos de Película</div>
+        </div>
+    </div>
+
+    <div class="mindmap-canvas" id="canvasWrap">
+        <svg class="tree-svg" id="treeSvg"></svg>
+
+        <!-- Núcleo Central -->
+        <div class="center-core" id="coreNode">
+            <div class="center-core-icon">🏛️</div>
+            <div class="center-core-title">Cámaras e Interiores<br>Galácticos</div>
+            <div class="center-core-sub">7 Entornos 3D • Mapa Mental</div>
+        </div>
+
+        <!-- Hubs de Categoría -->
+        <div class="category-hub" id="hubCommand" style="left: 520px; top: 230px; --fac-color: #38bdf8; --fac-glow: #38bdf866;">
+            <span class="category-icon">🕹️</span>
+            <span>CABINAS & PUESTOS DE MANDO (2)</span>
+        </div>
+        <div class="category-hub" id="hubSocial" style="left: 1080px; top: 230px; --fac-color: #eab308; --fac-glow: #eab30866;">
+            <span class="category-icon">🍸</span>
+            <span>SALA DE CONSEJO & CANTINA (2)</span>
+        </div>
+        <div class="category-hub" id="hubFacilities" style="left: 800px; top: 640px; --fac-color: #10b981; --fac-glow: #10b98166;">
+            <span class="category-icon">🚪</span>
+            <span>INSTALACIONES & CORREDORES (3)</span>
+        </div>
+
+
+        <!-- Columnas / Cuadrantes de Nodos -->
+        <div class="column-box" id="colCommand" style="left: 70px; top: 90px;">
+            <a href="VISOR_CAMARA_1_PUENTE_DESTRUCTOR.html" class="item-node" id="item_1" style="--item-color: #38bdf8;">
+                <span class="item-num">#1</span>
+                <span class="item-name">Puente de Mando Destructor Imperial</span>
+            </a>
+            <a href="VISOR_CAMARA_3_CABINA_XWING.html" class="item-node" id="item_3" style="--item-color: #38bdf8;">
+                <span class="item-num">#3</span>
+                <span class="item-name">Cabina Operativa del Caza X-Wing</span>
+            </a>
+        </div>
+        <div class="column-box" id="colSocial" style="left: 1190px; top: 90px;">
+            <a href="VISOR_CAMARA_2_CONSEJO_JEDI.html" class="item-node" id="item_2" style="--item-color: #eab308;">
+                <span class="item-num">#2</span>
+                <span class="item-name">Cámara del Alto Consejo Jedi</span>
+            </a>
+            <a href="VISOR_CAMARA_4_CANTINA_MOS_EISLEY.html" class="item-node" id="item_4" style="--item-color: #eab308;">
+                <span class="item-num">#4</span>
+                <span class="item-name">Cantina de Mos Eisley (Chalmun)</span>
+            </a>
+        </div>
+        <div class="column-box" id="colFacilities" style="left: 50%; transform: translateX(-50%); top: 730px; display: flex; flex-direction: row; gap: 14px;">
+            <a href="VISOR_CAMARA_5_MUSTAFAR_CONTROL.html" class="item-node" id="item_5" style="--item-color: #10b981; width: 330px;">
+                <span class="item-num">#5</span>
+                <span class="item-name">Sala de Control Minera Mustafar</span>
+            </a>
+            <a href="VISOR_CAMARA_6_HANGAR_INTERIOR.html" class="item-node" id="item_6" style="--item-color: #10b981; width: 330px;">
+                <span class="item-num">#6</span>
+                <span class="item-name">Interior Hangar Imperial y Rebelde</span>
+            </a>
+            <a href="VISOR_CAMARA_7_PASILLO_CORREDOR.html" class="item-node" id="item_7" style="--item-color: #10b981; width: 330px;">
+                <span class="item-num">#7</span>
+                <span class="item-name">Corredor Imperial de Nave Capital</span>
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        // Detección y auto-corrección inmediata si se abre bajo protocolo local file://
+        if (window.location.protocol === "file:") {
+            const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+            if (match) {
+                window.location.replace("http://localhost:8888/" + match[0]);
+            }
+        }
+
+        const canvas = document.getElementById("canvasWrap");
+        const svg = document.getElementById("treeSvg");
+        const core = document.getElementById("coreNode");
+
+        const categoriesData = [
+            {
+                        "hubId": "hubCommand",
+                        "color": "#38bdf8",
+                        "side": "left",
+                        "items": [
+                                    1,
+                                    3
+                        ]
+            },
+            {
+                        "hubId": "hubSocial",
+                        "color": "#eab308",
+                        "side": "right",
+                        "items": [
+                                    2,
+                                    4
+                        ]
+            },
+            {
+                        "hubId": "hubFacilities",
+                        "color": "#10b981",
+                        "side": "bottom",
+                        "items": [
+                                    5,
+                                    6,
+                                    7
+                        ]
+            }
+];
+
+        function getCenter(el) {
+            const cRect = canvas.getBoundingClientRect();
+            const r = el.getBoundingClientRect();
+            return {
+                x: r.left + r.width / 2 - cRect.left,
+                y: r.top + r.height / 2 - cRect.top,
+                left: r.left - cRect.left,
+                right: r.right - cRect.left,
+                top: r.top - cRect.top,
+                bottom: r.bottom - cRect.top
+            };
+        }
+
+        function drawLines() {
+            svg.innerHTML = "";
+            const corePos = getCenter(core);
+
+            categoriesData.forEach(cat => {
+                const hubEl = document.getElementById(cat.hubId);
+                if (!hubEl) return;
+                const hubPos = getCenter(hubEl);
+
+                // Radio grueso Núcleo Central -> Hub de Categoría
+                const coreLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                coreLine.setAttribute("x1", corePos.x);
+                coreLine.setAttribute("y1", corePos.y);
+                coreLine.setAttribute("x2", hubPos.x);
+                coreLine.setAttribute("y2", hubPos.y);
+                coreLine.setAttribute("stroke", cat.color);
+                coreLine.setAttribute("stroke-width", "3.5");
+                coreLine.setAttribute("stroke-opacity", "0.85");
+                svg.appendChild(coreLine);
+
+                // Ramas desde Hub de Categoría a cada elemento
+                cat.items.forEach(id => {
+                    const itemEl = document.getElementById("item_" + id);
+                    if (!itemEl) return;
+                    const itemPos = getCenter(itemEl);
+
+                    let targetX, targetY;
+                    if (cat.side === "left") {
+                        targetX = itemPos.right;
+                        targetY = itemPos.y;
+                    } else if (cat.side === "right") {
+                        targetX = itemPos.left;
+                        targetY = itemPos.y;
+                    } else if (cat.side === "top") {
+                        targetX = itemPos.x;
+                        targetY = itemPos.bottom;
+                    } else {
+                        targetX = itemPos.x;
+                        targetY = itemPos.top;
+                    }
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    let d = "";
+                    if (cat.side === "left" || cat.side === "right") {
+                        const mx = (hubPos.x + targetX) / 2;
+                        d = `M ${hubPos.x} ${hubPos.y} C ${mx} ${hubPos.y}, ${mx} ${targetY}, ${targetX} ${targetY}`;
+                    } else {
+                        const my = (hubPos.y + targetY) / 2;
+                        d = `M ${hubPos.x} ${hubPos.y} C ${hubPos.x} ${my}, ${targetX} ${my}, ${targetX} ${targetY}`;
+                    }
+
+                    path.setAttribute("d", d);
+                    path.setAttribute("class", "branch-line");
+                    path.setAttribute("stroke", cat.color);
+                    path.setAttribute("stroke-width", "1.6");
+                    path.setAttribute("stroke-opacity", "0.45");
+                    path.setAttribute("id", "branch_" + id);
+                    svg.appendChild(path);
+
+                    itemEl.addEventListener("mouseenter", () => {
+                        path.setAttribute("stroke-width", "3");
+                        path.setAttribute("stroke-opacity", "1");
+                    });
+                    itemEl.addEventListener("mouseleave", () => {
+                        path.setAttribute("stroke-width", "1.6");
+                        path.setAttribute("stroke-opacity", "0.45");
+                    });
+                });
+            });
+        }
+
+        window.addEventListener("load", drawLines);
+        window.addEventListener("resize", drawLines);
+        setTimeout(drawLines, 150);
+        setTimeout(drawLines, 600);
+    </script>
+</body>
+</html>

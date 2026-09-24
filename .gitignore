@@ -36,6 +36,7 @@ GEMINI/
 GITHUB/
 PRACTICAS_UNITY/
 PRACTICAS_HTML_BABYLON/
+scratch/
 
 # 6.1 Ignorar archivos sueltos en la raíz (para que solo suban desde los BLOQUE-X)
 /*.html
@@ -72,3 +73,16 @@ PRACTICAS_HTML_BABYLON/
 !BLOQUE-5_Androides/5.6_Robot-combate/1.FICHEROS-AUXILIARES/
 !BLOQUE-5_Androides/5.6_Robot-combate/1.FICHEROS-AUXILIARES/*.glb
 !BLOQUE-5_Androides/5.6_Robot-combate/3.PRACTICAS/*.glb
+
+# 12. Excepciones para Gran Museo Star Wars (Bloque 6.2)
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.html
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.js
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.glb
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.fbx
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.zip
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.md
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.command
+!BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.png
+

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+</script>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>5. Diorama Hangar de Mantenimiento X-Wing - Mundos & Escenarios</title>
+    <!-- Babylon.js y Loaders Oficiales -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #06090e; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at center, #141c28 0%, #090d14 60%, #020406 100%);
+        }
+        
+        /* Cabecera */
+        .header {
+            position: absolute; top: 20px; left: 24px; z-index: 10;
+            pointer-events: none;
+        }
+        .faction-tag {
+            display: inline-block; padding: 5px 14px; border-radius: 6px;
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid #e64c22; color: #e64c22;
+            margin-bottom: 8px;
+        }
+        h1 { margin: 0; font-size: 2.2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.05rem; color: #cbd5e1; font-weight: 600; }
+
+        /* Barra de navegación superior */
+        .nav-bar {
+            position: absolute; top: 20px; right: 24px; z-index: 10;
+            display: flex; gap: 10px;
+        }
+        .nav-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.2);
+            color: #cbd5e1; padding: 10px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; text-decoration: none; display: flex; align-items: center; gap: 8px;
+            backdrop-filter: blur(8px);
+        }
+        .nav-btn:hover {
+            background: #38bdf8; color: #06090e; border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        .nav-btn.home-btn {
+            background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #f59e0b;
+        }
+        .nav-btn.home-btn:hover {
+            background: #f59e0b; color: #06090e; border-color: #f59e0b;
+        }
+
+        /* Panel de Controles Flotante */
+        .controls-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; padding: 14px 18px; backdrop-filter: blur(12px);
+            display: flex; gap: 12px; align-items: center;
+        }
+        .ctrl-btn {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+            color: #e2e8f0; padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .ctrl-btn.active { background: rgba(56, 189, 248, 0.25); border-color: #38bdf8; color: #38bdf8; }
+
+        /* Ficha Técnica con Letras Grandes y Legibles */
+        .specs-panel {
+            position: absolute; bottom: 24px; right: 24px; z-index: 10; width: 380px;
+            background: rgba(15, 23, 42, 0.90); border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 12px; padding: 22px; backdrop-filter: blur(14px);
+        }
+        .specs-title {
+            font-size: 0.95rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #38bdf8; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 8px;
+        }
+        .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .spec-item { display: flex; flex-direction: column; }
+        .spec-label { font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 2px; }
+        .spec-val { font-size: 1.05rem; font-weight: 800; color: #ffffff; }
+        .spec-desc { font-size: 0.95rem; color: #e2e8f0; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; }
+
+        /* Indicador de carga */
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
+            background: #06090e; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.4s ease;
+        }
+        .spinner {
+            width: 48px; height: 48px; border: 3px solid rgba(56, 189, 248, 0.2);
+            border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        .loading-text { font-size: 1.0rem; letter-spacing: 3px; text-transform: uppercase; color: #94a3b8; font-weight: 700; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Cargando Modelo 3D...</div>
+    </div>
+
+    <div class="header">
+        <div class="faction-tag">Alianza Rebelde</div>
+        <h1>5. Hangar Rebelde de Mantenimiento</h1>
+        <div class="subtitle">Base de Operaciones y Reparación de Cazas Estelares</div>
+    </div>
+
+    <div class="nav-bar">
+        <a href="VISOR_ESCENARIO_4_EXEGOL.html" class="nav-btn">◀ Anterior</a>
+        <a href="index_radial.html" class="nav-btn">🪐 Mundos (5)</a>
+        <a href="../index_radial.html" class="nav-btn home-btn">🏛️ Gran Museo</a>
+        <a href="VISOR_ESCENARIO_1_BATALLA_AT_AT_HOTH.html" class="nav-btn">Siguiente ▶</a>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+        <button class="ctrl-btn" onclick="toggleWireframe()">▤ Malla</button>
+    </div>
+
+    <div class="specs-panel">
+        <div class="specs-title">Especificaciones Técnicas</div>
+        <div class="specs-grid">
+            <div class="spec-item">
+                <div class="spec-label">Instalación</div>
+                <div class="spec-val">Hangar Subterráneo de Despegue Rápido</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Equipamiento</div>
+                <div class="spec-val">Grúas de Carga, Depósitos de Combustible</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Nave en Dársena</div>
+                <div class="spec-val">Caza T-65B X-Wing en Reparación</div>
+            </div>
+            <div class="spec-item">
+                <div class="spec-label">Personal</div>
+                <div class="spec-val">Mecánicos e Ingenieros de la Resistencia</div>
+            </div>
+        </div>
+        <div class="spec-desc">Diorama realista con las dársenas de atraque de cazas estelares, consolas tácticas, herramientas electromecánicas y repuestos de turbinas.</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        let scene, camera, pivotNode;
+        let isRotating = true;
+        let isWireframe = false;
+
+        const initialAlpha = Math.PI * 0.25;
+        const initialBeta = Math.PI / 3;
+        const initialRadius = 7.5;
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById("btn-rot").classList.toggle("active", isRotating);
+        }
+
+        // FUNCIÓN CENTRAR REPARADA
+        function resetCamera() {
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.target = new BABYLON.Vector3(0, 0, 0);
+                camera.inertialAlphaOffset = 0;
+                camera.inertialBetaOffset = 0;
+                camera.inertialRadiusOffset = 0;
+                
+                const btn = document.getElementById("btn-center");
+                if (btn) {
+                    btn.classList.add("active");
+                    setTimeout(() => btn.classList.remove("active"), 300);
+                }
+            }
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (scene) {
+                scene.materials.forEach(mat => { mat.wireframe = isWireframe; });
+            }
+        }
+
+        function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+            scene.createDefaultEnvironment({ createSkybox: false, createGround: false });
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 40;
+            camera.minZ = 0.05;
+            camera.maxZ = 1000;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.1;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.3);
+
+            const dirLight1 = new BABYLON.DirectionalLight("dirLight1", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight1.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight1.intensity = 1.7;
+
+            const dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1, 1, 1), scene);
+            dirLight2.position = new BABYLON.Vector3(-20, -20, -20);
+            dirLight2.intensity = 0.8;
+            dirLight2.diffuse = new BABYLON.Color3(0.5, 0.7, 0.95);
+
+            // Carga del modelo
+            const modelFolder = "../../../../MODELOS/STAR%20WARS/5.ESCENARIOS/x-wing_hangar_diorama/";
+            const modelFile = "scene.gltf";
+
+            BABYLON.SceneLoader.ImportMesh("", modelFolder, modelFile, scene, function (meshes, particleSystems, skeletons, animationGroups) {
+                pivotNode = new BABYLON.TransformNode("pivotNode", scene);
+
+                // Centrado y escalado universal geométrico y seguro para cualquier jerarquía 3D
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let hasGeom = false;
+
+                meshes.forEach(m => {
+                    if (m && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const bInfo = m.getBoundingInfo();
+                        if (bInfo && bInfo.boundingBox) {
+                            min = BABYLON.Vector3.Minimize(min, bInfo.boundingBox.minimumWorld);
+                            max = BABYLON.Vector3.Maximize(max, bInfo.boundingBox.maximumWorld);
+                            hasGeom = true;
+                        }
+                    }
+                });
+
+                const rootMesh = meshes[0];
+                rootMesh.parent = pivotNode;
+
+                if (hasGeom) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    const size = max.subtract(min);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const targetScale = 4.5 / (maxDim || 1);
+
+                    // Centrado perfecto en el origen de giro (0, 0, 0)
+                    rootMesh.position = center.scale(-1);
+                    pivotNode.scaling = new BABYLON.Vector3(targetScale, targetScale, targetScale);
+                } else {
+                    pivotNode.scaling = new BABYLON.Vector3(4.5, 4.5, 4.5);
+                }
+
+                // Código específico de material / texturizado
+                const result = { meshes, skeletons, animationGroups };
+
+
+                // Ocultar pantalla de carga
+                const overlay = document.getElementById("loading-overlay");
+                overlay.style.opacity = "0";
+                setTimeout(() => { overlay.style.display = "none"; }, 400);
+            }, function (evt) {
+                if (evt.lengthComputable) {
+                    const percent = (evt.loaded * 100 / evt.total).toFixed();
+                    document.querySelector(".loading-text").innerText = `Cargando Modelo 3D... ${percent}%`;
+                }
+            }, function (scene, message, exception) {
+                console.error("Error al cargar modelo:", message, exception);
+                document.querySelector(".loading-text").innerText = "Error al cargar modelo 3D.";
+            });
+
+            // Rotación continua
+            scene.registerBeforeRender(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.003;
+                }
+            });
+        }
+
+        initScene();
+
+        engine.runRenderLoop(() => {
+            if (scene) scene.render();
+        });
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>

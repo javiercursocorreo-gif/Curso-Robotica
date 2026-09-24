@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21. Eyegee Droid (Serie IG) - Gran Museo Star Wars</title>
+    <!-- Babylon.js Oficial -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #03060c; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at center, #3b82f622 0%, #06090e 65%, #020408 100%);
+        }
+        
+        .header { position: absolute; top: 20px; left: 24px; z-index: 10; pointer-events: none; }
+        .badge-wrap { display: flex; align-items: center; margin-bottom: 8px; }
+        .faction-tag {
+            display: inline-block; padding: 6px 14px; border-radius: 6px;
+            font-size: 0.85rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid #3b82f6; color: #3b82f6;
+        }
+        h1 { margin: 0; font-size: 2.2rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.05rem; color: #cbd5e1; font-weight: 600; }
+
+        .nav-panel {
+            position: absolute; top: 20px; right: 24px; z-index: 20;
+            display: flex; gap: 10px;
+        }
+        .nav-btn {
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 10px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            font-size: 0.90rem; backdrop-filter: blur(8px); transition: all 0.2s ease;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.18); border-color: #fff; }
+        .home-btn { border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; }
+        .home-btn:hover { background: #f59e0b; color: #04070c; }
+
+        .controls-panel {
+            position: absolute; bottom: 24px; right: 24px; z-index: 20;
+            display: flex; gap: 10px;
+        }
+        .ctrl-btn {
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 0.92rem;
+            backdrop-filter: blur(8px); cursor: pointer; transition: all 0.2s ease;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .ctrl-btn:hover, .ctrl-btn.active { background: #38bdf8; color: #04070c; border-color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.5); }
+
+        /* Ficha Técnica: Letras al doble de grandes y legibilidad amplificada */
+        .specs-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid rgba(255, 255, 255, 0.18);
+            border-left: 6px solid #3b82f6; padding: 22px 26px; border-radius: 12px;
+            max-width: 580px; backdrop-filter: blur(14px); pointer-events: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+        .specs-title { font-size: 1.40rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #3b82f6; margin-bottom: 12px; }
+        .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 12px; }
+        .spec-item { font-size: 1.15rem; }
+        .spec-label { color: #94a3b8; font-weight: 700; font-size: 1.15rem; margin-bottom: 2px; }
+        .spec-val { color: #f8fafc; font-weight: 800; font-size: 1.25rem; }
+        .spec-desc { font-size: 1.25rem; color: #cbd5e1; line-height: 1.5; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #03060c; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.35s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #3b82f6; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 14px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div style="font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fff;">Cargando Eyegee Droid (Serie IG)...</div>
+    </div>
+
+    <div class="header">
+        <div class="badge-wrap">
+            <span class="faction-tag">Sala 3B: Droides Combate</span>
+            
+        </div>
+        <h1>21. Eyegee Droid (Serie IG)</h1>
+        <p class="subtitle">Droide Táctico • Pabellón 4</p>
+    </div>
+
+    <div class="nav-panel">
+        <a href="VISOR_PERSONAJE_20_IG88.html" class="nav-btn nav-prev" title="Modelo anterior (tecla ←)">◀ Anterior</a>
+        <a href="SALA_3B_RADIAL.html" class="nav-btn" title="Volver a la Sala 3B (Mapa Radial)">🏛️ Sala 3B</a>
+        <a href="SALA_7_RADIAL.html" class="nav-btn" style="border-color: #f59e0b; color: #fbbf24;" title="Volver a Sala 7 (Galería Mixamo)">⭐ Sala 7</a>
+        <a href="../index.html" class="nav-btn home-btn" title="Volver al Gran Museo (Mapa Radial)">🌌 Gran Museo</a>
+        <a href="VISOR_PERSONAJE_22_K2SO.html" class="nav-btn nav-next" title="Modelo siguiente (tecla →)">Siguiente ▶</a>
+    </div>
+
+    <div class="controls-panel">
+        
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+        <button class="ctrl-btn" onclick="toggleWireframe()">▤ Malla</button>
+    </div>
+
+    <div class="specs-panel">
+        <div class="specs-title">Ficha Técnica Oficial</div>
+        <div class="specs-grid">
+            <div class="spec-item"><div class="spec-label">Categoría</div><div class="spec-val">Droide Táctico</div></div>
+            <div class="spec-item"><div class="spec-label">Sala Temática</div><div class="spec-val">Sala 3B: Droides Combate</div></div>
+            <div class="spec-item"><div class="spec-label">Formato 3D</div><div class="spec-val">GLTF</div></div>
+            <div class="spec-item"><div class="spec-label">Mixamo</div><div class="spec-val">Especial</div></div>
+        </div>
+        <div class="spec-desc">Unidad de combate autónomo especializada en asalto perimetral y seguridad blindada.</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        let scene, camera, pivotNode;
+        let isRotating = true;
+        let isWireframe = false;
+
+        // initialAlpha = Math.PI / 2.0 asegura que la cámara enfoque de frente a los personajes
+        const initialAlpha = Math.PI / 2.0;
+        const initialBeta = Math.PI / 2.5;
+        const initialRadius = 5.5;
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById("btn-rot").classList.toggle("active", isRotating);
+        }
+
+        function resetCamera() {
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.setTarget(BABYLON.Vector3.Zero());
+                const btn = document.getElementById("btn-center");
+                if (btn) {
+                    btn.classList.add("active");
+                    setTimeout(() => btn.classList.remove("active"), 300);
+                }
+            }
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (scene) {
+                scene.materials.forEach(mat => { mat.wireframe = isWireframe; });
+            }
+        }
+
+        function hideOverlay() {
+            const overlay = document.getElementById("loading-overlay");
+            if (overlay && overlay.style.display !== "none") {
+                overlay.style.opacity = "0";
+                setTimeout(() => { overlay.style.display = "none"; }, 350);
+            }
+        }
+
+        async function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 40;
+            camera.minZ = 0.1;
+            camera.maxZ = 1000;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.35;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight.intensity = 1.8;
+
+            const dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1, 2, 1), scene);
+            dirLight2.position = new BABYLON.Vector3(-20, -40, -20);
+            dirLight2.intensity = 0.8;
+
+            const modelFolder = "../../../../MODELOS/STAR%20WARS/1.PERSONAJES_Y_DROIDES/eyegee_droid/";
+            const modelFile = "scene.gltf";
+
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelFolder, modelFile, scene);
+                const meshes = result.meshes;
+                const animationGroups = result.animationGroups;
+
+                // 1. Crear nodo pivote en el origen y nodo orientador
+                pivotNode = new BABYLON.TransformNode("pivotNode", scene);
+                const orientNode = new BABYLON.TransformNode("orientNode", scene);
+                orientNode.parent = pivotNode;
+
+                // Emparejar mallas raíz al orientador
+                const roots = meshes.filter(m => !m.parent);
+                roots.forEach(m => {
+                    m.parent = orientNode;
+                });
+
+                // 2. Correcciones específicas aplicadas al orientador o piezas
+                
+
+                // 3. Forzar actualización de matrices de transformación
+                orientNode.computeWorldMatrix(true);
+                meshes.forEach(m => { if (m.computeWorldMatrix) m.computeWorldMatrix(true); });
+
+                // 4. Cálculo dinámico exacto del Bounding Box de las mallas visibles y habilitadas
+                let min = null;
+                let max = null;
+
+                meshes.forEach(m => {
+                    if (m && m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        if (!min) {
+                            min = b.minimumWorld.clone();
+                            max = b.maximumWorld.clone();
+                        } else {
+                            min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                            max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                        }
+                    }
+                });
+
+                if (min && max) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    const size = BABYLON.Vector3.Distance(min, max);
+
+                    // Desplazar el orientador respecto al centroide de la malla orientada
+                    orientNode.position.subtractInPlace(center);
+
+                    const factor = size > 0.001 ? (3.6 / size) : 1.0;
+                    pivotNode.scaling.setAll(factor);
+                    pivotNode.position.set(0, 0, 0);
+                } else {
+                    pivotNode.scaling.setAll(3.5);
+                    pivotNode.position.set(0, 0, 0);
+                }
+
+            } catch (err) {
+                console.error("Error al cargar modelo 3D:", err);
+            } finally {
+                hideOverlay();
+            }
+
+            scene.registerBeforeRender(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.0035;
+                }
+            });
+        }
+
+        initScene();
+        engine.runRenderLoop(() => { if (scene) scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+
+        // Atajos de teclado (← Anterior / Siguiente →)
+        window.addEventListener("keydown", function(e) {
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+            if (e.key === "ArrowLeft") {
+                const prev = document.querySelector(".nav-prev");
+                if (prev) prev.click();
+            } else if (e.key === "ArrowRight") {
+                const next = document.querySelector(".nav-next");
+                if (next) next.click();
+            }
+        });
+    </script>
+</body>
+</html>

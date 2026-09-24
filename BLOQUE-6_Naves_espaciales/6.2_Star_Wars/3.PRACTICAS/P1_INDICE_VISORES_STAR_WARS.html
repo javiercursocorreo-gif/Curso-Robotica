@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Hangar Espacial Star Wars - Museo 3D Interactivo (20 Naves)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #06090e; color: #f8fafc; min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 70%, rgba(225, 29, 72, 0.08) 0%, transparent 40%),
+                linear-gradient(to bottom, #06090e, #0c121e);
+            background-attachment: fixed; padding-bottom: 60px;
+        }
+        .header {
+            text-align: center; padding: 48px 20px 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(6, 9, 14, 0.7); backdrop-filter: blur(12px);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .tagline {
+            display: inline-block; font-size: 0.8rem; font-weight: 800; letter-spacing: 3px;
+            text-transform: uppercase; color: #f59e0b; background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3); padding: 5px 14px; border-radius: 999px; margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 2.5rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+            color: #ffffff; text-shadow: 0 0 30px rgba(255,255,255,0.2); margin-bottom: 8px;
+        }
+        .subtitle { font-size: 1.05rem; color: #94a3b8; max-width: 650px; margin: 0 auto 20px; }
+        .filter-bar {
+            display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+        }
+        .filter-btn {
+            background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1; padding: 8px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .filter-btn:hover, .filter-btn.active {
+            background: #38bdf8; color: #06090e; border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        .main-container { max-width: 1400px; margin: 36px auto; padding: 0 24px; }
+        .category-section { margin-bottom: 48px; }
+        .category-header {
+            background: rgba(15, 23, 42, 0.6); border-radius: 0 12px 12px 0;
+            padding: 16px 24px; margin-bottom: 24px; backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05); border-right: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .category-title-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+        .category-icon { font-size: 1.4rem; }
+        .category-name { font-size: 1.35rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #f8fafc; }
+        .category-count { font-size: 0.85rem; font-weight: 700; color: #94a3b8; }
+        .category-desc { font-size: 0.9rem; color: #94a3b8; margin-left: 36px; }
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 20px;
+        }
+        .ship-card {
+            background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px; padding: 22px; text-decoration: none; color: inherit;
+            display: flex; flex-direction: column; position: relative; overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); backdrop-filter: blur(8px);
+        }
+        .ship-card:hover {
+            transform: translateY(-5px); border-color: #38bdf8;
+            background: rgba(21, 32, 54, 0.85); box-shadow: 0 14px 28px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.2);
+        }
+        .ship-badge {
+            align-self: flex-start; font-size: 0.68rem; font-weight: 800; letter-spacing: 1.5px;
+            text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+            background: rgba(255, 255, 255, 0.06); border: 1px solid #38bdf8; margin-bottom: 12px;
+        }
+        .ship-num { font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .ship-title { font-size: 1.22rem; font-weight: 800; color: #ffffff; margin-bottom: 6px; letter-spacing: 0.5px; }
+        .ship-sub { font-size: 0.88rem; color: #94a3b8; line-height: 1.4; margin-bottom: 18px; flex-grow: 1; }
+        .card-btn {
+            font-size: 0.82rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;
+            transition: color 0.2s;
+        }
+        .ship-card:hover .card-btn { color: #7dd3fc; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="tagline">🛸 Colección Definitiva Star Wars 3D</div>
+        <h1>Hangar Espacial Star Wars</h1>
+        <p class="subtitle">Explorador interactivo de modelos 3D organizados por facciones galácticas.</p>
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterCat('all')">Todas las Naves (20)</button>
+            <button class="filter-btn" onclick="filterCat('rebel')">🔴 Alianza Rebelde (3)</button>
+            <button class="filter-btn" onclick="filterCat('imperio')">🔵 Imperio Galáctico (10)</button>
+            <button class="filter-btn" onclick="filterCat('republica')">🟢 República & Jedi (4)</button>
+            <button class="filter-btn" onclick="filterCat('borde_exterior')">🟡 Cazarrecompensas (3)</button>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <section class="category-section" data-category-section="rebel">
+            <div class="category-header" style="border-left: 4px solid #e64c22;">
+                <div class="category-title-wrap">
+                    <span class="category-icon">🔴</span>
+                    <h2 class="category-name">Alianza Rebelde & Resistencia</h2>
+                    <span class="category-count">(3 naves)</span>
+                </div>
+                <p class="category-desc">Cazas estelares versátiles de alta maniobrabilidad con escudos deflectores e hiperpropulsor propio.</p>
+            </div>
+            <div class="grid-container">
+            <a href="P1_VISOR_STAR_WARS_1_HALCON.html" class="ship-card" data-category="rebel">
+                <span class="ship-badge" style="border-color: #e64c22; color: #e64c22;">Alianza Rebelde</span>
+                <div class="ship-num">Nave #1</div>
+                <div class="ship-title">1. Halcón Milenario</div>
+                <div class="ship-sub">Carguero Ligero YT-1300 Modificado Corellian</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_2_X_WING.html" class="ship-card" data-category="rebel">
+                <span class="ship-badge" style="border-color: #e64c22; color: #e64c22;">Alianza Rebelde</span>
+                <div class="ship-num">Nave #2</div>
+                <div class="ship-title">2. Caza Estelar X-Wing</div>
+                <div class="ship-sub">Caza de Ataque e Interceptación T-65B</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_3_B_WING.html" class="ship-card" data-category="rebel">
+                <span class="ship-badge" style="border-color: #e64c22; color: #e64c22;">Alianza Rebelde</span>
+                <div class="ship-num">Nave #3</div>
+                <div class="ship-title">3. Caza de Asalto B-Wing</div>
+                <div class="ship-sub">Caza Pesado Rompedor de Bloqueos con Cabina Giroscópica</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            </div>
+        </section>
+        <section class="category-section" data-category-section="imperio">
+            <div class="category-header" style="border-left: 4px solid #38bdf8;">
+                <div class="category-title-wrap">
+                    <span class="category-icon">🔵</span>
+                    <h2 class="category-name">Imperio Galáctico</h2>
+                    <span class="category-count">(10 naves)</span>
+                </div>
+                <p class="category-desc">Poderío militar supremo: armada de cazas TIE, naves de línea y fortalezas orbitales.</p>
+            </div>
+            <div class="grid-container">
+            <a href="P1_VISOR_STAR_WARS_4_ESTRELLA_MUERTE.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #4</div>
+                <div class="ship-title">4. Estrella de la Muerte</div>
+                <div class="ship-sub">Estación Espacial Blindada Orbital DS-1 (160 km)</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_5_DESTRUCTOR.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #5</div>
+                <div class="ship-title">5. Destructor Estelar</div>
+                <div class="ship-sub">Acorazado Estelar Clase Imperial-I (1,600 m)</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_6_TIE_VADER.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #6</div>
+                <div class="ship-title">6. TIE Advanced x1</div>
+                <div class="ship-sub">Caza de Ataque Personal de Lord Vader con Hiperpropulsor</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_7_TIE_INTERCEPTOR.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #7</div>
+                <div class="ship-title">7. TIE Interceptor Guardia Real</div>
+                <div class="ship-sub">Interceptor TIE/IN de Élite del Emperador</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_8_TIE_INTERCEPTOR_GRIS.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #8</div>
+                <div class="ship-title">8. TIE Interceptor Estándar</div>
+                <div class="ship-sub">Interceptor de Flota Imperial TIE/IN Gris Naval</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_9_TIE_LIGHTNING.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #9</div>
+                <div class="ship-title">9. TIE Lightning Experimental</div>
+                <div class="ship-sub">Prototipo de Caza Furtivo Tri-Ala con Propulsión Sobrealimentada</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_10_LANZADERA_LAMBDA.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #10</div>
+                <div class="ship-title">10. Lanzadera Imperial Lambda</div>
+                <div class="ship-sub">Transporte VIP Clase T-4a con Alas Triédricas Plegables</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_11_CRUCERO_ARQUITENS.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #11</div>
+                <div class="ship-title">11. Crucero Ligero Arquitens</div>
+                <div class="ship-sub">Corbeta Militar de Mando Sectorial del Moff Gideon (325 m)</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_12_DECIMATOR.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #12</div>
+                <div class="ship-title">12. VT-49 Decimator</div>
+                <div class="ship-sub">Cañonera Pesada Blindada de Asalto Imperial</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_13_STAR_WING.html" class="ship-card" data-category="imperio">
+                <span class="ship-badge" style="border-color: #3b82f6; color: #38bdf8;">Imperio Galáctico</span>
+                <div class="ship-num">Nave #13</div>
+                <div class="ship-title">13. Xg-1 Star Wing</div>
+                <div class="ship-sub">Cañonera Imperial Pesada con Escudos e Hiperimpulsor</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            </div>
+        </section>
+        <section class="category-section" data-category-section="republica">
+            <div class="category-header" style="border-left: 4px solid #10b981;">
+                <div class="category-title-wrap">
+                    <span class="category-icon">🟢</span>
+                    <h2 class="category-name">República Galáctica & Orden Jedi</h2>
+                    <span class="category-count">(4 naves)</span>
+                </div>
+                <p class="category-desc">Naves de las Guerras Clon: interceptores de los Caballeros Jedi y la Guardia Real de Naboo.</p>
+            </div>
+            <div class="grid-container">
+            <a href="P1_VISOR_STAR_WARS_14_JEDI_STARFIGHTER.html" class="ship-card" data-category="republica">
+                <span class="ship-badge" style="border-color: #10b981; color: #34d399;">Orden Jedi & República</span>
+                <div class="ship-num">Nave #14</div>
+                <div class="ship-title">14. Caza Estelar Jedi ETA-2</div>
+                <div class="ship-sub">Interceptor Ligero Actis pilotado por los Caballeros Jedi</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_15_ARC_170.html" class="ship-card" data-category="republica">
+                <span class="ship-badge" style="border-color: #10b981; color: #34d399;">Gran Ejército de la República</span>
+                <div class="ship-num">Nave #15</div>
+                <div class="ship-title">15. Caza ARC-170</div>
+                <div class="ship-sub">Caza Pesado de Asalto y Reconocimiento con Artillero de Cola</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_16_NABOO_N1.html" class="ship-card" data-category="republica">
+                <span class="ship-badge" style="border-color: #10b981; color: #34d399;">Guardia Real de Naboo</span>
+                <div class="ship-num">Nave #16</div>
+                <div class="ship-title">16. Caza Naboo N-1</div>
+                <div class="ship-sub">Interceptor de Élite con Acabado en Cromo Pulido a Mano</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_17_NUBIAN_327.html" class="ship-card" data-category="republica">
+                <span class="ship-badge" style="border-color: #10b981; color: #34d399;">Casa Real de Naboo</span>
+                <div class="ship-num">Nave #17</div>
+                <div class="ship-title">17. Nave Real Nubian 327</div>
+                <div class="ship-sub">Crucero Real Espejado de la Reina Padmé Amidala</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            </div>
+        </section>
+        <section class="category-section" data-category-section="borde_exterior">
+            <div class="category-header" style="border-left: 4px solid #eab308;">
+                <div class="category-title-wrap">
+                    <span class="category-icon">🟡</span>
+                    <h2 class="category-name">Cazarrecompensas & Borde Exterior</h2>
+                    <span class="category-count">(3 naves)</span>
+                </div>
+                <p class="category-desc">Naves de cazadores legendarios, blindados mandalorianos y chatarreros del desierto de Tatooine.</p>
+            </div>
+            <div class="grid-container">
+            <a href="P1_VISOR_STAR_WARS_18_SLAVE_1.html" class="ship-card" data-category="borde_exterior">
+                <span class="ship-badge" style="border-color: #eab308; color: #facc15;">Gremio de Cazarrecompensas</span>
+                <div class="ship-num">Nave #18</div>
+                <div class="ship-title">18. Esclavo I (Slave 1)</div>
+                <div class="ship-sub">Firespray-31 de Boba Fett con Cargas Sísmicas y Giro 90°</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_19_RAZOR_CREST.html" class="ship-card" data-category="borde_exterior">
+                <span class="ship-badge" style="border-color: #eab308; color: #facc15;">Gremio de Cazarrecompensas</span>
+                <div class="ship-num">Nave #19</div>
+                <div class="ship-title">19. Cañonera Razor Crest</div>
+                <div class="ship-sub">Cañonera de Asalto ST-70 de Din Djarin con Cámara de Carbonita</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            <a href="P1_VISOR_STAR_WARS_20_SANDCRAWLER.html" class="ship-card" data-category="borde_exterior">
+                <span class="ship-badge" style="border-color: #eab308; color: #facc15;">Chatarreros de Tatooine</span>
+                <div class="ship-num">Nave #20</div>
+                <div class="ship-title">20. Sandcrawler Jawa</div>
+                <div class="ship-sub">Fortaleza Oruga Móvil de Tatooine con Taller Droide</div>
+                <div class="card-btn">Ver Modelo 3D Interactivo ➔</div>
+            </a>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        function filterCat(catId) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const sections = document.querySelectorAll('.category-section');
+            sections.forEach(sec => {
+                if (catId === 'all' || sec.getAttribute('data-category-section') === catId) {
+                    sec.style.display = 'block';
+                } else {
+                    sec.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

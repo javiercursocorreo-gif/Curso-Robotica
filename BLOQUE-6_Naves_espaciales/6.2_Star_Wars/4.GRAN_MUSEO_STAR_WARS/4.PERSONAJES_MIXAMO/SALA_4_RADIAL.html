@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala 4: Troopers & Cuerpos Militares - Mapa Mental Radial</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #02050b; color: #f8fafc; min-height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
+                radial-gradient(1px 1px at 30px 40px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 180px 260px, #eab30855 100%, transparent),
+                radial-gradient(1.5px 1.5px at 700px 450px, rgba(56, 189, 248, 0.5) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px;
+        }
+
+        .top-bar {
+            position: absolute; top: 16px; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 32px; z-index: 50;
+        }
+        .brand-tag {
+            font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #eab308; background: rgba(255, 255, 255, 0.05); border: 1px solid #eab30866;
+            padding: 7px 20px; border-radius: 999px;
+        }
+        .nav-links { display: flex; gap: 12px; }
+        .hub-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f1f5f9; padding: 8px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            font-size: 0.86rem; transition: all 0.2s; backdrop-filter: blur(8px);
+        }
+        .hub-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+
+        .mindmap-viewport {
+            position: relative; width: 1200px; height: 750px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .connector-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
+        .center-hub {
+            position: absolute; left: 600px; top: 375px; transform: translate(-50%, -50%);
+            width: 200px; height: 200px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(20, 30, 50, 0.95) 0%, rgba(5, 10, 20, 0.98) 75%);
+            border: 2px solid #eab308;
+            box-shadow: 0 0 50px rgba(234, 179, 8, 0.5), inset 0 0 30px #eab30833;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 16px; z-index: 25; cursor: default;
+        }
+        .center-icon { font-size: 2.2rem; margin-bottom: 4px; }
+        .center-title {
+            font-size: 1.05rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; line-height: 1.25;
+        }
+        .center-sub {
+            font-size: 0.72rem; color: #eab308; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .node-btn {
+            position: absolute; z-index: 20; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 10px;
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid rgba(255, 255, 255, 0.18);
+            padding: 9px 16px; border-radius: 999px; backdrop-filter: blur(12px);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            transform: translate(-50%, -50%); white-space: nowrap;
+        }
+        .node-btn:hover {
+            transform: translate(-50%, -50%) scale(1.10);
+            border-color: var(--node-color); box-shadow: 0 0 28px var(--node-glow), 0 12px 30px rgba(0,0,0,0.8);
+            background: rgba(24, 36, 60, 0.98); z-index: 35;
+        }
+        .special-node {
+            padding: 8px 16px; font-weight: 800;
+        }
+        .node-icon-circle {
+            width: 34px; height: 34px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6); border: 1px solid var(--node-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.15rem; flex-shrink: 0;
+        }
+        .node-text-wrap { display: flex; flex-direction: column; }
+        .node-num {
+            font-size: 0.68rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+            color: var(--node-color);
+        }
+        .node-title {
+            font-size: 0.92rem; font-weight: 800; color: #ffffff;
+        }
+        .node-badge {
+            font-size: 0.62rem; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;
+            color: #6ee7b7; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5);
+            padding: 2px 5px; border-radius: 4px; margin-left: 4px;
+        }
+
+        .footer-note {
+            position: absolute; bottom: 14px; font-size: 0.82rem; color: #64748b; letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-tag">🌌 Sala 4: Troopers & Cuerpos Militares • Mapa Mental Radial</div>
+        <div class="nav-links">
+            <a href="index.html" class="hub-btn">◀ Pabellón 4</a>
+            <a href="../index.html" class="hub-btn" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">🏛️ Gran Museo</a>
+        </div>
+    </div>
+
+    <div class="mindmap-viewport">
+        <svg class="connector-svg" id="svgCanvas"></svg>
+
+        <div class="center-hub">
+            <div class="center-icon">🪖</div>
+            <div class="center-title">Troopers <br>& Cuerpos Militares</div>
+            <div class="center-sub">9 Modelos 3D</div>
+        </div>
+
+        
+        <a href="VISOR_PERSONAJE_28_STORMTROOPER.html" class="node-btn" id="node_0" style="left: 600px; top: 90px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#28</span>
+                <span class="node-title">Stormtrooper Imperial</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_29_CAPITAN_STORMTROOPER.html" class="node-btn" id="node_1" style="left: 895px; top: 156px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#29</span>
+                <span class="node-title">Capitán Stormtrooper (Movimiento)</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_30_CLONE_TROOPER.html" class="node-btn" id="node_2" style="left: 1053px; top: 325px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#30</span>
+                <span class="node-title">Clone Trooper Limpio</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_31_SCOUT_TROOPER.html" class="node-btn" id="node_3" style="left: 998px; top: 517px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#31</span>
+                <span class="node-title">Scout Trooper (Explorador)</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_32_PILOTO_ATAT.html" class="node-btn" id="node_4" style="left: 757px; top: 642px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#32</span>
+                <span class="node-title">Piloto Imperial de AT-AT</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_33_DARK_TROOPER.html" class="node-btn" id="node_5" style="left: 442px; top: 642px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#33</span>
+                <span class="node-title">Phase 3 Dark Trooper</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_34_GUARDIA_PRETORIANA.html" class="node-btn" id="node_6" style="left: 201px; top: 517px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#34</span>
+                <span class="node-title">Guardia Pretoriana Imperial</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_35_CLON_COMANDO_X2.html" class="node-btn" id="node_7" style="left: 146px; top: 325px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#35</span>
+                <span class="node-title">Clon Comando X2 (Battlefront 3)</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_36_PILOTO_ALA_X.html" class="node-btn" id="node_8" style="left: 304px; top: 156px; --node-color: #eab308; --node-glow: rgba(234, 179, 8, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#36</span>
+                <span class="node-title">Piloto Rebelde Ala-X</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+    </div>
+
+    <div class="footer-note">Selecciona cualquier personaje para abrir su visor 3D interactivo</div>
+
+    <script>
+        const svg = document.getElementById("svgCanvas");
+
+        function drawLine(x1, y1, x2, y2, color) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color + "77");
+            line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+        }
+
+        drawLine(600, 375, 600, 90, '#eab308');
+        drawLine(600, 375, 895, 156, '#eab308');
+        drawLine(600, 375, 1053, 325, '#eab308');
+        drawLine(600, 375, 998, 517, '#eab308');
+        drawLine(600, 375, 757, 642, '#eab308');
+        drawLine(600, 375, 442, 642, '#eab308');
+        drawLine(600, 375, 201, 517, '#eab308');
+        drawLine(600, 375, 146, 325, '#eab308');
+        drawLine(600, 375, 304, 156, '#eab308');
+    </script>
+</body>
+</html>

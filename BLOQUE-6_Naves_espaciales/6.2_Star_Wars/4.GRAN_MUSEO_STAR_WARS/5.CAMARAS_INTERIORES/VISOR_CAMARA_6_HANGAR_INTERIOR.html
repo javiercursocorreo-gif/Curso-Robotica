@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+</script>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6. Interior de Hangar Imperial y Rebelde - Cámaras e Interiores Galácticos</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #030712; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at 50% 60%, #0d1e38 0%, #050b16 55%, #02040a 100%);
+        }
+        
+        .header { position: absolute; top: 20px; left: 24px; z-index: 10; pointer-events: none; }
+        .faction-tag {
+            display: inline-block; padding: 5px 14px; border-radius: 6px;
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(56, 189, 248, 0.12); border: 1px solid #38bdf8; color: #38bdf8; margin-bottom: 8px;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+        }
+        h1 { margin: 0; font-size: 2.2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.05rem; color: #bae6fd; font-weight: 600; }
+
+        .nav-bar { position: absolute; top: 20px; right: 24px; z-index: 10; display: flex; gap: 10px; }
+        .nav-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.2);
+            color: #bae6fd; padding: 10px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; text-decoration: none; display: flex; align-items: center; gap: 8px;
+            backdrop-filter: blur(8px);
+        }
+        .nav-btn:hover { background: #38bdf8; color: #030712; border-color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.6); }
+        .nav-btn.home-btn { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; }
+        .nav-btn.home-btn:hover { background: #f59e0b; color: #030712; }
+
+        .controls-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 10px; padding: 14px 18px; backdrop-filter: blur(12px);
+            display: flex; gap: 12px; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        .ctrl-btn {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+            color: #e0f2fe; padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .ctrl-btn:hover { background: rgba(56, 189, 248, 0.25); color: #fff; border-color: #38bdf8; }
+        .ctrl-btn.active { background: rgba(56, 189, 248, 0.28); border-color: #38bdf8; color: #7dd3fc; }
+
+        .specs-panel {
+            position: absolute; bottom: 24px; right: 24px; z-index: 10; width: 390px;
+            background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 12px; padding: 22px; backdrop-filter: blur(14px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+        }
+        .specs-title {
+            font-size: 0.95rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #38bdf8; margin-bottom: 14px; border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding-bottom: 8px;
+        }
+        .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .spec-item { display: flex; flex-direction: column; }
+        .spec-label { font-size: 0.82rem; color: #7dd3fc; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 2px; }
+        .spec-val { font-size: 1.05rem; font-weight: 800; color: #ffffff; }
+        .spec-desc { font-size: 0.95rem; color: #e0f2fe; line-height: 1.5; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 12px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
+            background: #030712; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.4s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid rgba(56, 189, 248, 0.2);
+            border-top-color: #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        .loading-text { font-size: 1.0rem; letter-spacing: 3px; text-transform: uppercase; color: #7dd3fc; font-weight: 700; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    
+        .nav-btn.nav-prev, .nav-btn.nav-next {
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            font-weight: 800;
+        }
+        .nav-btn.nav-prev:hover, .nav-btn.nav-next:hover {
+            background: #38bdf8;
+            color: #030712;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.8);
+        }
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Cargando Gran Hangar de Atraque Imperial...</div>
+    </div>
+
+    <div class="header">
+        <div class="faction-tag">Imperio Galáctico / Flota Estelar</div>
+        <h1>6. Interior de Hangar Imperial y Rebelde</h1>
+        <div class="subtitle">Bahía Principal de Mantenimiento, Lanzamiento y Atraque de Cazas</div>
+    </div>
+
+    <div class="nav-bar">
+        <a href="VISOR_CAMARA_5_MUSTAFAR_CONTROL.html" class="nav-btn nav-prev" title="Modelo anterior (tecla ←)">◀ Anterior</a>
+        <a href="index_radial.html" class="nav-btn" title="Volver al índice de Cámaras">☰ Cámaras (7)</a>
+        <a href="../index_radial.html" class="nav-btn home-btn" title="Volver al Gran Museo">🏛️ Gran Museo</a>
+        <a href="VISOR_CAMARA_7_PASILLO_CORREDOR.html" class="nav-btn nav-next" title="Modelo siguiente (tecla →)">Siguiente ▶</a>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+        <button class="ctrl-btn" onclick="toggleWireframe()">▤ Malla</button>
+    </div>
+
+    <div class="specs-panel">
+        <div class="specs-title">Especificaciones Técnicas</div>
+        <div class="specs-grid">
+            <div class="spec-item"><div class="spec-label">Bahías</div><div class="spec-val">Atraque y Fosos Magnéticos</div></div>
+            <div class="spec-item"><div class="spec-label">Atmósfera</div><div class="spec-val">Campo de Fuerza de Contención</div></div>
+            <div class="spec-item"><div class="spec-label">Grúas</div><div class="spec-val">Raíles de Carga Orbital</div></div>
+            <div class="spec-item"><div class="spec-label">Acceso</div><div class="spec-val">Compuertas de Despegue Rápido</div></div>
+        </div>
+        <div class="spec-desc">El colosal centro neurálgico de las naves capitales y estaciones espaciales del Imperio, con bahías de servicio para escuadrones de cazas estelares.</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        let scene, camera, pivotNode;
+        let forceFieldLight;
+        let isRotating = true;
+        let isWireframe = false;
+
+        const initialAlpha = Math.PI * 0.28;
+        const initialBeta = Math.PI / 2.7;
+        const initialRadius = 6.2;
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById("btn-rot").classList.toggle("active", isRotating);
+        }
+
+        function resetCamera() {
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.target = (pivotNode) ? pivotNode.position.clone() : new BABYLON.Vector3(0, 0, 0);
+                camera.inertialAlphaOffset = 0;
+                camera.inertialBetaOffset = 0;
+                camera.inertialRadiusOffset = 0;
+                
+                const btn = document.getElementById("btn-center");
+                if (btn) {
+                    btn.classList.add("active");
+                    setTimeout(() => btn.classList.remove("active"), 300);
+                }
+            }
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (scene) {
+                scene.materials.forEach(mat => { mat.wireframe = isWireframe; });
+            }
+        }
+
+        function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 45;
+            camera.lowerRadiusLimit = 1.0;
+            camera.upperRadiusLimit = 18.0;
+
+            // ILUMINACIÓN REALISTA DE HANGAR IMPERIAL
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.diffuse = new BABYLON.Color3(0.55, 0.65, 0.78);
+            hemiLight.groundColor = new BABYLON.Color3(0.08, 0.10, 0.14);
+            hemiLight.intensity = 0.90;
+
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0.4, -1.0, 0.3), scene);
+            dirLight.diffuse = new BABYLON.Color3(0.75, 0.85, 0.98);
+            dirLight.intensity = 0.70;
+
+            forceFieldLight = new BABYLON.PointLight("forceFieldLight", new BABYLON.Vector3(-3.5, 0.5, 0), scene);
+            forceFieldLight.diffuse = new BABYLON.Color3(0.15, 0.65, 1.0);
+            forceFieldLight.intensity = 2.5;
+
+            const bayLight = new BABYLON.PointLight("bayLight", new BABYLON.Vector3(2.5, -0.5, 1.5), scene);
+            bayLight.diffuse = new BABYLON.Color3(1.0, 0.75, 0.4);
+            bayLight.intensity = 1.5;
+
+            const modelFolder = "../../../../MODELOS/STAR%20WARS/3.INTERIORES_Y_CABINAS/star_wars_hangar_interior_model/";
+            const modelFile = "scene.gltf?v=" + Date.now();
+
+            BABYLON.SceneLoader.ImportMesh("", modelFolder, modelFile, scene, function (meshes) {
+                pivotNode = new BABYLON.TransformNode("pivotNode", scene);
+
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let hasGeom = false;
+
+                meshes.forEach(m => {
+                    const name = m.name || "";
+                    // Excluir mallas auxiliares lejanas para centrar la bahía del hangar
+                    if (name.includes("hangar__009") || name.includes("hangar__010")) {
+                        return;
+                    }
+                    if (m && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const bInfo = m.getBoundingInfo();
+                        if (bInfo && bInfo.boundingBox) {
+                            min = BABYLON.Vector3.Minimize(min, bInfo.boundingBox.minimumWorld);
+                            max = BABYLON.Vector3.Maximize(max, bInfo.boundingBox.maximumWorld);
+                            hasGeom = true;
+                        }
+                    }
+                });
+
+                const rootMesh = meshes[0];
+                rootMesh.parent = pivotNode;
+
+                if (hasGeom) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    const size = max.subtract(min);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const targetScale = 3.8 / (maxDim || 1);
+                    rootMesh.position = center.scale(-1);
+                    pivotNode.scaling = new BABYLON.Vector3(targetScale, targetScale, targetScale);
+                } else {
+                    pivotNode.scaling = new BABYLON.Vector3(3.8, 3.8, 3.8);
+                }
+
+                // Campo de fuerza magnético cian a la entrada
+                const fieldMat = new BABYLON.StandardMaterial("fieldMat", scene);
+                fieldMat.diffuseColor = new BABYLON.Color3(0.05, 0.35, 0.7);
+                fieldMat.emissiveColor = new BABYLON.Color3(0.15, 0.65, 1.0);
+                fieldMat.alpha = 0.35;
+
+                const forceField = BABYLON.MeshBuilder.CreatePlane("forceField", { width: 1.8, height: 1.1 }, scene);
+                forceField.position = new BABYLON.Vector3(-1.85, 0.4, 0);
+                forceField.rotation.y = Math.PI / 2;
+                forceField.material = fieldMat;
+                forceField.parent = pivotNode;
+
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) {
+                    overlay.style.opacity = "0";
+                    setTimeout(() => { overlay.style.display = "none"; }, 300);
+                }
+            }, null, function (scene, message) {
+                console.error("Error al cargar modelo:", message);
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) overlay.style.display = "none";
+            });
+
+            let hangarTime = 0;
+            scene.registerBeforeRender(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.003;
+                }
+                hangarTime += 0.04;
+                if (forceFieldLight) {
+                    forceFieldLight.intensity = 2.4 + Math.sin(hangarTime * 2.0) * 0.35;
+                }
+            });
+        }
+
+        initScene();
+        engine.runRenderLoop(() => { if (scene) scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    
+        window.addEventListener("keydown", function(e) {
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+            if (e.key === "ArrowLeft") {
+                const prev = document.querySelector(".nav-prev");
+                if (prev) prev.click();
+            } else if (e.key === "ArrowRight") {
+                const next = document.querySelector(".nav-next");
+                if (next) next.click();
+            }
+        });
+    </script>
+</body>
+</html>

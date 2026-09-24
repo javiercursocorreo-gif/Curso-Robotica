@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala 3: Droides & Autómatas - Selección de Sector</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #02050b; color: #f8fafc; min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-image: radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%);
+        }
+        .container { text-align: center; max-width: 600px; padding: 30px; }
+        h1 { font-size: 2rem; font-weight: 900; margin-bottom: 12px; color: #38bdf8; text-transform: uppercase; }
+        p { font-size: 1.1rem; color: #94a3b8; margin-bottom: 30px; }
+        .choices { display: flex; gap: 20px; justify-content: center; }
+        .btn-choice {
+            background: rgba(15, 23, 42, 0.9); border: 2px solid #06b6d4; color: #fff;
+            padding: 16px 24px; border-radius: 12px; text-decoration: none; font-weight: 800;
+            display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.25s;
+        }
+        .btn-choice:hover { transform: scale(1.06); box-shadow: 0 0 25px rgba(6, 182, 212, 0.6); }
+        .btn-combat { border-color: #3b82f6; }
+        .btn-combat:hover { box-shadow: 0 0 25px rgba(59, 130, 246, 0.6); }
+        .icon { font-size: 2.2rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Droides & Autómatas</h1>
+        <p>Esta división contiene 17 droides clasificados en dos sectores temáticos:</p>
+        <div class="choices">
+            <a href="SALA_3A_RADIAL.html" class="btn-choice">
+                <span class="icon">🤖</span>
+                <span>Sala 3A: Asistencia & Servicio</span>
+                <small style="color: #06b6d4;">C-3PO, R2-D2, BB-8, BD-1...</small>
+            </a>
+            <a href="SALA_3B_RADIAL.html" class="btn-choice btn-combat">
+                <span class="icon">⚙️</span>
+                <span>Sala 3B: Combate & Tácticos</span>
+                <small style="color: #3b82f6;">B1, Droideka, IG-88, K-2SO...</small>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

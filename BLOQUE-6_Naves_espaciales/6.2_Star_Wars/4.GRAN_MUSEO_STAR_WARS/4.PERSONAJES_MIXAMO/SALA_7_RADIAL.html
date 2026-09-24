@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala 7: Galería Estáticos vs Animados (Taller Mixamo) • Gran Museo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #02050b; color: #f8fafc; min-height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
+                radial-gradient(1px 1px at 30px 40px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 180px 260px, #10b98155 100%, transparent),
+                radial-gradient(1.5px 1.5px at 700px 450px, rgba(56, 189, 248, 0.5) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px;
+        }
+
+        .top-bar {
+            position: absolute; top: 16px; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 32px; z-index: 50;
+        }
+        .brand-tag {
+            font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #10b981; background: rgba(255, 255, 255, 0.05); border: 1px solid #10b98166;
+            padding: 7px 20px; border-radius: 999px;
+        }
+        .nav-links { display: flex; gap: 12px; }
+        .hub-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f1f5f9; padding: 8px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            font-size: 0.86rem; transition: all 0.2s; backdrop-filter: blur(8px);
+        }
+        .hub-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+
+        .mindmap-viewport {
+            position: relative; width: 1200px; height: 750px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .connector-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
+        .center-hub {
+            position: absolute; left: 600px; top: 375px; transform: translate(-50%, -50%);
+            width: 210px; height: 210px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(20, 30, 50, 0.95) 0%, rgba(5, 10, 20, 0.98) 75%);
+            border: 2px solid #10b981;
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.6), inset 0 0 30px #10b98133;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 16px; z-index: 25; cursor: default;
+        }
+        .center-icon { font-size: 2.2rem; margin-bottom: 4px; }
+        .center-title {
+            font-size: 1.05rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; line-height: 1.25;
+        }
+        .center-sub {
+            font-size: 0.72rem; color: #10b981; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .node-btn {
+            position: absolute; z-index: 20; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid rgba(255, 255, 255, 0.18);
+            padding: 7px 14px; border-radius: 999px; backdrop-filter: blur(12px);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+            transform: translate(-50%, -50%); white-space: nowrap;
+        }
+        .node-btn:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            border-color: var(--node-color); box-shadow: 0 0 24px var(--node-glow), 0 10px 25px rgba(0,0,0,0.8);
+            background: rgba(24, 36, 60, 0.98); z-index: 35;
+        }
+        .special-node {
+            padding: 10px 22px; font-weight: 800;
+        }
+        .node-icon-circle {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6); border: 1px solid var(--node-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.05rem; flex-shrink: 0;
+        }
+        .node-text-wrap { display: flex; flex-direction: column; }
+        .node-num {
+            font-size: 0.66rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+            color: var(--node-color);
+        }
+        .node-title {
+            font-size: 0.88rem; font-weight: 800; color: #ffffff;
+        }
+
+        .footer-note {
+            position: absolute; bottom: 14px; font-size: 0.82rem; color: #64748b; letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-tag">⭐ Sala 7: Galería Estáticos vs Animados (Taller Mixamo)</div>
+        <div class="nav-links">
+            <a href="index.html" class="hub-btn">◀ Pabellón 4</a>
+            <a href="../index.html" class="hub-btn" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">🏛️ Gran Museo</a>
+        </div>
+    </div>
+
+    <div class="mindmap-viewport">
+        <svg class="connector-svg" id="svgCanvas"></svg>
+
+        <div class="center-hub">
+            <div class="center-icon">⭐</div>
+            <div class="center-title">Galería Mixamo<br>Estáticos vs Animados</div>
+            <div class="center-sub">16 Modelos Oficiales</div>
+        </div>
+
+        <!-- DEMO ANIMADA DARTH MAUL ARRIBA -->
+        <a href="VISOR_PERSONAJE_6_DARTH_MAUL.html" class="node-btn special-node" id="node_spec_demo_maul" style="left: 600px; top: 180px; --node-color: #ef4444; --node-glow: #ef444488;">
+            <div class="node-icon-circle">⚔️</div>
+            <div class="node-text-wrap">
+                <span class="node-num">★ MODELO OFICIAL</span>
+                <span class="node-title">Visor Darth Maul (Doble Sable Sith)</span>
+            </div>
+        </a>
+
+        <!-- ACCESO ÚNICO AL TALLER ABAJO -->
+        <a href="../../3.PRACTICAS/P2.3_TALLER_ANIMACION_MIXAMO_STAR_WARS.html?v=16" class="node-btn special-node" id="node_spec_practica" style="left: 600px; top: 570px; --node-color: #10b981; --node-glow: #10b98188;">
+            <div class="node-icon-circle">🎓</div>
+            <div class="node-text-wrap">
+                <span class="node-num">TALLER DE ANIMACIÓN</span>
+                <span class="node-title">Taller Mixamo (16 Personajes)</span>
+            </div>
+        </a>
+
+        <!-- COLUMNA IZQUIERDA (8 MODELOS) -->
+        <a href="VISOR_PERSONAJE_1_OBI_WAN.html" class="node-btn" id="node_l_0" style="left: 210px; top: 85px; --node-color: #10b981; --node-glow: rgba(16, 185, 129, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#1</span>
+                <span class="node-title">Obi-Wan Kenobi</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_3_ANAKIN.html" class="node-btn" id="node_l_1" style="left: 210px; top: 160px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#3</span>
+                <span class="node-title">Anakin Skywalker</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_4_AHSOKA.html" class="node-btn" id="node_l_2" style="left: 210px; top: 235px; --node-color: #10b981; --node-glow: rgba(16, 185, 129, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#4</span>
+                <span class="node-title">Ahsoka Tano</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_5_DARTH_VADER.html" class="node-btn" id="node_l_3" style="left: 210px; top: 310px; --node-color: #ef4444; --node-glow: rgba(239, 68, 68, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#5</span>
+                <span class="node-title">Lord Darth Vader</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_6_DARTH_MAUL.html" class="node-btn" id="node_l_4" style="left: 210px; top: 385px; --node-color: #ef4444; --node-glow: rgba(239, 68, 68, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#6</span>
+                <span class="node-title">Darth Maul</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_9_C3PO.html" class="node-btn" id="node_l_5" style="left: 210px; top: 460px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#9</span>
+                <span class="node-title">C-3PO (Protocolo)</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_28_STORMTROOPER.html" class="node-btn" id="node_l_6" style="left: 210px; top: 535px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#28</span>
+                <span class="node-title">Stormtrooper Imperial</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_30_CLONE_TROOPER.html" class="node-btn" id="node_l_7" style="left: 210px; top: 610px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#30</span>
+                <span class="node-title">Clone Trooper Limpio</span>
+            </div>
+        </a>
+
+        <!-- COLUMNA DERECHA (8 MODELOS) -->
+        <a href="VISOR_PERSONAJE_31_SCOUT_TROOPER.html" class="node-btn" id="node_r_0" style="left: 990px; top: 85px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#31</span>
+                <span class="node-title">Scout Trooper</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_32_PILOTO_ATAT.html" class="node-btn" id="node_r_1" style="left: 990px; top: 160px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#32</span>
+                <span class="node-title">Piloto de AT-AT</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_33_DARK_TROOPER.html" class="node-btn" id="node_r_2" style="left: 990px; top: 235px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#33</span>
+                <span class="node-title">Phase 3 Dark Trooper</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_34_GUARDIA_PRETORIANA.html" class="node-btn" id="node_r_3" style="left: 990px; top: 310px; --node-color: #ef4444; --node-glow: rgba(239, 68, 68, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#34</span>
+                <span class="node-title">Guardia Pretoriana</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_35_CLON_COMANDO_X2.html" class="node-btn" id="node_r_4" style="left: 990px; top: 385px; --node-color: #38bdf8; --node-glow: rgba(56, 189, 248, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#35</span>
+                <span class="node-title">Clon Comando X2</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_36_PILOTO_ALA_X.html" class="node-btn" id="node_r_5" style="left: 990px; top: 460px; --node-color: #10b981; --node-glow: rgba(16, 185, 129, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#36</span>
+                <span class="node-title">Piloto Rebelde Ala-X</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_38_BOBA_FETT.html" class="node-btn" id="node_r_6" style="left: 990px; top: 535px; --node-color: #a855f7; --node-glow: rgba(168, 85, 247, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#38</span>
+                <span class="node-title">Boba Fett V2</span>
+            </div>
+        </a>
+        <a href="VISOR_PERSONAJE_44_JAR_JAR_BINKS.html" class="node-btn" id="node_r_7" style="left: 990px; top: 610px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#44</span>
+                <span class="node-title">Jar Jar Binks</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="footer-note">✦ Sala 7: Galería Mixamo • 16 Modelos Oficiales Preparados para Animación ✦</div>
+
+    <script>
+        const svg = document.getElementById("svgCanvas");
+
+        function drawLine(x1, y1, x2, y2, color) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color + "77");
+            line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+        }
+
+        // Conexiones centrales
+        drawLine(600, 375, 600, 180, '#ef4444');
+        drawLine(600, 375, 600, 570, '#10b981');
+
+        // Conexiones izquierda (8)
+        drawLine(600, 375, 210, 85, '#10b981');
+        drawLine(600, 375, 210, 160, '#38bdf8');
+        drawLine(600, 375, 210, 235, '#10b981');
+        drawLine(600, 375, 210, 310, '#ef4444');
+        drawLine(600, 375, 210, 385, '#ef4444');
+        drawLine(600, 375, 210, 460, '#f59e0b');
+        drawLine(600, 375, 210, 535, '#38bdf8');
+        drawLine(600, 375, 210, 610, '#38bdf8');
+
+        // Conexiones derecha (8)
+        drawLine(600, 375, 990, 85, '#38bdf8');
+        drawLine(600, 375, 990, 160, '#38bdf8');
+        drawLine(600, 375, 990, 235, '#38bdf8');
+        drawLine(600, 375, 990, 310, '#ef4444');
+        drawLine(600, 375, 990, 385, '#38bdf8');
+        drawLine(600, 375, 990, 460, '#10b981');
+        drawLine(600, 375, 990, 535, '#a855f7');
+        drawLine(600, 375, 990, 610, '#f59e0b');
+
+        // Detección automática de entregas de alumnos en ANIMACIONES_ALUMNOS/
+        const charactersCheck = [
+            { id: 1, name: "1_OBI_WAN", elemId: "node_l_0" },
+            { id: 3, name: "3_ANAKIN", elemId: "node_l_1" },
+            { id: 4, name: "4_AHSOKA", elemId: "node_l_2" },
+            { id: 5, name: "5_DARTH_VADER", elemId: "node_l_3" },
+            { id: 6, name: "6_DARTH_MAUL", elemId: "node_l_4" },
+            { id: 9, name: "9_C3PO", elemId: "node_l_5" },
+            { id: 28, name: "28_STORMTROOPER", elemId: "node_l_6" },
+            { id: 30, name: "30_CLONE_TROOPER", elemId: "node_l_7" },
+            { id: 31, name: "31_SCOUT_TROOPER", elemId: "node_r_0" },
+            { id: 32, name: "32_PILOTO_ATAT", elemId: "node_r_1" },
+            { id: 33, name: "33_DARK_TROOPER", elemId: "node_r_2" },
+            { id: 34, name: "34_GUARDIA_PRETORIANA", elemId: "node_r_3" },
+            { id: 35, name: "35_CLON_COMANDO_X2", elemId: "node_r_4" },
+            { id: 36, name: "36_PILOTO_ALA_X", elemId: "node_r_5" },
+            { id: 38, name: "38_BOBA_FETT", elemId: "node_r_6" },
+            { id: 44, name: "44_JAR_JAR_BINKS", elemId: "node_r_7" }
+        ];
+
+        charactersCheck.forEach(async c => {
+            try {
+                const res = await fetch(`ANIMACIONES_ALUMNOS/${c.name}_Animado.glb`, { method: "HEAD" });
+                if (res.ok) {
+                    const btn = document.getElementById(c.elemId);
+                    if (btn) {
+                        btn.href = btn.href.split("?")[0];
+                        const icon = btn.querySelector(".node-icon-circle");
+                        if (icon) icon.innerHTML = "🕺";
+                        btn.style.boxShadow = "0 0 16px rgba(16, 185, 129, 0.7)";
+                        btn.style.borderColor = "#10b981";
+                    }
+                }
+            } catch(e) {}
+        });
+    </script>
+</body>
+</html>

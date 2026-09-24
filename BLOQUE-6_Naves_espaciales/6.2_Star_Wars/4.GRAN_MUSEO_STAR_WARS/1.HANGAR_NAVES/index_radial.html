@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hangar de Naves (31) - Mapa Mental en Dos Niveles</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #020509; color: #f8fafc; min-height: 100vh; overflow-x: auto;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
+                radial-gradient(1px 1px at 35px 45px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 220px 320px, rgba(56, 189, 248, 0.6) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 620px 520px, rgba(239, 68, 68, 0.6) 100%, transparent),
+                radial-gradient(1.5px 1.5px at 1150px 820px, rgba(16, 185, 129, 0.6) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px, 500px 500px;
+            display: flex; flex-direction: column; align-items: center; padding-bottom: 40px;
+        }
+
+        /* Barra Superior */
+        .top-bar {
+            width: 100%; max-width: 1880px; margin: 14px auto 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 24px; z-index: 50;
+        }
+        .brand-wrap { display: flex; align-items: center; gap: 14px; }
+        .hub-link {
+            background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4);
+            color: #f59e0b; padding: 7px 16px; border-radius: 8px; font-weight: 800; text-decoration: none;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .hub-link:hover { background: #f59e0b; color: #06090e; }
+        .brand-tag {
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 16px; border-radius: 999px;
+        }
+
+        /* Lienzo del Mapa Mental (1620px x 1080px) */
+        .mindmap-canvas {
+            position: relative; width: 1880px; height: 1100px;
+            margin: 10px auto 20px;
+        }
+
+        /* Capa SVG de Conectores (Ramas y Radios) */
+        .tree-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+        .branch-line {
+            fill: none; stroke-linecap: round; transition: all 0.3s ease;
+        }
+
+        /* NIVEL 0: Núcleo Central */
+        .center-core {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 210px; height: 210px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(30, 58, 138, 0.9) 0%, rgba(10, 15, 28, 0.98) 75%);
+            border: 2px solid #38bdf8; box-shadow: 0 0 50px rgba(56, 189, 248, 0.4), inset 0 0 30px rgba(56, 189, 248, 0.25);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 16px; cursor: default; z-index: 30; backdrop-filter: blur(14px);
+            animation: pulse-core 4s ease-in-out infinite;
+        }
+        @keyframes pulse-core {
+            0%, 100% { box-shadow: 0 0 45px rgba(56, 189, 248, 0.35); }
+            50% { box-shadow: 0 0 70px rgba(56, 189, 248, 0.6); }
+        }
+        .center-core-icon { font-size: 2.3rem; margin-bottom: 4px; }
+        .center-core-title {
+            font-size: 1.15rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; line-height: 1.25;
+        }
+        .center-core-sub {
+            font-size: 0.72rem; color: #38bdf8; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            margin-top: 6px;
+        }
+
+        /* NIVEL 1: Los 4 Cabezas en Anillo Alrededor del Centro */
+        .faction-hub {
+            position: absolute; z-index: 25;
+            padding: 10px 22px; border-radius: 999px; text-decoration: none;
+            background: rgba(10, 15, 28, 0.95); border: 2px solid var(--fac-color);
+            display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 0.96rem;
+            letter-spacing: 1.5px; text-transform: uppercase; color: #ffffff;
+            box-shadow: 0 0 25px var(--fac-glow), 0 8px 20px rgba(0, 0, 0, 0.7);
+            transform: translate(-50%, -50%); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(12px); cursor: pointer;
+        }
+        .faction-hub:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            box-shadow: 0 0 40px var(--fac-glow), 0 12px 28px rgba(0, 0, 0, 0.8);
+        }
+        .faction-icon { font-size: 1.15rem; }
+
+        /* NIVEL 2: Columnas de Naves en los Cuadrantes */
+        .column-box {
+            position: absolute; z-index: 20; display: flex; flex-direction: column; gap: 8px;
+        }
+        .ships-grid-2col {
+            display: grid; grid-template-columns: 330px 330px; gap: 8px 14px;
+        }
+
+        /* Nodo Individual de Nave (Limpio y Alineado) */
+        .ship-node {
+            display: flex; align-items: center; gap: 10px; width: 330px;
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 3.5px solid var(--ship-color);
+            padding: 9px 13px; border-radius: 6px; text-decoration: none; color: #f1f5f9;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(8px);
+        }
+        .ship-node:hover {
+            background: rgba(30, 41, 59, 0.98); border-color: var(--ship-color);
+            transform: translateX(4px) scale(1.02);
+            box-shadow: 0 0 16px var(--ship-color)44, 0 6px 16px rgba(0, 0, 0, 0.6);
+            color: #ffffff; z-index: 40;
+        }
+        .ship-num {
+            font-size: 0.92rem; font-weight: 800; color: var(--ship-color);
+            background: rgba(0, 0, 0, 0.5); padding: 3px 7px; border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .ship-name {
+            font-size: 1.05rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-wrap">
+            <a href="../index_radial.html" class="hub-link">🏛️ Volver al Gran Museo</a>
+            <div class="brand-tag">Armadas Galácticas • 31 Cazas & Acorazados</div>
+        </div>
+    </div>
+
+    <div class="mindmap-canvas" id="canvasWrap">
+        <svg class="tree-svg" id="treeSvg"></svg>
+
+        <!-- NIVEL 0: Núcleo Central -->
+        <div class="center-core" id="coreNode">
+            <div class="center-core-icon">🛸</div>
+            <div class="center-core-title">Hangar de Naves<br>Estelares</div>
+            <div class="center-core-sub">31 Naves • Mapa Mental</div>
+        </div>
+
+        <!-- NIVEL 1: 4 Cabezas Alrededor del Centro -->
+        <!-- Arriba-Izquierda: Rebelde -->
+        <div class="faction-hub" id="hubRebel" style="left: 630px; top: 380px; --fac-color: #ef4444; --fac-glow: #ef444466;">
+            <span class="faction-icon">🔴</span>
+            <span>ALIANZA REBELDE (7)</span>
+        </div>
+
+        <!-- Arriba-Derecha: Imperio -->
+        <div class="faction-hub" id="hubImperio" style="left: 990px; top: 380px; --fac-color: #38bdf8; --fac-glow: #38bdf866;">
+            <span class="faction-icon">🔵</span>
+            <span>IMPERIO GALÁCTICO (14)</span>
+        </div>
+
+        <!-- Abajo-Izquierda: República -->
+        <div class="faction-hub" id="hubRepublic" style="left: 610px; top: 685px; --fac-color: #10b981; --fac-glow: #10b98166;">
+            <span class="faction-icon">🟢</span>
+            <span>REPÚBLICA GALÁCTICA & JEDI (7)</span>
+        </div>
+
+        <!-- Abajo-Derecha: Borde Exterior -->
+        <div class="faction-hub" id="hubBounty" style="left: 1020px; top: 760px; --fac-color: #eab308; --fac-glow: #eab30866;">
+            <span class="faction-icon">🟡</span>
+            <span>BORDE EXTERIOR & CAZARRECOMPENSAS (3)</span>
+        </div>
+
+        <!-- NIVEL 2: Columnas Alineadas en los 4 Cuadrantes Exteriores -->
+        <!-- 🔴 Columna Cuadrante Superior Izquierdo -->
+        <div class="column-box" id="colRebel" style="left: 60px; top: 90px;">
+            <a href="VISOR_NAVE_1_HALCON.html" class="ship-node" id="ship_1" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#1</span>
+                <span class="ship-name">Halcón Milenario</span>
+            </a>
+            <a href="VISOR_NAVE_2_X_WING.html" class="ship-node" id="ship_2" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#2</span>
+                <span class="ship-name">Caza Estelar Ala-X (X-Wing)</span>
+            </a>
+            <a href="VISOR_NAVE_3_B_WING.html" class="ship-node" id="ship_3" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#3</span>
+                <span class="ship-name">Caza de Asalto Ala-B (B-Wing)</span>
+            </a>
+            <a href="VISOR_NAVE_4_Y_WING.html" class="ship-node" id="ship_4" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#4</span>
+                <span class="ship-name">Bombardero Ala-Y BTL (Y-Wing)</span>
+            </a>
+            <a href="VISOR_NAVE_5_A_WING.html" class="ship-node" id="ship_5" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#5</span>
+                <span class="ship-name">Interceptor Ala-A RZ-1 (A-Wing)</span>
+            </a>
+            <a href="VISOR_NAVE_6_U_WING.html" class="ship-node" id="ship_6" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#6</span>
+                <span class="ship-name">Cañonera de Apoyo Ala-U UT-60D</span>
+            </a>
+            <a href="VISOR_NAVE_7_CR90_CORVETTE.html" class="ship-node" id="ship_7" data-faction="rebel" style="--ship-color: #ef4444;">
+                <span class="ship-num">#7</span>
+                <span class="ship-name">Corbeta Corelliana CR90 (Tantive IV)</span>
+            </a>
+        </div>
+
+        <!-- 🔵 Doble Columna Cuadrante Superior Derecho -->
+        <div class="column-box" id="colImperio" style="left: 1060px; top: 15px;">
+            <div class="ships-grid-2col">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+            <a href="VISOR_NAVE_8_ESTRELLA_MUERTE.html" class="ship-node" id="ship_8" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#8</span>
+                <span class="ship-name">Primera Estrella de la Muerte (DS-1)</span>
+            </a>
+            <a href="VISOR_NAVE_9_DESTRUCTOR.html" class="ship-node" id="ship_9" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#9</span>
+                <span class="ship-name">Destructor Estelar Clase Imperial I</span>
+            </a>
+            <a href="VISOR_NAVE_10_TIE_VADER.html" class="ship-node" id="ship_10" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#10</span>
+                <span class="ship-name">Caza TIE Avanzado x1</span>
+            </a>
+            <a href="VISOR_NAVE_11_TIE_INTERCEPTOR.html" class="ship-node" id="ship_11" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#11</span>
+                <span class="ship-name">TIE Interceptor Guardia Real</span>
+            </a>
+            <a href="VISOR_NAVE_12_TIE_INTERCEPTOR_GRIS.html" class="ship-node" id="ship_12" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#12</span>
+                <span class="ship-name">TIE Interceptor Estándar</span>
+            </a>
+            <a href="VISOR_NAVE_13_TIE_LIGHTNING.html" class="ship-node" id="ship_13" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#13</span>
+                <span class="ship-name">Caza TIE Lightning</span>
+            </a>
+            <a href="VISOR_NAVE_14_LANZADERA_LAMBDA.html" class="ship-node" id="ship_14" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#14</span>
+                <span class="ship-name">Lanzadera Imperial Clase Lambda</span>
+            </a>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+            <a href="VISOR_NAVE_15_CRUCERO_ARQUITENS.html" class="ship-node" id="ship_15" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#15</span>
+                <span class="ship-name">Crucero Ligero Imperial Arquitens</span>
+            </a>
+            <a href="VISOR_NAVE_16_DECIMATOR.html" class="ship-node" id="ship_16" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#16</span>
+                <span class="ship-name">Nave de Asalto VT-49 Decimator</span>
+            </a>
+            <a href="VISOR_NAVE_17_STAR_WING.html" class="ship-node" id="ship_17" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#17</span>
+                <span class="ship-name">Cañonera Alpha-class Xg-1 Star Wing</span>
+            </a>
+            <a href="VISOR_NAVE_18_GOZANTI_CRUISER.html" class="ship-node" id="ship_18" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#18</span>
+                <span class="ship-name">Crucero Ligero Clase Gozanti</span>
+            </a>
+            <a href="VISOR_NAVE_19_TIE_HEAVY_BOMBER.html" class="ship-node" id="ship_19" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#19</span>
+                <span class="ship-name">Bombardero TIE Pesado</span>
+            </a>
+            <a href="VISOR_NAVE_20_TIE_PHANTOM.html" class="ship-node" id="ship_20" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#20</span>
+                <span class="ship-name">Caza Furtivo TIE Phantom (V-38)</span>
+            </a>
+            <a href="VISOR_NAVE_21_TIE_LN.html" class="ship-node" id="ship_21" data-faction="imperio" style="--ship-color: #38bdf8;">
+                <span class="ship-num">#21</span>
+                <span class="ship-name">Caza Estelar TIE/ln Imperial</span>
+            </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🟢 Columna Cuadrante Inferior Izquierdo -->
+        <div class="column-box" id="colRepublic" style="left: 60px; top: 570px;">
+            <a href="VISOR_NAVE_22_JEDI_STARFIGHTER.html" class="ship-node" id="ship_22" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#22</span>
+                <span class="ship-name">Caza Estelar Jedi ETA-2 Actis</span>
+            </a>
+            <a href="VISOR_NAVE_23_ARC_170.html" class="ship-node" id="ship_23" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#23</span>
+                <span class="ship-name">Caza Estelar ARC-170</span>
+            </a>
+            <a href="VISOR_NAVE_24_NABOO_N1.html" class="ship-node" id="ship_24" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#24</span>
+                <span class="ship-name">Caza Estelar Naboo N-1</span>
+            </a>
+            <a href="VISOR_NAVE_25_NUBIAN_327.html" class="ship-node" id="ship_25" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#25</span>
+                <span class="ship-name">Yate Real Naboo Nubian 327 (J-Type)</span>
+            </a>
+            <a href="VISOR_NAVE_26_V19_TORRENT.html" class="ship-node" id="ship_26" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#26</span>
+                <span class="ship-name">Caza de Asalto V-19 Torrent</span>
+            </a>
+            <a href="VISOR_NAVE_27_LAAT_CORUSCANT.html" class="ship-node" id="ship_27" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#27</span>
+                <span class="ship-name">Cañonera LAAT/i (Guardia de Coruscant)</span>
+            </a>
+            <a href="VISOR_NAVE_28_ANAKIN_ETA2.html" class="ship-node" id="ship_28" data-faction="republica" style="--ship-color: #10b981;">
+                <span class="ship-num">#28</span>
+                <span class="ship-name">Interceptor Jedi ETA-2 (Anakin)</span>
+            </a>
+        </div>
+
+        <!-- 🟡 Columna Cuadrante Inferior Derecho -->
+        <div class="column-box" id="colBounty" style="left: 1340px; top: 765px;">
+            <a href="VISOR_NAVE_29_SLAVE_1.html" class="ship-node" id="ship_29" data-faction="borde_exterior" style="--ship-color: #eab308;">
+                <span class="ship-num">#29</span>
+                <span class="ship-name">Nave de Asalto Esclavo I</span>
+            </a>
+            <a href="VISOR_NAVE_30_RAZOR_CREST.html" class="ship-node" id="ship_30" data-faction="borde_exterior" style="--ship-color: #eab308;">
+                <span class="ship-num">#30</span>
+                <span class="ship-name">Cañonera Espacial Razor Crest</span>
+            </a>
+            <a href="VISOR_NAVE_31_GHTROC_720.html" class="ship-node" id="ship_31" data-faction="borde_exterior" style="--ship-color: #eab308;">
+                <span class="ship-num">#31</span>
+                <span class="ship-name">Carguero Ligero Clase Ghtroc 720</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Detección y auto-corrección inmediata si se abre bajo protocolo local file://
+        if (window.location.protocol === "file:") {
+            const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+            if (match) {
+                window.location.replace("http://localhost:8888/" + match[0]);
+            }
+        }
+
+        const svg = document.getElementById("treeSvg");
+        const canvas = document.getElementById("canvasWrap");
+        const core = document.getElementById("coreNode");
+
+        const factionsData = [
+            {
+                id: "rebel",
+                hub: document.getElementById("hubRebel"),
+                color: "#ef4444",
+                side: "left",
+                ships: [1, 2, 3, 4, 5, 6, 7]
+            },
+            {
+                id: "imperio",
+                hub: document.getElementById("hubImperio"),
+                color: "#38bdf8",
+                side: "right",
+                ships: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+            },
+            {
+                id: "republica",
+                hub: document.getElementById("hubRepublic"),
+                color: "#10b981",
+                side: "left",
+                ships: [22, 23, 24, 25, 26, 27, 28]
+            },
+            {
+                id: "borde_exterior",
+                hub: document.getElementById("hubBounty"),
+                color: "#eab308",
+                side: "right",
+                ships: [29, 30, 31]
+            }
+        ];
+
+        function getCenter(el) {
+            const cRect = canvas.getBoundingClientRect();
+            const r = el.getBoundingClientRect();
+            return {
+                x: r.left + r.width / 2 - cRect.left,
+                y: r.top + r.height / 2 - cRect.top,
+                left: r.left - cRect.left,
+                right: r.right - cRect.left,
+                top: r.top - cRect.top,
+                bottom: r.bottom - cRect.top
+            };
+        }
+
+        function drawLines() {
+            svg.innerHTML = "";
+            const corePos = getCenter(core);
+
+            factionsData.forEach(f => {
+                if (!f.hub) return;
+                const hubPos = getCenter(f.hub);
+
+                // 1. Radio grueso desde Núcleo Central al Hub de Facción (Nivel 0 -> Nivel 1)
+                const coreLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                coreLine.setAttribute("x1", corePos.x);
+                coreLine.setAttribute("y1", corePos.y);
+                coreLine.setAttribute("x2", hubPos.x);
+                coreLine.setAttribute("y2", hubPos.y);
+                coreLine.setAttribute("stroke", f.color);
+                coreLine.setAttribute("stroke-width", "3.5");
+                coreLine.setAttribute("stroke-opacity", "0.85");
+                svg.appendChild(coreLine);
+
+                // 2. Radios / ramas desde el Hub de Facción a CADA UNA de sus naves en columna (Nivel 1 -> Nivel 2)
+                f.ships.forEach(num => {
+                    const shipEl = document.getElementById("ship_" + num);
+                    if (!shipEl) return;
+                    const shipPos = getCenter(shipEl);
+
+                    // Conectar al borde más cercano de la tarjeta de la nave
+                    const targetX = f.side === "left" ? shipPos.right : shipPos.left;
+                    const targetY = shipPos.y;
+
+                    // Curva Bézier suave y natural de mapa mental
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    const mx = (hubPos.x + targetX) / 2;
+                    const d = `M ${hubPos.x} ${hubPos.y} C ${mx} ${hubPos.y}, ${mx} ${targetY}, ${targetX} ${targetY}`;
+
+                    path.setAttribute("d", d);
+                    path.setAttribute("class", "branch-line");
+                    path.setAttribute("stroke", f.color);
+                    path.setAttribute("stroke-width", "1.6");
+                    path.setAttribute("stroke-opacity", "0.45");
+                    path.setAttribute("id", "branch_" + num);
+                    svg.appendChild(path);
+
+                    // Efecto hover interactivo: ilumina la rama conectada
+                    shipEl.addEventListener("mouseenter", () => {
+                        path.setAttribute("stroke-width", "3");
+                        path.setAttribute("stroke-opacity", "1");
+                    });
+                    shipEl.addEventListener("mouseleave", () => {
+                        path.setAttribute("stroke-width", "1.6");
+                        path.setAttribute("stroke-opacity", "0.45");
+                    });
+                });
+            });
+        }
+
+        window.addEventListener("load", drawLines);
+        window.addEventListener("resize", drawLines);
+        setTimeout(drawLines, 150);
+        setTimeout(drawLines, 600);
+    </script>
+</body>
+</html>

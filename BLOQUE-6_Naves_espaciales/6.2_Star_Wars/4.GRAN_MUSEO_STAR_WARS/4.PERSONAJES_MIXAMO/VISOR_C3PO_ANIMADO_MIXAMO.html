@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demostración Mixamo: C-3PO Interactivo - Gran Museo Star Wars</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #04070c; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at center, rgba(245, 158, 11, 0.25) 0%, #06090e 70%, #020408 100%);
+        }
+        
+        .header { position: absolute; top: 20px; left: 24px; z-index: 10; pointer-events: none; }
+        .faction-tag {
+            display: inline-block; padding: 5px 14px; border-radius: 6px;
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #f59e0b; margin-bottom: 8px;
+        }
+        h1 { margin: 0; font-size: 2.1rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.02rem; color: #cbd5e1; font-weight: 600; }
+
+        .nav-panel {
+            position: absolute; top: 20px; right: 24px; z-index: 20;
+            display: flex; gap: 8px; align-items: center;
+        }
+        .nav-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1; padding: 9px 15px; border-radius: 8px; font-weight: 700;
+            font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+            backdrop-filter: blur(10px); transition: all 0.2s ease; cursor: pointer;
+        }
+        .nav-btn:hover { background: #f59e0b; color: #04070c; border-color: #f59e0b; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+
+        /* Panel de Control de Animaciones Mixamo */
+        .anim-panel {
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 25;
+            background: rgba(15, 23, 42, 0.90); border: 2px solid #f59e0b;
+            padding: 12px 24px; border-radius: 999px; display: flex; gap: 12px; align-items: center;
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.35), 0 10px 25px rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+        }
+        .anim-title { font-size: 0.85rem; font-weight: 800; color: #f59e0b; letter-spacing: 1px; text-transform: uppercase; margin-right: 6px; }
+        .anim-btn {
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: 0.86rem;
+            cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .anim-btn:hover, .anim-btn.active {
+            background: #f59e0b; color: #04070c; border-color: #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); transform: scale(1.05);
+        }
+
+        .specs-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 10px;
+            max-width: 380px; backdrop-filter: blur(12px);
+        }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #04070c; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.3s ease;
+        }
+        .spinner {
+            width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #f59e0b; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 14px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-txt" style="font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fff;">Cargando C-3PO Mixamo...</div>
+    </div>
+
+    <div class="header">
+        <div class="faction-tag">⭐ Laboratorio Mixamo • Demostración en Vivo</div>
+        <h1>C-3PO Animado con Mixamo</h1>
+        <p class="subtitle">Demostración interactiva de auto-rigging y ciclos de animación aplicados al modelo 3D dorado</p>
+    </div>
+
+    <div class="nav-panel">
+        <a href="VISOR_PERSONAJE_9_C3PO.html" class="nav-btn">👁️ Ver C-3PO Base Museo</a>
+        <a href="SALA_7_RADIAL.html" class="nav-btn" style="border-color: #f59e0b; color: #fbbf24;">⭐ Sala 7</a>
+        <a href="../index.html" class="nav-btn" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">🌌 Gran Museo</a>
+    </div>
+
+    <!-- Barra de Selección de Animaciones -->
+    <div class="anim-panel">
+        <span class="anim-title">🎬 Animación Mixamo:</span>
+        <button class="anim-btn active" id="btn-base" onclick="switchAnim('base')">🧍 Pose Base T</button>
+        <button class="anim-btn" id="btn-walk" onclick="switchAnim('walk')">🚶 Caminar</button>
+        <button class="anim-btn" id="btn-macarena" onclick="switchAnim('macarena')">🕺 Bailar Macarena</button>
+        <button class="anim-btn" id="btn-jump" onclick="switchAnim('jump')">🦘 Salto</button>
+    </div>
+
+    <div class="specs-panel">
+        <div style="font-size: 0.88rem; font-weight: 800; color: #f59e0b; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Pipeline de Animación</div>
+        <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">
+            Este modelo fue procesado con el auto-rigger de <strong>Adobe Mixamo</strong> a partir del archivo base en Pose T. Haz clic en los botones inferiores para alternar entre las animaciones generadas.
+        </div>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        let scene, camera, currentMeshes = [], pivotNode;
+
+        const modelFolder = "../../../../MODELOS/STAR%20WARS/1.PERSONAJES_Y_DROIDES/C-%C2%B73PO/";
+        const animFiles = {
+            base: "C-3PO_Base.glb",
+            walk: "C-3PO_Walking.glb",
+            macarena: "C-3PO_Macarena.glb",
+            jump: "C-3PO_JumpLoop.glb"
+        };
+
+        let c3poAnimationGroups = {};
+
+        function showOverlay(txt) {
+            const ov = document.getElementById("loading-overlay");
+            document.getElementById("loading-txt").innerText = txt;
+            ov.style.display = "flex";
+            ov.style.opacity = "1";
+        }
+        function hideOverlay() {
+            const ov = document.getElementById("loading-overlay");
+            ov.style.opacity = "0";
+            setTimeout(() => { ov.style.display = "none"; }, 300);
+        }
+
+        function loadC3POModel(callback) {
+            showOverlay("Cargando C-3PO y animaciones Mixamo...");
+
+            BABYLON.SceneLoader.ImportMesh("", modelFolder, "C-3PO_Full_Animated.glb", scene, function(meshes, ps, sk, animationGroups) {
+                currentMeshes = meshes;
+                const root = meshes[0];
+                root.parent = pivotNode;
+
+                // Aplicar textura y brillo dorado PBR
+                const c3poMat = new BABYLON.PBRMaterial("goldMat", scene);
+                c3poMat.albedoTexture = new BABYLON.Texture(modelFolder + "c-3po/textures/c3po_diff.jpg", scene);
+                c3poMat.metallic = 0.85;
+                c3poMat.roughness = 0.25;
+                c3poMat.directIntensity = 1.4;
+
+                meshes.forEach(m => {
+                    if (m && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.material = c3poMat;
+                    }
+                });
+
+                if (animationGroups && animationGroups.length > 0) {
+                    animationGroups.forEach(ag => {
+                        ag.stop();
+                        const nameLow = ag.name.toLowerCase();
+                        if (nameLow.includes("walk")) c3poAnimationGroups["walk"] = ag;
+                        else if (nameLow.includes("macarena")) c3poAnimationGroups["macarena"] = ag;
+                        else if (nameLow.includes("jump")) c3poAnimationGroups["jump"] = ag;
+                    });
+                }
+
+                hideOverlay();
+                if (callback) callback();
+            });
+        }
+
+        const initialAlpha = Math.PI / 2.0; // Enfoque frontal directo a la cara y pecho de C-3PO
+        const initialBeta = Math.PI / 2.4;
+        const initialRadius = 5.5;
+
+        function switchAnim(type) {
+            document.querySelectorAll(".anim-btn").forEach(b => b.classList.remove("active"));
+            const btn = document.getElementById("btn-" + type);
+            if (btn) btn.classList.add("active");
+
+            if (scene.animationGroups) {
+                scene.animationGroups.forEach(ag => ag.stop());
+            }
+
+            // Garantizar que la animación empiece siempre de frente al espectador
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+            }
+            if (pivotNode) {
+                pivotNode.rotation.y = 0;
+            }
+
+            if (type === 'base') {
+                if (scene.animationGroups) {
+                    scene.animationGroups.forEach(ag => {
+                        ag.stop();
+                        ag.reset();
+                    });
+                }
+                if (scene.skeletons) {
+                    scene.skeletons.forEach(sk => {
+                        if (sk.returnToRest) sk.returnToRest();
+                    });
+                }
+            } else {
+                const ag = c3poAnimationGroups[type] || scene.getAnimationGroupByName(type);
+                if (ag) {
+                    ag.play(true);
+                }
+            }
+        }
+
+        function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+            scene.createDefaultEnvironment({ createSkybox: false, createGround: false });
+
+            pivotNode = new BABYLON.TransformNode("pivot", scene);
+            pivotNode.scaling = new BABYLON.Vector3(0.18, 0.18, 0.18);
+            pivotNode.position = new BABYLON.Vector3(0, -1.75, 0);
+            pivotNode.rotation.y = 0;
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.lowerRadiusLimit = 1.0;
+            camera.upperRadiusLimit = 25.0;
+            camera.wheelPrecision = 30;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.4;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(15, 30, 15);
+            dirLight.intensity = 1.8;
+
+            let isRotating = true;
+            window.toggleRotation = function() {
+                isRotating = !isRotating;
+                const btn = document.getElementById("btn-rot");
+                if (btn) btn.classList.toggle("active", isRotating);
+            };
+
+            window.resetCamera = function() {
+                if (camera) {
+                    camera.alpha = initialAlpha;
+                    camera.beta = initialBeta;
+                    camera.radius = initialRadius;
+                    camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+                }
+                if (pivotNode) {
+                    pivotNode.rotation.y = 0;
+                }
+            };
+
+            scene.onBeforeRenderObservable.add(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.0035;
+                }
+            });
+
+            loadC3POModel();
+        }
+
+        initScene();
+        engine.runRenderLoop(() => { if (scene) scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    </script>
+</body>
+</html>

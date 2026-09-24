@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala 5: Cazarrecompensas & Bajos Fondos - Mapa Mental Radial</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #02050b; color: #f8fafc; min-height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
+                radial-gradient(1px 1px at 30px 40px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 180px 260px, #f59e0b55 100%, transparent),
+                radial-gradient(1.5px 1.5px at 700px 450px, rgba(56, 189, 248, 0.5) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px;
+        }
+
+        .top-bar {
+            position: absolute; top: 16px; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 32px; z-index: 50;
+        }
+        .brand-tag {
+            font-size: 0.88rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #f59e0b; background: rgba(255, 255, 255, 0.05); border: 1px solid #f59e0b66;
+            padding: 7px 20px; border-radius: 999px;
+        }
+        .nav-links { display: flex; gap: 12px; }
+        .hub-btn {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f1f5f9; padding: 8px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            font-size: 0.86rem; transition: all 0.2s; backdrop-filter: blur(8px);
+        }
+        .hub-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+
+        .mindmap-viewport {
+            position: relative; width: 1200px; height: 750px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .connector-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
+        .center-hub {
+            position: absolute; left: 600px; top: 375px; transform: translate(-50%, -50%);
+            width: 200px; height: 200px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(20, 30, 50, 0.95) 0%, rgba(5, 10, 20, 0.98) 75%);
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 50px rgba(245, 158, 11, 0.5), inset 0 0 30px #f59e0b33;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 16px; z-index: 25; cursor: default;
+        }
+        .center-icon { font-size: 2.2rem; margin-bottom: 4px; }
+        .center-title {
+            font-size: 1.05rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; line-height: 1.25;
+        }
+        .center-sub {
+            font-size: 0.72rem; color: #f59e0b; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .node-btn {
+            position: absolute; z-index: 20; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 10px;
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid rgba(255, 255, 255, 0.18);
+            padding: 9px 16px; border-radius: 999px; backdrop-filter: blur(12px);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            transform: translate(-50%, -50%); white-space: nowrap;
+        }
+        .node-btn:hover {
+            transform: translate(-50%, -50%) scale(1.10);
+            border-color: var(--node-color); box-shadow: 0 0 28px var(--node-glow), 0 12px 30px rgba(0,0,0,0.8);
+            background: rgba(24, 36, 60, 0.98); z-index: 35;
+        }
+        .special-node {
+            padding: 8px 16px; font-weight: 800;
+        }
+        .node-icon-circle {
+            width: 34px; height: 34px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6); border: 1px solid var(--node-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.15rem; flex-shrink: 0;
+        }
+        .node-text-wrap { display: flex; flex-direction: column; }
+        .node-num {
+            font-size: 0.68rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+            color: var(--node-color);
+        }
+        .node-title {
+            font-size: 0.92rem; font-weight: 800; color: #ffffff;
+        }
+        .node-badge {
+            font-size: 0.62rem; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;
+            color: #6ee7b7; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.5);
+            padding: 2px 5px; border-radius: 4px; margin-left: 4px;
+        }
+
+        .footer-note {
+            position: absolute; bottom: 14px; font-size: 0.82rem; color: #64748b; letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-tag">🌌 Sala 5: Cazarrecompensas & Bajos Fondos • Mapa Mental Radial</div>
+        <div class="nav-links">
+            <a href="index.html" class="hub-btn">◀ Pabellón 4</a>
+            <a href="../index.html" class="hub-btn" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">🏛️ Gran Museo</a>
+        </div>
+    </div>
+
+    <div class="mindmap-viewport">
+        <svg class="connector-svg" id="svgCanvas"></svg>
+
+        <div class="center-hub">
+            <div class="center-icon">🎯</div>
+            <div class="center-title">Cazarrecompensas <br>& Bajos Fondos</div>
+            <div class="center-sub">10 Modelos 3D</div>
+        </div>
+
+        
+        <a href="VISOR_PERSONAJE_37_MANDALORIAN.html" class="node-btn" id="node_0" style="left: 600px; top: 90px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#37</span>
+                <span class="node-title">Din Djarin (The Mandalorian)</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_38_BOBA_FETT.html" class="node-btn" id="node_1" style="left: 870px; top: 144px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#38</span>
+                <span class="node-title">Boba Fett V2 (Armadura Completa)</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_39_GROGU.html" class="node-btn" id="node_2" style="left: 1037px; top: 286px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#39</span>
+                <span class="node-title">Grogu (El Niño)</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_40_CHEWBACCA.html" class="node-btn" id="node_3" style="left: 1037px; top: 463px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#40</span>
+                <span class="node-title">Chewbacca el Wookiee</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_41_JABBA_THE_HUTT.html" class="node-btn" id="node_4" style="left: 870px; top: 605px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#41</span>
+                <span class="node-title">Jabba The Hutt</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_42_JAWA.html" class="node-btn" id="node_5" style="left: 600px; top: 660px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#42</span>
+                <span class="node-title">Jawa Chatarrero</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_43_GORAK.html" class="node-btn" id="node_6" style="left: 329px; top: 605px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#43</span>
+                <span class="node-title">Gorak (Bestia de Combate)</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_44_JAR_JAR_BINKS.html" class="node-btn" id="node_7" style="left: 162px; top: 463px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#44</span>
+                <span class="node-title">Jar Jar Binks</span>
+            </div>
+            <span class="node-badge">MIXAMO</span>
+        </a>
+        <a href="VISOR_PERSONAJE_45_RUGOR_NASS.html" class="node-btn" id="node_8" style="left: 162px; top: 286px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#45</span>
+                <span class="node-title">Jefe Rugor Nass</span>
+            </div>
+            
+        </a>
+        <a href="VISOR_PERSONAJE_46_TWILEK.html" class="node-btn" id="node_9" style="left: 329px; top: 144px; --node-color: #f59e0b; --node-glow: rgba(245, 158, 11, 0.5);">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">#46</span>
+                <span class="node-title">Ciudadana Twi'lek</span>
+            </div>
+            
+        </a>
+    </div>
+
+    <div class="footer-note">Selecciona cualquier personaje para abrir su visor 3D interactivo</div>
+
+    <script>
+        const svg = document.getElementById("svgCanvas");
+
+        function drawLine(x1, y1, x2, y2, color) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color + "77");
+            line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+        }
+
+        drawLine(600, 375, 600, 90, '#f59e0b');
+        drawLine(600, 375, 870, 144, '#f59e0b');
+        drawLine(600, 375, 1037, 286, '#f59e0b');
+        drawLine(600, 375, 1037, 463, '#f59e0b');
+        drawLine(600, 375, 870, 605, '#f59e0b');
+        drawLine(600, 375, 600, 660, '#f59e0b');
+        drawLine(600, 375, 329, 605, '#f59e0b');
+        drawLine(600, 375, 162, 463, '#f59e0b');
+        drawLine(600, 375, 162, 286, '#f59e0b');
+        drawLine(600, 375, 329, 144, '#f59e0b');
+    </script>
+</body>
+</html>

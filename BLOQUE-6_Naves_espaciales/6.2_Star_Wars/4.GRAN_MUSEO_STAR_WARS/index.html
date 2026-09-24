@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gran Museo Star Wars - Mapa Mental Radial</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #04070d; color: #f8fafc; min-height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.9) 0%, #03060a 100%),
+                radial-gradient(1px 1px at 25px 35px, #ffffff 100%, transparent),
+                radial-gradient(1.5px 1.5px at 150px 220px, rgba(56, 189, 248, 0.8) 100%, transparent),
+                radial-gradient(1px 1px at 400px 300px, rgba(234, 179, 8, 0.8) 100%, transparent);
+            background-size: 100% 100%, 550px 550px, 450px 450px, 600px 600px;
+        }
+
+        /* Barra Superior */
+        .top-bar {
+            position: absolute; top: 20px; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 32px; z-index: 50;
+        }
+        .brand-tag {
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+            color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 16px; border-radius: 999px;
+        }
+
+        /* Contenedor del Mapa Mental Radial */
+        .mindmap-viewport {
+            position: relative; width: 1200px; height: 750px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Capa SVG de Líneas Conectoras */
+        .connector-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+        .orbit-circle {
+            fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 1.5; stroke-dasharray: 4 8;
+        }
+
+        /* Núcleo Central */
+        .center-hub {
+            position: absolute; z-index: 10;
+            left: 600px; top: 375px; transform: translate(-50%, -50%);
+            width: 250px; height: 250px; border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, rgba(30, 58, 138, 0.7) 0%, rgba(15, 23, 42, 0.95) 75%);
+            border: 2px solid #38bdf8; box-shadow: 0 0 45px rgba(56, 189, 248, 0.35), inset 0 0 25px rgba(56, 189, 248, 0.2);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+            padding: 24px; cursor: default; backdrop-filter: blur(14px);
+            animation: pulse-center 4s ease-in-out infinite;
+        }
+        @keyframes pulse-center {
+            0%, 100% { box-shadow: 0 0 45px rgba(56, 189, 248, 0.35), inset 0 0 25px rgba(56, 189, 248, 0.2); }
+            50% { box-shadow: 0 0 65px rgba(56, 189, 248, 0.55), inset 0 0 35px rgba(56, 189, 248, 0.35); }
+        }
+        .center-icon { font-size: 2.4rem; margin-bottom: 8px; filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.6)); }
+        .center-title {
+            font-size: 1.25rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; text-shadow: 0 0 15px rgba(255, 255, 255, 0.4); line-height: 1.2;
+        }
+        .center-sub { font-size: 0.78rem; color: #94a3b8; margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* Nodos Radiales (Pabellones) */
+        .node-btn {
+            position: absolute; z-index: 20; text-decoration: none; color: inherit;
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(15, 23, 42, 0.88); border: 1.5px solid rgba(255, 255, 255, 0.15);
+            padding: 12px 20px; border-radius: 999px; backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            transform: translate(-50%, -50%);
+        }
+        .node-btn:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+            border-color: var(--node-color); box-shadow: 0 0 25px var(--node-color-glow), 0 12px 30px rgba(0,0,0,0.7);
+            background: rgba(21, 32, 54, 0.95);
+        }
+        .node-icon-circle {
+            width: 42px; height: 42px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5); border: 1px solid var(--node-color);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.3rem; flex-shrink: 0;
+        }
+        .node-text-wrap { display: flex; flex-direction: column; }
+        .node-num {
+            font-size: 0.72rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+            color: var(--node-color);
+        }
+        .node-title {
+            font-size: 0.98rem; font-weight: 800; color: #ffffff; white-space: nowrap;
+        }
+
+        /* Pie informativo breve */
+        .footer-note {
+            position: absolute; bottom: 16px; font-size: 0.82rem; color: #64748b; letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="brand-tag">🌌 Mapa Mental Radial • Star Wars 3D</div>
+    </div>
+
+    <div class="mindmap-viewport">
+        <!-- Capa SVG con rayos láser conectores -->
+        <svg class="connector-svg" id="svgCanvas"></svg>
+
+        <!-- Núcleo Central -->
+        <div class="center-hub" id="centerHub">
+            <div class="center-icon">🏛️</div>
+            <div class="center-title">Gran Museo<br>Star Wars</div>
+            <div class="center-sub">7 Pabellones Interactivos</div>
+        </div>
+
+        <!-- Nodos de Pabellones -->
+        <a href="1.HANGAR_NAVES/index_radial.html" class="node-btn" id="node_pab_1" style="left: 600px; top: 80px; --node-color: #38bdf8; --node-color-glow: #38bdf866;">
+            <div class="node-icon-circle">🛸</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 1</span>
+                <span class="node-title">Hangar de Naves Estelares</span>
+            </div>
+        </a>
+        <a href="2.GARAJE_VEHICULOS/index_radial.html" class="node-btn" id="node_pab_2" style="left: 940px; top: 195px; --node-color: #eab308; --node-color-glow: #eab30866;">
+            <div class="node-icon-circle">🚜</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 2</span>
+                <span class="node-title">Garaje de Vehículos Terrestres</span>
+            </div>
+        </a>
+        <a href="3.ARMERIA_GALACTICA/index_radial.html" class="node-btn" id="node_pab_3" style="left: 980px; top: 375px; --node-color: #f43f5e; --node-color-glow: #f43f5e66;">
+            <div class="node-icon-circle">⚔️</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 3</span>
+                <span class="node-title">Armería & Arsenal Galáctico</span>
+            </div>
+        </a>
+        <a href="4.PERSONAJES_MIXAMO/index.html" class="node-btn" id="node_pab_4a" style="left: 900px; top: 565px; --node-color: #c084fc; --node-color-glow: #c084fc66;">
+            <div class="node-icon-circle">🎭</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 4</span>
+                <span class="node-title">Personajes & Droides (47 Piezas en 8 Salas)</span>
+            </div>
+        </a>
+        <a href="../3.PRACTICAS/P2.3_TALLER_ANIMACION_MIXAMO_STAR_WARS.html" class="node-btn" id="node_pab_4b" style="left: 300px; top: 565px; --node-color: #10b981; --node-color-glow: #10b98166;">
+            <div class="node-icon-circle">⭐</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Taller Práctico</span>
+                <span class="node-title">Animación 3D con Mixamo </span>
+            </div>
+        </a>
+        <a href="5.CAMARAS_INTERIORES/index_radial.html" class="node-btn" id="node_pab_5" style="left: 220px; top: 375px; --node-color: #34d399; --node-color-glow: #34d39966;">
+            <div class="node-icon-circle">🏛️</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 5</span>
+                <span class="node-title">Cámaras e Interiores Galácticos</span>
+            </div>
+        </a>
+        <a href="6.MUNDOS_EXTERIORES/index_radial.html" class="node-btn" id="node_pab_6" style="left: 260px; top: 195px; --node-color: #60a5fa; --node-color-glow: #60a5fa66;">
+            <div class="node-icon-circle">🪐</div>
+            <div class="node-text-wrap">
+                <span class="node-num">Pabellón 6</span>
+                <span class="node-title">Mundos & Entornos Planetarios</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="footer-note">Selecciona cualquier pabellón para acceder directamente a su galería</div>
+
+    <script>
+        if (window.location.protocol === "file:") {
+            const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+            if (match) window.location.replace("http://localhost:8888/" + match[0]);
+        }
+
+        const svg = document.getElementById("svgCanvas");
+        
+        const orbit = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        orbit.setAttribute("cx", "600");
+        orbit.setAttribute("cy", "375");
+        orbit.setAttribute("rx", "380");
+        orbit.setAttribute("ry", "295");
+        orbit.setAttribute("class", "orbit-circle");
+        svg.appendChild(orbit);
+
+        function drawLine(x1, y1, x2, y2, color) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color + "55");
+            line.setAttribute("stroke-width", "2");
+            line.setAttribute("stroke-dasharray", "5 5");
+            svg.appendChild(line);
+        }
+
+        drawLine(600, 375, 600, 80, '#38bdf8');
+        drawLine(600, 375, 940, 195, '#eab308');
+        drawLine(600, 375, 980, 375, '#f43f5e');
+        drawLine(600, 375, 900, 565, '#c084fc');
+        drawLine(600, 375, 300, 565, '#06b6d4');
+        drawLine(600, 375, 220, 375, '#34d399');
+        drawLine(600, 375, 260, 195, '#60a5fa');
+    </script>
+</body>
+</html>

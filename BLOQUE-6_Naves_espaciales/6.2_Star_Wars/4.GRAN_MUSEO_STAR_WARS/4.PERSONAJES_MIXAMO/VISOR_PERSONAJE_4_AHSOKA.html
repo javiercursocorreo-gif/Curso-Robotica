@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4. Ahsoka Tano (Clone Wars T7) - Gran Museo Star Wars</title>
+    <!-- Babylon.js Oficial -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #03060c; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at center, #10b98122 0%, #06090e 65%, #020408 100%);
+        }
+        
+        .header { position: absolute; top: 20px; left: 24px; z-index: 10; pointer-events: none; }
+        .badge-wrap { display: flex; align-items: center; margin-bottom: 8px; }
+        .faction-tag {
+            display: inline-block; padding: 6px 14px; border-radius: 6px;
+            font-size: 0.85rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid #10b981; color: #10b981;
+        }
+        h1 { margin: 0; font-size: 2.2rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.05rem; color: #cbd5e1; font-weight: 600; }
+
+        .nav-panel {
+            position: absolute; top: 20px; right: 24px; z-index: 20;
+            display: flex; gap: 10px;
+        }
+        .nav-btn {
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 10px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            font-size: 0.90rem; backdrop-filter: blur(8px); transition: all 0.2s ease;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.18); border-color: #fff; }
+        .home-btn { border-color: rgba(245, 158, 11, 0.5); color: #f59e0b; }
+        .home-btn:hover { background: #f59e0b; color: #04070c; }
+
+        .controls-panel {
+            position: absolute; bottom: 24px; right: 24px; z-index: 20;
+            display: flex; gap: 10px;
+        }
+        .ctrl-btn {
+            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 11px 20px; border-radius: 8px; font-weight: 700; font-size: 0.92rem;
+            backdrop-filter: blur(8px); cursor: pointer; transition: all 0.2s ease;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .ctrl-btn:hover, .ctrl-btn.active { background: #38bdf8; color: #04070c; border-color: #38bdf8; box-shadow: 0 0 14px rgba(56, 189, 248, 0.5); }
+
+        /* Ficha Técnica: Letras al doble de grandes y legibilidad amplificada */
+        .specs-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(15, 23, 42, 0.92); border: 1.5px solid rgba(255, 255, 255, 0.18);
+            border-left: 6px solid #10b981; padding: 22px 26px; border-radius: 12px;
+            max-width: 580px; backdrop-filter: blur(14px); pointer-events: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+        .specs-title { font-size: 1.40rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #10b981; margin-bottom: 12px; }
+        .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 12px; }
+        .spec-item { font-size: 1.15rem; }
+        .spec-label { color: #94a3b8; font-weight: 700; font-size: 1.15rem; margin-bottom: 2px; }
+        .spec-val { color: #f8fafc; font-weight: 800; font-size: 1.25rem; }
+        .spec-desc { font-size: 1.25rem; color: #cbd5e1; line-height: 1.5; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #03060c; z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.35s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #10b981; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 14px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+        /* Conmutador Modo Estático / Animado Centrado y Accesible */
+        .mode-switch-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 50;
+            display: inline-flex; background: rgba(15, 23, 42, 0.94); border: 1.5px solid #10b981;
+            padding: 4px; border-radius: 999px;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.35), 0 4px 15px rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px); pointer-events: auto !important;
+        }
+        .mode-btn {
+            background: transparent; border: none; color: #94a3b8; font-weight: 800; font-size: 0.85rem;
+            padding: 7px 18px; border-radius: 999px; cursor: pointer !important; transition: all 0.2s ease;
+            letter-spacing: 1px; text-transform: uppercase; pointer-events: auto !important;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .mode-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+        .mode-btn.active {
+            background: #10b981; color: #020617; box-shadow: 0 0 14px rgba(16, 185, 129, 0.7);
+        }
+        .mode-btn.active.anim-active {
+            background: #f59e0b; color: #020617; box-shadow: 0 0 16px rgba(245, 158, 11, 0.8);
+        }
+
+        /* Panel Flotante de Animación para el Alumno */
+        .anim-floating-panel {
+            position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 30;
+            background: rgba(15, 23, 42, 0.94); border: 2px solid #f59e0b;
+            padding: 10px 22px; border-radius: 999px; display: none; gap: 12px; align-items: center;
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.4), 0 10px 25px rgba(0,0,0,0.8);
+            backdrop-filter: blur(12px);
+        }
+        .anim-label {
+            font-size: 0.85rem; font-weight: 800; color: #f59e0b; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .anim-subbtn {
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: 0.82rem;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .anim-subbtn:hover { background: #f59e0b; color: #020617; border-color: #f59e0b; }
+
+        /* Modal / Dropzone en Pedestal cuando no hay animación previa */
+        #drop-pedestal-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(10, 15, 26, 0.95); border: 2px dashed #f59e0b; border-radius: 16px;
+            padding: 28px 36px; max-width: 520px; text-align: center; z-index: 40; display: none;
+            backdrop-filter: blur(14px); box-shadow: 0 0 40px rgba(245, 158, 11, 0.25);
+        }
+        .drop-ped-title { font-size: 1.25rem; font-weight: 900; color: #fbbf24; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .drop-ped-desc { font-size: 0.92rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 16px; }
+    
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+    <script>
+    window.addEventListener("DOMContentLoaded", () => {
+        const applyLeftLayout = () => {
+            const specs = document.querySelector(".specs-panel");
+            if (specs) {
+                specs.style.setProperty("left", "24px", "important");
+                specs.style.setProperty("right", "auto", "important");
+                specs.style.setProperty("bottom", "84px", "important");
+                specs.style.setProperty("position", "fixed", "important");
+                specs.style.setProperty("z-index", "9999", "important");
+                specs.style.setProperty("max-width", "520px", "important");
+            }
+            const ctrl = document.querySelector(".controls-panel");
+            if (ctrl) {
+                ctrl.style.setProperty("left", "24px", "important");
+                ctrl.style.setProperty("right", "auto", "important");
+                ctrl.style.setProperty("bottom", "20px", "important");
+                ctrl.style.setProperty("position", "fixed", "important");
+                ctrl.style.setProperty("z-index", "10000", "important");
+            }
+        };
+        applyLeftLayout();
+        setTimeout(applyLeftLayout, 100);
+        setTimeout(applyLeftLayout, 500);
+    });
+    </script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div style="font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fff;">Cargando Ahsoka Tano (Clone Wars T7)...</div>
+    </div>
+
+    <!-- Conmutador Central de Modo: Estático / Animado -->
+    <div class="mode-switch-bar">
+        <button class="mode-btn active" id="btn-mode-static" onclick="setVisualMode('static')">👁️ Estático</button>
+        <button class="mode-btn" id="btn-mode-anim" onclick="setVisualMode('anim')">🕺 Animado</button>
+    </div>
+
+    <div class="header">
+        <div class="badge-wrap">
+            <span class="faction-tag">Sala 1: Orden Jedi</span>
+            <span style="background: rgba(16, 185, 129, 0.18); border: 1px solid #10b981; color: #6ee7b7; font-size: 0.78rem; font-weight: 800; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; margin-left: 8px;">Apto Mixamo (A-Pose)</span>
+        </div>
+        <h1>4. Ahsoka Tano (Clone Wars T7)</h1>
+        <p class="subtitle">Comandante Jedi • Pabellón 4</p>
+    </div>
+
+    <div class="nav-panel">
+        <a href="VISOR_PERSONAJE_3_ANAKIN.html" class="nav-btn nav-prev" title="Modelo anterior (tecla ←)">◀ Anterior</a>
+        <a href="SALA_1_RADIAL.html" class="nav-btn" title="Volver a la Sala 1 (Mapa Radial)">🏛️ Sala 1</a>
+        <a href="SALA_7_RADIAL.html" class="nav-btn" style="border-color: #f59e0b; color: #fbbf24;" title="Volver a Sala 7 (Galería Mixamo)">⭐ Sala 7</a>
+        <a href="../index.html" class="nav-btn home-btn" title="Volver al Gran Museo (Mapa Radial)">🌌 Gran Museo</a>
+        <a href="VISOR_PERSONAJE_5_DARTH_VADER.html" class="nav-btn nav-next" title="Modelo siguiente (tecla →)">Siguiente ▶</a>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+        <button class="ctrl-btn" onclick="toggleWireframe()">▤ Malla</button>
+    </div>
+
+    <div class="specs-panel">
+        <div class="specs-title">Ficha Técnica Oficial</div>
+        <div class="specs-grid">
+            <div class="spec-item"><div class="spec-label">Categoría</div><div class="spec-val">Comandante Jedi</div></div>
+            <div class="spec-item"><div class="spec-label">Sala Temática</div><div class="spec-val">Sala 1: Orden Jedi</div></div>
+            <div class="spec-item"><div class="spec-label">Formato 3D</div><div class="spec-val">GLTF</div></div>
+            <div class="spec-item"><div class="spec-label">Mixamo</div><div class="spec-val">Compatible (A-Pose)</div></div>
+        </div>
+        <div class="spec-desc">La valiente padawan de Anakin Skywalker durante el asedio de Mandalore en The Clone Wars.</div>
+    </div>
+    
+    
+    <input type="file" id="studentFileInput" accept=".glb,.gltf" style="display:none;" onchange="handleStudentGlb(this.files[0])">
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        var scene, camera, pivotNode, orientNode;
+        let isRotating = true;
+        let isWireframe = false;
+
+        // initialAlpha = Math.PI / 2.0 asegura que la cámara enfoque de frente a los personajes
+        const initialAlpha = Math.PI / 2.0;
+        const initialBeta = Math.PI / 2.5;
+        const initialRadius = 5.5;
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById("btn-rot").classList.toggle("active", isRotating);
+        }
+
+        function resetCamera() {
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.setTarget(BABYLON.Vector3.Zero());
+                const btn = document.getElementById("btn-center");
+                if (btn) {
+                    btn.classList.add("active");
+                    setTimeout(() => btn.classList.remove("active"), 300);
+                }
+            }
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (scene) {
+                scene.materials.forEach(mat => { mat.wireframe = isWireframe; });
+            }
+        }
+
+        function hideOverlay() {
+            const overlay = document.getElementById("loading-overlay");
+            if (overlay && overlay.style.display !== "none") {
+                overlay.style.opacity = "0";
+                setTimeout(() => { overlay.style.display = "none"; }, 350);
+            }
+        }
+
+        let currentMode = 'static';
+        let staticMeshes = [];
+        let animatedMeshes = [];
+        let animGroups = [];
+        let ahsokaWeaponMeshes = [];
+        let isAnimPlaying = true;
+        const charId = 4;
+        const charSlug = "4_AHSOKA";
+        const defaultAnimPath = "ANIMACIONES_ALUMNOS/4_AHSOKA_Animado.glb";
+
+        window.setVisualMode = async function(mode) {
+            currentMode = mode;
+            const btnStatic = document.getElementById('btn-mode-static');
+            const btnAnim = document.getElementById('btn-mode-anim');
+            const controlPanel = document.getElementById('animControlPanel');
+            const dropOverlay = document.getElementById('drop-pedestal-overlay');
+
+            if (mode === 'static') {
+                btnStatic.classList.add('active');
+                btnAnim.classList.remove('active', 'anim-active');
+                if (controlPanel) controlPanel.style.display = 'none';
+
+                // Mostrar estático, ocultar animado
+                staticMeshes.forEach(m => m.setEnabled(true));
+                animatedMeshes.forEach(m => m.setEnabled(false));
+                ahsokaWeaponMeshes.forEach(m => m.setEnabled(false));
+                animGroups.forEach(ag => ag.pause());
+            } else {
+                btnStatic.classList.remove('active');
+                btnAnim.classList.add('active', 'anim-active');
+
+                // Si ya tenemos mallas animadas cargadas
+                if (animatedMeshes.length > 0) {
+                    staticMeshes.forEach(m => m.setEnabled(false));
+                    animatedMeshes.forEach(m => m.setEnabled(true));
+                    ahsokaWeaponMeshes.forEach(m => m.setEnabled(true));
+                    animGroups.forEach(ag => ag.play(true));
+                    if (controlPanel) controlPanel.style.display = 'flex';
+                } else {
+                    // Intentar cargar animación predeterminada si existe
+                    tryLoadPresetAnimation();
+                }
+            }
+        };
+
+        async function tryLoadPresetAnimation() {
+            const btnStatic = document.getElementById('btn-mode-static');
+            const btnAnim = document.getElementById('btn-mode-anim');
+
+            try {
+                const res = await fetch("ANIMACIONES_ALUMNOS/4_AHSOKA_Animado.glb", { method: "HEAD" });
+                if (res.ok) {
+                    const overlay = document.getElementById("loading-overlay");
+                    if (overlay) {
+                        overlay.style.display = "flex";
+                        overlay.style.opacity = "1";
+                    }
+                    await loadGlbIntoPedestal("ANIMACIONES_ALUMNOS/4_AHSOKA_Animado.glb");
+                } else {
+                    if (btnStatic) btnStatic.classList.add('active');
+                    if (btnAnim) btnAnim.classList.remove('active', 'anim-active');
+                    currentMode = 'static';
+                }
+            } catch (e) {
+                if (btnStatic) btnStatic.classList.add('active');
+                if (btnAnim) btnAnim.classList.remove('active', 'anim-active');
+                currentMode = 'static';
+            }
+        }
+
+        async function loadGlbIntoPedestal(urlOrBlob) {
+            const controlPanel = document.getElementById('animControlPanel');
+            const dropOverlay = document.getElementById('drop-pedestal-overlay');
+
+            // Limpiar animados previos
+            animatedMeshes.forEach(m => m.dispose());
+            animatedMeshes = [];
+            animGroups.forEach(ag => ag.dispose());
+            animGroups = [];
+            ahsokaWeaponMeshes.forEach(m => { if (m && !m.isDisposed()) m.dispose(); });
+            ahsokaWeaponMeshes = [];
+
+            try {
+                let rootUrl = "";
+                let fileName = urlOrBlob;
+                let pluginExtension = null;
+
+                if (typeof urlOrBlob === "string") {
+                    if (urlOrBlob.startsWith("blob:")) {
+                        rootUrl = "";
+                        fileName = urlOrBlob;
+                        pluginExtension = ".glb";
+                    } else {
+                        const lastSlash = urlOrBlob.lastIndexOf("/");
+                        if (lastSlash !== -1) {
+                            rootUrl = urlOrBlob.substring(0, lastSlash + 1);
+                            fileName = urlOrBlob.substring(lastSlash + 1);
+                        } else {
+                            rootUrl = "";
+                            fileName = urlOrBlob;
+                        }
+                    }
+                }
+
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", rootUrl, fileName, scene, null, pluginExtension);
+                animatedMeshes = result.meshes;
+                animGroups = result.animationGroups;
+                window.animatedMeshes = animatedMeshes;
+                window.animGroups = animGroups;
+
+                // Ocultar plataforma en los pies si viene en el modelo animado
+                animatedMeshes.forEach(m => {
+                    const mn = (m.name || "").toLowerCase();
+                    const matName = (m.material && m.material.name ? m.material.name : "").toLowerCase();
+                    if (mn.includes("cube") || matName === "material" || mn.includes("platform") || mn.includes("pedestal")) {
+                        m.setEnabled(false);
+                        m.isVisible = false;
+                    }
+                });
+
+                // Iniciar animación y estabilizar Root Motion (In-Place)
+                // Bloquea el desplazamiento horizontal (X y Z) para que el ataque de espadas se ejecute sobre el pedestal
+                if (animGroups.length > 0) {
+                    animGroups.forEach(ag => {
+                        if (ag.targetedAnimations) {
+                            ag.targetedAnimations.forEach(ta => {
+                                const targetName = (ta.target && ta.target.name ? ta.target.name : "").toLowerCase();
+                                if (targetName.includes("hips") && ta.animation && ta.animation.targetProperty === "position") {
+                                    const keys = ta.animation.getKeys();
+                                    if (keys && keys.length > 0) {
+                                        const basePos = keys[0].value.clone();
+                                        keys.forEach(k => {
+                                            k.value.x = basePos.x;
+                                            k.value.z = basePos.z;
+                                        });
+                                        ta.animation.setKeys(keys);
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    if (scene.animationGroups) scene.animationGroups.forEach(ag => ag.stop());
+                    animGroups.forEach(ag => {
+                        ag.stop();
+                        ag.speedRatio = 1.0;
+                        ag.play(true);
+                    });
+                }
+
+                // El nodo animOrient se coloca en pivotNode para un centrado geométrico perfecto e independiente
+                const animOrient = new BABYLON.TransformNode("animOrientNode", scene);
+                animOrient.parent = pivotNode;
+                const roots = animatedMeshes.filter(m => !m.parent);
+                roots.forEach(m => { m.parent = animOrient; });
+
+                // Medición exacta del tamaño de la malla animada estabilizada
+                animOrient.computeWorldMatrix(true);
+                animatedMeshes.forEach(m => { if (m.computeWorldMatrix) m.computeWorldMatrix(true); });
+
+                let min = null, max = null;
+                const charMeshes = animatedMeshes.filter(m => m.skeleton || (m.getTotalVertices && m.getTotalVertices() > 1000));
+                const measureList = charMeshes.length > 0 ? charMeshes : animatedMeshes;
+
+                measureList.forEach(m => {
+                    if (m && m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        const b = m.getBoundingInfo().boundingBox;
+                        if (!min) {
+                            min = b.minimum.clone();
+                            max = b.maximum.clone();
+                        } else {
+                            min = BABYLON.Vector3.Minimize(min, b.minimum);
+                            max = BABYLON.Vector3.Maximize(max, b.maximum);
+                        }
+                    }
+                });
+
+                let charHeight = 72.4;
+                let center = BABYLON.Vector3.Zero();
+                if (min && max) {
+                    const size = max.subtract(min);
+                    center = min.add(size.scale(0.5));
+                    charHeight = size.y > 0.1 ? size.y : 72.4;
+                }
+
+                // Escalado y centrado proporcional al pedestal (altura canónica 72.4 unidades)
+                const targetHeight = 72.4;
+                const s = targetHeight / Math.max(charHeight, 0.1);
+                animOrient.scaling.setAll(s);
+                animOrient.position.set(-center.x * s, -center.y * s, -center.z * s);
+                animOrient.rotation.set(0, 0, 0);
+
+                // Equipar los sables de luz duales de Ahsoka con agarre invertido Jar'Kai proporcional
+                attachAnimatedAhsokaLightsabers(charHeight);
+
+                staticMeshes.forEach(m => m.setEnabled(false));
+                animatedMeshes.forEach(m => m.setEnabled(true));
+                ahsokaWeaponMeshes.forEach(m => m.setEnabled(true));
+                if (controlPanel) controlPanel.style.display = 'flex';
+                hideOverlay();
+            } catch (err) {
+                console.warn("No se pudo cargar animación GLB:", err);
+                hideOverlay();
+            }
+        }
+
+        // Función para acoplar los sables de luz duales de Ahsoka en Babylon.js (Agarre Invertido Jar'Kai)
+        function attachAnimatedAhsokaLightsabers(charHeight) {
+            ahsokaWeaponMeshes.forEach(m => { if (m && !m.isDisposed()) m.dispose(); });
+            ahsokaWeaponMeshes = [];
+
+            // Buscar el nodo o hueso de ambas manos
+            const rightHand = scene.getTransformNodeByName("mixamorigRightHand") || 
+                              scene.getBoneByName("mixamorigRightHand") ||
+                              animatedMeshes.find(m => m.name && m.name.toLowerCase().includes("righthand"));
+
+            const leftHand = scene.getTransformNodeByName("mixamorigLeftHand") || 
+                             scene.getBoneByName("mixamorigLeftHand") ||
+                             animatedMeshes.find(m => m.name && m.name.toLowerCase().includes("lefthand"));
+
+            const prevSaberR = scene.getTransformNodeByName("ahsokaAnimatedMainSaber");
+            if (prevSaberR) prevSaberR.dispose();
+            const prevSaberL = scene.getTransformNodeByName("ahsokaAnimatedShotoSaber");
+            if (prevSaberL) prevSaberL.dispose();
+
+            const prevLightR = scene.getLightByName("lightR");
+            if (prevLightR) prevLightR.dispose();
+            const prevLightL = scene.getLightByName("lightL");
+            if (prevLightL) prevLightL.dispose();
+
+            const h = charHeight || 72.4;
+            // sf: Si charHeight es ~165 (cm Mixamo), sf = 1.0. Si es ~72.4 (unidades Ahsoka), sf = 72.4 / 165 = 0.4388.
+            const sf = h / 165.0;
+
+            // Materiales de plasma cian luminoso y núcleo blanco
+            const bladeMat = new BABYLON.StandardMaterial("ahsokaBladeMat", scene);
+            bladeMat.emissiveColor = new BABYLON.Color3(0.0, 0.90, 1.0);
+            bladeMat.diffuseColor = new BABYLON.Color3(0.1, 0.95, 1.0);
+            bladeMat.disableLighting = true;
+            bladeMat.backFaceCulling = false;
+
+            const coreMat = new BABYLON.StandardMaterial("ahsokaCoreMat", scene);
+            coreMat.emissiveColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+            coreMat.diffuseColor = new BABYLON.Color3(1.0, 1.0, 1.0);
+            coreMat.disableLighting = true;
+            coreMat.backFaceCulling = false;
+
+            const hiltMat = new BABYLON.PBRMaterial("ahsokaHiltMat", scene);
+            hiltMat.metallic = 0.95;
+            hiltMat.roughness = 0.22;
+            hiltMat.albedoColor = new BABYLON.Color3(0.85, 0.85, 0.88);
+
+            // 1. Mano Derecha: Sable Principal Cian (~0.80m / 68*sf hoja)
+            if (rightHand) {
+                const rootR = new BABYLON.TransformNode("ahsokaAnimatedMainSaber", scene);
+                rootR.parent = rightHand;
+
+                const hiltR = BABYLON.MeshBuilder.CreateCylinder("hiltR", { height: 22 * sf, diameter: 2.2 * sf, tessellation: 16 }, scene);
+                hiltR.parent = rootR;
+                hiltR.material = hiltMat;
+
+                const bladeR = BABYLON.MeshBuilder.CreateCylinder("bladeR", { height: 68 * sf, diameterTop: 1.1 * sf, diameterBottom: 1.9 * sf, tessellation: 16 }, scene);
+                bladeR.position.y = (11 + 34) * sf;
+                bladeR.parent = rootR;
+                bladeR.material = bladeMat;
+
+                const coreR = BABYLON.MeshBuilder.CreateCylinder("coreR", { height: 66 * sf, diameterTop: 0.55 * sf, diameterBottom: 0.96 * sf, tessellation: 12 }, scene);
+                coreR.position.y = (11 + 33) * sf;
+                coreR.parent = rootR;
+                coreR.material = coreMat;
+
+                const lightR = new BABYLON.PointLight("lightR", new BABYLON.Vector3(0, 20 * sf, 0), scene);
+                lightR.diffuse = new BABYLON.Color3(0.0, 0.9, 1.0);
+                lightR.intensity = 2.0;
+                lightR.range = 150 * sf;
+                lightR.parent = rootR;
+
+                // Agarre Invertido Jar'Kai: orientado hacia atrás a lo largo del antebrazo
+                rootR.position.set(0, 3 * sf, 0);
+                rootR.rotationQuaternion = null;
+                rootR.rotation.set(Math.PI, 0, 0);
+
+                ahsokaWeaponMeshes.push(hiltR, bladeR, coreR);
+                animatedMeshes.push(hiltR, bladeR, coreR);
+            }
+
+            // 2. Mano Izquierda: Sable Shoto Cian (~0.55m / 46*sf hoja)
+            if (leftHand) {
+                const rootL = new BABYLON.TransformNode("ahsokaAnimatedShotoSaber", scene);
+                rootL.parent = leftHand;
+
+                const hiltL = BABYLON.MeshBuilder.CreateCylinder("hiltL", { height: 16 * sf, diameter: 2.1 * sf, tessellation: 16 }, scene);
+                hiltL.parent = rootL;
+                hiltL.material = hiltMat;
+
+                const bladeL = BABYLON.MeshBuilder.CreateCylinder("bladeL", { height: 46 * sf, diameterTop: 0.95 * sf, diameterBottom: 1.7 * sf, tessellation: 16 }, scene);
+                bladeL.position.y = (8 + 23) * sf;
+                bladeL.parent = rootL;
+                bladeL.material = bladeMat;
+
+                const coreL = BABYLON.MeshBuilder.CreateCylinder("coreL", { height: 44 * sf, diameterTop: 0.48 * sf, diameterBottom: 0.85 * sf, tessellation: 12 }, scene);
+                coreL.position.y = (8 + 22) * sf;
+                coreL.parent = rootL;
+                coreL.material = coreMat;
+
+                const lightL = new BABYLON.PointLight("lightL", new BABYLON.Vector3(0, 15 * sf, 0), scene);
+                lightL.diffuse = new BABYLON.Color3(0.0, 0.9, 1.0);
+                lightL.intensity = 1.6;
+                lightL.range = 120 * sf;
+                lightL.parent = rootL;
+
+                // Agarre Invertido Jar'Kai: orientado hacia atrás a lo largo del antebrazo
+                rootL.position.set(0, 3 * sf, 0);
+                rootL.rotationQuaternion = null;
+                rootL.rotation.set(Math.PI, 0, 0);
+
+                ahsokaWeaponMeshes.push(hiltL, bladeL, coreL);
+                animatedMeshes.push(hiltL, bladeL, coreL);
+            }
+        }
+
+        window.handleStudentGlb = function(file) {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const overlay = document.getElementById("loading-overlay");
+            if (overlay) { overlay.style.display = "flex"; overlay.style.opacity = "1"; }
+            loadGlbIntoPedestal(url);
+        };
+
+        window.toggleAnimPlayPause = function() {
+            isAnimPlaying = !isAnimPlaying;
+            animGroups.forEach(ag => {
+                if (isAnimPlaying) ag.play(true); else ag.pause();
+            });
+            document.getElementById('btnAnimPlayPause').textContent = isAnimPlaying ? "⏸ Pausar" : "▶ Reproducir";
+        };
+
+        window.setAnimSpeed = function(spd) {
+            animGroups.forEach(ag => { ag.speedRatio = spd; });
+        };
+
+        // Soporte Drag & Drop universal en la ventana del visor
+        window.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                const fn = file.name.toLowerCase();
+                if (fn.endsWith('.fbx')) {
+                    const dropOverlay = document.getElementById('drop-pedestal-overlay');
+                    if (dropOverlay) {
+                        dropOverlay.style.display = 'block';
+                        dropOverlay.innerHTML = `
+                            <div class="drop-ped-title" style="color:#ef4444;">⚠️ Archivo FBX detectado (${file.name})</div>
+                            <div class="drop-ped-desc">
+                                Los visores del Gran Museo requieren el formato 3D web optimizado <strong>.GLB</strong>.<br>
+                                Puedes probar y convertir tu archivo <strong>.FBX</strong> a <strong>.GLB</strong> con 1 clic en el taller:
+                            </div>
+                            <div style="display:flex; gap:12px; justify-content:center; margin-top:14px;">
+                                <button class="ctrl-btn" onclick="document.getElementById('drop-pedestal-overlay').style.display='none'">Cerrar</button>
+                            </div>
+                        `;
+                    }
+                } else if (fn.endsWith('.glb') || fn.endsWith('.gltf')) {
+                    handleStudentGlb(file);
+                } else {
+                    alert("Formato no reconocido. Por favor arrastra un archivo .GLB o utiliza el Taller para convertir tu .FBX.");
+                }
+            }
+        });
+    
+        async function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 40;
+            camera.minZ = 0.1;
+            camera.maxZ = 1000;
+
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.35;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.15, 0.25);
+
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+            dirLight.intensity = 1.8;
+
+            const dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1, 2, 1), scene);
+            dirLight2.position = new BABYLON.Vector3(-20, -40, -20);
+            dirLight2.intensity = 0.8;
+
+            const modelFolder = "../../../../MODELOS/STAR%20WARS/1.PERSONAJES_Y_DROIDES/ahsoka_tano_return_season_7_star_wars_clone_wars/";
+            const modelFile = "scene.gltf";
+
+            try {
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelFolder, modelFile, scene);
+                const meshes = result.meshes;
+                staticMeshes = meshes;
+                const animationGroups = result.animationGroups;
+
+                // 1. Crear nodo pivote en el origen y nodo orientador
+                pivotNode = new BABYLON.TransformNode("pivotNode", scene);
+                orientNode = new BABYLON.TransformNode("orientNode", scene);
+                orientNode.parent = pivotNode;
+
+                // Emparejar mallas raíz al orientador
+                const roots = meshes.filter(m => !m.parent);
+                roots.forEach(m => {
+                    m.parent = orientNode;
+                });
+
+                // 2. Correcciones específicas aplicadas al orientador o piezas:
+                // Ocultar plataforma / base en los pies (Cube_0 con material "Material")
+                meshes.forEach(m => {
+                    const mn = (m.name || "").toLowerCase();
+                    const matName = (m.material && m.material.name ? m.material.name : "").toLowerCase();
+                    if (mn.includes("cube") || matName === "material" || mn.includes("platform") || mn.includes("pedestal")) {
+                        m.setEnabled(false);
+                        m.isVisible = false;
+                    }
+                });
+                // 3. Forzar actualización de matrices de transformación
+                orientNode.computeWorldMatrix(true);
+                meshes.forEach(m => { if (m.computeWorldMatrix) m.computeWorldMatrix(true); });
+
+                // 4. Cálculo dinámico exacto del Bounding Box de las mallas visibles y habilitadas
+                let min = null;
+                let max = null;
+
+                meshes.forEach(m => {
+                    if (m && m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        if (!min) {
+                            min = b.minimumWorld.clone();
+                            max = b.maximumWorld.clone();
+                        } else {
+                            min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                            max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                        }
+                    }
+                });
+
+                if (min && max) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    const size = BABYLON.Vector3.Distance(min, max);
+
+                    // Desplazar el orientador respecto al centroide de la malla orientada
+                    orientNode.position.subtractInPlace(center);
+
+                    const factor = size > 0.001 ? (3.6 / size) : 1.0;
+                    pivotNode.scaling.setAll(factor);
+                    pivotNode.position.set(0, 0, 0);
+                } else {
+                    pivotNode.scaling.setAll(3.5);
+                    pivotNode.position.set(0, 0, 0);
+                }
+
+            } catch (err) {
+                console.error("Error al cargar modelo 3D:", err);
+            } finally {
+                // Verificar disponibilidad de animación oficial entregada por alumnos
+                try {
+                    const checkAnim = await fetch("ANIMACIONES_ALUMNOS/4_AHSOKA_Animado.glb", { method: "HEAD" });
+                    if (checkAnim.ok) {
+                        const btnAnim = document.getElementById("btn-mode-anim");
+                        if (btnAnim) {
+                            btnAnim.innerHTML = "🕺 Animado (Listo)";
+                            btnAnim.style.borderColor = "#10b981";
+                            btnAnim.style.boxShadow = "0 0 12px rgba(16, 185, 129, 0.4)";
+                        }
+                    }
+                } catch (e) {}
+
+                hideOverlay();
+            }
+
+            scene.registerBeforeRender(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.0035;
+                }
+            });
+        }
+
+        initScene();
+        engine.runRenderLoop(() => { if (scene) scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+
+        // Atajos de teclado (← Anterior / Siguiente →)
+        window.addEventListener("keydown", function(e) {
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+            if (e.key === "ArrowLeft") {
+                const prev = document.querySelector(".nav-prev");
+                if (prev) prev.click();
+            } else if (e.key === "ArrowRight") {
+                const next = document.querySelector(".nav-next");
+                if (next) next.click();
+            }
+        });
+    </script>
+</body>
+</html>

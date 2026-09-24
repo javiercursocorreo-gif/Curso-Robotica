@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+</script>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5. Sala de Control Minera de Mustafar - Cámaras e Interiores Galácticos</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #080202; color: #fff;
+        }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #renderCanvas {
+            width: 100%; height: 100%; touch-action: none; outline: none; display: block;
+            background: radial-gradient(circle at 50% 65%, #380b03 0%, #170402 55%, #050101 100%);
+        }
+        
+        .header { position: absolute; top: 20px; left: 24px; z-index: 10; pointer-events: none; }
+        .faction-tag {
+            display: inline-block; padding: 5px 14px; border-radius: 6px;
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #fb923c; margin-bottom: 8px;
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
+        }
+        h1 { margin: 0; font-size: 2.2rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .subtitle { margin: 6px 0 0 0; font-size: 1.05rem; color: #fed7aa; font-weight: 600; }
+
+        .nav-bar { position: absolute; top: 20px; right: 24px; z-index: 10; display: flex; gap: 10px; }
+        .nav-btn {
+            background: rgba(20, 7, 5, 0.85); border: 1px solid rgba(255,255,255,0.2);
+            color: #fed7aa; padding: 10px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; text-decoration: none; display: flex; align-items: center; gap: 8px;
+            backdrop-filter: blur(8px);
+        }
+        .nav-btn:hover { background: #f97316; color: #080202; border-color: #f97316; box-shadow: 0 0 14px rgba(249, 115, 22, 0.6); }
+        .nav-btn.home-btn { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; }
+        .nav-btn.home-btn:hover { background: #f59e0b; color: #080202; }
+
+        .controls-panel {
+            position: absolute; bottom: 24px; left: 24px; z-index: 10;
+            background: rgba(20, 7, 5, 0.88); border: 1px solid rgba(249, 115, 22, 0.3);
+            border-radius: 10px; padding: 14px 18px; backdrop-filter: blur(12px);
+            display: flex; gap: 12px; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+        .ctrl-btn {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+            color: #ffedd5; padding: 10px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .ctrl-btn:hover { background: rgba(249, 115, 22, 0.25); color: #fff; border-color: #f97316; }
+        .ctrl-btn.active { background: rgba(249, 115, 22, 0.28); border-color: #f97316; color: #fb923c; }
+
+        .specs-panel {
+            position: absolute; bottom: 24px; right: 24px; z-index: 10; width: 390px;
+            background: rgba(20, 7, 5, 0.92); border: 1px solid rgba(249, 115, 22, 0.35);
+            border-radius: 12px; padding: 22px; backdrop-filter: blur(14px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+        }
+        .specs-title {
+            font-size: 0.95rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+            color: #fb923c; margin-bottom: 14px; border-bottom: 1px solid rgba(249, 115, 22, 0.25); padding-bottom: 8px;
+        }
+        .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .spec-item { display: flex; flex-direction: column; }
+        .spec-label { font-size: 0.82rem; color: #fdba74; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 2px; }
+        .spec-val { font-size: 1.05rem; font-weight: 800; color: #ffffff; }
+        .spec-desc { font-size: 0.95rem; color: #ffedd5; line-height: 1.5; border-top: 1px solid rgba(249, 115, 22, 0.2); padding-top: 12px; }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
+            background: #080202; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.4s ease;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid rgba(249, 115, 22, 0.2);
+            border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        .loading-text { font-size: 1.0rem; letter-spacing: 3px; text-transform: uppercase; color: #fdba74; font-weight: 700; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    
+        .nav-btn.nav-prev, .nav-btn.nav-next {
+            background: rgba(249, 115, 22, 0.12);
+            border: 1px solid #f97316;
+            color: #fb923c;
+            font-weight: 800;
+        }
+        .nav-btn.nav-prev:hover, .nav-btn.nav-next:hover {
+            background: #f97316;
+            color: #080202;
+            box-shadow: 0 0 16px rgba(249, 115, 22, 0.8);
+        }
+    </style>
+    <script src="../museum_ui_helper.js"></script>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Cargando Instalación Minera de Mustafar...</div>
+    </div>
+
+    <div class="header">
+        <div class="faction-tag">Confederación Separatista / Imperio Galáctico</div>
+        <h1>5. Sala de Control Minera de Mustafar</h1>
+        <div class="subtitle">Búnker de Extracción de Mineral sobre Ríos de Lava Hirviente</div>
+    </div>
+
+    <div class="nav-bar">
+        <a href="VISOR_CAMARA_4_CANTINA_MOS_EISLEY.html" class="nav-btn nav-prev" title="Modelo anterior (tecla ←)">◀ Anterior</a>
+        <a href="index_radial.html" class="nav-btn" title="Volver al índice de Cámaras">☰ Cámaras (7)</a>
+        <a href="../index_radial.html" class="nav-btn home-btn" title="Volver al Gran Museo">🏛️ Gran Museo</a>
+        <a href="VISOR_CAMARA_6_HANGAR_INTERIOR.html" class="nav-btn nav-next" title="Modelo siguiente (tecla →)">Siguiente ▶</a>
+    </div>
+
+    <div class="controls-panel">
+        <button class="ctrl-btn active" id="btn-rot" onclick="toggleRotation()">⟳ Rotación</button>
+        <button class="ctrl-btn" id="btn-center" onclick="resetCamera()">⊙ Centrar</button>
+        <button class="ctrl-btn" onclick="toggleWireframe()">▤ Malla</button>
+    </div>
+
+    <div class="specs-panel">
+        <div class="specs-title">Especificaciones Técnicas</div>
+        <div class="specs-grid">
+            <div class="spec-item"><div class="spec-label">Entorno</div><div class="spec-val">Mustafar (Borde Exterior)</div></div>
+            <div class="spec-item"><div class="spec-label">Estructura</div><div class="spec-val">Complejo Minero Klegger Corp</div></div>
+            <div class="spec-item"><div class="spec-label">Sistemas</div><div class="spec-val">Desactivación Droide Global</div></div>
+            <div class="spec-item"><div class="spec-label">Escudos</div><div class="spec-val">Deflectores Térmicos de Magma</div></div>
+        </div>
+        <div class="spec-desc">El búnker volcánico donde Darth Vader eliminó al Consejo Separatista y sostuvo su mítico duelo a muerte contra Obi-Wan Kenobi.</div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="renderCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        let scene, camera, pivotNode;
+        let lavaLight1, lavaLight2;
+        let isRotating = true;
+        let isWireframe = false;
+
+        const initialAlpha = Math.PI * 0.28;
+        const initialBeta = Math.PI / 2.8;
+        const initialRadius = 6.2;
+
+        function toggleRotation() {
+            isRotating = !isRotating;
+            document.getElementById("btn-rot").classList.toggle("active", isRotating);
+        }
+
+        function resetCamera() {
+            if (camera) {
+                camera.alpha = initialAlpha;
+                camera.beta = initialBeta;
+                camera.radius = initialRadius;
+                camera.target = (pivotNode) ? pivotNode.position.clone() : new BABYLON.Vector3(0, 0, 0);
+                camera.inertialAlphaOffset = 0;
+                camera.inertialBetaOffset = 0;
+                camera.inertialRadiusOffset = 0;
+                
+                const btn = document.getElementById("btn-center");
+                if (btn) {
+                    btn.classList.add("active");
+                    setTimeout(() => btn.classList.remove("active"), 300);
+                }
+            }
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            if (scene) {
+                scene.materials.forEach(mat => { mat.wireframe = isWireframe; });
+            }
+        }
+
+        function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);
+
+            camera = new BABYLON.ArcRotateCamera("Camera", initialAlpha, initialBeta, initialRadius, new BABYLON.Vector3(0, 0, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 45;
+            camera.lowerRadiusLimit = 1.0;
+            camera.upperRadiusLimit = 16.0;
+
+            // ILUMINACIÓN VOLCÁNICA Y DE CIENCIA FICCIÓN ESTILO EPISODIO III
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.diffuse = new BABYLON.Color3(0.40, 0.45, 0.55);
+            hemiLight.groundColor = new BABYLON.Color3(1.0, 0.28, 0.04);
+            hemiLight.intensity = 0.90;
+
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0.3, -1.0, 0.4), scene);
+            dirLight.diffuse = new BABYLON.Color3(0.70, 0.78, 0.90);
+            dirLight.intensity = 0.65;
+
+            lavaLight1 = new BABYLON.PointLight("lavaLight1", new BABYLON.Vector3(0, -3.2, 0), scene);
+            lavaLight1.diffuse = new BABYLON.Color3(1.0, 0.35, 0.04);
+            lavaLight1.specular = new BABYLON.Color3(1.0, 0.50, 0.12);
+            lavaLight1.intensity = 2.8;
+
+            lavaLight2 = new BABYLON.PointLight("lavaLight2", new BABYLON.Vector3(-4.5, -0.8, 4.0), scene);
+            lavaLight2.diffuse = new BABYLON.Color3(1.0, 0.22, 0.02);
+            lavaLight2.specular = new BABYLON.Color3(1.0, 0.35, 0.08);
+            lavaLight2.intensity = 2.4;
+
+            // MATERIALES NATIVOS STANDARD DIRECTOS (GARANTÍA ABSOLUTA ANTI-BLANCO)
+            const matStructure = new BABYLON.StandardMaterial("m_struct", scene);
+            matStructure.diffuseColor = new BABYLON.Color3(0.14, 0.15, 0.18);
+            matStructure.specularColor = new BABYLON.Color3(0.25, 0.25, 0.25);
+
+            const matFloor = new BABYLON.StandardMaterial("m_floor", scene);
+            matFloor.diffuseColor = new BABYLON.Color3(0.08, 0.09, 0.11);
+            matFloor.specularColor = new BABYLON.Color3(0.4, 0.3, 0.2);
+
+            const matConsoles = new BABYLON.StandardMaterial("m_consoles", scene);
+            matConsoles.diffuseColor = new BABYLON.Color3(0.06, 0.07, 0.08);
+            matConsoles.emissiveColor = new BABYLON.Color3(0.28, 0.10, 0.02);
+
+            const matTactical = new BABYLON.StandardMaterial("m_tactical", scene);
+            matTactical.diffuseColor = new BABYLON.Color3(0.05, 0.06, 0.08);
+            matTactical.emissiveColor = new BABYLON.Color3(0.05, 0.25, 0.42);
+
+            const matRock = new BABYLON.StandardMaterial("m_rock", scene);
+            matRock.diffuseColor = new BABYLON.Color3(0.06, 0.04, 0.03);
+            matRock.emissiveColor = new BABYLON.Color3(0.42, 0.12, 0.02);
+
+            const matTrim = new BABYLON.StandardMaterial("m_trim", scene);
+            matTrim.diffuseColor = new BABYLON.Color3(0.24, 0.17, 0.11);
+            matTrim.specularColor = new BABYLON.Color3(0.4, 0.3, 0.2);
+
+            const matWindow = new BABYLON.StandardMaterial("m_win", scene);
+            matWindow.diffuseColor = new BABYLON.Color3(0.12, 0.09, 0.07);
+            matWindow.alpha = 0.35;
+
+            const modelFolder = "../../../../MODELOS/STAR%20WARS/3.INTERIORES_Y_CABINAS/star_wars_-_mustafar_control_room/";
+            const modelFile = "scene.gltf";
+
+            BABYLON.SceneLoader.ImportMesh("", modelFolder, modelFile, scene, function (meshes) {
+                pivotNode = new BABYLON.TransformNode("pivotNode", scene);
+
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let hasGeom = false;
+
+                // Forzar asignación directa de materiales sobre cada pieza del modelo
+                meshes.forEach(m => {
+                    if (!m || !m.getTotalVertices || m.getTotalVertices() === 0) return;
+                    const name = m.name || "";
+                    
+                    if (name.includes("Object_31") || name.includes("Object_29")) {
+                        m.material = matWindow;
+                    } else if (name.includes("Object_23") || name.includes("Object_24") || name.includes("Object_21") || name.includes("Object_22")) {
+                        m.material = matRock;
+                    } else if (name.includes("Object_11") || name.includes("Object_9")) {
+                        m.material = matFloor;
+                    } else if (name.includes("Object_28") || name.includes("Object_26")) {
+                        m.material = matTactical;
+                    } else if (name.includes("Object_8") || name.includes("Object_9") || name.includes("Object_10") || name.includes("Object_22") || name.includes("Object_6") || name.includes("Object_7") || name.includes("Object_20")) {
+                        m.material = matConsoles;
+                    } else if (name.includes("Object_4") || name.includes("Object_12") || name.includes("Object_24")) {
+                        m.material = matTrim;
+                    } else {
+                        m.material = matStructure;
+                    }
+
+                    // Excluir riscos lejanos para centrar la cámara en el interior de la sala
+                    if (name.includes("Object_23") || name.includes("Object_24") || name.includes("Object_25") || name.includes("Object_21") || name.includes("Object_22")) {
+                        return;
+                    }
+
+                    m.computeWorldMatrix(true);
+                    const bInfo = m.getBoundingInfo();
+                    if (bInfo && bInfo.boundingBox) {
+                        min = BABYLON.Vector3.Minimize(min, bInfo.boundingBox.minimumWorld);
+                        max = BABYLON.Vector3.Maximize(max, bInfo.boundingBox.maximumWorld);
+                        hasGeom = true;
+                    }
+                });
+
+                // Sobre-escribir cualquier material existente residual en la escena
+                scene.materials.forEach(mat => {
+                    if (mat.name === "initialShadingGroup" || mat.name === "lambert3SG") {
+                        if (mat.albedoColor) mat.albedoColor = new BABYLON.Color3(0.14, 0.15, 0.18);
+                        if (mat.diffuseColor) mat.diffuseColor = new BABYLON.Color3(0.14, 0.15, 0.18);
+                    }
+                });
+
+                const rootMesh = meshes[0];
+                rootMesh.parent = pivotNode;
+
+                if (hasGeom) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    const size = max.subtract(min);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const targetScale = 4.2 / (maxDim || 1);
+                    rootMesh.position = center.scale(-1);
+                    pivotNode.scaling = new BABYLON.Vector3(targetScale, targetScale, targetScale);
+                } else {
+                    pivotNode.scaling = new BABYLON.Vector3(4.0, 4.0, 4.0);
+                }
+
+                // Plano de río de lava incandescente exterior/inferior
+                const lavaMat = new BABYLON.StandardMaterial("lavaMat", scene);
+                lavaMat.diffuseColor = new BABYLON.Color3(0.85, 0.18, 0.02);
+                lavaMat.emissiveColor = new BABYLON.Color3(1.0, 0.32, 0.04);
+                lavaMat.specularColor = new BABYLON.Color3(1.0, 0.5, 0.1);
+
+                const lavaPlane = BABYLON.MeshBuilder.CreatePlane("lavaPlane", { width: 50, height: 50 }, scene);
+                lavaPlane.rotation.x = Math.PI / 2;
+                lavaPlane.position.y = -1.85;
+                lavaPlane.material = lavaMat;
+                lavaPlane.parent = pivotNode;
+
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) {
+                    overlay.style.opacity = "0";
+                    setTimeout(() => { overlay.style.display = "none"; }, 300);
+                }
+            }, null, function (scene, message) {
+                console.error("Error al cargar modelo:", message);
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) overlay.style.display = "none";
+            });
+
+            let lavaTime = 0;
+            scene.registerBeforeRender(() => {
+                if (isRotating && pivotNode) {
+                    pivotNode.rotation.y += 0.003;
+                }
+                lavaTime += 0.03;
+                if (lavaLight1) {
+                    lavaLight1.intensity = 2.8 + Math.sin(lavaTime) * 0.4 + Math.sin(lavaTime * 2.1) * 0.2;
+                }
+                if (lavaLight2) {
+                    lavaLight2.intensity = 2.4 + Math.cos(lavaTime * 1.3) * 0.35;
+                }
+            });
+        }
+
+        initScene();
+        engine.runRenderLoop(() => { if (scene) scene.render(); });
+        window.addEventListener("resize", () => { engine.resize(); });
+    
+        window.addEventListener("keydown", function(e) {
+            if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+            if (e.key === "ArrowLeft") {
+                const prev = document.querySelector(".nav-prev");
+                if (prev) prev.click();
+            } else if (e.key === "ArrowRight") {
+                const next = document.querySelector(".nav-next");
+                if (next) next.click();
+            }
+        });
+    </script>
+</body>
+</html>

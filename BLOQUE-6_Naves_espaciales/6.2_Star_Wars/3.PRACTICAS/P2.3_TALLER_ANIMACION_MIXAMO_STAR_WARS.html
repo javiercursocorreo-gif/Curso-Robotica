@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taller de Animación 3D con Adobe Mixamo - Star Wars</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #06090e; color: #f8fafc; min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(56, 189, 248, 0.10) 0%, transparent 40%),
+                linear-gradient(to bottom, #06090e, #0f172a);
+            padding-bottom: 80px;
+        }
+        .header {
+            text-align: center; padding: 48px 24px 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(6, 9, 14, 0.85); backdrop-filter: blur(14px);
+        }
+        .nav-top {
+            display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto 16px;
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #38bdf8; padding: 8px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .back-btn:hover { background: #38bdf8; color: #06090e; }
+        .tagline {
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 3px;
+            text-transform: uppercase; color: #6ee7b7; background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35); padding: 5px 16px; border-radius: 999px;
+        }
+        h1 {
+            font-size: 2.6rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #ffffff; text-shadow: 0 0 30px rgba(16, 185, 129, 0.3); margin-bottom: 8px;
+        }
+        .subtitle { font-size: 1.05rem; color: #94a3b8; max-width: 850px; margin: 0 auto; line-height: 1.6; }
+
+        .container { max-width: 1200px; margin: 36px auto; padding: 0 24px; }
+
+        /* Pasos del tutorial */
+        .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .step-card {
+            background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px; padding: 22px; position: relative; backdrop-filter: blur(8px);
+        }
+        .step-num {
+            font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #10b981; margin-bottom: 8px;
+        }
+        .step-title { font-size: 1.15rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .step-desc { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; }
+
+        /* Descargas de modelos */
+        .section-title { font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .dl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; margin-bottom: 48px; }
+        .dl-card {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+            transition: all 0.2s;
+        }
+        .dl-card:hover { border-color: #10b981; transform: translateY(-3px); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+        .dl-name { font-weight: 800; font-size: 0.95rem; color: #fff; }
+        .dl-pose { font-size: 0.75rem; color: #10b981; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
+        .dl-btn {
+            background: #10b981; color: #04070c; text-decoration: none; padding: 8px 14px;
+            border-radius: 6px; font-weight: 800; font-size: 0.82rem; transition: all 0.2s; white-space: nowrap;
+        }
+        .dl-btn:hover { background: #34d399; }
+
+        /* Zona de Prueba Dropzone */
+        .dropzone-box {
+            background: rgba(15, 23, 42, 0.92); border: 2px dashed rgba(16, 185, 129, 0.5);
+            border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 32px;
+            transition: all 0.3s; position: relative;
+        }
+        .dropzone-box.dragover { border-color: #10b981; background: rgba(16, 185, 129, 0.15); box-shadow: 0 0 35px rgba(16, 185, 129, 0.4); }
+        .drop-title { font-size: 1.35rem; font-weight: 900; color: #6ee7b7; margin-bottom: 6px; }
+        .drop-desc { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 16px; line-height: 1.5; }
+
+        .dropzone-actions {
+            display: flex; justify-content: center; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .action-btn {
+            background: rgba(16, 185, 129, 0.2); border: 1.5px solid #10b981; color: #6ee7b7;
+            padding: 10px 20px; border-radius: 8px; font-weight: 800; font-size: 0.92rem;
+            cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .action-btn:hover { background: #10b981; color: #04070c; box-shadow: 0 0 18px rgba(16, 185, 129, 0.5); }
+        .export-btn {
+            background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8;
+        }
+        .export-btn:hover { background: #38bdf8; color: #04070c; box-shadow: 0 0 18px rgba(56, 189, 248, 0.5); }
+
+        /* Barra de Restauración de Texturas Didáctica Universal */
+        .skin-restore-bar {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1.5px solid rgba(168, 85, 247, 0.4);
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin: 12px 0 16px 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        .skin-restore-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .skin-restore-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .detected-badge {
+            background: rgba(168, 85, 247, 0.22);
+            border: 1px solid #a855f7;
+            color: #d8b4fe;
+            padding: 3px 12px;
+            border-radius: 999px;
+            font-size: 0.80rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        .detected-badge.ready {
+            background: rgba(16, 185, 129, 0.25);
+            border-color: #10b981;
+            color: #6ee7b7;
+        }
+        .skin-restore-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .char-select {
+            background: #0f172a;
+            border: 1.5px solid rgba(168, 85, 247, 0.5);
+            color: #f8fafc;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .char-select:focus, .char-select:hover {
+            border-color: #c084fc;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+        }
+        .restore-btn {
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.35), rgba(79, 70, 229, 0.35));
+            border: 1.5px solid #a855f7;
+            color: #f3e8ff;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .restore-btn:hover {
+            background: #a855f7;
+            color: #0f172a;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+        }
+
+        .status-badge {
+            display: inline-block; padding: 6px 16px; border-radius: 999px;
+            font-size: 0.85rem; font-weight: 800; letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #94a3b8; margin-bottom: 12px;
+        }
+        .status-badge.success { background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #6ee7b7; }
+        .status-badge.loading { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; }
+
+        #viewer-container {
+            width: 100%; height: 640px; border-radius: 12px; background: radial-gradient(circle at center, #0a1120 0%, #03060c 100%);
+            position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #threeCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        .viewer-controls {
+            position: absolute; bottom: 16px; left: 16px; right: 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px);
+            padding: 10px 18px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15);
+            pointer-events: auto; z-index: 10;
+        }
+        .ctrl-group { display: flex; align-items: center; gap: 10px; }
+        .mini-btn {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .mini-btn:hover { background: #38bdf8; color: #04070c; border-color: #38bdf8; }
+        .speed-select {
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; outline: none;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="nav-top">
+            <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/SALA_7_RADIAL.html" class="back-btn">⭐ Volver a Sala 7 (Taller Mixamo Radial)</a>
+            <div class="tagline">🎓 Taller de Animación 3D</div>
+            <a href="../4.GRAN_MUSEO_STAR_WARS/index.html" class="back-btn">🏛️ Gran Museo</a>
+        </div>
+        <h1>Taller de Animación 3D con Adobe Mixamo</h1>
+        <p class="subtitle">Aprende el flujo de trabajo profesional de la industria: descarga un modelo en Pose T/A, súbelo a Mixamo, calibra los 5 marcadores biométricos, anímalo y pruébalo directamente arrastrando tu archivo <strong>.FBX</strong> o <strong>.GLB</strong> en nuestro visor web interactivo.</p>
+    </header>
+
+    <div class="container">
+        <!-- 4 Pasos Guiados -->
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">Paso 1</div>
+                <div class="step-title">Descarga el Personaje</div>
+                <div class="step-desc">Elige uno de los personajes del catálogo inferior y pulsa <strong>Descargar (.zip)</strong>. Contiene la geometría limpia en Pose T o Pose A.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">Paso 2</div>
+                <div class="step-title">Súbelo a Mixamo</div>
+                <div class="step-desc">Entra con tu cuenta gratuita a <a href="https://www.mixamo.com" target="_blank" style="color:#38bdf8; font-weight:800;">mixamo.com</a> y pulsa el botón <strong>"UPLOAD CHARACTER"</strong> en la columna derecha. Arrastra el archivo .zip descargado.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">Paso 3</div>
+                <div class="step-title">Coloca los 5 Marcadores</div>
+                <div class="step-desc">Ubica los círculos en: <strong>Barbilla (Chin)</strong>, <strong>Muñecas (Wrists)</strong>, <strong>Codos (Elbows)</strong>, <strong>Rodillas (Knees)</strong> e <strong>Ingle (Groin)</strong>. Pulsa NEXT.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">Paso 4</div>
+                <div class="step-title">¡Descarga .FBX y Pruébalo!</div>
+                <div class="step-desc">Elige una animación <strong>individual</strong> (evita los paquetes <em>"Pack"</em>; 💡 recomendada para combate: <strong>"sword and shield slash"</strong>) y pulsa <strong>DOWNLOAD</strong> con <strong>Format: FBX Binary</strong> y <strong>Skin: With Skin</strong>. Arrastra el archivo <code>.fbx</code> directamente al visor: ¡se moverá al instante y podrás exportarlo a <code>.glb</code> con 1 clic para el museo!</div>
+            </div>
+        </div>
+
+        <!-- Descarga de Modelos -->
+        <div class="section-title">📦 Modelos Star Wars Preparados para Mixamo</div>
+        <div class="dl-grid">
+            <div class="dl-card">
+                <div><div class="dl-name">#1. Obi-Wan Kenobi</div><div class="dl-pose">Pose T (Maestro Jedi)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/ObiWan_PoseT_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#3. Anakin Skywalker</div><div class="dl-pose">Pose A (Episodio III)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/Anakin_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#4. Ahsoka Tano</div><div class="dl-pose">Pose A (Temporada 7)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/Ahsoka_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#5. Lord Darth Vader</div><div class="dl-pose">Pose A (Lado Oscuro)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/DarthVader_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#6. Darth Maul</div><div class="dl-pose">Pose A (Lord Sith)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/DarthMaul_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#9. C-3PO con Texturas</div><div class="dl-pose">Pose T (Dorado)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/C3PO_PoseT_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#28. Stormtrooper Imperial</div><div class="dl-pose">Pose T (Recomendado 1º)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/Stormtrooper_PoseT_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#30. Clone Trooper Limpio</div><div class="dl-pose">Pose A (Guerras Clon)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/CloneTrooper_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#31. Scout Trooper</div><div class="dl-pose">Pose A (Endor)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/ScoutTrooper_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#32. Piloto de AT-AT</div><div class="dl-pose">Pose A (Imperial)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/PilotoATAT_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#33. Phase 3 Dark Trooper</div><div class="dl-pose">Pose T (Pesado)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/DarkTrooper_PoseT_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#34. Guardia Pretoriana</div><div class="dl-pose">Pose A (Primera Orden)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/GuardiaPretoriana_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#35. Clon Comando X2</div><div class="dl-pose">Pose A (Battlefront)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/ClonComando_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#36. Piloto Rebelde Ala-X</div><div class="dl-pose">Pose A (Rebelde)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/PilotoAlaX_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#38. Boba Fett V2</div><div class="dl-pose">Pose A (Mandaloriano)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/BobaFett_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+            <div class="dl-card">
+                <div><div class="dl-name">#44. Jar Jar Binks</div><div class="dl-pose">Pose A (Gungan)</div></div>
+                <a href="../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/DESCARGAS_MIXAMO/JarJarBinks_PoseA_Mixamo.zip" download class="dl-btn">Descargar</a>
+            </div>
+        </div>
+
+        <!-- Zona de Prueba en Vivo (Visor FBX Mixamo) -->
+        <div class="section-title">🚀 Zona de Pruebas (Visor de Animaciones FBX de Mixamo)</div>
+        <div class="dropzone-box" id="dropzone">
+            <div class="drop-title">Arrastra y suelta aquí tu archivo descargado de Mixamo (.fbx)</div>
+            <div class="drop-desc">Soporta directamente el formato <strong>FBX Binary</strong> exportado por Adobe Mixamo. Arrastra tu archivo directamente desde la flechita de descargas del navegador hasta el visor inferior. ¡El personaje se pondrá en movimiento automáticamente!</div>
+
+            <!-- Barra Didáctica de Restauración de Texturas Universal con 1 Clic -->
+            <div class="skin-restore-bar" id="skinRestoreBar">
+                <div class="skin-restore-info">
+                    <span class="skin-restore-title">🎨 Aspecto y Texturas:</span>
+                    <span class="detected-badge" id="detectedCharBadge">Esperando archivo .fbx...</span>
+                </div>
+                <div class="skin-restore-actions">
+                    <label for="charTextureSelect" style="font-size: 0.82rem; font-weight: 700; color: #94a3b8;">Personaje:</label>
+                    <select id="charTextureSelect" class="char-select" onchange="window.onCharacterSelectChanged()">
+                        <option value="auto">✨ Auto-detectar personaje...</option>
+                        <option value="maul">🔴 6. Darth Maul (Rostro Sith + Túnica Negra)</option>
+                        <option value="stormtrooper">⚪ 28. Stormtrooper (Armadura Plastoide Blanca)</option>
+                        <option value="vader">⚫ 5. Darth Vader (Casco y Traje Imperial Negro)</option>
+                        <option value="boba">🟢 38. Boba Fett (Armadura Mandaloriana y Jetpack)</option>
+                        <option value="ahsoka">🔵 4. Ahsoka Tano (Piel Togruta y Traje Jedi)</option>
+                        <option value="anakin">⚔️ 3. Anakin Skywalker (Túnica Jedi Episodio III)</option>
+                        <option value="obiwan">🟤 1. Obi-Wan Kenobi (Túnica Maese Jedi)</option>
+                        <option value="c3po">🟡 9. C-3PO (Oro Droide de Protocolo)</option>
+                        <option value="clonetrooper">⚪ 30. Clone Trooper Fase 2</option>
+                        <option value="scout">⚪ 31. Scout Trooper (Biker Scout)</option>
+                        <option value="darktrooper">⚫ 33. Dark Trooper Fase 3 (Ojos Rojos)</option>
+                        <option value="pretoriana">🔴 34. Guardia Pretoriana (Armadura Carmesí)</option>
+                        <option value="piloto_atat">⚪ 32. Piloto AT-AT Imperial</option>
+                        <option value="piloto_alax">🟠 36. Piloto Ala-X Rebelde (Mono Naranja)</option>
+                        <option value="clon_comando">⚪ 35. Clon Comando X2</option>
+                        <option value="jarjar">🟠 44. Jar Jar Binks (Gungan de Naboo)</option>
+                    </select>
+                    <button class="restore-btn" id="btnRestoreTextures" onclick="window.restoreSelectedCharacterTextures()">
+                        🎨 Restaurar Texturas Oficiales
+                    </button>
+                    <button class="action-btn export-btn" id="btnExportGLB" style="display:none;" onclick="exportToGLB()">
+                        💾 Convertir y Guardar para el Gran Museo (.glb)
+                    </button>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".fbx" style="display:none;">
+
+            <div class="status-badge" id="statusBadge">Listo: Esperando archivo .fbx de Mixamo</div>
+            
+            <div id="warningBanner" style="display:none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px 16px; margin: 12px 0; color: #fca5a5; font-size: 0.9rem; line-height: 1.5; text-align: left;"></div>
+            <div id="successBanner" style="display:none; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 8px; padding: 12px 16px; margin: 12px 0; color: #6ee7b7; font-size: 0.9rem; line-height: 1.5; text-align: left;"></div>
+
+            <div id="viewer-container">
+                <canvas id="threeCanvas"></canvas>
+                <div class="viewer-controls">
+                    <div class="ctrl-group">
+                        <button class="mini-btn" id="btnPlayPause" onclick="togglePlayPause()">⏸ Pausar</button>
+                        <button class="mini-btn" onclick="resetView()" title="Centrar cámara">⊙ Centrar</button>
+                        <button class="mini-btn" onclick="zoomView(1.3)" title="Alejar cámara para saltos altos">➖ Alejar</button>
+                        <button class="mini-btn" onclick="zoomView(0.7)" title="Acercar cámara">➕ Acercar</button>
+                        <button class="mini-btn" onclick="toggleWireframe()">▤ Malla</button>
+                    </div>
+                    <div class="ctrl-group">
+                        <span style="font-size:0.80rem; font-weight:700; color:#94a3b8;">Velocidad:</span>
+                        <select class="speed-select" id="speedSelect" onchange="changeSpeed(this.value)">
+                            <option value="0.5">0.5x</option>
+                            <option value="1" selected>1.0x (Normal)</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js + FBXLoader + GLTFLoader + GLTFExporter en ES Modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        window.THREE = THREE;
+
+        let scene, camera, renderer, controls, mixer, clock, grid;
+        let hemiLight, dirLight, fillLight, ambientLight, cameraLight;
+        let defaultCameraPos = new THREE.Vector3();
+        let defaultTargetPos = new THREE.Vector3();
+        let currentModel = null;
+        let currentSkeletonHelper = null;
+        let currentAction = null;
+        let isPlaying = true;
+        let isWireframe = false;
+        let loadedFileName = "personaje_animado";
+        let activeAnimations = [];
+
+        const canvas = document.getElementById('threeCanvas');
+        const container = document.getElementById('viewer-container');
+        const statusBadge = document.getElementById('statusBadge');
+        const warningBanner = document.getElementById('warningBanner');
+        const successBanner = document.getElementById('successBanner');
+        const btnExport = document.getElementById('btnExportGLB');
+
+        function init() {
+            clock = new THREE.Clock();
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x060912);
+
+            // Cuadrícula sutil en el suelo (ajustable dinámicamente)
+            grid = new THREE.GridHelper(20, 20, 0x10b981, 0x1e293b);
+            grid.position.y = 0;
+            scene.add(grid);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 5000);
+            camera.position.set(0, 1.6, 3.8);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.target.set(0, 1.0, 0);
+            window.camera = camera;
+            window.controls = controls;
+
+            // Iluminación de estudio cinematográfica equilibrada
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.1);
+            scene.add(hemiLight);
+
+            dirLight = new THREE.DirectionalLight(0xffffff, 1.6);
+            dirLight.position.set(50, 120, 70);
+            scene.add(dirLight);
+
+            fillLight = new THREE.DirectionalLight(0x38bdf8, 0.8);
+            fillLight.position.set(-50, 80, -50);
+            scene.add(fillLight);
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            // Luz frontal solidaria con la cámara (suave para no quemar brillos)
+            cameraLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            camera.add(cameraLight);
+            scene.add(camera);
+
+            window.addEventListener('resize', onWindowResize);
+
+            // Visor preparado para recibir el archivo arrastrado por el alumno
+            statusBadge.className = "status-badge";
+            statusBadge.textContent = "Listo: Arrastra tu archivo .fbx desde la flechita de descargas al visor";
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer && isPlaying) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function loadDefaultDemo() {
+            statusBadge.className = "status-badge loading";
+            statusBadge.textContent = "Cargando animación Golf Pre-Putt.fbx...";
+
+            const loader = new FBXLoader();
+            const demoUrl = "Golf_Pre-Putt.fbx";
+
+            loader.load(demoUrl, (fbx) => {
+                loadedFileName = "Golf_Pre-Putt";
+                setupLoadedObject(fbx, fbx.animations, "Golf Pre-Putt (Animación Mixamo)");
+            }, undefined, (err) => {
+                console.warn("No se pudo cargar Golf Pre-Putt inicial:", err);
+                statusBadge.className = "status-badge";
+                statusBadge.textContent = "Arrastra aquí tu archivo .fbx descargado de Mixamo";
+            });
+        }
+
+        function setupLoadedObject(object, animations, displayName) {
+            // Limpiar modelo y ayudantes anteriores
+            if (currentSkeletonHelper) {
+                scene.remove(currentSkeletonHelper);
+                currentSkeletonHelper.dispose();
+                currentSkeletonHelper = null;
+            }
+            if (currentModel) {
+                scene.remove(currentModel);
+            }
+            if (mixer) {
+                mixer.stopAllAction();
+            }
+
+            currentModel = object;
+            window.currentModel = object;
+            scene.add(object);
+            activeAnimations = animations || [];
+
+            // Contar mallas y verificar si es "Without Skin" (solo esqueleto)
+            let meshCount = 0;
+            window.__MAUL_DIAGNOSTICS__ = [];
+            object.traverse((child) => {
+                if (child.isMesh || child.isSkinnedMesh) {
+                    meshCount++;
+                    const info = {
+                        name: child.name,
+                        type: child.type,
+                        vertices: child.geometry ? child.geometry.attributes.position.count : 0,
+                        materials: []
+                    };
+                    const childMats = Array.isArray(child.material) ? child.material : [child.material];
+                    childMats.forEach((m, idx) => {
+                        info.materials.push({
+                            idx: idx,
+                            name: m ? m.name : "null",
+                            type: m ? m.type : "null",
+                            color: m && m.color ? '#' + m.color.getHexString() : "null",
+                            hasMap: !!(m && m.map)
+                        });
+                    });
+                    window.__MAUL_DIAGNOSTICS__.push(info);
+                    console.log("[MAUL DIAGNOSTIC]", JSON.stringify(info));
+
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                    child.frustumCulled = false; // CRÍTICO: Prevenir que Three.js oculte la malla animada al moverse
+
+                    // CRÍTICO MIXAMO: Si la geometría no trae normales de vértices, calcularlas automáticamente
+                    if (child.geometry && (!child.geometry.attributes.normal || child.geometry.attributes.normal.count === 0)) {
+                        child.geometry.computeVertexNormals();
+                    }
+
+                    // Ajuste de materiales para garantizar visibilidad absoluta y nitidez cristalina
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach((mat, mIdx) => {
+                        if (!mat) return;
+                        mat.side = THREE.DoubleSide;
+                        if (mat.opacity < 0.1) mat.opacity = 1.0;
+
+                        // Si es el modelo de Ahsoka con 14 slots, ocultar la plataforma de los pies (slot 0)
+                        const lowName = (displayName || "").toLowerCase();
+                        const isAhsokaModel = lowName.includes("ahsoka") || (mats.length === 14) || (child.geometry && child.geometry.attributes.position && Math.abs(child.geometry.attributes.position.count - 230051) < 25000);
+                        if (isAhsokaModel && mIdx === 0 && mats.length === 14) {
+                            mat.visible = false;
+                            mat.transparent = true;
+                            mat.opacity = 0;
+                            mat.depthWrite = false;
+                            return;
+                        }
+                        const isDarkChar = lowName.includes("maul") || lowName.includes("vader") || (child.geometry && child.geometry.attributes.position && Math.abs(child.geometry.attributes.position.count - 130122) < 2000);
+                        if (!isDarkChar) {
+                            const isDark = mat.color && (mat.color.r < 0.15 && mat.color.g < 0.15 && mat.color.b < 0.15);
+                            if (!mat.map || isDark) {
+                                mat.color = new THREE.Color(0xf1f5f9); // Blanco marfil / plata de alta reflectividad
+                            }
+                            if (mat.isMeshPhongMaterial) {
+                                mat.shininess = 35;
+                                mat.specular = new THREE.Color(0x888888);
+                                mat.emissive = new THREE.Color(0x282b34);
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Gestión de advertencia: Descarga "Without Skin" en Mixamo
+            if (meshCount === 0) {
+                // Generar esqueleto visible brillante para que el alumno vea la animación
+                currentSkeletonHelper = new THREE.SkeletonHelper(object);
+                currentSkeletonHelper.material.linewidth = 3;
+                scene.add(currentSkeletonHelper);
+
+                warningBanner.style.display = "block";
+                warningBanner.innerHTML = `
+                    <div style="font-weight: 800; margin-bottom: 4px;">⚠️ Archivo FBX descargado "Without Skin" detectado</div>
+                    <div>Este archivo contiene únicamente el <strong>esqueleto de animación</strong> (líneas de colores en movimiento), pero no incluye la <strong>figura 3D del personaje</strong>.</div>
+                    <div style="margin-top: 6px; color: #fde047; font-weight: 700;">👉 Cómo solucionarlo en Mixamo: Al pulsar el botón azul <strong>DOWNLOAD</strong>, asegúrate de cambiar la opción <em>Skin</em> a <strong>"With Skin"</strong> y vuelve a descargarlo.</div>
+                `;
+            } else {
+                warningBanner.style.display = "none";
+            }
+
+            // REGLA DE ORO THREE.JS: NUNCA mutar object.position ni escalar root Group en SkinnedMesh FBX
+            // Se apunta la cámara directamente al centro del modelo en sus coordenadas nativas.
+            object.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(object);
+            let center = new THREE.Vector3();
+            let size = new THREE.Vector3();
+
+            if (!box.isEmpty()) {
+                box.getCenter(center);
+                box.getSize(size);
+            } else {
+                // Cálculo de límites a través de huesos si la caja de mallas está vacía
+                const boneBox = new THREE.Box3();
+                object.traverse(child => {
+                    if (child.isBone) boneBox.expandByPoint(child.getWorldPosition(new THREE.Vector3()));
+                });
+                if (!boneBox.isEmpty()) {
+                    boneBox.getCenter(center);
+                    boneBox.getSize(size);
+                } else {
+                    center.set(0, 80, 0);
+                    size.set(100, 180, 50);
+                }
+            }
+
+            const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+
+            // Mantener objeto en su origen nativo exacto
+            object.position.set(0, 0, 0);
+
+            // Encuadre optimizado para animaciones de salto y acción vertical:
+            // Posicionamos el objetivo visual hacia la parte superior del cuerpo (pecho/cabeza)
+            // de modo que los pies y el suelo queden en el 15-20% inferior de la pantalla,
+            // dejando más de un 40% de altura libre (headroom) por encima de la cabeza para saltos acrobáticos.
+            const targetY = box.min.y + size.y * 0.8;
+            controls.target.set(center.x, targetY, center.z);
+
+            const vSpan = Math.max(size.y * 2.6, maxDim * 2.2, 2.0);
+            const fovRad = (camera.fov * Math.PI) / 180;
+            const distance = (vSpan * 0.5) / Math.tan(fovRad * 0.5);
+
+            camera.position.set(center.x, targetY, center.z + distance);
+            camera.near = Math.max(0.1, maxDim / 1000);
+            camera.far = Math.max(10000, distance * 20);
+            camera.updateProjectionMatrix();
+            controls.update();
+
+            defaultCameraPos.copy(camera.position);
+            defaultTargetPos.copy(controls.target);
+
+            // Iluminar directamente el modelo adaptando los focos de estudio al centroide y altura del modelo
+            dirLight.position.set(center.x + maxDim * 0.8, targetY + maxDim * 1.2, center.z + maxDim * 1.0);
+            dirLight.target.position.set(center.x, targetY, center.z);
+            if (!dirLight.target.parent) scene.add(dirLight.target);
+            dirLight.target.updateMatrixWorld();
+
+            fillLight.position.set(center.x - maxDim * 0.8, targetY + maxDim * 0.6, center.z - maxDim * 0.8);
+            fillLight.target.position.set(center.x, targetY, center.z);
+            if (!fillLight.target.parent) scene.add(fillLight.target);
+            fillLight.target.updateMatrixWorld();
+
+            // Ajustar cuadrícula del suelo a la base de los pies (discreta y sutil)
+            grid.position.set(center.x, box.min.y, center.z);
+            const gridScale = Math.max(1, maxDim / 10);
+            grid.scale.set(gridScale, 1, gridScale);
+            if (grid.material) {
+                grid.material.opacity = 0.3;
+                grid.material.transparent = true;
+            }
+
+            // Buscar clip que contenga pistas reales (Mixamo suele exportar Take 001 vacío en índice 0)
+            let animClip = null;
+            if (animations && animations.length > 0) {
+                animClip = animations.find(a => a.tracks && a.tracks.length > 0);
+                if (!animClip) animClip = animations.find(a => a.duration > 0);
+                if (!animClip) animClip = animations[0];
+            }
+
+            if (animClip && animClip.tracks && animClip.tracks.length > 0) {
+                mixer = new THREE.AnimationMixer(object);
+                currentAction = mixer.clipAction(animClip);
+                currentAction.setLoop(THREE.LoopRepeat);
+                currentAction.play();
+                isPlaying = true;
+                document.getElementById('btnPlayPause').textContent = "⏸ Pausar";
+
+                statusBadge.className = "status-badge success";
+                statusBadge.textContent = `✅ Reproduciendo: ${displayName} [Clip: "${animClip.name}", ${animClip.duration.toFixed(1)}s, ${animClip.tracks.length} pistas]`;
+            } else {
+                mixer = null;
+                currentAction = null;
+                statusBadge.className = "status-badge";
+                statusBadge.textContent = `Modelo cargado: ${displayName} (Pose Estática)`;
+            }
+
+            // Auto-Detección y Restauración Didáctica de Texturas
+            if (window.handleModelLoadedTextures) {
+                window.handleModelLoadedTextures(displayName);
+            }
+
+            // Mostrar botón de exportar .GLB
+            if (btnExport) btnExport.style.display = "inline-flex";
+        }
+
+        // Manejador de Archivos (FBX y GLB)
+        window.handleFileUpload = function(file) {
+            const fileName = file.name.toLowerCase();
+            loadedFileName = file.name.replace(/\.[^/.]+$/, "");
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            statusBadge.className = "status-badge loading";
+            statusBadge.textContent = `Cargando ${file.name} (${fileSizeMB} MB)...`;
+            successBanner.style.display = "none";
+            warningBanner.style.display = "none";
+
+            const reader = new FileReader();
+
+            if (fileName.endsWith('.fbx')) {
+                reader.onload = function(e) {
+                    try {
+                        statusBadge.textContent = `Procesando esqueleto y mallas FBX de ${file.name}...`;
+                        setTimeout(() => {
+                            try {
+                                const loader = new FBXLoader();
+                                const obj = loader.parse(e.target.result, '');
+                                setupLoadedObject(obj, obj.animations, file.name);
+                            } catch (parseErr) {
+                                console.error("Error al procesar FBX:", parseErr);
+                                statusBadge.className = "status-badge";
+                                statusBadge.textContent = "Error al leer el archivo FBX: " + parseErr.message;
+                                warningBanner.style.display = "block";
+                                warningBanner.innerHTML = `<strong>Error al leer FBX:</strong> ${parseErr.message}`;
+                            }
+                        }, 50);
+                    } catch (err) {
+                        console.error("Error FileReader FBX:", err);
+                        alert("Error al leer archivo FBX: " + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+
+            } else if (fileName.endsWith('.glb') || fileName.endsWith('.gltf')) {
+                reader.onload = function(e) {
+                    try {
+                        const loader = new GLTFLoader();
+                        loader.parse(e.target.result, '', (gltf) => {
+                            setupLoadedObject(gltf.scene, gltf.animations, file.name);
+                        });
+                    } catch (err) {
+                        console.error("Error al procesar GLTF/GLB:", err);
+                        alert("Error al cargar archivo GLB: " + err.message);
+                        statusBadge.className = "status-badge";
+                        statusBadge.textContent = "Error al leer el archivo GLB";
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (fileName.endsWith('.zip')) {
+                alert(`⚠️ Has arrastrado un archivo comprimido .ZIP ("${file.name}").\n\n👉 En tu ordenador, haz doble clic en el archivo .ZIP para descomprimirlo y arrastra directamente el archivo .FBX que contiene a este visor.`);
+                statusBadge.className = "status-badge";
+                statusBadge.textContent = "Archivo .zip detectado: Descomprímelo y arrastra el archivo .fbx";
+            } else {
+                alert("Formato no compatible (" + file.name + ").\n\nPor favor sube directamente un archivo .FBX o .GLB.\n(Si descargaste una carpeta de Mixamo, ábrela en tu ordenador y arrastra el archivo .fbx que hay dentro).");
+                statusBadge.className = "status-badge";
+                statusBadge.textContent = "Formato no compatible: Arrastra un archivo .fbx o .glb";
+            }
+        };
+
+        // Demos Locales Rápidas
+        window.loadGolfDemo = function() {
+            loadDefaultDemo();
+        };
+
+        // =========================================================================
+        // MOTOR UNIVERSAL DE RESTAURACIÓN DE TEXTURAS (GRAN MUSEO STAR WARS)
+        // =========================================================================
+        const TEXTURE_BASE = "../../../MODELOS/STAR WARS/1.PERSONAJES_Y_DROIDES/";
+
+        // Limpiador universal de armas equipadas en manos del modelo
+        function clearModelWeapons(model) {
+            if (!model) return;
+            model.traverse(c => {
+                if (c.isBone) {
+                    const weapons = [
+                        "maulDoubleLightsaberThree",
+                        "ahsokaMainLightsaberThree",
+                        "ahsokaShotoLightsaberThree",
+                        "pilotoATATBlasterThree"
+                    ];
+                    weapons.forEach(wName => {
+                        const w = c.getObjectByName(wName);
+                        if (w) c.remove(w);
+                    });
+                }
+            });
+        }
+
+        // Doble sable de luz rojo oficial de Darth Maul en Three.js
+        function attachMaulLightsaberThree(model) {
+            let rightHand = null;
+            model.traverse(c => {
+                if (c.isBone) {
+                    const n = (c.name || "").toLowerCase();
+                    if (n.includes("righthand")) rightHand = c;
+                }
+            });
+            if (!rightHand) return;
+
+            const existing = rightHand.getObjectByName("maulDoubleLightsaberThree");
+            if (existing) rightHand.remove(existing);
+
+            // Determinar si el modelo está en metros (< 10) o centímetros (>= 10)
+            const box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const isMeters = Math.max(size.x, size.y, size.z) < 10.0;
+            const sf = isMeters ? 0.01 : 1.0;
+
+            const saberGroup = new THREE.Group();
+            saberGroup.name = "maulDoubleLightsaberThree";
+
+            // Mango cilíndrico metálico central (~0.38m)
+            const hiltGeo = new THREE.CylinderGeometry(1.6 * sf, 1.6 * sf, 38 * sf, 16);
+            const hiltMat = new THREE.MeshStandardMaterial({ color: 0x222225, metalness: 0.92, roughness: 0.22 });
+            const hiltMesh = new THREE.Mesh(hiltGeo, hiltMat);
+            saberGroup.add(hiltMesh);
+
+            // Anillos emisores decorativos
+            const ringGeo = new THREE.TorusGeometry(1.9 * sf, 0.35 * sf, 8, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xff1515 });
+            const ring1 = new THREE.Mesh(ringGeo, ringMat);
+            ring1.rotation.x = Math.PI / 2;
+            ring1.position.y = 16 * sf;
+            saberGroup.add(ring1);
+            const ring2 = ring1.clone();
+            ring2.position.y = -16 * sf;
+            saberGroup.add(ring2);
+
+            // Hoja Láser Superior Roja (plasma carmesí 100% brillante ~0.82m)
+            const bladeGeo = new THREE.CylinderGeometry(0.7 * sf, 1.4 * sf, 82 * sf, 12);
+            bladeGeo.translate(0, (41 + 19) * sf, 0);
+            const bladeMat = new THREE.MeshBasicMaterial({ color: 0xff0808 });
+            const bladeTop = new THREE.Mesh(bladeGeo, bladeMat);
+            saberGroup.add(bladeTop);
+
+            // Núcleo blanco de energía láser superior
+            const coreGeo = new THREE.CylinderGeometry(0.35 * sf, 0.7 * sf, 80 * sf, 8);
+            coreGeo.translate(0, (40 + 19) * sf, 0);
+            const coreMat = new THREE.MeshBasicMaterial({ color: 0xffdede });
+            const coreTop = new THREE.Mesh(coreGeo, coreMat);
+            saberGroup.add(coreTop);
+
+            // Hoja Láser Inferior Roja (~0.82m)
+            const bladeBottomGeo = new THREE.CylinderGeometry(1.4 * sf, 0.7 * sf, 82 * sf, 12);
+            bladeBottomGeo.translate(0, -(41 + 19) * sf, 0);
+            const bladeBottom = new THREE.Mesh(bladeBottomGeo, bladeMat);
+            saberGroup.add(bladeBottom);
+
+            // Núcleo blanco inferior
+            const coreBottomGeo = new THREE.CylinderGeometry(0.7 * sf, 0.35 * sf, 80 * sf, 8);
+            coreBottomGeo.translate(0, -(40 + 19) * sf, 0);
+            const coreBottom = new THREE.Mesh(coreBottomGeo, coreMat);
+            saberGroup.add(coreBottom);
+
+            // Luz puntual roja emitida por el sable sobre el cuerpo
+            const saberLight = new THREE.PointLight(0xff1111, 2.0, 250 * sf);
+            saberGroup.add(saberLight);
+
+            // Posición y orientación ergonómica en la mano derecha
+            saberGroup.position.set(0, 5 * sf, 0);
+            saberGroup.rotation.set(0, 0, Math.PI / 2);
+
+            rightHand.add(saberGroup);
+        }
+
+        // Sables de luz duales cian de Ahsoka Tano en Three.js (Agarre Invertido Jar'Kai)
+        function attachAhsokaDualLightsabersThree(model) {
+            let rightHand = null;
+            let leftHand = null;
+            model.traverse(c => {
+                if (c.isBone) {
+                    const n = (c.name || "").toLowerCase();
+                    if (n.includes("righthand")) rightHand = c;
+                    if (n.includes("lefthand")) leftHand = c;
+                }
+            });
+
+            // Medir la altura real del modelo en coordenadas nativas
+            const box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const rawHeight = Math.max(size.x, size.y, size.z);
+            const charHeight = (size.y > 0.5) ? size.y : (rawHeight > 0.5 ? rawHeight : 165.0);
+
+            // Factor de escala 'sf' calibrado a la estatura real de Ahsoka Tano (~165 cm)
+            // Si el modelo mide 72 unidades, sf = 72/165 = ~0.436
+            // Si mide 165 unidades, sf = 1.0; si mide 1.65m, sf = 0.01.
+            const sf = charHeight / 165.0;
+
+            // 1. Mano Derecha: Sable Principal Cian (~0.68m hoja, ~0.22m empuñadura -> total ~0.90m)
+            if (rightHand) {
+                const ex = rightHand.getObjectByName("ahsokaMainLightsaberThree");
+                if (ex) rightHand.remove(ex);
+
+                const mainGroup = new THREE.Group();
+                mainGroup.name = "ahsokaMainLightsaberThree";
+
+                const hiltGeo = new THREE.CylinderGeometry(1.2 * sf, 1.1 * sf, 22 * sf, 16);
+                const hiltMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.90, roughness: 0.20 });
+                const hilt = new THREE.Mesh(hiltGeo, hiltMat);
+                mainGroup.add(hilt);
+
+                const ringGeo = new THREE.CylinderGeometry(1.35 * sf, 1.35 * sf, 2.2 * sf, 16);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.95, roughness: 0.3 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.position.y = 11 * sf;
+                mainGroup.add(ring);
+
+                const bladeGeo = new THREE.CylinderGeometry(0.55 * sf, 0.95 * sf, 68 * sf, 12);
+                bladeGeo.translate(0, (34 + 11) * sf, 0);
+                const bladeMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                mainGroup.add(blade);
+
+                const coreGeo = new THREE.CylinderGeometry(0.28 * sf, 0.48 * sf, 66 * sf, 8);
+                coreGeo.translate(0, (33 + 11) * sf, 0);
+                const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const core = new THREE.Mesh(coreGeo, coreMat);
+                mainGroup.add(core);
+
+                const light = new THREE.PointLight(0x00e5ff, 2.0, 160 * sf);
+                mainGroup.add(light);
+
+                // Agarre Invertido Jar'Kai: orientado hacia atrás a lo largo del antebrazo
+                mainGroup.position.set(0, 3 * sf, 0);
+                mainGroup.rotation.set(Math.PI, 0, 0);
+                rightHand.add(mainGroup);
+            }
+
+            // 2. Mano Izquierda: Sable Shoto Cian (~0.46m hoja, ~0.16m empuñadura -> total ~0.62m)
+            if (leftHand) {
+                const ex = leftHand.getObjectByName("ahsokaShotoLightsaberThree");
+                if (ex) leftHand.remove(ex);
+
+                const shotoGroup = new THREE.Group();
+                shotoGroup.name = "ahsokaShotoLightsaberThree";
+
+                const hiltGeo = new THREE.CylinderGeometry(1.05 * sf, 0.95 * sf, 16 * sf, 16);
+                const hiltMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.90, roughness: 0.20 });
+                const hilt = new THREE.Mesh(hiltGeo, hiltMat);
+                shotoGroup.add(hilt);
+
+                const bladeGeo = new THREE.CylinderGeometry(0.48 * sf, 0.85 * sf, 46 * sf, 12);
+                bladeGeo.translate(0, (23 + 8) * sf, 0);
+                const bladeMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff });
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                shotoGroup.add(blade);
+
+                const coreGeo = new THREE.CylinderGeometry(0.24 * sf, 0.42 * sf, 44 * sf, 8);
+                coreGeo.translate(0, (22 + 8) * sf, 0);
+                const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const core = new THREE.Mesh(coreGeo, coreMat);
+                shotoGroup.add(core);
+
+                const light = new THREE.PointLight(0x00e5ff, 1.8, 130 * sf);
+                shotoGroup.add(light);
+
+                // Agarre Invertido Jar'Kai: orientado hacia atrás a lo largo del antebrazo
+                shotoGroup.position.set(0, 3 * sf, 0);
+                shotoGroup.rotation.set(Math.PI, 0, 0);
+                leftHand.add(shotoGroup);
+            }
+        }
+
+        // Fusil Bláster Imperial E-11 del Piloto de AT-AT en Three.js
+        function attachPilotoATATBlasterThree(model) {
+            let rightHand = null;
+            model.traverse(c => {
+                if (c.isBone) {
+                    const n = (c.name || "").toLowerCase();
+                    if (n === "mixamorigrighthand" || n.endsWith("righthand")) rightHand = c;
+                }
+            });
+            if (!rightHand) return;
+
+            const existing = rightHand.getObjectByName("pilotoATATBlasterThree");
+            if (existing) rightHand.remove(existing);
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const isMeters = Math.max(size.x, size.y, size.z) < 10.0;
+            const sf = isMeters ? 0.01 : 1.0;
+
+            const blasterGroup = new THREE.Group();
+            blasterGroup.name = "pilotoATATBlasterThree";
+
+            const metalMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, metalness: 0.85, roughness: 0.35 });
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x111215, metalness: 0.4, roughness: 0.6 });
+
+            // Cañón cilíndrico principal (~35cm)
+            const barrelGeo = new THREE.CylinderGeometry(1.8 * sf, 1.8 * sf, 35 * sf, 16);
+            barrelGeo.rotateX(Math.PI / 2);
+            barrelGeo.translate(0, 0, 10 * sf);
+            const barrel = new THREE.Mesh(barrelGeo, metalMat);
+            blasterGroup.add(barrel);
+
+            // Bocacha / Disipador frontal
+            const muzzleGeo = new THREE.CylinderGeometry(2.3 * sf, 1.9 * sf, 6 * sf, 16);
+            muzzleGeo.rotateX(Math.PI / 2);
+            muzzleGeo.translate(0, 0, 27 * sf);
+            const muzzle = new THREE.Mesh(muzzleGeo, metalMat);
+            blasterGroup.add(muzzle);
+
+            // Mira telescópica superior
+            const scopeGeo = new THREE.CylinderGeometry(1.2 * sf, 1.2 * sf, 18 * sf, 12);
+            scopeGeo.rotateX(Math.PI / 2);
+            scopeGeo.translate(0, 3.2 * sf, 6 * sf);
+            const scope = new THREE.Mesh(scopeGeo, darkMat);
+            blasterGroup.add(scope);
+
+            // Cargador lateral
+            const magGeo = new THREE.BoxGeometry(7 * sf, 3 * sf, 5 * sf);
+            magGeo.translate(-4 * sf, 0.5 * sf, 5 * sf);
+            const mag = new THREE.Mesh(magGeo, metalMat);
+            blasterGroup.add(mag);
+
+            // Empuñadura ergonómica
+            const gripGeo = new THREE.BoxGeometry(2.6 * sf, 10 * sf, 4 * sf);
+            gripGeo.rotateX(0.2);
+            gripGeo.translate(0, -5 * sf, -2 * sf);
+            const grip = new THREE.Mesh(gripGeo, darkMat);
+            blasterGroup.add(grip);
+
+            // Punto LED rojo en el lateral
+            const ledGeo = new THREE.SphereGeometry(0.5 * sf, 8, 8);
+            const ledMat = new THREE.MeshBasicMaterial({ color: 0xff1010 });
+            const led = new THREE.Mesh(ledGeo, ledMat);
+            led.position.set(2.0 * sf, 1.5 * sf, 4 * sf);
+            blasterGroup.add(led);
+
+            // Orientación en la mano del piloto
+            blasterGroup.position.set(0, 4 * sf, 0);
+            blasterGroup.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+            rightHand.add(blasterGroup);
+        }
+
+        const CHARACTER_PRESETS = {
+            maul: {
+                id: "maul",
+                name: "Darth Maul",
+                badge: "🔴 Darth Maul",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("maul") || f.includes("darthmaul") || f.includes("darth_maul")) return 0.98;
+                    if (meshes.some(m => m.geometry && m.geometry.attributes.position && Math.abs(m.geometry.attributes.position.count - 130122) < 2000)) return 0.95;
+                    if (materials.length === 6 && materials.some(m => m.includes("material.003") || m.includes("material.005"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    clearModelWeapons(model);
+                    const p = TEXTURE_BASE + "darth_maul/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        return t;
+                    }
+                    const t001 = loadT("Material.001_baseColor.png");
+                    const t002 = loadT("Material.002_baseColor.png");
+                    const t003 = loadT("Material.003_baseColor.png");
+                    const t004 = loadT("Material.004_baseColor.png");
+                    const t005 = loadT("Material.005_baseColor.png");
+
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = [
+                                new THREE.MeshStandardMaterial({ name: "material_0mat", color: 0x111111, roughness: 0.35, metalness: 0.85, side: THREE.DoubleSide }),
+                                new THREE.MeshStandardMaterial({ name: "Material.003mat", map: t003, color: 0x151515, roughness: 0.50, metalness: 0.02, side: THREE.DoubleSide }),
+                                new THREE.MeshStandardMaterial({ name: "Material.005mat", map: t005, color: 0x121212, roughness: 0.35, metalness: 0.15, side: THREE.DoubleSide }),
+                                new THREE.MeshStandardMaterial({ name: "Material.004mat", map: t004, color: 0x141414, roughness: 0.50, metalness: 0.02, side: THREE.DoubleSide }),
+                                new THREE.MeshStandardMaterial({ name: "Material.001mat", map: t001, color: 0x141414, roughness: 0.50, metalness: 0.02, side: THREE.DoubleSide }),
+                                new THREE.MeshStandardMaterial({ name: "Material.002mat", map: t002, color: 0xffffff, roughness: 0.45, metalness: 0.0, side: THREE.DoubleSide })
+                            ];
+                        }
+                    });
+
+                    // Equipar el doble sable de luz rojo
+                    attachMaulLightsaberThree(model);
+
+                    return "🎨 ¡Texturas de Darth Maul restauradas al 100% (rostro Sith rojo carmesí, ropajes negro mate y doble sable de luz)!";
+                }
+            },
+            stormtrooper: {
+                id: "stormtrooper",
+                name: "Stormtrooper Imperial",
+                badge: "⚪ Stormtrooper",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("stormtrooper") || f.includes("storm") || f.includes("golf")) return 0.95;
+                    if (meshes.length === 25) return 0.90;
+                    if (materials.some(m => m.includes("helmet") || m.includes("rubber_joints"))) return 0.85;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "star_wars_7_storm_trooper/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        t.flipY = false;
+                        return t;
+                    }
+                    const texHelmet = loadT("Helmet_baseColor.png");
+                    const texRubber = loadT("Rubber_joints_baseColor.png");
+                    const tex2 = loadT("2_-_Default_baseColor.png");
+                    const tex4 = loadT("4_-_Default_baseColor.png");
+                    const tex5 = loadT("5_-_Default_baseColor.png");
+                    const tex6 = loadT("6_-_Default_baseColor.png");
+                    const tex7 = loadT("7_-_Default_baseColor.png");
+
+                    const mapByMeshIdx = {
+                        0: texHelmet, 1: texRubber, 2: null, 3: null, 4: texHelmet,
+                        5: tex2, 6: tex2, 7: tex4, 8: tex4,
+                        9: tex5, 10: tex5, 11: tex5, 12: tex5, 13: tex5, 14: tex5, 15: tex5, 16: tex5, 17: tex5,
+                        18: tex6, 19: tex6, 20: tex6, 21: tex6,
+                        22: tex7, 23: tex7, 24: texRubber
+                    };
+                    let idx = 0;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const tex = mapByMeshIdx[idx];
+                            if (tex) {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    map: tex, roughness: 0.35, metalness: 0.10, side: THREE.DoubleSide
+                                });
+                            } else {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    color: 0x1a1a1a, roughness: 0.60, metalness: 0.20, side: THREE.DoubleSide
+                                });
+                            }
+                            idx++;
+                        }
+                    });
+                    return "🎨 ¡Armadura plastoide blanca y juntas de goma de Stormtrooper restauradas al 100%!";
+                }
+            },
+            vader: {
+                id: "vader",
+                name: "Darth Vader",
+                badge: "⚫ Darth Vader",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("vader")) return 0.95;
+                    if (materials.some(m => m.includes("darth-vader") || m.includes("chest-plate"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "darth_vader/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        return t;
+                    }
+                    const t0001 = loadT("6_0001-Darth-Vader-rig_0.3_16_16_baseColor.png");
+                    const t0004 = loadT("6_0004-Darth-Vader-rig_0.4_16_16_baseColor.png");
+                    const t0006 = loadT("6_0006-Darth-Vader-rig_0.3_16_16_baseColor.png");
+                    const t0007 = loadT("6_0007-Darth-Vader-rig_0.4_16_16_baseColor.png");
+                    const t0008 = loadT("6_0008-Darth-Vader-rig_0.3_16_16_baseColor.png");
+
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            const newMats = mats.map(m => {
+                                const n = (m && m.name ? m.name : "").toLowerCase();
+                                let map = null;
+                                if (n.includes("0001")) map = t0001;
+                                else if (n.includes("0004")) map = t0004;
+                                else if (n.includes("0006")) map = t0006;
+                                else if (n.includes("0007")) map = t0007;
+                                else if (n.includes("0008")) map = t0008;
+
+                                if (map) {
+                                    return new THREE.MeshStandardMaterial({
+                                        map: map, roughness: 0.35, metalness: 0.15, side: THREE.DoubleSide
+                                    });
+                                }
+                                if (n.includes("chest") || n.includes("plate") || n.includes("helmet")) {
+                                    return new THREE.MeshStandardMaterial({
+                                        color: 0x0a0a0a, roughness: 0.15, metalness: 0.40, side: THREE.DoubleSide
+                                    });
+                                }
+                                return new THREE.MeshStandardMaterial({
+                                    color: 0x111111, roughness: 0.90, metalness: 0.0, side: THREE.DoubleSide
+                                });
+                            });
+                            child.material = Array.isArray(child.material) ? newMats : newMats[0];
+                        }
+                    });
+                    return "🎨 ¡Traje imperial, casco lacado y pechera de Darth Vader restaurados al 100%!";
+                }
+            },
+            boba: {
+                id: "boba",
+                name: "Boba Fett",
+                badge: "🟢 Boba Fett",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("boba") || f.includes("fett")) return 0.95;
+                    if (materials.some(m => m.includes("jetpack") || m.includes("armor") || m.includes("gauntlet"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "boba_fett_v2/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        return t;
+                    }
+                    const tArmor = loadT("ARMOR_baseColor.png");
+                    const tBelt = loadT("BELT_baseColor.png");
+                    const tCloth1 = loadT("CLOTH_1_baseColor.png");
+                    const tCloth2 = loadT("CLOTH_2_baseColor.png");
+                    const tHelmet = loadT("HELMET_baseColor.png");
+                    const tJetpack = loadT("JETPACK_baseColor.png");
+                    const tShoes = loadT("SHOES_baseColor.png");
+                    const tWeapon = loadT("WEAPON_baseColor.png");
+
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            const newMats = mats.map(m => {
+                                const n = (m && m.name ? m.name : "").toUpperCase();
+                                let map = null;
+                                if (n.includes("ARMOR")) map = tArmor;
+                                else if (n.includes("HELMET")) map = tHelmet;
+                                else if (n.includes("JETPACK")) map = tJetpack;
+                                else if (n.includes("BELT")) map = tBelt;
+                                else if (n.includes("CLOTH_2")) map = tCloth2;
+                                else if (n.includes("CLOTH_1") || n.includes("CLOTH")) map = tCloth1;
+                                else if (n.includes("SHOES")) map = tShoes;
+                                else if (n.includes("WEAPON")) map = tWeapon;
+                                else if (n.includes("GAUNTLET")) map = tArmor;
+
+                                if (map) {
+                                    return new THREE.MeshStandardMaterial({
+                                        map: map, roughness: 0.50, metalness: 0.15, side: THREE.DoubleSide
+                                    });
+                                }
+                                return new THREE.MeshStandardMaterial({
+                                    color: 0x2d3a2e, roughness: 0.60, metalness: 0.10, side: THREE.DoubleSide
+                                });
+                            });
+                            child.material = Array.isArray(child.material) ? newMats : newMats[0];
+                        }
+                    });
+                    return "🎨 ¡Armadura mandaloriana, jetpack y casco de Boba Fett restaurados al 100%!";
+                }
+            },
+            ahsoka: {
+                id: "ahsoka",
+                name: "Ahsoka Tano",
+                badge: "🔵 Ahsoka Tano",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("ahsoka") || f.includes("tano")) return 0.98;
+                    if (materials.some(m => m.includes("helmet_d") || m.includes("head_d") || m.includes("hands_d") || m.includes("self_d"))) return 0.96;
+                    // El modelo de Ahsoka Tano exportado a Mixamo tiene 14 ranuras de material o ~230.000 vértices
+                    if (materials.length === 14 || (materials.length >= 12 && materials.length <= 16)) {
+                        return 0.94;
+                    }
+                    if (meshes.some(m => m.geometry && m.geometry.attributes.position && Math.abs(m.geometry.attributes.position.count - 230051) < 25000)) return 0.92;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    clearModelWeapons(model);
+
+                    const p = TEXTURE_BASE + "ahsoka_tano_return_season_7_star_wars_clone_wars/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        return t;
+                    }
+
+                    // Carga de todas las 12 texturas baseColor oficiales de Ahsoka Tano
+                    const tMaterial = loadT("Material_baseColor.png");
+                    const t003 = loadT(".003_baseColor.png");
+                    const tHands = loadT("hands_d_baseColor.png");
+                    const tBody = loadT("body_d_baseColor.png");
+                    const t002 = loadT(".002_baseColor.png");
+                    const tHead = loadT("head_d_baseColor.png");
+                    const tEyes = loadT("eyes_circle_d_baseColor.png");
+                    const tArmor = loadT("armor_d_baseColor.png");
+                    const tSelf = loadT("self_d_baseColor.png");
+                    const t001 = loadT(".001_baseColor.png");
+                    const tHelmet = loadT("helmet_d_baseColor.png");
+                    const tMetal = loadT("metal_baseColor.png");
+
+                    // Tabla canónica según los slots de Ahsoka
+                    // Si el modelo importado tiene 14 ranuras, el slot 0 es la plataforma de los pies que se oculta al 100% (invisible).
+                    // Los slots 1..13 (o 0..12 si no trae plataforma) corresponden al cuerpo y vestimenta de Ahsoka.
+                    const slotMap14 = {
+                        0: { map: null, r: 0, m: 0, c: 0x000000, invisible: true, name: "Plataforma de pies (eliminada)" },
+                        1: { map: t003, r: 0.55, m: 0.05, c: 0xffffff, name: ".003 (Ribetes túnica)" },
+                        2: { map: tHands, r: 0.45, m: 0.05, c: 0xffffff, name: "hands_d (Brazos/Guantes)" },
+                        3: { map: tBody, r: 0.55, m: 0.05, c: 0xffffff, name: "body_d (Túnica torso)" },
+                        4: { map: null, r: 0.50, m: 0.10, c: 0x242730, name: "detail_d (Ribete oscuro)" },
+                        5: { map: null, r: 0.35, m: 0.70, c: 0x3d414d, name: "detail_armor_d (Metal armadura)" },
+                        6: { map: t002, r: 0.40, m: 0.20, c: 0xffffff, name: ".002 (Tiara Togruta)" },
+                        7: { map: tHead, r: 0.45, m: 0.02, c: 0xffffff, name: "head_d (Rostro Togruta naranja)" },
+                        8: { map: tEyes, r: 0.20, m: 0.10, c: 0xffffff, name: "eyes_circle_d (Ojos azules)" },
+                        9: { map: tArmor, r: 0.40, m: 0.15, c: 0xffffff, name: "armor_d (Peto y hombreras)" },
+                        10: { map: tSelf, r: 0.50, m: 0.05, c: 0xffffff, name: "self_d (Pantalón y botas)" },
+                        11: { map: t001, r: 0.45, m: 0.02, c: 0xffffff, name: ".001 (Boca y labios)" },
+                        12: { map: tHelmet, r: 0.45, m: 0.02, c: 0xffffff, name: "helmet_d (Montrals y Lekku rayas)" },
+                        13: { map: tMetal, r: 0.25, m: 0.85, c: 0xffffff, name: "metal (Hebillas y broches metálicos)" }
+                    };
+
+                    const slotMap13 = {
+                        0: slotMap14[1],
+                        1: slotMap14[2],
+                        2: slotMap14[3],
+                        3: slotMap14[4],
+                        4: slotMap14[5],
+                        5: slotMap14[6],
+                        6: slotMap14[7],
+                        7: slotMap14[8],
+                        8: slotMap14[9],
+                        9: slotMap14[10],
+                        10: slotMap14[11],
+                        11: slotMap14[12],
+                        12: slotMap14[13]
+                    };
+
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            const activeSlotMap = (mats.length === 14) ? slotMap14 : slotMap13;
+                            const newMats = mats.map((m, slotIdx) => {
+                                const n = (m && m.name ? m.name : "").toLowerCase();
+                                let config = null;
+
+                                // 1. Coincidencia por nombre descriptivo si existe
+                                if (n.includes("helmet")) config = slotMap14[12];
+                                else if (n.includes("head")) config = slotMap14[7];
+                                else if (n.includes("eye")) config = slotMap14[8];
+                                else if (n.includes("hands")) config = slotMap14[2];
+                                else if (n.includes("body")) config = slotMap14[3];
+                                else if (n.includes("detail_armor")) config = slotMap14[5];
+                                else if (n.includes("detail")) config = slotMap14[4];
+                                else if (n.includes("armor")) config = slotMap14[9];
+                                else if (n.includes("self")) config = slotMap14[10];
+                                else if (n.includes(".001")) config = slotMap14[11];
+                                else if (n.includes(".002")) config = slotMap14[6];
+                                else if (n.includes(".003")) config = slotMap14[1];
+                                else if (n.includes("metal") && !n.includes("sabermetal")) config = slotMap14[13];
+                                else if (n === "material" || n === "mat_material" || n.includes("cube") || n.includes("platform") || n.includes("pedestal")) config = slotMap14[0];
+
+                                // 2. Coincidencia canónica por índice de slot del OBJ de Mixamo
+                                if (!config && activeSlotMap[slotIdx] !== undefined) {
+                                    config = activeSlotMap[slotIdx];
+                                }
+
+                                if (config) {
+                                    if (config.invisible) {
+                                        return new THREE.MeshBasicMaterial({
+                                            name: config.name,
+                                            visible: false,
+                                            transparent: true,
+                                            opacity: 0,
+                                            depthWrite: false
+                                        });
+                                    }
+                                    return new THREE.MeshStandardMaterial({
+                                        name: config.name,
+                                        map: config.map,
+                                        color: new THREE.Color(config.c),
+                                        roughness: config.r,
+                                        metalness: config.m,
+                                        side: THREE.DoubleSide
+                                    });
+                                }
+
+                                return new THREE.MeshStandardMaterial({
+                                    map: tBody,
+                                    roughness: 0.50,
+                                    metalness: 0.05,
+                                    side: THREE.DoubleSide
+                                });
+                            });
+                            child.material = Array.isArray(child.material) ? newMats : newMats[0];
+                        }
+                    });
+
+                    // Equipar sables de luz gemelos cian con agarre invertido Jar'Kai
+                    attachAhsokaDualLightsabersThree(model);
+
+                    return "🎨 ¡Piel Togruta naranja, Lekku rayados, túnica y sables dobles de Ahsoka Tano restaurados al 100%!";
+                }
+            },
+            anakin: {
+                id: "anakin",
+                name: "Anakin Skywalker",
+                badge: "⚔️ Anakin Skywalker",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("anakin") || f.includes("skywalker")) return 0.95;
+                    if (materials.some(m => m.includes("swbf2_3"))) return 0.85;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "star_wars_episode_3_anakin_skywalker/textures/";
+                    function loadT(n) {
+                        const t = texLoader.load(p + n);
+                        t.colorSpace = THREE.SRGBColorSpace;
+                        return t;
+                    }
+                    const t002 = loadT("Material.002_baseColor.png");
+                    const t005 = loadT("Material.005_baseColor.png");
+                    const t006 = loadT("Material.006_baseColor.png");
+                    const t007 = loadT("Material.007_baseColor.png");
+                    const t008 = loadT("Material.008_baseColor.png");
+
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            const newMats = mats.map(m => {
+                                const n = (m && m.name ? m.name : "").toLowerCase();
+                                let map = null;
+                                if (n.includes("002") || n.includes("head") || n.includes("face")) map = t002;
+                                else if (n.includes("005")) map = t005;
+                                else if (n.includes("006")) map = t006;
+                                else if (n.includes("007")) map = t007;
+                                else if (n.includes("008")) map = t008;
+
+                                if (map) {
+                                    return new THREE.MeshStandardMaterial({
+                                        map: map, roughness: 0.65, metalness: 0.05, side: THREE.DoubleSide
+                                    });
+                                }
+                                return new THREE.MeshStandardMaterial({
+                                    color: 0x1f1610, roughness: 0.85, metalness: 0.0, side: THREE.DoubleSide
+                                });
+                            });
+                            child.material = Array.isArray(child.material) ? newMats : newMats[0];
+                        }
+                    });
+                    return "🎨 ¡Túnica Jedi y rostro de Anakin Skywalker restaurados al 100%!";
+                }
+            },
+            obiwan: {
+                id: "obiwan",
+                name: "Obi-Wan Kenobi",
+                badge: "🟤 Obi-Wan Kenobi",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("obi") || f.includes("kenobi") || f.includes("wan")) return 0.95;
+                    if (materials.some(m => m.includes("obiwan"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "obi_wan_rig/textures/";
+                    const tBase = texLoader.load(p + "high_ObiwanKenobi_baseColor.png");
+                    tBase.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tBase, roughness: 0.70, metalness: 0.05, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Túnica y rostro de Obi-Wan Kenobi restaurados con éxito al 100%!";
+                }
+            },
+            c3po: {
+                id: "c3po",
+                name: "C-3PO",
+                badge: "🟡 C-3PO",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("c3po") || f.includes("c-3po") || f.includes("protocol")) return 0.95;
+                    if (materials.some(m => m.includes("c3po"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "C-·3PO/c-3po/textures/";
+                    const tDiff = texLoader.load(p + "c3po_diff.jpg");
+                    tDiff.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tDiff,
+                                color: 0xffd700,
+                                metalness: 0.88,
+                                roughness: 0.22,
+                                side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Blindaje dorado reflectante y cableado de C-3PO restaurados al 100%!";
+                }
+            },
+            clonetrooper: {
+                id: "clonetrooper",
+                name: "Clone Trooper",
+                badge: "⚪ Clone Trooper",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("clonetrooper") || f.includes("clone") || f.includes("clon")) return 0.90;
+                    if (materials.some(m => m.includes("clonetrooper") || m.includes("unassigned_trooper"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "star_wars__clone_trooper/textures/";
+                    const tCmdr = texLoader.load(p + "clonetrooper_commander_d_baseColor.jpeg");
+                    tCmdr.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tCmdr, roughness: 0.40, metalness: 0.10, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Armadura de Clone Trooper Fase 2 restaurada con éxito!";
+                }
+            },
+            scout: {
+                id: "scout",
+                name: "Scout Trooper",
+                badge: "⚪ Scout Trooper",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("scout")) return 0.95;
+                    if (materials.some(m => m.includes("scouttrooper"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "scout_trooper_-_star_wars/textures/";
+                    const tScout = texLoader.load(p + "ScoutTrooper_baseColor.jpeg");
+                    tScout.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tScout, roughness: 0.45, metalness: 0.10, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Armadura de Scout Trooper Biker restaurada con éxito!";
+                }
+            },
+            darktrooper: {
+                id: "darktrooper",
+                name: "Dark Trooper",
+                badge: "⚫ Dark Trooper",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("dark") || f.includes("darktrooper")) return 0.95;
+                    if (materials.some(m => m.includes("redglow") || m.includes("panel"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "phase_3_dark_trooper_star_wars_the_mandalorian/textures/";
+                    const tGlow = texLoader.load(p + "RedGlow_baseColor.png");
+                    tGlow.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const n = (child.name || "").toLowerCase();
+                            if (n.includes("eye") || n.includes("glow") || n.includes("red")) {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    map: tGlow, emissive: 0xff0000, emissiveIntensity: 2.0, roughness: 0.20
+                                });
+                            } else {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    color: 0x111115, metalness: 0.75, roughness: 0.35, side: THREE.DoubleSide
+                                });
+                            }
+                        }
+                    });
+                    return "🎨 ¡Blindaje metálico negro y ojos rojos de Dark Trooper Fase 3 activados!";
+                }
+            },
+            pretoriana: {
+                id: "pretoriana",
+                name: "Guardia Pretoriana",
+                badge: "🔴 Guardia Pretoriana",
+                detect: function(filename, meshes, materials) {
+                    const f = (filename || "").toLowerCase();
+                    if (f.includes("pretor") || f.includes("praetor") || f.includes("guardia")) return 0.95;
+                    if (materials.some(m => m.includes("pretor") || m.includes("crimson"))) return 0.90;
+                    return 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "imperial_praetorian_guard/textures/";
+                    const tArmor = texLoader.load(p + "armor_pretor_baseColor.png");
+                    tArmor.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tArmor,
+                                color: 0xcc0011,
+                                roughness: 0.25,
+                                metalness: 0.30,
+                                side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Armadura laminar carmesí lacada de la Guardia Pretoriana restaurada!";
+                }
+            },
+            piloto_atat: {
+                id: "piloto_atat",
+                name: "Piloto AT-AT",
+                badge: "⚪ Piloto AT-AT",
+                detect: function(filename) {
+                    const f = (filename || "").toLowerCase();
+                    return (f.includes("atat") || f.includes("at-at") || f.includes("driver")) ? 0.95 : 0;
+                },
+                apply: function(model, texLoader) {
+                    clearModelWeapons(model);
+                    const p = TEXTURE_BASE + "star_wars_at-at_driver/textures/";
+                    const tNorm = texLoader ? texLoader.load(p + "Extract2_3_normal.png") : null;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                color: 0xdedede,
+                                normalMap: tNorm,
+                                roughness: 0.35,
+                                metalness: 0.20,
+                                side: THREE.DoubleSide
+                            });
+                        }
+                    });
+
+                    // Equipar el fusil bláster imperial E-11
+                    attachPilotoATATBlasterThree(model);
+
+                    return "🎨 ¡Uniforme presurizado, casco y fusil bláster imperial E-11 de Piloto AT-AT restaurados al 100%!";
+                }
+            },
+            piloto_alax: {
+                id: "piloto_alax",
+                name: "Piloto Ala-X",
+                badge: "🟠 Piloto Ala-X",
+                detect: function(filename) {
+                    const f = (filename || "").toLowerCase();
+                    return (f.includes("xwing") || f.includes("x-wing") || f.includes("alax") || f.includes("ala-x") || f.includes("pilot")) ? 0.95 : 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "star_wars_x-wing_rebel_flight_suit_rigged/textures/";
+                    const tSuit = texLoader.load(p + "atlas-xwing-rebel-flightsuit_Baked_baseColor.jpeg");
+                    tSuit.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tSuit, roughness: 0.65, metalness: 0.05, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Mono de vuelo naranja y arnés de Piloto Ala-X rebelde restaurados!";
+                }
+            },
+            clon_comando: {
+                id: "clon_comando",
+                name: "Clon Comando X2",
+                badge: "⚪ Clon Comando X2",
+                detect: function(filename) {
+                    const f = (filename || "").toLowerCase();
+                    return (f.includes("comando") || f.includes("x2")) ? 0.95 : 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "star_wars_battlefront_3_x2/textures/";
+                    const tMat = texLoader.load(p + "Mat_59955C82_diffuse.png");
+                    tMat.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: tMat, roughness: 0.45, metalness: 0.15, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Blindaje Katarn de combate de Clon Comando X2 restaurado!";
+                }
+            },
+            jarjar: {
+                id: "jarjar",
+                name: "Jar Jar Binks",
+                badge: "🟠 Jar Jar Binks",
+                detect: function(filename) {
+                    const f = (filename || "").toLowerCase();
+                    return (f.includes("jar") || f.includes("binks") || f.includes("gungan")) ? 0.95 : 0;
+                },
+                apply: function(model, texLoader) {
+                    const p = TEXTURE_BASE + "jar_jar_binks/textures/";
+                    const tHead = texLoader.load(p + "head_baseColor.jpeg");
+                    tHead.colorSpace = THREE.SRGBColorSpace;
+                    const tTorso = texLoader.load(p + "torso_baseColor.jpeg");
+                    tTorso.colorSpace = THREE.SRGBColorSpace;
+                    model.traverse(child => {
+                        if (child.isMesh || child.isSkinnedMesh) {
+                            const n = (child.name || "").toLowerCase();
+                            const map = (n.includes("head") || n.includes("ear") || n.includes("face")) ? tHead : tTorso;
+                            child.material = new THREE.MeshStandardMaterial({
+                                map: map, roughness: 0.70, metalness: 0.0, side: THREE.DoubleSide
+                            });
+                        }
+                    });
+                    return "🎨 ¡Piel anfibia y ropajes gungan de Jar Jar Binks restaurados!";
+                }
+            }
+        };
+
+        window.CHARACTER_PRESETS = CHARACTER_PRESETS;
+
+        // Detección automática inteligente
+        window.detectCharacter = function(filename, model) {
+            const meshes = [];
+            const materials = [];
+            if (model) {
+                model.traverse(c => {
+                    if (c.isMesh || c.isSkinnedMesh) {
+                        meshes.push(c);
+                        if (Array.isArray(c.material)) {
+                            c.material.forEach(m => { if (m && m.name) materials.push(m.name.toLowerCase()); });
+                        } else if (c.material && c.material.name) {
+                            materials.push(c.material.name.toLowerCase());
+                        }
+                    }
+                });
+            }
+
+            let bestKey = null;
+            let highestScore = 0;
+            for (const key in CHARACTER_PRESETS) {
+                const score = CHARACTER_PRESETS[key].detect(filename, meshes, materials);
+                if (score > highestScore) {
+                    highestScore = score;
+                    bestKey = key;
+                }
+            }
+            return (highestScore >= 0.5) ? bestKey : null;
+        };
+
+        // Aplicar preset concreto
+        window.applyCharacterPreset = function(presetKey) {
+            if (!currentModel) {
+                alert("Primero carga o arrastra un archivo FBX de Mixamo.");
+                return;
+            }
+            const preset = CHARACTER_PRESETS[presetKey];
+            if (!preset) {
+                alert("Personaje no encontrado en el catálogo de presets: " + presetKey);
+                return;
+            }
+
+            const texLoader = new THREE.TextureLoader();
+            const msg = preset.apply(currentModel, texLoader);
+
+            const badge = document.getElementById('detectedCharBadge');
+            if (badge) {
+                badge.textContent = `✅ ${preset.badge} aplicado`;
+                badge.className = "detected-badge ready";
+            }
+            const sel = document.getElementById('charTextureSelect');
+            if (sel) sel.value = presetKey;
+
+            statusBadge.className = "status-badge success";
+            statusBadge.textContent = msg;
+
+            successBanner.style.display = "block";
+            successBanner.innerHTML = `<strong>${msg}</strong><br><span style="font-size: 0.88rem; color: #cbd5e1;">Ya puedes inspeccionar los detalles 3D o pulsar el botón <em>«Convertir y Guardar para el Gran Museo (.glb)»</em> para usarlo en el museo.</span>`;
+            setTimeout(() => {
+                if (successBanner.style.display !== "none") {
+                    successBanner.style.opacity = "0.95";
+                }
+            }, 500);
+        };
+
+        // Procesar modelo al cargarse
+        window.handleModelLoadedTextures = function(displayName) {
+            const detected = window.detectCharacter(displayName, currentModel);
+            const badge = document.getElementById('detectedCharBadge');
+            const sel = document.getElementById('charTextureSelect');
+
+            if (detected && CHARACTER_PRESETS[detected]) {
+                const preset = CHARACTER_PRESETS[detected];
+                if (sel) sel.value = detected;
+                if (badge) {
+                    badge.textContent = `Auto-detectado: ${preset.badge}`;
+                    badge.className = "detected-badge ready";
+                }
+                // Auto-aplicación directa y transparente
+                window.applyCharacterPreset(detected);
+            } else {
+                if (badge) {
+                    badge.textContent = "Elige tu personaje en el menú ▾";
+                    badge.className = "detected-badge";
+                }
+                if (sel) sel.value = "auto";
+            }
+        };
+
+        // Cambio manual en el selector
+        window.onCharacterSelectChanged = function() {
+            const sel = document.getElementById('charTextureSelect');
+            if (!sel) return;
+            const val = sel.value;
+            if (val === "auto") {
+                if (currentModel) {
+                    window.handleModelLoadedTextures(loadedFileName || "modelo");
+                }
+            } else if (CHARACTER_PRESETS[val]) {
+                window.applyCharacterPreset(val);
+            }
+        };
+
+        // Botón de restaurar texturas oficial
+        window.restoreSelectedCharacterTextures = function() {
+            const btn = document.getElementById('btnRestoreTextures');
+            if (btn) {
+                btn.style.transform = "scale(0.95)";
+                setTimeout(() => { btn.style.transform = "scale(1)"; }, 150);
+            }
+            const sel = document.getElementById('charTextureSelect');
+            let val = sel ? sel.value : "auto";
+            if (val === "auto") {
+                val = window.detectCharacter(loadedFileName || "", currentModel);
+                if (!val) {
+                    let matCount = 0;
+                    if (currentModel) {
+                        currentModel.traverse(c => {
+                            if (c.isMesh || c.isSkinnedMesh) {
+                                matCount = Math.max(matCount, Array.isArray(c.material) ? c.material.length : 1);
+                            }
+                        });
+                    }
+                    if (matCount >= 12) val = "ahsoka";
+                    else if (matCount === 6) val = "maul";
+                    else val = "ahsoka";
+                }
+            }
+            window.applyCharacterPreset(val);
+        };
+
+        // Compatibilidad hacia atrás
+        window.applyStormtrooperTextures = function() { window.applyCharacterPreset('stormtrooper'); };
+        window.applyDarthMaulTextures = function() { window.applyCharacterPreset('maul'); };
+
+        window.loadDarthMaulSlashFBX = function() {
+            statusBadge.className = "status-badge loading";
+            statusBadge.textContent = "Cargando Darth Maul (Sword & Shield Slash)...";
+            const loader = new FBXLoader();
+            const url = "../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/ANIMACIONES_ALUMNOS/DarthMaul_Slash.fbx";
+            loader.load(url, (fbx) => {
+                loadedFileName = "6_DARTH_MAUL_Animado";
+                setupLoadedObject(fbx, fbx.animations, "DarthMaul_Slash.fbx");
+            }, undefined, (err) => {
+                console.error("Error cargando DarthMaul_Slash FBX:", err);
+            });
+        };
+
+        window.loadLocalDemoFBX = function() {
+            statusBadge.className = "status-badge loading";
+            statusBadge.textContent = "Cargando demostración FBX de Mixamo...";
+            successBanner.style.display = "none";
+            warningBanner.style.display = "none";
+
+            const loader = new FBXLoader();
+            const demoUrl = "../4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/ANIMACIONES_ALUMNOS/DEMO_Happy_Idle.fbx";
+            loader.load(demoUrl, (fbx) => {
+                loadedFileName = "Demo_Mixamo_Happy_Idle";
+                setupLoadedObject(fbx, fbx.animations, "Demostración FBX (Happy Idle)");
+            }, undefined, (err) => {
+                console.error("Error cargando demo FBX:", err);
+                alert("Error cargando demo FBX: " + err.message);
+            });
+        };
+
+        // Sanitizar el encabezado GLTF para asegurar compatibilidad universal con Babylon.js
+        function sanitizeGlbSkinRoot(arrayBuffer) {
+            try {
+                const dv = new DataView(arrayBuffer);
+                const magic = dv.getUint32(0, true);
+                if (magic !== 0x46546C67) return arrayBuffer; // No es GLB
+                const jsonLen = dv.getUint32(12, true);
+                const bytes = new Uint8Array(arrayBuffer, 20, jsonLen);
+                const textDecoder = new TextDecoder('utf-8');
+                let jsonStr = textDecoder.decode(bytes);
+
+                // Reemplazar '"skeleton": XX' de forma segura sin romper comas de la sintaxis JSON
+                // 1. Caso precedido por coma: ,"skeleton": XX
+                jsonStr = jsonStr.replace(/,\s*"skeleton"\s*:\s*\d+/g, (m) => " ".repeat(m.length));
+                // 2. Caso seguido por coma: "skeleton": XX,
+                jsonStr = jsonStr.replace(/"skeleton"\s*:\s*\d+\s*,/g, (m) => " ".repeat(m.length));
+                // 3. Caso propiedad única o restante: "skeleton": XX
+                jsonStr = jsonStr.replace(/"skeleton"\s*:\s*\d+/g, (m) => " ".repeat(m.length));
+
+                const enc = new TextEncoder().encode(jsonStr);
+                bytes.set(enc);
+            } catch (err) {
+                console.warn("sanitizeGlbSkinRoot warning:", err);
+            }
+            return arrayBuffer;
+        }
+
+        // Obtener buffer binario GLB en Base64 (para automatización y scripts)
+        window.exportGLBToBuffer = function() {
+            return new Promise((resolve, reject) => {
+                if (!currentModel) return reject(new Error("No hay modelo cargado"));
+                const exporter = new GLTFExporter();
+                const animsToExport = (currentModel.animations && currentModel.animations.length > 0)
+                    ? currentModel.animations
+                    : activeAnimations;
+
+                // Desacoplar temporalmente accesorios y armas para exportar únicamente el personaje puro
+                const WEAPON_PROP_NAMES = [
+                    "maulDoubleLightsaberThree",
+                    "ahsokaMainLightsaberThree",
+                    "ahsokaShotoLightsaberThree",
+                    "pilotoATATBlasterThree"
+                ];
+                const detachedProps = [];
+                WEAPON_PROP_NAMES.forEach(pName => {
+                    const p = currentModel.getObjectByName(pName);
+                    if (p && p.parent) {
+                        detachedProps.push({ prop: p, parent: p.parent });
+                        p.parent.remove(p);
+                    }
+                });
+
+                function restoreProps() {
+                    detachedProps.forEach(d => {
+                        if (d.prop && d.parent && !d.parent.getObjectByName(d.prop.name)) {
+                            d.parent.add(d.prop);
+                        }
+                    });
+                }
+
+                exporter.parse(
+                    currentModel,
+                    function(result) {
+                        restoreProps();
+                        if (result instanceof ArrayBuffer) {
+                            sanitizeGlbSkinRoot(result);
+                            let binary = '';
+                            const bytes = new Uint8Array(result);
+                            const chunk = 8192;
+                            for (let i = 0; i < bytes.length; i += chunk) {
+                                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+                            }
+                            resolve(btoa(binary));
+                        } else {
+                            reject(new Error("Resultado no es ArrayBuffer"));
+                        }
+                    },
+                    function(error) {
+                        restoreProps();
+                        reject(error);
+                    },
+                    { binary: true, animations: animsToExport }
+                );
+            });
+        };
+
+        // Exportador a .GLB para el Gran Museo
+        window.exportToGLB = function() {
+            if (!currentModel) {
+                alert("No hay ningún modelo cargado para exportar.");
+                return;
+            }
+
+            // Nombre sugerido limpio
+            let suggestedName = loadedFileName.replace(/_Animado$/i, '').replace(/\s+/g, '_');
+            const studentInput = prompt("Introduce tu nombre o identificador de entrega (ej: Stormtrooper_Lucas):", suggestedName);
+            const finalName = (studentInput && studentInput.trim()) ? studentInput.trim().replace(/\s+/g, '_') : suggestedName;
+
+            statusBadge.className = "status-badge loading";
+            statusBadge.textContent = `Exportando ${finalName}_Animado.glb con todas sus texturas...`;
+
+            const exporter = new GLTFExporter();
+            const animsToExport = (currentModel.animations && currentModel.animations.length > 0)
+                ? currentModel.animations
+                : activeAnimations;
+
+            const options = {
+                binary: true,
+                animations: animsToExport
+            };
+
+            // Desacoplar temporalmente accesorios y armas para exportar únicamente el personaje puro
+            const WEAPON_PROP_NAMES_EXP = [
+                "maulDoubleLightsaberThree",
+                "ahsokaMainLightsaberThree",
+                "ahsokaShotoLightsaberThree",
+                "pilotoATATBlasterThree"
+            ];
+            const detachedPropsExp = [];
+            WEAPON_PROP_NAMES_EXP.forEach(pName => {
+                const p = currentModel.getObjectByName(pName);
+                if (p && p.parent) {
+                    detachedPropsExp.push({ prop: p, parent: p.parent });
+                    p.parent.remove(p);
+                }
+            });
+
+            function restoreProps() {
+                detachedPropsExp.forEach(d => {
+                    if (d.prop && d.parent && !d.parent.getObjectByName(d.prop.name)) {
+                        d.parent.add(d.prop);
+                    }
+                });
+            }
+
+            exporter.parse(
+                currentModel,
+                function(result) {
+                    restoreProps();
+                    if (result instanceof ArrayBuffer) {
+                        sanitizeGlbSkinRoot(result);
+                        const blob = new Blob([result], { type: 'model/gltf-binary' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        const fileNameDownloaded = `${finalName}_Animado.glb`;
+                        link.download = fileNameDownloaded;
+                        link.click();
+                        URL.revokeObjectURL(link.href);
+
+                        statusBadge.className = "status-badge success";
+                        statusBadge.textContent = `💾 ¡Descarga completada! Archivo: ${fileNameDownloaded}`;
+
+                        successBanner.style.display = "block";
+                        successBanner.innerHTML = `
+                            <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 8px;">🎉 ¡Archivo <code>${fileNameDownloaded}</code> generado con éxito!</div>
+                            <div style="font-size: 0.92rem; line-height: 1.6;">
+                                <strong>📥 Paso 1:</strong> El archivo se ha descargado en tu carpeta de <strong>Descargas</strong> del ordenador.<br>
+                                <strong>📤 Paso 2 (Entrega Escolar):</strong> Sube este archivo <code>${fileNameDownloaded}</code> a la tarea <strong>«Entrega Personaje Mixamo (.glb)»</strong> en <strong>Google Classroom</strong> (pestaña <em>"Trabajo de clase"</em>).<br>
+                                <strong>🏛️ Paso 3 (Para el Profesor):</strong> El profesor descarga las entregas directamente desde la carpeta automática de Classroom en Google Drive:<br>
+                                <span style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; color: #a7f3d0; display: inline-block; margin-top: 4px; margin-bottom: 4px;">Mi unidad &gt; Classroom &gt; [Nombre de tu Curso] &gt; Entrega Personaje Mixamo</span><br>
+                                y guarda los archivos <code>.glb</code> seleccionados en la carpeta del museo:<br>
+                                <span style="font-family: monospace; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; color: #a7f3d0; display: inline-block; margin-top: 4px;">4.GRAN_MUSEO_STAR_WARS/4.PERSONAJES_MIXAMO/ANIMACIONES_ALUMNOS/</span><br>
+                                <div style="margin-top: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 6px; padding: 8px 12px; color: #bae6fd;">
+                                    👉 <strong>¡Pruébalo tú mismo ahora en tu pantalla!</strong> Abre el visor de tu personaje en el Gran Museo y arrastra tu archivo <code>.glb</code> directamente sobre el pedestal para verlo bailar de inmediato.
+                                </div>
+                            </div>
+                        `;
+                    }
+                },
+                function(error) {
+                    console.error("Error al exportar a GLB:", error);
+                    alert("Error al generar el archivo GLB: " + error.message);
+                    statusBadge.className = "status-badge";
+                    statusBadge.textContent = "Error al exportar a GLB";
+                },
+                options
+            );
+        };
+
+        // Controles de visualización
+        window.togglePlayPause = function() {
+            if (!mixer) return;
+            isPlaying = !isPlaying;
+            document.getElementById('btnPlayPause').textContent = isPlaying ? "⏸ Pausar" : "▶ Reproducir";
+        };
+
+        window.resetView = function() {
+            if (controls && defaultTargetPos && defaultCameraPos) {
+                controls.target.copy(defaultTargetPos);
+                camera.position.copy(defaultCameraPos);
+                camera.updateProjectionMatrix();
+                controls.update();
+            }
+        };
+
+        window.zoomView = function(factor) {
+            if (!controls) return;
+            const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+            dir.multiplyScalar(factor);
+            camera.position.addVectors(controls.target, dir);
+            camera.updateProjectionMatrix();
+            controls.update();
+        };
+
+        window.toggleWireframe = function() {
+            if (!currentModel) return;
+            isWireframe = !isWireframe;
+            currentModel.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach(m => { m.wireframe = isWireframe; });
+                }
+            });
+        };
+
+        window.changeSpeed = function(val) {
+            if (mixer) {
+                mixer.timeScale = parseFloat(val);
+            }
+        };
+
+        // Configuración Drag & Drop y Selector de Archivos
+        const dz = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                window.handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        // Configuración Drag & Drop UNIVERSAL en toda la ventana
+        ['dragenter', 'dragover'].forEach(ev => {
+            window.addEventListener(ev, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dz.classList.add('dragover');
+            });
+        });
+
+        window.addEventListener('dragleave', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+                dz.classList.remove('dragover');
+            }
+        });
+
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            dz.classList.remove('dragover');
+
+            // 1. Soporte para arrastrar una CARPETA descargada de Mixamo
+            if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+                const item = e.dataTransfer.items[0];
+                const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+                if (entry && entry.isDirectory) {
+                    statusBadge.className = "status-badge loading";
+                    statusBadge.textContent = `Explorando carpeta "${entry.name}"...`;
+
+                    const fbxFiles = [];
+                    const glbFiles = [];
+
+                    function scanEntry(ent, done) {
+                        if (ent.isFile) {
+                            const low = ent.name.toLowerCase();
+                            if (low.endsWith('.fbx')) {
+                                ent.file(f => { fbxFiles.push(f); done(); });
+                            } else if (low.endsWith('.glb') || low.endsWith('.gltf')) {
+                                ent.file(f => { glbFiles.push(f); done(); });
+                            } else {
+                                done();
+                            }
+                        } else if (ent.isDirectory) {
+                            const dirReader = ent.createReader();
+                            dirReader.readEntries(entries => {
+                                if (entries.length === 0) return done();
+                                let rem = entries.length;
+                                entries.forEach(ch => scanEntry(ch, () => {
+                                    rem--;
+                                    if (rem === 0) done();
+                                }));
+                            });
+                        } else {
+                            done();
+                        }
+                    }
+
+                    scanEntry(entry, () => {
+                        if (fbxFiles.length > 0) {
+                            // El archivo FBX principal con personaje/malla suele ser el de mayor tamaño
+                            fbxFiles.sort((a, b) => b.size - a.size);
+                            statusBadge.className = "status-badge success";
+                            statusBadge.textContent = `Cargando "${fbxFiles[0].name}" de la carpeta "${entry.name}"...`;
+                            window.handleFileUpload(fbxFiles[0]);
+                        } else if (glbFiles.length > 0) {
+                            glbFiles.sort((a, b) => b.size - a.size);
+                            window.handleFileUpload(glbFiles[0]);
+                        } else {
+                            alert(`La carpeta "${entry.name}" no contiene archivos .fbx o .glb legibles.\n\nPor favor abre la carpeta en tu ordenador y arrastra el archivo de animación directamente.`);
+                            statusBadge.className = "status-badge";
+                            statusBadge.textContent = "No se encontraron archivos .fbx en la carpeta";
+                        }
+                    });
+                    return;
+                }
+            }
+
+            // 2. Soporte para arrastrar archivos directos
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                window.handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        init();
+        animate();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('auto') === 'maul') {
+            setTimeout(() => {
+                if (window.loadDarthMaulSlashFBX) window.loadDarthMaulSlashFBX();
+            }, 300);
+        }
+    </script>
+</body>
+</html>
