@@ -1,0 +1,475 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 905,
+      "max": [
+        0.5086454749107361,
+        0.42028531432151794,
+        1.706531047821045
+      ],
+      "min": [
+        -0.5086421966552734,
+        -0.09748495370149612,
+        0.06368021667003632
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 10860,
+      "componentType": 5126,
+      "count": 905,
+      "max": [
+        0.9907057285308838,
+        0.9990444779396057,
+        0.9970548152923584
+      ],
+      "min": [
+        -0.9912104606628418,
+        -0.9985374808311462,
+        -0.9798294305801392
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 905,
+      "max": [
+        0.9884796738624573,
+        0.9903948307037354
+      ],
+      "min": [
+        0.011744939722120762,
+        0.010787427425384521
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 4434,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 21720,
+      "componentType": 5126,
+      "count": 3341,
+      "max": [
+        0.5121400952339172,
+        0.16349390149116516,
+        1.9892330169677734
+      ],
+      "min": [
+        -0.5334556102752686,
+        -0.18779130280017853,
+        0.6507449150085449
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 61812,
+      "componentType": 5126,
+      "count": 3341,
+      "max": [
+        0.9999925494194031,
+        0.999992311000824,
+        0.9999925494194031
+      ],
+      "min": [
+        -0.9999926090240479,
+        -1.0,
+        -0.9999925494194031
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 7240,
+      "componentType": 5126,
+      "count": 3341,
+      "max": [
+        0.9908105731010437,
+        0.9927399754524231
+      ],
+      "min": [
+        0.0058534638956189156,
+        0.005853474140167236
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 17736,
+      "componentType": 5125,
+      "count": 10986,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 101904,
+      "componentType": 5126,
+      "count": 3181,
+      "max": [
+        0.362094908952713,
+        0.3419386148452759,
+        1.6559619903564453
+      ],
+      "min": [
+        -0.36176958680152893,
+        -0.16538560390472412,
+        -0.0035961479879915714
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 140076,
+      "componentType": 5126,
+      "count": 3181,
+      "max": [
+        0.9999898672103882,
+        0.9999924302101135,
+        0.999984622001648
+      ],
+      "min": [
+        -0.999992311000824,
+        -0.999989926815033,
+        -0.999984622001648
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 33968,
+      "componentType": 5126,
+      "count": 3181,
+      "max": [
+        0.994172215461731,
+        0.9951403737068176
+      ],
+      "min": [
+        0.00465034507215023,
+        0.004650413990020752
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 61680,
+      "componentType": 5125,
+      "count": 12588,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "VALLEYOFDEA7H (https://sketchfab.com/VALLEYOFDEA7H)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/concept-darth-vader-star-wars-force-arena-b5642f66bfd14d6283abf9559d2234b6",
+      "title": "Concept Darth Vader - Star Wars: Force Arena"
+    },
+    "generator": "Sketchfab-12.67.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 112032,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 59416,
+      "byteOffset": 112032,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 178248,
+      "byteOffset": 171448,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 349696,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/rfl_clone_mat.002_baseColor.png"
+    },
+    {
+      "uri": "textures/rfl_clone_mat.001_baseColor.png"
+    },
+    {
+      "uri": "textures/rfl_clone_mat_baseColor.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "rfl_clone_mat.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "rfl_clone_mat.001",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "rfl_clone_mat",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "rfl_clone_mesh_shadow.002_rfl_clone_mat.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "rfl_clone_mesh_shadow.001_rfl_clone_mat.001_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "rfl_clone_mesh_shadow_rfl_clone_mat_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        8.579345703125,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.9049974271656556e-15,
+        -8.579345703125,
+        0.0,
+        0.0,
+        8.579345703125,
+        1.9049974271656556e-15,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "vader_con.fbx"
+    },
+    {
+      "children": [
+        3,
+        5,
+        7
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4
+      ],
+      "matrix": [
+        99.99999999981307,
+        0.00016085817833283903,
+        0.00010728836059568254,
+        0.0,
+        0.00010728813751730525,
+        0.0001386801810387972,
+        -99.9999999998463,
+        0.0,
+        -0.00016085832712028447,
+        99.99999999977446,
+        0.00013868000845462802,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "rfl_clone_mesh_shadow.002"
+    },
+    {
+      "mesh": 0,
+      "name": "rfl_clone_mesh_shadow.002_rfl_clone_mat.002_0"
+    },
+    {
+      "children": [
+        6
+      ],
+      "matrix": [
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.629206793918314e-05,
+        -99.99999999999868,
+        0.0,
+        0.0,
+        99.99999999999868,
+        -1.629206793918314e-05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "rfl_clone_mesh_shadow.001"
+    },
+    {
+      "mesh": 1,
+      "name": "rfl_clone_mesh_shadow.001_rfl_clone_mat.001_0"
+    },
+    {
+      "children": [
+        8
+      ],
+      "matrix": [
+        99.99999999981307,
+        0.00016085817833283903,
+        0.00010728836059568254,
+        0.0,
+        0.00010728813751730525,
+        0.0001386801810387972,
+        -99.9999999998463,
+        0.0,
+        -0.00016085832712028447,
+        99.99999999977446,
+        0.00013868000845462802,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "rfl_clone_mesh_shadow"
+    },
+    {
+      "mesh": 2,
+      "name": "rfl_clone_mesh_shadow_rfl_clone_mat_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ]
+}
