@@ -1,0 +1,997 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 13,
+      "max": [
+        0.028937000781297684,
+        -0.06792999804019928,
+        1.4847890138626099
+      ],
+      "min": [
+        -0.030597999691963196,
+        -0.08824300020933151,
+        1.4476039409637451
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 156,
+      "componentType": 5126,
+      "count": 13,
+      "max": [
+        0.06659957021474838,
+        -0.7226471304893494,
+        0.6826933026313782
+      ],
+      "min": [
+        -0.14299850165843964,
+        -0.9911239743232727,
+        0.12549486756324768
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 13,
+      "max": [
+        0.9851059913635254,
+        0.9574469923973083
+      ],
+      "min": [
+        0.05106399953365326,
+        0.07021299749612808
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 24,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 312,
+      "componentType": 5126,
+      "count": 75,
+      "max": [
+        0.045124001801013947,
+        -0.05446299910545349,
+        1.7126150131225586
+      ],
+      "min": [
+        -0.045124001801013947,
+        -0.06817200034856796,
+        1.6837329864501953
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 1212,
+      "componentType": 5126,
+      "count": 75,
+      "max": [
+        0.8968304395675659,
+        -0.37141260504722595,
+        0.8968304395675659
+      ],
+      "min": [
+        -0.8968304395675659,
+        -1.0,
+        -0.8968304395675659
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 104,
+      "componentType": 5126,
+      "count": 75,
+      "max": [
+        0.9483460187911987,
+        0.9489480257034302
+      ],
+      "min": [
+        0.05451900139451027,
+        0.05512300133705139
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 96,
+      "componentType": 5125,
+      "count": 180,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 2112,
+      "componentType": 5126,
+      "count": 645,
+      "max": [
+        0.06512299925088882,
+        0.057718999683856964,
+        1.7587159872055054
+      ],
+      "min": [
+        -0.08029499650001526,
+        -0.10588300228118896,
+        1.5811799764633179
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 9852,
+      "componentType": 5126,
+      "count": 645,
+      "max": [
+        0.9941030740737915,
+        0.9302018880844116,
+        0.9820330142974854
+      ],
+      "min": [
+        -0.9976197481155396,
+        -0.999992847442627,
+        -0.9829217195510864
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 645,
+      "max": [
+        1.0,
+        0.9992737770080566,
+        0.865961492061615,
+        1.0
+      ],
+      "min": [
+        -0.9387104511260986,
+        -0.9994237422943115,
+        -0.9070447087287903,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 704,
+      "componentType": 5126,
+      "count": 645,
+      "max": [
+        0.9952160120010376,
+        0.9307039976119995
+      ],
+      "min": [
+        0.0015190000412985682,
+        0.009736999869346619
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 816,
+      "componentType": 5125,
+      "count": 1656,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 17592,
+      "componentType": 5126,
+      "count": 574,
+      "max": [
+        0.5662739872932434,
+        0.13207200169563293,
+        1.0720479488372803
+      ],
+      "min": [
+        -0.5662739872932434,
+        -0.00901199970394373,
+        0.8789510130882263
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 24480,
+      "componentType": 5126,
+      "count": 574,
+      "max": [
+        0.9932476282119751,
+        0.9982052445411682,
+        0.7369838953018188
+      ],
+      "min": [
+        -0.9932476282119751,
+        -0.9976997375488281,
+        -0.9789999723434448
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 5864,
+      "componentType": 5126,
+      "count": 574,
+      "max": [
+        0.9984679818153381,
+        0.9849839806556702
+      ],
+      "min": [
+        0.0036150000523775816,
+        0.015692999586462975
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 7440,
+      "componentType": 5125,
+      "count": 1296,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 31368,
+      "componentType": 5126,
+      "count": 166,
+      "max": [
+        0.03019700013101101,
+        -0.04517100006341934,
+        1.6398309469223022
+      ],
+      "min": [
+        -0.03019700013101101,
+        -0.08440099656581879,
+        1.6193610429763794
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 33360,
+      "componentType": 5126,
+      "count": 166,
+      "max": [
+        0.8496375679969788,
+        0.5873984694480896,
+        0.9999480247497559
+      ],
+      "min": [
+        -0.8496375679969788,
+        -0.9995706677436829,
+        -0.9824755191802979
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 10456,
+      "componentType": 5126,
+      "count": 166,
+      "max": [
+        0.9881500005722046,
+        0.9912070035934448
+      ],
+      "min": [
+        0.4938820004463196,
+        0.007110999897122383
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 12624,
+      "componentType": 5125,
+      "count": 234,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 35352,
+      "componentType": 5126,
+      "count": 91,
+      "max": [
+        0.05971299856901169,
+        0.061340998858213425,
+        1.6540180444717407
+      ],
+      "min": [
+        -0.05971299856901169,
+        -0.051325999200344086,
+        1.4973180294036865
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 36444,
+      "componentType": 5126,
+      "count": 91,
+      "max": [
+        0.9951578378677368,
+        0.11169645935297012,
+        0.6361956000328064
+      ],
+      "min": [
+        -0.9951578378677368,
+        -0.9999865293502808,
+        -0.7985818386077881
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 11784,
+      "componentType": 5126,
+      "count": 91,
+      "max": [
+        0.8523240089416504,
+        0.9879980087280273
+      ],
+      "min": [
+        0.1429319977760315,
+        0.008174999617040157
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 13560,
+      "componentType": 5125,
+      "count": 279,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 37536,
+      "componentType": 5126,
+      "count": 865,
+      "max": [
+        0.5624690055847168,
+        0.3874559998512268,
+        1.8357770442962646
+      ],
+      "min": [
+        -0.5624690055847168,
+        -0.17945300042629242,
+        -4.5000000682193786e-05
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 47916,
+      "componentType": 5126,
+      "count": 865,
+      "max": [
+        0.9987382292747498,
+        0.9995347857475281,
+        0.9913827776908875
+      ],
+      "min": [
+        -0.9987382292747498,
+        -0.9992700815200806,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 10320,
+      "componentType": 5126,
+      "count": 865,
+      "max": [
+        1.0,
+        0.9998508095741272,
+        0.9998759627342224,
+        1.0
+      ],
+      "min": [
+        -0.9960237741470337,
+        -0.998478889465332,
+        -0.998076319694519,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 12512,
+      "componentType": 5126,
+      "count": 865,
+      "max": [
+        0.9887819886207581,
+        0.9955379962921143
+      ],
+      "min": [
+        0.003650000086054206,
+        0.003183000022545457
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 14676,
+      "componentType": 5125,
+      "count": 2148,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "fred346b (https://sketchfab.com/fred346b)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/star-wars-galaxies-emperor-palpatine-e06d42698d4241618a025af3acb897bf",
+      "title": "Star Wars Galaxies - Emperor Palpatine"
+    },
+    "generator": "Sketchfab-16.64.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 23268,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 19432,
+      "byteOffset": 23268,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 58296,
+      "byteOffset": 42700,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 24160,
+      "byteOffset": 100996,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 125156,
+      "uri": "scene.bin"
+    }
+  ],
+  "extensionsUsed": [
+    "KHR_materials_specular"
+  ],
+  "images": [
+    {
+      "uri": "textures/palpatine_amulet_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_amulet_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_amulet_specularf0.png"
+    },
+    {
+      "uri": "textures/palpatine_eye_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_eye_specularf0.png"
+    },
+    {
+      "uri": "textures/palpatine_face_as8_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_face_as8_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_face_as8_normal.png"
+    },
+    {
+      "uri": "textures/palpatine_face_as8_specularf0.png"
+    },
+    {
+      "uri": "textures/palpatine_hand_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_hand_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_mouth_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_mouth_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_mouth_specularf0.png"
+    },
+    {
+      "uri": "textures/palpatine_neck_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_neck_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_robe_hsb13_baseColor.png"
+    },
+    {
+      "uri": "textures/palpatine_robe_hsb13_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/palpatine_robe_hsb13_normal.png"
+    },
+    {
+      "uri": "textures/palpatine_robe_hsb13_specularf0.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 2
+          }
+        }
+      },
+      "name": "palpatine_amulet",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 4
+          }
+        }
+      },
+      "name": "palpatine_eye",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.0
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 8
+          }
+        }
+      },
+      "name": "palpatine_face_as8",
+      "normalTexture": {
+        "index": 7
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 5
+        },
+        "metallicFactor": 0.0,
+        "metallicRoughnessTexture": {
+          "index": 6
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0
+        }
+      },
+      "name": "palpatine_hand",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 9
+        },
+        "metallicFactor": 0.0,
+        "metallicRoughnessTexture": {
+          "index": 10
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 13
+          }
+        }
+      },
+      "name": "palpatine_mouth",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 11
+        },
+        "metallicFactor": 0.0,
+        "metallicRoughnessTexture": {
+          "index": 12
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0
+        }
+      },
+      "name": "palpatine_neck",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 14
+        },
+        "metallicFactor": 0.0,
+        "metallicRoughnessTexture": {
+          "index": 15
+        }
+      }
+    },
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 19
+          }
+        }
+      },
+      "name": "palpatine_robe_hsb13",
+      "normalTexture": {
+        "index": 18
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 16
+        },
+        "metallicRoughnessTexture": {
+          "index": 17
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_2",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TANGENT": 10,
+            "TEXCOORD_0": 11
+          },
+          "indices": 12,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_3",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 14,
+            "POSITION": 13,
+            "TEXCOORD_0": 15
+          },
+          "indices": 16,
+          "material": 3,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_4",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 18,
+            "POSITION": 17,
+            "TEXCOORD_0": 19
+          },
+          "indices": 20,
+          "material": 4,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_5",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 22,
+            "POSITION": 21,
+            "TEXCOORD_0": 23
+          },
+          "indices": 24,
+          "material": 5,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_6",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 26,
+            "POSITION": 25,
+            "TANGENT": 27,
+            "TEXCOORD_0": 28
+          },
+          "indices": 29,
+          "material": 6,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "name": "1d3f6ab7fe1f42c1bea6c82697fe929b.obj.cleaner.materialmerger.gles"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
+    },
+    {
+      "mesh": 2,
+      "name": "Object_4"
+    },
+    {
+      "mesh": 3,
+      "name": "Object_5"
+    },
+    {
+      "mesh": 4,
+      "name": "Object_6"
+    },
+    {
+      "mesh": 5,
+      "name": "Object_7"
+    },
+    {
+      "mesh": 6,
+      "name": "Object_8"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 4
+    },
+    {
+      "sampler": 0,
+      "source": 5
+    },
+    {
+      "sampler": 0,
+      "source": 6
+    },
+    {
+      "sampler": 0,
+      "source": 7
+    },
+    {
+      "sampler": 0,
+      "source": 8
+    },
+    {
+      "sampler": 0,
+      "source": 9
+    },
+    {
+      "sampler": 0,
+      "source": 10
+    },
+    {
+      "sampler": 0,
+      "source": 11
+    },
+    {
+      "sampler": 0,
+      "source": 12
+    },
+    {
+      "sampler": 0,
+      "source": 13
+    },
+    {
+      "sampler": 0,
+      "source": 14
+    },
+    {
+      "sampler": 0,
+      "source": 15
+    },
+    {
+      "sampler": 0,
+      "source": 16
+    },
+    {
+      "sampler": 0,
+      "source": 17
+    },
+    {
+      "sampler": 0,
+      "source": 18
+    },
+    {
+      "sampler": 0,
+      "source": 19
+    }
+  ]
+}
