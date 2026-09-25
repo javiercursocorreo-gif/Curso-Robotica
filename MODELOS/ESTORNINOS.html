@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murmuración de Estorninos - Clásica</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #ffffff; }
+        canvas { display: block; }
+        #info { position: absolute; bottom: 20px; left: 20px; font-family: sans-serif; color: #888; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <canvas id="boidsCanvas"></canvas>
+    <div id="info">Algoritmo Clásico a prueba de fallos (500 estorninos)</div>
+    <script>
+        const canvas = document.getElementById('boidsCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let width, height;
+        
+        function resize() { 
+            width = canvas.width = window.innerWidth; 
+            height = canvas.height = window.innerHeight; 
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Clase Vector pura para evitar errores matemáticos
+        class Vector {
+            constructor(x, y) { this.x = x; this.y = y; }
+            add(v) { this.x += v.x; this.y += v.y; }
+            sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+            mult(n) { this.x *= n; this.y *= n; }
+            div(n) { this.x /= n; this.y /= n; }
+            magSq() { return this.x * this.x + this.y * this.y; }
+            mag() { return Math.sqrt(this.magSq()); }
+            normalize() { let m = this.mag(); if (m !== 0) this.div(m); return this; }
+            limit(max) { if (this.magSq() > max * max) { this.normalize(); this.mult(max); } return this; }
+            setMag(n) { return this.normalize().mult(n); }
+            static sub(v1, v2) { return new Vector(v1.x - v2.x, v1.y - v2.y); }
+        }
+
+        class Boid {
+            constructor() {
+                this.position = new Vector(Math.random() * width, Math.random() * height);
+                this.velocity = new Vector((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+                this.velocity.setMag(Math.random() * 2 + 3);
+                this.acceleration = new Vector(0, 0);
+                this.maxForce = 0.05;
+                this.maxSpeed = 4.5;
+            }
+
+            edges() {
+                // Fuerzas suaves para mantenerlos en la pantalla sin chocar violentamente
+                let margin = 150;
+                let turn = 0.15;
+                if (this.position.x < margin) this.acceleration.x += turn;
+                if (this.position.x > width - margin) this.acceleration.x -= turn;
+                if (this.position.y < margin) this.acceleration.y += turn;
+                if (this.position.y > height - margin) this.acceleration.y -= turn;
+            }
+
+            flock(boids, centerTarget) {
+                let sep = new Vector(0, 0);
+                let ali = new Vector(0, 0);
+                let coh = new Vector(0, 0);
+                let sepCount = 0, aliCount = 0, cohCount = 0;
+                
+                let desiredSeparation = 45; // Distancia personal amplia para no crear manchas
+                let neighborDist = 120; // Radio de visión
+
+                for (let other of boids) {
+                    if (other === this) continue;
+                    let dSq = Math.pow(this.position.x - other.position.x, 2) + Math.pow(this.position.y - other.position.y, 2);
+                    
+                    if (dSq > 0 && dSq < desiredSeparation * desiredSeparation) {
+                        let diff = Vector.sub(this.position, other.position);
+                        diff.normalize();
+                        diff.div(Math.sqrt(dSq)); // A mayor cercanía, mayor empuje
+                        sep.add(diff);
+                        sepCount++;
+                    }
+                    if (dSq > 0 && dSq < neighborDist * neighborDist) {
+                        ali.add(other.velocity);
+                        aliCount++;
+                        coh.add(other.position);
+                        cohCount++;
+                    }
+                }
+
+                if (sepCount > 0) {
+                    sep.div(sepCount);
+                    if (sep.magSq() > 0) {
+                        sep.normalize();
+                        sep.mult(this.maxSpeed);
+                        sep.sub(this.velocity);
+                        sep.limit(this.maxForce * 1.5);
+                    }
+                }
+
+                if (aliCount > 0) {
+                    ali.div(aliCount);
+                    ali.normalize();
+                    ali.mult(this.maxSpeed);
+                    ali.sub(this.velocity);
+                    ali.limit(this.maxForce);
+                }
+
+                if (cohCount > 0) {
+                    coh.div(cohCount);
+                    let desired = Vector.sub(coh, this.position);
+                    desired.normalize();
+                    desired.mult(this.maxSpeed);
+                    let steer = Vector.sub(desired, this.velocity);
+                    steer.limit(this.maxForce);
+                    coh = steer; // Cohesión
+                }
+
+                // Gravedad muy leve hacia el núcleo invisible que baila
+                let flowDir = Vector.sub(centerTarget, this.position);
+                let d = flowDir.mag();
+                if (d > 0) {
+                    flowDir.normalize();
+                    flowDir.mult(this.maxSpeed);
+                    let flowSteer = Vector.sub(flowDir, this.velocity);
+                    flowSteer.limit(this.maxForce * 0.4); 
+                    this.acceleration.add(flowSteer);
+                }
+
+                sep.mult(2.8); // Separación MUY fuerte para que siempre haya huecos (la nube respira)
+                ali.mult(1.3); // Alineación media para fluidez
+                coh.mult(1.0); // Cohesión normal
+                
+                this.acceleration.add(sep);
+                this.acceleration.add(ali);
+                this.acceleration.add(coh);
+            }
+
+            update() {
+                this.position.add(this.velocity);
+                this.velocity.add(this.acceleration);
+                
+                // Mantenemos una velocidad constante. Un pájaro NUNCA se detiene.
+                let speed = this.velocity.mag();
+                if (speed < 2.5) {
+                    this.velocity.setMag(2.5);
+                } else if (speed > this.maxSpeed) {
+                    this.velocity.setMag(this.maxSpeed);
+                }
+                
+                this.acceleration.mult(0);
+            }
+
+            drawPath(ctx) {
+                let theta = Math.atan2(this.velocity.y, this.velocity.x);
+                let c = Math.cos(theta);
+                let s = Math.sin(theta);
+                let x = this.position.x;
+                let y = this.position.y;
+                
+                ctx.moveTo(x + 5*c, y + 5*s);
+                ctx.lineTo(x - 4*c - 3*s, y - 4*s + 3*c);
+                ctx.lineTo(x - 2*c, y - 2*s);
+                ctx.lineTo(x - 4*c + 3*s, y - 4*s - 3*c);
+                ctx.lineTo(x + 5*c, y + 5*s);
+            }
+        }
+
+        // 500 pájaros es el "sweet spot" (punto dulce) para que la simulación rinda bien 
+        // y se vea espectacular sin colapsar por sobrecarga matemática.
+        const flock = [];
+        for (let i = 0; i < 500; i++) flock.push(new Boid());
+
+        let time = 0;
+        function draw() {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            time += 0.012;
+            let centerTarget = new Vector(
+                width / 2 + Math.sin(time) * width * 0.35,
+                height / 2 + Math.cos(time * 1.3) * height * 0.3
+            );
+
+            // Trazamos todos los pájaros en una sola pasada (Render Batching súper rápido)
+            ctx.beginPath();
+            for (let boid of flock) {
+                boid.edges();
+                boid.flock(flock, centerTarget);
+                boid.update();
+                boid.drawPath(ctx);
+            }
+            ctx.fillStyle = 'rgba(20, 30, 40, 0.85)';
+            ctx.fill();
+
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>

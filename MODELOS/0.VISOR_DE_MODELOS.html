@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Visor de Modelos 3D - Curso Robótica</title>
+    <!-- Importar Babylon.js y el cargador de GLTF/GLB -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 20px;
+            background: rgba(30, 30, 30, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            max-width: 300px;
+        }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #00d2ff; }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.98); }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        #info-panel {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        #animation-controls {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+    
+    <div id="ui-container">
+        <h2>Visor de Modelos (.glb / .gltf)</h2>
+        <p style="font-size: 0.9rem;">Selecciona un archivo descargado para inspeccionarlo en 3D.</p>
+        
+        <!-- Botón personalizado para subir archivo -->
+        <label for="fileInput" class="btn">Abrir CARPETA del Modelo</label>
+        <input type="file" id="fileInput" webkitdirectory directory multiple />
+        
+        <div id="info-panel">Ningún modelo cargado.</div>
+        
+        <div id="animation-controls">
+            <h3 style="font-size: 1rem; margin-top:0;">Animaciones:</h3>
+            <select id="animSelect"></select>
+            <button id="btnPlay" class="btn" style="background: #4CAF50;">Reproducir / Pausar</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        let currentScene = null;
+        let animationGroups = [];
+        let isPlaying = true;
+
+        const createBaseScene = function () {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.1, 0.1, 0.15, 1);
+            
+            // Cámara orbital por defecto
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 3, 10, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 50;
+
+            // Iluminación de estudio
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.7;
+            
+            const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+            dirLight.intensity = 0.8;
+            dirLight.position = new BABYLON.Vector3(20, 40, 20);
+
+            // Entorno (Environment) para reflejos PBR (materiales metálicos)
+            const envHelper = scene.createDefaultEnvironment({
+                createSkybox: false,
+                createGround: true,
+                groundSize: 100,
+                groundColor: new BABYLON.Color3(0.2, 0.2, 0.2),
+                enableGroundShadow: true
+            });
+
+            return scene;
+        };
+
+        currentScene = createBaseScene();
+
+        // Ciclo de renderizado principal
+        engine.runRenderLoop(function () {
+            if (currentScene) {
+                currentScene.render();
+            }
+        });
+
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+
+        // Lógica de carga de archivos locales (Manual y robusta)
+        document.getElementById('fileInput').addEventListener('change', function(evt) {
+            const files = evt.target.files;
+            if (files.length === 0) return;
+
+            let mainFile = null;
+            
+            // Limpiamos el caché local
+            if (BABYLON.FilesInputStore) {
+                BABYLON.FilesInputStore.FilesToLoad = {};
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileName = file.name.toLowerCase();
+                
+                if (BABYLON.FilesInputStore) {
+                    BABYLON.FilesInputStore.FilesToLoad[file.name.toLowerCase()] = file;
+                    if (file.webkitRelativePath) {
+                        const pathParts = file.webkitRelativePath.split('/');
+                        if (pathParts.length > 1) {
+                            const relPath = pathParts.slice(1).join('/'); 
+                            BABYLON.FilesInputStore.FilesToLoad[relPath.toLowerCase()] = file;
+                            BABYLON.FilesInputStore.FilesToLoad["./" + relPath.toLowerCase()] = file;
+                        }
+                    }
+                }
+                
+                if (fileName.endsWith(".gltf") || fileName.endsWith(".glb")) {
+                    mainFile = file;
+                }
+            }
+
+            if (!mainFile) {
+                document.getElementById('info-panel').innerText = "Error: No se encontró ningún .gltf o .glb en esta carpeta.";
+                return;
+            }
+
+            document.getElementById('info-panel').innerText = "Cargando " + mainFile.name + "...";
+            document.getElementById('animation-controls').style.display = 'none';
+
+            if(currentScene) {
+                currentScene.dispose();
+                currentScene = createBaseScene();
+            }
+
+            // Babylon leerá el archivo principal, y sacará el .bin y texturas de FilesToLoad
+            BABYLON.SceneLoader.AppendAsync("file:", mainFile, currentScene).then(() => {
+                document.getElementById('info-panel').innerText = "Cargado: " + mainFile.name + "\nCaras: " + currentScene.getActiveIndices() / 3;
+                
+                // MAGIA: Borramos la cámara base y dejamos que Babylon encuadre el modelo automáticamente
+                currentScene.activeCamera.dispose();
+                // Crea luces y cámara orbitando el objeto completo, encuadrándolo perfecto
+                currentScene.createDefaultCameraOrLight(true, true, true);
+                currentScene.activeCamera.attachControl(canvas, true);
+
+                // Detectar animaciones
+                animationGroups = currentScene.animationGroups;
+                if (animationGroups.length > 0) {
+                    document.getElementById('animation-controls').style.display = 'block';
+                    const select = document.getElementById('animSelect');
+                    select.innerHTML = '';
+                    
+                    animationGroups.forEach((anim, index) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.text = anim.name;
+                        select.appendChild(option);
+                        anim.stop();
+                    });
+                    
+                    animationGroups[0].play(true);
+                    isPlaying = true;
+                }
+
+            }).catch((err) => {
+                console.error(err);
+                document.getElementById('info-panel').innerText = "Error al cargar: " + err.message;
+            });
+        });
+
+        // Controles de Animación
+        document.getElementById('animSelect').addEventListener('change', function(evt) {
+            const index = evt.target.value;
+            animationGroups.forEach(anim => anim.stop());
+            animationGroups[index].play(true);
+            isPlaying = true;
+        });
+
+        document.getElementById('btnPlay').addEventListener('click', function() {
+            const index = document.getElementById('animSelect').value;
+            if(!animationGroups[index]) return;
+            
+            if(isPlaying) {
+                animationGroups[index].pause();
+                isPlaying = false;
+            } else {
+                animationGroups[index].play(true);
+                isPlaying = true;
+            }
+        });
+
+    </script>
+</body>
+</html>
