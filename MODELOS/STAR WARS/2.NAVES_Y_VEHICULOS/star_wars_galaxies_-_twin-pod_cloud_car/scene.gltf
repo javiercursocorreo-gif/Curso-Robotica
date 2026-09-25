@@ -1,0 +1,402 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1755,
+      "max": [
+        2.3783020973205566,
+        2.945662021636963,
+        2.0041608810424805
+      ],
+      "min": [
+        -2.3783020973205566,
+        -1.6363229751586914,
+        0.12254700064659119
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 21060,
+      "componentType": 5126,
+      "count": 1755,
+      "max": [
+        0.9993041753768921,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -0.9993041753768921,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 1755,
+      "max": [
+        1.0,
+        0.9999945163726807,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -0.9999949932098389,
+        -0.9999955892562866,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1755,
+      "max": [
+        0.9873729944229126,
+        0.9920179843902588
+      ],
+      "min": [
+        0.013806000351905823,
+        0.010192000307142735
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 3468,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 42120,
+      "componentType": 5126,
+      "count": 172,
+      "max": [
+        1.923807978630066,
+        0.4382219910621643,
+        1.8596930503845215
+      ],
+      "min": [
+        -1.923807978630066,
+        -0.6260870099067688,
+        1.4666639566421509
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 44184,
+      "componentType": 5126,
+      "count": 172,
+      "max": [
+        0.9829025864601135,
+        0.9982757568359375,
+        0.9949677586555481
+      ],
+      "min": [
+        -0.9829025864601135,
+        -0.9982757568359375,
+        -0.9949677586555481
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 14040,
+      "componentType": 5126,
+      "count": 172,
+      "max": [
+        0.9929289817810059,
+        0.9919319748878479
+      ],
+      "min": [
+        0.011785999871790409,
+        0.013341999612748623
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 13872,
+      "componentType": 5125,
+      "count": 216,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Zorg_Sinister (https://sketchfab.com/4130ff15fe394c239cc064b5286c43)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/star-wars-galaxies-twin-pod-cloud-car-0ee339ff87a043a88a1a5d45bb229c49",
+      "title": "Star Wars Galaxies - Twin-pod cloud car"
+    },
+    "generator": "Sketchfab-0.8.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 14736,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 15416,
+      "byteOffset": 14736,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 46248,
+      "byteOffset": 30152,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 28080,
+      "byteOffset": 76400,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 104480,
+      "uri": "scene.bin"
+    }
+  ],
+  "extensionsUsed": [
+    "KHR_materials_emissive_strength",
+    "KHR_materials_specular"
+  ],
+  "images": [
+    {
+      "uri": "textures/twin_pod_cloud_car_asceb28_baseColor.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_asceb28_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_asceb28_emissive.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_asceb28_normal.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_asceb28_specularf0.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_glass_aaes23_baseColor.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_glass_aaes23_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/twin_pod_cloud_car_glass_aaes23_specularf0.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "emissiveFactor": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissiveTexture": {
+        "index": 2
+      },
+      "extensions": {
+        "KHR_materials_emissive_strength": {
+          "emissiveStrength": 10.0
+        },
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 4
+          }
+        }
+      },
+      "name": "twin_pod_cloud_car_asceb28",
+      "normalTexture": {
+        "index": 3
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        }
+      }
+    },
+    {
+      "alphaMode": "BLEND",
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_specular": {
+          "specularColorFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularFactor": 1.0,
+          "specularTexture": {
+            "index": 7
+          }
+        }
+      },
+      "name": "twin_pod_cloud_car_glass_aaes23",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 5
+        },
+        "metallicRoughnessTexture": {
+          "index": 6
+        },
+        "roughnessFactor": 0.0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3
+          },
+          "indices": 4,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 6,
+            "POSITION": 5,
+            "TEXCOORD_0": 7
+          },
+          "indices": 8,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2,
+        3
+      ],
+      "name": "3a9660e91dd04394badd62f42ae36e5d.obj.cleaner.materialmerger.gles"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 4
+    },
+    {
+      "sampler": 0,
+      "source": 5
+    },
+    {
+      "sampler": 0,
+      "source": 6
+    },
+    {
+      "sampler": 0,
+      "source": 7
+    }
+  ]
+}
