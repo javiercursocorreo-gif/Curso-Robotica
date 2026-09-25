@@ -13,6 +13,49 @@
     <title>4. Bombardero Ala-Y BTL (Y-Wing) - Hangar de Naves Star Wars</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- GitHub Pages / Classroom CDN Asset Resolver -->
+    <script>
+    (function() {
+        if (window.location.hostname.includes("github.io")) {
+            const rawBase = "https://raw.githubusercontent.com/javiercursocorreo-gif/Curso-Robotica/main/";
+            function resolveUrl(url) {
+                if (typeof url === "string" && url.includes("MODELOS/")) {
+                    return rawBase + url.substring(url.indexOf("MODELOS/"));
+                }
+                return url;
+            }
+            if (typeof BABYLON !== "undefined") {
+                if (BABYLON.SceneLoader) {
+                    const wrap2nd = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a2 === "string" && a2.includes("MODELOS/")) a2 = resolveUrl(a2);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    const wrap1st = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a1 === "string" && a1.includes("MODELOS/")) a1 = resolveUrl(a1);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    if (BABYLON.SceneLoader.ImportMesh) BABYLON.SceneLoader.ImportMesh = wrap2nd(BABYLON.SceneLoader.ImportMesh);
+                    if (BABYLON.SceneLoader.ImportMeshAsync) BABYLON.SceneLoader.ImportMeshAsync = wrap2nd(BABYLON.SceneLoader.ImportMeshAsync);
+                    if (BABYLON.SceneLoader.Append) BABYLON.SceneLoader.Append = wrap1st(BABYLON.SceneLoader.Append);
+                    if (BABYLON.SceneLoader.AppendAsync) BABYLON.SceneLoader.AppendAsync = wrap1st(BABYLON.SceneLoader.AppendAsync);
+                    if (BABYLON.SceneLoader.Load) BABYLON.SceneLoader.Load = wrap1st(BABYLON.SceneLoader.Load);
+                    if (BABYLON.SceneLoader.LoadAsync) BABYLON.SceneLoader.LoadAsync = wrap1st(BABYLON.SceneLoader.LoadAsync);
+                }
+                if (BABYLON.Texture) {
+                    const OrigTexture = BABYLON.Texture;
+                    BABYLON.Texture = function(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions) {
+                        if (typeof url === "string" && url.includes("MODELOS/")) url = resolveUrl(url);
+                        return new OrigTexture(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions);
+                    };
+                    BABYLON.Texture.prototype = OrigTexture.prototype;
+                    Object.assign(BABYLON.Texture, OrigTexture);
+                }
+            }
+        }
+    })();
+    </script>
+
+
     <script src="hangar_nav.js"></script>
     <style>
         * { box-sizing: border-box; }
