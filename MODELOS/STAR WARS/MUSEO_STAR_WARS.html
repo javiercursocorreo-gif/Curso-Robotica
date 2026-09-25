@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="icon" href="data:,">
+    <title>Museo 3D de Tecnología Star Wars - Holocron Interactivo</title>
+    <!-- Babylon.js y Loaders Oficiales -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        :root {
+            --sw-gold: #f59e0b;
+            --sw-amber: #d97706;
+            --sw-blue: #0284c7;
+            --sw-cyan: #38bdf8;
+            --sw-red: #ef4444;
+            --sw-green: #10b981;
+            --sw-purple: #a855f7;
+            --sw-dark: #04070d;
+            --sw-panel: rgba(10, 18, 30, 0.92);
+            --sw-border: rgba(245, 158, 11, 0.40);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--sw-dark);
+            color: #ffffff;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+            display: block;
+        }
+
+        /* Overlay de Carga */
+        #loadingOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.95) 0%, rgba(4, 7, 13, 0.99) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #loadingOverlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .sw-spinner {
+            width: 65px;
+            height: 65px;
+            border: 4px solid rgba(245, 158, 11, 0.15);
+            border-top: 4px solid var(--sw-gold);
+            border-right: 4px solid var(--sw-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--sw-gold);
+            text-transform: uppercase;
+        }
+
+        .loading-subtext {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
+
+        /* Barra de Cabecera */
+        header {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--sw-panel);
+            padding: 8px 18px;
+            border-radius: 12px;
+            border: 1px solid var(--sw-border);
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+        }
+
+        .sw-pill {
+            background: linear-gradient(135deg, var(--sw-gold), var(--sw-amber));
+            color: #000;
+            font-weight: 900;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 1px;
+        }
+
+        .header-titles h1 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .header-titles p {
+            margin: 2px 0 0 0;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            background: var(--sw-panel);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .action-btn:hover {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: var(--sw-gold);
+            color: var(--sw-gold);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.active {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: var(--sw-gold);
+            color: var(--sw-gold);
+        }
+
+        .action-btn-pause {
+            background: rgba(245, 158, 11, 0.22) !important;
+            border: 1px solid #f59e0b !important;
+            color: #fbbf24 !important;
+            font-weight: 700 !important;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+        }
+        .action-btn-pause:hover {
+            background: rgba(245, 158, 11, 0.45) !important;
+            color: #fff !important;
+        }
+        .action-btn-pause.paused {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border-color: #10b981 !important;
+            color: #34d399 !important;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Filtros de Categorías */
+        #categoryFilterBar {
+            position: absolute;
+            top: 75px;
+            left: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+            background: var(--sw-panel);
+            padding: 6px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .filter-tab-btn {
+            background: transparent;
+            color: #94a3b8;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .filter-tab-btn.active {
+            color: #000;
+            background: var(--sw-gold);
+        }
+
+        /* Panel Lateral de Información */
+        #infoPanel {
+            position: absolute;
+            top: 130px;
+            right: 20px;
+            width: 360px;
+            max-height: calc(100% - 250px);
+            background: var(--sw-panel);
+            border: 1px solid var(--sw-border);
+            border-radius: 14px;
+            padding: 20px;
+            backdrop-filter: blur(14px);
+            z-index: 90;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        #infoPanel.collapsed {
+            transform: translateX(390px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .badge-sector {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--sw-cyan);
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 3px 8px;
+            border-radius: 5px;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .model-title {
+            margin: 0 0 12px 0;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.25;
+        }
+
+        .character-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 41, 59, 0.6);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 14px;
+        }
+
+        .character-avatar {
+            font-size: 1.8rem;
+        }
+
+        .character-meta {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .character-label {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .character-name {
+            font-size: 0.9rem;
+            color: var(--sw-gold);
+            font-weight: 700;
+        }
+
+        .real-invention-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.25));
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+        }
+
+        .real-invention-label {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--sw-green);
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .real-invention-value {
+            font-size: 0.85rem;
+            color: #ecfdf5;
+            line-height: 1.35;
+        }
+
+        .info-section-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #cbd5e1;
+            letter-spacing: 1px;
+            margin: 12px 0 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .info-desc {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            line-height: 1.45;
+            margin: 0 0 12px 0;
+        }
+
+        .info-curiosity {
+            background: rgba(168, 85, 247, 0.12);
+            border-left: 3px solid var(--sw-purple);
+            padding: 8px 10px;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.8rem;
+            color: #e9d5ff;
+            line-height: 1.35;
+        }
+
+        /* Carrusel Inferior */
+        #bottomShowcase {
+            position: absolute;
+            bottom: 15px;
+            left: 20px;
+            right: 20px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .carousel-nav-btn {
+            background: var(--sw-panel);
+            color: var(--sw-gold);
+            border: 1px solid var(--sw-border);
+            width: 36px;
+            height: 70px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .carousel-nav-btn:hover {
+            background: var(--sw-gold);
+            color: #000;
+            transform: scale(1.05);
+        }
+
+        .carousel-track {
+            flex: 1;
+            height: 85px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            pointer-events: auto;
+            padding: 4px 2px;
+            scrollbar-width: none;
+        }
+
+        .carousel-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .showcase-card {
+            flex: 0 0 165px;
+            height: 75px;
+            background: var(--sw-panel);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(8px);
+        }
+
+        .showcase-card:hover {
+            border-color: var(--sw-cyan);
+            background: rgba(30, 41, 59, 0.95);
+            transform: translateY(-3px);
+        }
+
+        .showcase-card.active {
+            border-color: var(--sw-gold);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(30, 41, 59, 0.95));
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+            transform: scale(1.02);
+        }
+
+        .card-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .card-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-sub {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay de Carga -->
+    <div id="loadingOverlay" class="hidden">
+        <div class="sw-spinner"></div>
+        <div class="loading-text" id="loadingText">Cargando Modelo Imperial...</div>
+        <div class="loading-subtext" id="loadingSubtext">Transfiriendo telemetría hiperespacial...</div>
+    </div>
+
+    <!-- Barra de Cabecera -->
+    <header>
+        <div class="header-left">
+            <span class="sw-pill">★ STAR WARS</span>
+            <div class="header-titles">
+                <h1>Museo Interactivo de Tecnología e Inventos</h1>
+                <p>Naves, Cabinas Interiores, Armamento y Conexión con la Robótica Real</p>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button class="action-btn" id="btnToggleFleetGrid" title="Cuadrícula completa para elegir naves y modelos">
+                <span>🗂️</span> Selector Galáctico (42)
+            </button>
+            <a href="P1_INDICE_VISORES_STAR_WARS.html" class="action-btn" title="Ir al Índice de Visores Individuales" style="text-decoration:none;">
+                <span>📑</span> Visores ↗
+            </a>
+            <a href="P2.2_MUSEO_PERSONAJES_STAR_WARS.html" class="action-btn" title="Ir al Museo de Personajes" style="text-decoration:none;">
+                <span>👤</span> Personajes (13) ↗
+            </a>
+            <button class="action-btn" id="btnPlaySound" title="Sonido Droide R2-D2">
+                <span>🔊</span> Sonido
+            </button>
+            <button class="action-btn action-btn-pause" id="btnAutoRotate" title="Pausar o Reanudar rotación 360°">
+                <span id="btnAutoRotateIcon">⏸️</span> <span id="btnAutoRotateText">Pausar Giro</span>
+            </button>
+            <button class="action-btn" id="btnAnimToggle" title="Animación del modelo" style="display:none;">
+                <span>🎬</span> Animación
+            </button>
+            <button class="action-btn" id="btnToggleInfo" title="Ocultar / Mostrar Ficha">
+                <span>📋</span> Ficha
+            </button>
+            <button class="action-btn" id="btnResetView" title="Restablecer Cámara">
+                <span>🎯</span> Centrar
+            </button>
+        </div>
+    </header>
+
+    <!-- Filtros de Categorías -->
+    <nav id="categoryFilterBar">
+        <button class="filter-tab-btn active" data-cat="all">⭐ Todos (42)</button>
+        <button class="filter-tab-btn" data-cat="naves">🚀 Naves y Vehículos (22)</button>
+        <button class="filter-tab-btn" data-cat="interiores">🚪 Cabinas e Interiores (3)</button>
+        <button class="filter-tab-btn" data-cat="armas">⚔️ Armas y Sables (15)</button>
+        <button class="filter-tab-btn" data-cat="escenarios">🪐 Hangares y Escenarios (2)</button>
+    </nav>
+
+    <!-- Panel Lateral de Información Didáctica -->
+    <div id="infoPanel">
+        <div class="badge-sector" id="infoSector">SECTOR DE TECNOLOGÍA</div>
+        <h2 class="model-title" id="infoTitle">Cargando...</h2>
+
+        <div class="character-card">
+            <div class="character-avatar" id="infoCharAvatar">👤</div>
+            <div class="character-meta">
+                <span class="character-label">PILOTO / USUARIO CLAVE:</span>
+                <span class="character-name" id="infoCharName">-</span>
+            </div>
+        </div>
+
+        <div class="real-invention-card">
+            <div class="real-invention-label">💡 TECNOLOGÍA REAL EN NUESTRO MUNDO:</div>
+            <div class="real-invention-value" id="infoRealInvention">-</div>
+        </div>
+
+        <div class="info-section-title">
+            <span>🔬</span> CÓMO FUNCIONA & CONEXIÓN CIENTÍFICA
+        </div>
+        <p class="info-desc" id="infoDescription">-</p>
+
+        <div class="info-curiosity" id="infoCuriosity">-</div>
+
+        <div id="visorDirectLinkContainer" style="margin-top: 14px;">
+            <a id="visorDirectLink" href="#" target="_blank" style="display:none; align-items:center; justify-content:center; gap:8px; width:100%; padding:10px 14px; background:rgba(245,158,11,0.15); border:1px solid var(--sw-gold); border-radius:8px; color:var(--sw-gold); text-decoration:none; font-size:0.82rem; font-weight:700; transition:all 0.2s;">
+                <span>🚀</span> Abrir Visor 3D Individual Dedicado ↗
+            </a>
+        </div>
+    </div>
+
+    <!-- Carrusel Inferior de Escaparate -->
+    <div id="bottomShowcase">
+        <button class="carousel-nav-btn" id="btnPrevCard" title="Anterior">◀</button>
+        <div class="carousel-track" id="carouselTrack"></div>
+        <button class="carousel-nav-btn" id="btnNextCard" title="Siguiente">▶</button>
+    </div>
+
+    <!-- Canvas de Renderizado 3D -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- Audio Droide R2-D2 -->
+    <audio id="audioR2D2" preload="auto"></audio>
+
+    <script>
+        const isHttp = window.location.protocol.startsWith("http");
+        const isUnderModelos = decodeURIComponent(window.location.pathname).includes("MODELOS");
+        let BASE_SW_PATH;
+        if (isUnderModelos) {
+            BASE_SW_PATH = "./";
+        } else if (isHttp) {
+            BASE_SW_PATH = "/MODELOS/STAR%20WARS/";
+        } else {
+            BASE_SW_PATH = "../../../MODELOS/STAR%20WARS/";
+        }
+
+        document.getElementById("audioR2D2").src = BASE_SW_PATH + "r2_d2.mp3";
+
+        // =========================================================================
+        // BASE DE DATOS DE NAVES, CABINAS, ARMAS Y ESCENARIOS (28 MODELOS OPTIMIZADOS)
+        // =========================================================================
+        const STAR_WARS_DB = [
+            // ========================= 🚀 FLOTA COMPLETA DE NAVES Y VEHÍCULOS (12) =========================
+
+            {
+                id: "falcon",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_-_halcon_milenario/",
+                file: "scene.gltf",
+                icon: "🚀",
+                title: "1. Halcón Milenario (YT-1300F Corellian)",
+                shortTitle: "1. Halcón Milenario",
+                character: "Han Solo & Chewbacca",
+                charAvatar: "🧔‍♂️",
+                realInvention: "Propulsión Iónica y Supercomputación Hiperdimensional",
+                sector: "PROPULSIÓN & TRANSPORTE HIPERESPACIAL",
+                description: "El carguero corelliano más célebre de la galaxia. Modificado con motores de iones y un hiperimpulsor de clase 0.5 capaz de calcular saltos relativistas esquivando campos gravitatorios.",
+                curiosity: "⭐ Cine: Su diseño surgió de George Lucas al ver una hamburguesa con una aceituna al lado (cabina lateral).",
+                scaleFactor: 4.0,
+                cameraRadius: 6.0,
+                visorUrl: "P1_VISOR_STAR_WARS_1_HALCON.html"
+            },
+            {
+                id: "xwing",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_x-wing-NUEVO/",
+                file: "scene.gltf",
+                icon: "✈️",
+                title: "2. Caza Estelar T-65B X-Wing",
+                shortTitle: "2. Caza X-Wing",
+                character: "Luke Skywalker & Wedge Antilles",
+                charAvatar: "🧑‍🚀",
+                realInvention: "Alas de Geometría Variable (F-14 Tomcat) y Copilotos IA Autónomos",
+                sector: "AERONÁUTICA MILITAR & AVIONICA AUTÓNOMA",
+                description: "Caza de ataque con cuatro alas S-foils que se abren en tijera para aumentar el arco de disparo de sus cañones láser y refrigerar los radiadores en el vacío.",
+                curiosity: "⭐ Ciencia real: Inspirado en los aviones de alas de geometría variable como el F-14 Tomcat y Panavia Tornado.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.8,
+                visorUrl: "P1_VISOR_STAR_WARS_2_X_WING.html"
+            },
+            {
+                id: "dark_xwing",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/dark_x-wing/",
+                file: "scene.gltf",
+                icon: "🖤",
+                title: "3. Caza Táctico X-Wing Stealth (Operaciones Especiales)",
+                shortTitle: "3. Dark X-Wing Stealth",
+                character: "Escuadrón Fantasma & Pilotos de Infiltración",
+                charAvatar: "🥷",
+                realInvention: "Materiales Absorbentes de Señales Radar (RAM) y Furtividad Térmica",
+                sector: "TECNOLOGÍA STEALTH & GUERRA ELECTRÓNICA",
+                description: "Variante táctica oscura del caza X-Wing recubierta con aleación de polímero negro que absorbe el rebote de sensores y minimiza la firma infrarroja de las toberas de propulsión.",
+                curiosity: "⭐ Ciencia real: Inspirado en los recubrimientos de ferrita de los bombarderos furtivos B-2 Spirit y F-117 Nighthawk.",
+                scaleFactor: 4.0,
+                cameraRadius: 5.8,
+                visorUrl: "P1_VISOR_STAR_WARS_3_DARK_X_WING.html"
+            },
+            {
+                id: "b_wing",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/b-wing_starfighter/",
+                file: "scene.gltf",
+                icon: "🗡️",
+                title: "4. Caza Estelar de Asalto Pesado B-Wing (A/SF-01)",
+                shortTitle: "4. Caza B-Wing",
+                character: "Quarrie & Hera Syndulla",
+                charAvatar: "👽",
+                realInvention: "Cabinas Giroscópicas Autoestabilizadas y Artillería Móvil Multi-eje",
+                sector: "GIROSCOPIOS INERIALES & ASALTO PESADO",
+                description: "Diseñado por el ingeniero mon calamari Quarrie. Cuenta con un chasis de ala única alargada que rota alrededor de la cabina de mando giroscópica para mantener el horizonte artificial del piloto.",
+                curiosity: "⭐ Fisiología de vuelo: La rotación giroscópica reduce drásticamente los efectos de las fuerzas G laterales sobre el piloto en maniobras bruscas.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.0,
+                visorUrl: "P1_VISOR_STAR_WARS_4_B_WING.html"
+            },
+            {
+                id: "death_star",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_-_estrella_muerte/",
+                file: "scene.gltf",
+                icon: "🌑",
+                title: "5. Estrella de la Muerte (DS-1 Orbital)",
+                shortTitle: "5. Estrella Muerte",
+                character: "Gran Moff Tarkin & Emperador Palpatine",
+                charAvatar: "👑",
+                realInvention: "Megaestructuras Espaciales y Láseres de Fusión por Confinamiento",
+                sector: "ESTACIONES ESPACIALES & ENERGÍA PURA",
+                description: "Estación espacial esférica de 160 kilómetros de diámetro equipada con un superláser alimentado por cristales kyber capaz de concentrar haces de energía pura.",
+                curiosity: "⭐ Ciencia real: Los reactores de fusión actuales (ITER o NIF) usan decenas de haces láser convergiendo en un punto para liberar energía atómica.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.5,
+                visorUrl: "P1_VISOR_STAR_WARS_5_ESTRELLA_MUERTE.html"
+            },
+            {
+                id: "destructor",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_-_Destructor_Imperial/",
+                file: "destructor+imperial.obj",
+                icon: "🚢",
+                title: "6. Destructor Estelar Imperial (Clase Imperial I)",
+                shortTitle: "6. Destructor Imperial",
+                character: "Darth Vader & Almirante Piett",
+                charAvatar: "🦹‍♂️",
+                realInvention: "Acorazados de Batalla y Portaaeronaves de Proyección Global",
+                sector: "MANDO NAVAL ESTRATÉGICO & SUPREMACÍA",
+                description: "Acorazado triangular de 1.600 metros de eslora armado con 60 baterías turboláser y generadores de escudo gemelos sobre el puente de mando.",
+                curiosity: "⭐ Cine: La icónica toma inicial de 1977 del Destructor pasando sobre la cámara tardó semanas en filmarse con maquetas analógicas.",
+                scaleFactor: 4.0,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_6_DESTRUCTOR.html"
+            },
+            {
+                id: "vaders_tie",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/vaders_tie/",
+                file: "scene.gltf",
+                icon: "🛸",
+                title: "7. TIE Advanced x1 (Caza Personal de Darth Vader)",
+                shortTitle: "7. TIE de Vader",
+                character: "Lord Darth Vader",
+                charAvatar: "🦹‍♂️",
+                realInvention: "Alas Fotovoltaicas Curvadas de Alta Eficiencia y Motores Iónicos Dobles",
+                sector: "PROPULSIÓN IÓNICA & ENERGÍA SOLAR AEROESPACIAL",
+                description: "Prototipo de caza de superioridad espacial diseñado expresamente para Darth Vader. Incorpora alas angulares con paneles solares de alta densidad y un generador de hiperimpulsor propio.",
+                curiosity: "⭐ Cine: Su fuselaje con alas curvadas fue diseñado para que el espectador pudiera distinguir inmediatamente la nave de Vader entre los cazas TIE corrientes en la trinchera.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.6,
+                visorUrl: "P1_VISOR_STAR_WARS_7_TIE_VADER.html"
+            },
+            {
+                id: "tie_interceptor",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_tie_interceptor_emperors_royal_guard/",
+                file: "scene.gltf",
+                icon: "🔺",
+                title: "8. TIE Interceptor (Guardia Real Imperial)",
+                shortTitle: "8. TIE Interceptor",
+                character: "Pilotos de Élite Imperial",
+                charAvatar: "🔴",
+                realInvention: "Motores Iónicos Gemelos (NASA Dawn) y Paneles Fotovoltaicos",
+                sector: "PROPULSIÓN IÓNICA & BLINDAJE LIGERO",
+                description: "Caza de alta velocidad con cuatro cañones láser en las puntas de flecha de sus alas. Diseñado para contrarrestar la velocidad de los cazas de la Alianza Rebelde.",
+                curiosity: "⭐ Ciencia real: TIE significa 'Twin Ion Engine'. La NASA utiliza propulsores iónicos reales para viajar por el sistema solar.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.5,
+                visorUrl: "P1_VISOR_STAR_WARS_8_TIE_INTERCEPTOR.html"
+            },
+            {
+                id: "tie_interceptor_gray",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_tie_interceptor_standard/",
+                file: "scene.gltf",
+                icon: "⚡",
+                title: "9. TIE Interceptor Imperial (Librea Gris Imperial)",
+                shortTitle: "9. TIE Interceptor Gris",
+                character: "Barón Soontir Fel & Escuadrón Sable",
+                charAvatar: "⚡",
+                realInvention: "Alas en Flecha en Daga y Maniobrabilidad Angular Extrema",
+                sector: "INTERCEPTACIÓN DE COMBATE & AERODINÁMICA ESPACIAL",
+                description: "El interceptor estándar de las alas de caza imperiales con su icónico color gris naval, cuatro cañones láser en los extremos de los paneles y cabina de bola hermética.",
+                curiosity: "⭐ Velocidad: Desarrollado para contrarrestar la superioridad del X-Wing rebelde, superándolo en velocidad punta a 111 MGLT.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.4,
+                visorUrl: "P1_VISOR_STAR_WARS_9_TIE_INTERCEPTOR_GRIS.html"
+            },
+            {
+                id: "tie_lightning",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/tie_lightning/",
+                file: "scene.gltf",
+                icon: "⚡",
+                title: "10. TIE Lightning (Prototipo Avanzado)",
+                shortTitle: "10. TIE Lightning",
+                character: "Ases de Caza del Imperio",
+                charAvatar: "🛩️",
+                realInvention: "Alas en Flecha Invertida y Células de Alta Densidad",
+                sector: "AERODINÁMICA ESPACIAL EXPERIMENTAL",
+                description: "Variante experimental de la línea TIE con paneles solares aerodinámicos curvados y generadores de energía sobredimensionados para disparos de plasma continuo.",
+                curiosity: "⭐ Diseño: Mezcla la estética clásica de Sienar Fleet Systems con la silueta de los aviones experimentales Sukhoi Su-47.",
+                scaleFactor: 4.0,
+                cameraRadius: 5.4,
+                visorUrl: "P1_VISOR_STAR_WARS_10_TIE_LIGHTNING.html"
+            },
+            {
+                id: "lambda_shuttle",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/imperial_shuttle_lambda-class_t-4a_-_star_wars/",
+                file: "scene.gltf",
+                icon: "🕊️",
+                title: "11. Lanzadera Imperial Clase Lambda (T-4a)",
+                shortTitle: "11. Lanzadera Lambda",
+                character: "Emperador Palpatine & Darth Vader",
+                charAvatar: "👑",
+                realInvention: "Alas Plegables de Aeronaves Embarcadas y Motores Estotoatómicos",
+                sector: "TRANSPORTE DIPLOMÁTICO & MILITAR PESADO",
+                description: "Transporte blindado de dignatarios imperiales. Sus alas laterales se pliegan hacia arriba al aterrizar para reducir la huella en los hangares y se despliegan en vuelo.",
+                curiosity: "⭐ Cinemática: Las alas de geometría plegable se usan en cazas navales modernos (F/A-18) para ahorrar espacio en portaaviones.",
+                scaleFactor: 4.0,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_11_LANZADERA_LAMBDA.html"
+            },
+            {
+                id: "lambda_textured",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/imperial_lambda_shuttle_textured/",
+                file: "scene.gltf",
+                icon: "🕊️",
+                title: "12. Lanzadera Imperial Lambda T-4a (Detalle Texturizado)",
+                shortTitle: "12. Lanzadera Texturizada",
+                character: "Escolta del Emperador Palpatine",
+                charAvatar: "👑",
+                realInvention: "Alas Estabilizadoras en Configuración 'Y' Invertida y Escudos Deflectores VIP",
+                sector: "AERODINÁMICA ATMOSFÉRICA & TRANSPORTE BLINDADO",
+                description: "Modelo con mapas de textura PBR de alta fidelidad, representando el fuselaje con desgaste operativo, cabina acristalada y cañones dobles de defensa frontal.",
+                curiosity: "⭐ Cine: La lanzadera Tyderium robada por los rebeldes en 'El Retorno del Jedi' usaba un código de autorización viejo pero válido para infiltrarse en Endor.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.6,
+                visorUrl: "P1_VISOR_STAR_WARS_12_LANZADERA_TEXTURIZADA.html"
+            },
+            {
+                id: "arquitens_cruiser",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/imperial_cruiser_arquitens/",
+                file: "scene.gltf",
+                icon: "🛳️",
+                title: "13. Crucero Ligero Imperial (Clase Arquitens)",
+                shortTitle: "13. Crucero Arquitens",
+                character: "Moff Gideon",
+                charAvatar: "🎖️",
+                realInvention: "Corbetas Militares de Escolta y Sistemas de Baterías Turboláser Direccionales",
+                sector: "DEFENSA SECTORIAL & CRUCEROS LIGEROS",
+                description: "Nave de mando y patrulla del Imperio Galáctico de 325 metros de eslora. Incorpora un hangar de lanzamiento ventral para cazas TIE y tres motores sub-luz masivos en su popa.",
+                curiosity: "⭐ The Mandalorian: El crucero de Moff Gideon sirvió como base de operaciones y lanzamiento del batallón de Dark Troopers de tercera fase.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_13_CRUCERO_ARQUITENS.html"
+            },
+            {
+                id: "vt49_decimator",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_vt-49_decimator/",
+                file: "scene.gltf",
+                icon: "🛡️",
+                title: "14. Diezmador VT-49 Imperial (Cañonera de Asalto)",
+                shortTitle: "14. VT-49 Decimator",
+                character: "Capitán Ozzik Sturn",
+                charAvatar: "⚔️",
+                realInvention: "Blindaje Reactivo Multicapa y Cañoneras Pesadas de Despliegue Rápido",
+                sector: "ASALTO BLINDADO & ABORDAJE TÁCTICO",
+                description: "Transporte fuertemente blindado utilizado por las fuerzas imperiales para misiones de exploración avanzada y abordaje táctico en sectores hostiles.",
+                curiosity: "⭐ Universo Expandido: Creado originalmente para el videojuego Star Wars Galaxies, se convirtió en una de las cañoneras más populares del juego de miniaturas X-Wing.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.6,
+                visorUrl: "P1_VISOR_STAR_WARS_14_DECIMATOR.html"
+            },
+            {
+                id: "star_wing",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_alpha-class_xg-1_star_wing/",
+                file: "scene.gltf",
+                icon: "🦅",
+                title: "15. Cañonera de Asalto Alpha-class Xg-1 Star Wing (Animada)",
+                shortTitle: "15. Xg-1 Star Wing",
+                character: "Maarek Stele & Ases Imperiales",
+                charAvatar: "🦅",
+                realInvention: "Alas Plegables de Cinco Posiciones y Motores Hiperespaciales Integrados en Cazas",
+                sector: "GEOMETRÍA ALAR COMPLEJA & BOMBARDEO ESPACIAL",
+                description: "Célebre cañonera imperial de cinco alas con animación de despliegue alar. Equipada con hiperimpulsor autónomo y lanzaderas de torpedos de protones para misiones de ataque profundo.",
+                curiosity: "⭐ Videojuegos: Fue la primera nave imperial pilotable equipada con escudos e hiperpropulsor en el histórico simulador TIE Fighter (1994) de LucasArts.",
+                scaleFactor: 3.9,
+                cameraRadius: 5.6,
+                visorUrl: "P1_VISOR_STAR_WARS_15_STAR_WING.html"
+            },
+            {
+                id: "jedi_starfighter",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_war_ship/",
+                file: "scene.gltf",
+                icon: "🚀",
+                title: "16. Interceptor Jedi Eta-2 Actis",
+                shortTitle: "16. Jedi Starfighter",
+                character: "Obi-Wan Kenobi & Anakin Skywalker",
+                charAvatar: "🧙‍♂️",
+                realInvention: "Módulos de Reacción Rápida y Acoplamiento Orbital",
+                sector: "INTERCEPCIÓN MODULAR & VANGUARDIA",
+                description: "Caza ultraligero empleado por la Orden Jedi. Su tamaño compacto permitía a los reflejos asistidos por la Fuerza realizar maniobras evasivas imposibles.",
+                curiosity: "⭐ Cinemática: Cuenta con alerones disipadores de calor que se abren en modo de combate.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.8,
+                visorUrl: "P1_VISOR_STAR_WARS_16_JEDI_STARFIGHTER.html"
+            },
+            {
+                id: "arc170",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/arc-170_fighter/",
+                file: "scene.gltf",
+                icon: "✈️",
+                title: "17. Caza de Reconocimiento Agresivo ARC-170",
+                shortTitle: "17. Caza ARC-170",
+                character: "Escuadrón 104 'Wolfpack' & Odd Ball",
+                charAvatar: "🪖",
+                realInvention: "Aeronaves de Patrulla Multienvergadura y Sensores Térmicos de Largo Alcance",
+                sector: "RECONOCIMIENTO PESADO & AVIACIÓN MILITAR",
+                description: "Caza estelar pesado de la República tripulado por 3 clones y un droide astromecánico. Precursor directo del X-Wing, con tres alas S-foils gemelas y cañones láser en los extremos alares.",
+                curiosity: "⭐ Diseño: Su morro y motores masivos rinden homenaje a los cazas pesados de la Segunda Guerra Mundial como el P-61 Black Widow.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_17_ARC_170.html"
+            },
+            {
+                id: "naboo_n1",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/naboo_starfighter/",
+                file: "scene.gltf",
+                icon: "✨",
+                title: "18. Caza Estelar Naboo N-1 (Caza Real & Modificado)",
+                shortTitle: "18. Naboo N-1",
+                character: "Anakin Skywalker & Din Djarin",
+                charAvatar: "🧑‍🚀",
+                realInvention: "Fuselajes Hidrodinámicos de Cromo Pulido y Turbinas de Flujo Libre",
+                sector: "DISEÑO AERODINÁMICO & ACABADOS DE ALTA REFLEXIÓN",
+                description: "Caza de defensa y escolta diplomática de Naboo. Célebre por su esbelto acabado artesanal en cromo pulido a mano, motores gemelos J-type y tobera de cola disipadora de calor.",
+                curiosity: "⭐ Saga: Din Djarin reconstruyó uno en 'The Book of Boba Fett', despojándolo de pintura y potenciándolo con un inyector turbocargado de aceleración súbita.",
+                scaleFactor: 4.0,
+                cameraRadius: 5.8,
+                visorUrl: "P1_VISOR_STAR_WARS_18_NABOO_N1.html"
+            },
+            {
+                id: "nubian_327",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/naboo_royal_starship_j-type_327_nubian/",
+                file: "scene.gltf",
+                icon: "🛸",
+                title: "19. Nave Real Nubian J-type 327 de Naboo",
+                shortTitle: "19. Nave Real Nubian",
+                character: "Reina Padmé Amidala & Capitán Panaka",
+                charAvatar: "👸",
+                realInvention: "Revestimientos de Espejo Reflectante de Calor Radiativo y Blindaje Pasivo",
+                sector: "TRANSPORTE DIPLOMÁTICO & TERMODINÁMICA ESPACIAL",
+                description: "Transporte real desprovisto de armas ofensivas pero dotado de un casco espejado de cromo nubiano que desvía escáners y disipa el calor extremo del hiperespacio.",
+                curiosity: "⭐ Cine: La inspiración visual fue el avión futurista Lockheed SR-71 Blackbird pero acabado en cromo resplandeciente en lugar de negro mate.",
+                scaleFactor: 4.4,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_19_NUBIAN_327.html"
+            },
+            {
+                id: "slave1",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/slave1/",
+                file: "scene.gltf",
+                icon: "🎯",
+                title: "20. Esclavo I (Firespray-31 de Boba Fett)",
+                shortTitle: "20. Esclavo I (Slave 1)",
+                character: "Boba Fett & Jango Fett",
+                charAvatar: "🪖",
+                realInvention: "Vuelo Giroscópico de Cabina Desacoplada y Cargas Sísmicas",
+                sector: "INTERCEPCIÓN PESADA & PROPULSIÓN ROTATORIA",
+                description: "Nave patrulla modificada que despega en posición horizontal pero rota 90 grados para volar en posición vertical.",
+                curiosity: "⭐ Efecto de audio: El sonido de las cargas sísmicas es uno de los más premiados de la historia del cine sonoro.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.8,
+                visorUrl: "P1_VISOR_STAR_WARS_20_SLAVE_1.html"
+            },
+            {
+                id: "razor_crest",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/razor_crest_snowice_textured/",
+                file: "scene.gltf",
+                icon: "🛡️",
+                title: "21. Razor Crest (Cañonera ST-70)",
+                shortTitle: "21. Razor Crest",
+                character: "Din Djarin (Mando) & Grogu",
+                charAvatar: "🪖",
+                realInvention: "Cañoneras de Asalto Militar Pre-Imperiales y Cámaras Criogénicas",
+                sector: "PATRULLA MILITAR & CONGELACIÓN DE CARBONITA",
+                description: "Antigua cañonera militar utilizada por Din Djarin en misiones de cacería por el Borde Exterior. Posee bodega de carga, cámara de carbonita y turbinas gemelas de gran empuje.",
+                curiosity: "⭐ Serie: Construida con referencias visuales a aviones de combate como el A-10 Thunderbolt II.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.0,
+                visorUrl: "P1_VISOR_STAR_WARS_21_RAZOR_CREST.html"
+            },
+            {
+                id: "sandcrawler",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/star_wars_sandcrawler_incl/",
+                file: "scene.gltf",
+                icon: "🏜️",
+                title: "22. Sandcrawler Jawa (Fortaleza Móvil)",
+                shortTitle: "22. Sandcrawler Jawa",
+                character: "Jawas de Tatooine",
+                charAvatar: "👥",
+                realInvention: "Excavadoras Mineras Gigantes de Orugas (Crawler-Transporter NASA)",
+                sector: "VEHÍCULOS PESADOS TERRESTRES & RECICLAJE",
+                description: "Gigantesca fortaleza móvil sobre orugas de 37 metros de eslora. Originalmente máquinas de prospección minera, ahora sirven como bases nómadas y talleres de droides para los Jawas.",
+                curiosity: "⭐ Tecnología real: Inspirado en los Crawler-Transporters gigantescos que la NASA utiliza en Cabo Cañaveral para transportar los cohetes Saturno V y Artemis.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.2,
+                visorUrl: "P1_VISOR_STAR_WARS_22_SANDCRAWLER.html"
+            },
+            {
+                id: "at_at",
+                category: "naves",
+                folder: BASE_SW_PATH + "2.NAVES_Y_VEHICULOS/imperial_at-at_walker_-_star_wars/",
+                file: "scene.gltf",
+                icon: "🦾",
+                title: "23. Caminante Imperial AT-AT",
+                shortTitle: "23. AT-AT Walker",
+                character: "General Veers / Imperio",
+                charAvatar: "❄️",
+                realInvention: "Caminantes Cuadrúpedos Pesados & Blindaje Acorazado",
+                sector: "ASALTO PESADO & GUERRA BLINDADA",
+                description: "Colosal transporte acorazado de 22.5 metros de altura. Columna vertebral del asalto imperial a la Base Eco en Hoth, prácticamente invulnerable al fuego láser frontal.",
+                curiosity: "⭐ Táctica de combate: La Alianza Rebelde solo pudo derribarlos usando los cables de remolque de los Snowspeeders T-47 para enredar sus patas mecánicas.",
+                scaleFactor: 3.8,
+                cameraRadius: 6.5,
+                visorUrl: "P1_VISOR_STAR_WARS_23_AT_AT.html"
+            },
+
+            // ========================= 🚪 INTERIORES Y CABINAS (3) =========================
+            {
+                id: "xwing_cockpit",
+                category: "interiores",
+                folder: BASE_SW_PATH + "3.INTERIORES_Y_CABINAS/x-wing_cockpit_version_2/",
+                file: "scene.gltf",
+                icon: "🎛️",
+                title: "Cabina de Vuelo y Ordenador de Tiro X-Wing",
+                shortTitle: "Cabina X-Wing",
+                character: "Luke Skywalker (Voz de Obi-Wan: 'Use the Force')",
+                charAvatar: "🎯",
+                realInvention: "Head-Up Display (HUD) y Ordenadores de Tiro Holográficos",
+                sector: "INTERFACES TÁCTICAS & SIMULACIÓN AEROESPACIAL",
+                description: "Puesto de pilotaje hermético del X-Wing. Contiene la palanca de control de vuelo de tres ejes, el ordenador de tiro retráctil y la pantalla del droide astromecánico.",
+                curiosity: "⭐ Momento cumbre: Luke apaga el ordenador de tiro para confiar en la Fuerza en el ataque a la Estrella de la Muerte.",
+                scaleFactor: 4.2,
+                cameraRadius: 4.5
+            },
+            {
+                id: "star_destroyer_bridge",
+                category: "interiores",
+                folder: BASE_SW_PATH + "3.INTERIORES_Y_CABINAS/star_destroyer_bridge_star_wars/",
+                file: "scene.gltf",
+                icon: "🚢",
+                title: "Puente de Mando del Destructor Imperial",
+                shortTitle: "Puente Destructor",
+                character: "Darth Vader & Gran Moff Tarkin",
+                charAvatar: "👑",
+                realInvention: "Centros de Operaciones Tácticas Navales (CIC) y Fosos de Tripulación",
+                sector: "MANDO NAVAL ESTRATÉGICO & COMUNICACIONES",
+                description: "El mítico puente de mando con sus dos fosos de oficiales a los lados, la pasarela central elevada y las cristaleras triangulares blindadas.",
+                curiosity: "⭐ Arquitectura militar: El diseño con fosos deprimidos se inspira en los centros de mando de portaaviones y silos de la Guerra Fría.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.0
+            },
+            {
+                id: "jedi_council",
+                category: "interiores",
+                folder: BASE_SW_PATH + "3.INTERIORES_Y_CABINAS/jedi_council_baked/",
+                file: "scene.gltf",
+                icon: "🏛️",
+                title: "Cámara del Alto Consejo Jedi (Templo de Coruscant)",
+                shortTitle: "Consejo Jedi",
+                character: "Maestro Yoda, Mace Windu & Obi-Wan Kenobi",
+                charAvatar: "🧘‍♂️",
+                realInvention: "Proyecciones Holográficas Cuánticas para Telepresencia",
+                sector: "TELEPRESENCIA HOLOGRÁFICA & COMUNICACIÓN 3D",
+                description: "Sala circular en la cúspide de la torre del Templo Jedi con ventanales panorámicos y asientos para los 12 Maestros con enlaces holográficos.",
+                curiosity: "⭐ Telecomunicaciones: Tecnologías actuales como las pantallas volumétricas de campo de luz recrean el efecto de los hologramas de Star Wars.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.0
+            },
+
+            // ========================= ⚔️ ARMAS Y ACCESORIOS (12) =========================
+            {
+                id: "darksaber",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/darksaber__star_wars__mandalorian_darksaber/",
+                file: "scene.gltf",
+                icon: "🖤",
+                title: "Darksaber (Sable Oscuro Mandaloriano)",
+                shortTitle: "Darksaber",
+                character: "Tarre Vizsla, Din Djarin & Bo-Katan Kryze",
+                charAvatar: "🗡️",
+                realInvention: "Confinamiento Magnético de Plasma y Aleaciones de Beskar",
+                sector: "FÍSICA DE PLASMA & MAGNETOHIDRODINÁMICA",
+                description: "Antiguo sable de hoja aplanada negra con un halo de energía blanca crepitante que atrae la energía del plasma mediante un campo electromagnético.",
+                curiosity: "⭐ Física real: El plasma contenido por campos magnéticos es la base de los reactores de fusión tipo Tokamak.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.5
+            },
+            {
+                id: "saber_vader",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/darth_vader_-_lightsaber/",
+                file: "scene.gltf",
+                icon: "🔴",
+                title: "Sable de Luz Carmesí de Darth Vader",
+                shortTitle: "Sable Darth Vader",
+                character: "Darth Vader (Lord Sith)",
+                charAvatar: "🦹‍♂️",
+                realInvention: "Emisores de Plasma Guiado por Cristal Sintético Kyber",
+                sector: "ENERGÍA COHERENTE & CRISTALOGRAFÍA SINTÉTICA",
+                description: "Empuñadura cilíndrica de acero oscuro con controles de modulación de longitud de hoja y un cristal kyber 'sangrado' mediante la Fuerza.",
+                curiosity: "⭐ Cine: La empuñadura original de 1977 fue construida con el mango de un flash fotográfico vintage Graflex.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.5
+            },
+            {
+                id: "saber_windu",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/mace_windus_lightsaber_-_star_wars/",
+                file: "scene.gltf",
+                icon: "🟣",
+                title: "Sable de Luz Amatista de Mace Windu",
+                shortTitle: "Sable Mace Windu",
+                character: "Mace Windu (Maestro de la Orden)",
+                charAvatar: "⚡",
+                realInvention: "Acabados en Electrum y Células Diatium de Ultra-Alta Descarga",
+                sector: "METALURGIA NOBLE & ALMACENAMIENTO ELÉCTRICO",
+                description: "Elegante empuñadura con grabados de electrum y hoja púrpura única, reflejo del estilo de combate Vaapad que rozaba el lado oscuro.",
+                curiosity: "⭐ Anécdota: Samuel L. Jackson pidió personalmente a George Lucas que su sable fuera violeta para distinguirse en las batallas masivas.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.5
+            },
+            {
+                id: "saber_green",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/green_lightsaber_-_star_wars/",
+                file: "scene.gltf",
+                icon: "🟢",
+                title: "Sable de Luz Verde de Luke Skywalker",
+                shortTitle: "Sable de Luke",
+                character: "Luke Skywalker (Caballero Jedi)",
+                charAvatar: "🤺",
+                realInvention: "Cristal Kyber Sintetizado en Horno y Circuito de Ignición",
+                sector: "ELECTRÓNICA MODULAR & SÍNTESIS DE CRISTALES",
+                description: "Construido por Luke en Tatooine tras perder el sable de su padre en Bespin. Diseñado siguiendo las notas dejadas por Obi-Wan Kenobi.",
+                curiosity: "⭐ Cine: El color se cambió a verde en el rodaje porque el azul original no contrastaba bien contra el cielo azul de Tatooine.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.5
+            },
+            {
+                id: "saber_obiwan",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/obi-wans_lightsaber_from_star_wars_i/",
+                file: "scene.gltf",
+                icon: "🔵",
+                title: "Sable de Luz de Obi-Wan Kenobi",
+                shortTitle: "Sable Obi-Wan",
+                character: "Obi-Wan Kenobi (Padawan / Maestro)",
+                charAvatar: "🥋",
+                realInvention: "Reguladores de Potencia y Matriz de Enfoque Bipolar",
+                sector: "DISEÑO INDUSTRIAL & FÍSICA APLICADA",
+                description: "El sable clásico de hoja azul empleado durante las Guerras Clon y el duelo contra Darth Maul en Naboo.",
+                curiosity: "⭐ Diseño clásico: Su pomo inferior con aristas facilitaba el agarre con dos manos para la esgrima de precisión.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.5
+            },
+            {
+                id: "dl44_blaster",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/dl-44_heavy_blaster_pistol__han_solo/",
+                file: "scene.gltf",
+                icon: "🔫",
+                title: "Pistola Bláster Pesada DL-44 de Han Solo",
+                shortTitle: "Bláster DL-44",
+                character: "Han Solo ('Han shot first')",
+                charAvatar: "🤠",
+                realInvention: "Armas de Energía Dirigida (DEW) y Gas Tibanna Magnetizado",
+                sector: "BALÍSTICA DE ENERGÍA & ARMAMENTO TÁCTICO",
+                description: "La pistola más temida del submundo galáctico. Modificada para disparar ráfagas de plasma sobrecargadas con una mira telescópica de precisión.",
+                curiosity: "⭐ Atrezo histórico: Construida a partir de una pistola real Mauser C96 alemana de la Primera Guerra Mundial.",
+                scaleFactor: 4.2,
+                cameraRadius: 4.5
+            },
+            {
+                id: "e11_rifle",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/e-11_blaster_rifle_-_star_wars/",
+                file: "scene.gltf",
+                icon: "🪖",
+                title: "Rifle Bláster E-11 de Stormtrooper",
+                shortTitle: "Rifle E-11",
+                character: "Tropas de Asalto Imperiales",
+                charAvatar: "💂",
+                realInvention: "Rifles de Asalto Modulares y Supresores de Destello Plasmático",
+                sector: "EQUIPAMIENTO MILITAR ESTÁNDAR",
+                description: "El arma reglamentaria del Imperio Galáctico: culata plegable de tres posiciones, mira óptica nocturna y selector de disparo aturdidor.",
+                curiosity: "⭐ Curiosidad: Diseñado modificando el subfusil británico Sterling L2A3 de la década de 1950.",
+                scaleFactor: 4.2,
+                cameraRadius: 4.5
+            },
+            {
+                id: "amban_rifle",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/mandalorian_rifle_-_amban_phase_pulse_blaster/",
+                file: "scene.gltf",
+                icon: "🔱",
+                title: "Rifle de Pulsos de Fase Amban Mandaloriano",
+                shortTitle: "Rifle Amban",
+                character: "Din Djarin (El Mandaloriano)",
+                charAvatar: "💥",
+                realInvention: "Armas de Descarga Electro-Magnética (Taser a Larga Distancia)",
+                sector: "DESCARGA DE PULSOS & ARMAS DIRIGIDAS",
+                description: "Rifle largo con cañón bifurcado capaz de desintegrar objetivos a distancia extrema o emitir descargas de aturdimiento por contacto directo.",
+                curiosity: "⭐ Homenaje: Apareció por primera vez en el especial animado de Star Wars de 1978 antes de consagrarse en 'The Mandalorian'.",
+                scaleFactor: 4.5,
+                cameraRadius: 4.8
+            },
+            {
+                id: "wookiee_bowcaster",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/star_wars_wookie_bowcaster/",
+                file: "scene.gltf",
+                icon: "🏹",
+                title: "Ballesta Láser Wookiee (Bowcaster)",
+                shortTitle: "Bowcaster Chewbacca",
+                character: "Chewbacca el Wookiee",
+                charAvatar: "🦍",
+                realInvention: "Aceleradores de Masa Electromagnéticos (Railgun)",
+                sector: "PROPULSIÓN CINÉTICA ELECTROMAGNÉTICA",
+                description: "Arma tradicional de Kashyyyk que dispara virotes metálicos magnetizados impulsados por polarizadores magnéticos gemelos en sus extremos.",
+                curiosity: "⭐ Fuerza física: Requiere la enorme fuerza muscular de un Wookiee para ser amartillada manualmente.",
+                scaleFactor: 4.2,
+                cameraRadius: 4.5
+            },
+            {
+                id: "thermal_detonator",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/star_wars_thermal_detonator/",
+                file: "scene.gltf",
+                icon: "💣",
+                title: "Detonador Térmico Clase-A",
+                shortTitle: "Detonador Térmico",
+                character: "Princesa Leia & Cazarrecompensas",
+                charAvatar: "🔥",
+                realInvention: "Explosivos de Fusión Barádica y Blindaje Térmico",
+                sector: "MUNICIÓN TERMONUCLEAR COMPACTA",
+                description: "Granada esférica de baradio metálico que genera un campo de fusión térmica controlada que desintegra materia dentro de su radio de acción.",
+                curiosity: "⭐ Escena clásica: La princesa Leia disfrazada del cazarrecompensas Boushh amenaza a Jabba the Hutt sosteniendo un detonador activo.",
+                scaleFactor: 4.0,
+                cameraRadius: 4.0
+            },
+            {
+                id: "jetpack_fett",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/star_wars_jetpack_boba_fett/",
+                file: "scene.gltf",
+                icon: "🎒",
+                title: "Mochila Propulsora Jetpack Z-6",
+                shortTitle: "Jetpack Boba Fett",
+                character: "Boba Fett & Jango Fett",
+                charAvatar: "🚀",
+                realInvention: "Microturbinas Vectoriales y Propulsión Dorsal Personal",
+                sector: "AEROMOVILIDAD PERSONAL & DEFENSA",
+                description: "Mochila de vuelo propulsada por dos toberas vectoriales orientables con giróscopos de estabilización y un misil guiado anti-vehículo.",
+                curiosity: "⭐ Tecnología moderna: La empresa Gravity Industries opera hoy trajes con microturbinas en los brazos que permiten el vuelo individual.",
+                scaleFactor: 4.0,
+                cameraRadius: 4.5
+            },
+            {
+                id: "sith_holocron",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/sith_holocron/",
+                file: "scene.gltf",
+                icon: "🔺",
+                title: "Holocrón Piramidal Sith",
+                shortTitle: "Holocrón Sith",
+                character: "Darth Sidious & Señores Sith",
+                charAvatar: "👁️",
+                realInvention: "Almacenamiento Holográfico de Datos en Cristales Cuánticos",
+                sector: "SUPERCOMPUTACIÓN ÓPTICA & MEMORIA CUÁNTICA",
+                description: "Dispositivo de almacenamiento cuántico poligonal que proyecta avatares holográficos interactivos mediante IA para transmitir secretos ancestrales.",
+                curiosity: "⭐ Ciencia real: Los cristales de cuarzo óptico 5D de la Universidad de Southampton almacenan 360 Terabytes de datos indestructibles.",
+                scaleFactor: 4.0,
+                cameraRadius: 4.2
+            },
+            {
+                id: "saber_kylo",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/kylo_rens_lightsaber/",
+                file: "scene.gltf",
+                icon: "⚡",
+                title: "Sable de Luz Inestable de Kylo Ren (Animado)",
+                shortTitle: "Sable de Kylo Ren",
+                character: "Kylo Ren (Ben Solo)",
+                charAvatar: "🗡️",
+                realInvention: "Confinamiento Magnético de Plasma Inestable y Toberas de Ventilación Térmica",
+                sector: "FÍSICA DE PLASMA & ENERGÍA MAGNÉTICA",
+                description: "Construido alrededor de un cristal kyber agrietado. La inestabilidad de la reacción nuclear de plasma requiere dos gavilanes laterales (quillons) para ventilar el exceso de energía térmica. Cuenta con animación activa.",
+                curiosity: "⭐ Sonido: El zumbido rasgado y crepitante de su hoja fue creado usando grabaciones de gatos ronroneando mezclados con zumbidos de cables de alta tensión defectuosos.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.6
+            },
+            {
+                id: "saber_crossguard_relic",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/cross_guard_lightsaber_relic/",
+                file: "scene.gltf",
+                icon: "⚔️",
+                title: "Sable Ancestral de Guarda Cruzada (Era Alta República)",
+                shortTitle: "Sable Guarda Cruzada",
+                character: "Caballeros Jedi de la Alta República",
+                charAvatar: "🛡️",
+                realInvention: "Empuñaduras de Aleación Durasteel con Triple Emisor Magnético",
+                sector: "METALURGIA DE PRECISIÓN & CONTENCIÓN DE PLASMA",
+                description: "Diseño ancestral con empuñadura texturizada y tres hojas de plasma sincronizadas mediante un prisma de enfoque interno que distribuye el flujo de plasma a 90 grados.",
+                curiosity: "⭐ Historia: Este diseño data de miles de años atrás, durante el Gran Azote de Malachor, cuando las hojas laterales protegían las manos en duelos cuerpo a cuerpo.",
+                scaleFactor: 4.0,
+                cameraRadius: 5.4
+            },
+            {
+                id: "hologram_projector",
+                category: "armas",
+                folder: BASE_SW_PATH + "4.ARMAS_Y_ACCESORIOS/hologram_projector/",
+                file: "scene.gltf",
+                icon: "📡",
+                title: "Proyector Holográfico Galáctico (Animado)",
+                shortTitle: "Proyector Holograma",
+                character: "Alianza Rebelde & Senadores de la República",
+                charAvatar: "🔵",
+                realInvention: "Pantallas Volumétricas 3D de Campo de Luz y Fotónica Coherente",
+                sector: "COMUNICACIONES ÓPTICAS & HOLOFOTÓNICA",
+                description: "Emisor de comunicación hiperespacial en tiempo real. Proyecta un haz de fotones ionizados que dibuja una réplica tridimensional en suspensión en el aire con animación activa.",
+                curiosity: "⭐ Ciencia real: La holografía cuántica y las trampas ópticas acústicas actuales logran proyectar partículas iluminadas en el aire creando hologramas visibles sin gafas especiales.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.2
+            },
+
+            // ========================= 🪐 ESCENARIOS Y HANGARES (2) =========================
+            {
+                id: "tatooine",
+                category: "escenarios",
+                folder: BASE_SW_PATH + "5.ESCENARIOS/star_wars_tatooine/",
+                file: "scene.gltf",
+                icon: "🏜️",
+                title: "Asentamiento y Vivienda de Tatooine",
+                shortTitle: "Puesto Tatooine",
+                character: "Luke Skywalker & Tío Owen",
+                charAvatar: "🛖",
+                realInvention: "Arquitectura Bioclimática Troglodita y Granjas de Humedad",
+                sector: "HÁBITATS DESÉRTICOS & CAPTACIÓN DE AGUA",
+                description: "Viviendas excavadas en la roca arenisca para protegerse del calor extremo de los dos soles de Tatooine, equipadas con condensadores de humedad atmosférica.",
+                curiosity: "⭐ Localización real: Filmado en Matmata (Túnez), donde las poblaciones locales bereberes viven en casas subterráneas idénticas desde hace siglos.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.5
+            },
+            {
+                id: "hangar_xwing_diorama",
+                category: "escenarios",
+                folder: BASE_SW_PATH + "5.ESCENARIOS/x-wing_hangar_diorama/",
+                file: "scene.gltf",
+                icon: "🏗️",
+                title: "Diorama: Hangar de Mantenimiento X-Wing (Animado)",
+                shortTitle: "Hangar X-Wing Diorama",
+                character: "Cuerpo de Ingenieros Rebeldes & R2-D2",
+                charAvatar: "🛠️",
+                realInvention: "Plataformas Logísticas Autónomas, Bancadas de Pruebas y Recarga Criogénica",
+                sector: "INGENIERÍA AERONÁUTICA & MANTENIMIENTO TÁCTICO",
+                description: "Escenario completo a escala con bahía de servicio, cables de energía, consolas informáticas de diagnóstico, fuentes de alimentación y droide R2-D2 en la bahía de ensamblaje.",
+                curiosity: "⭐ Detalle: Cuenta con iluminación de hangar y elementos de soporte técnico fielmente recreados como los vistos en la base rebelde de Yavin 4.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2
+            }
+        ];
+
+        // =========================================================================
+        // MOTOR BABYLON.JS & ELEMENTOS DOM
+        // =========================================================================
+        const canvas = document.getElementById("renderCanvas");
+        let engine, scene, camera;
+        let currentPivot = null;
+        let currentLoadedMeshes = [];
+        let currentAnimGroups = [];
+        let isAutoRotating = true;
+        let isAnimPlaying = true;
+        let activeModelIndex = 0;
+        let currentCategory = "all";
+
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const loadingText = document.getElementById("loadingText");
+        const loadingSubtext = document.getElementById("loadingSubtext");
+        const infoPanel = document.getElementById("infoPanel");
+        const carouselTrack = document.getElementById("carouselTrack");
+
+        const infoSector = document.getElementById("infoSector");
+        const infoTitle = document.getElementById("infoTitle");
+        const infoCharAvatar = document.getElementById("infoCharAvatar");
+        const infoCharName = document.getElementById("infoCharName");
+        const infoRealInvention = document.getElementById("infoRealInvention");
+        const infoDescription = document.getElementById("infoDescription");
+        const infoCuriosity = document.getElementById("infoCuriosity");
+
+        const btnAutoRotate = document.getElementById("btnAutoRotate");
+        const btnAnimToggle = document.getElementById("btnAnimToggle");
+        const btnPlaySound = document.getElementById("btnPlaySound");
+        const btnToggleInfo = document.getElementById("btnToggleInfo");
+        const btnResetView = document.getElementById("btnResetView");
+        const btnPrevCard = document.getElementById("btnPrevCard");
+        const btnNextCard = document.getElementById("btnNextCard");
+        const audioR2D2 = document.getElementById("audioR2D2");
+
+        let currentPivotNode = null;
+
+        const createScene = function () {
+            const sc = new BABYLON.Scene(engine);
+            sc.clearColor = new BABYLON.Color4(0.03, 0.05, 0.08, 1.0);
+
+            // Iluminación Profesional PBR y de Estudio
+            const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), sc);
+            hemiLight.intensity = 0.75;
+            hemiLight.groundColor = new BABYLON.Color3(0.12, 0.15, 0.22);
+
+            const dirLight1 = new BABYLON.DirectionalLight("dirLight1", new BABYLON.Vector3(-1, -2, -1.5), sc);
+            dirLight1.intensity = 0.85;
+            dirLight1.diffuse = new BABYLON.Color3(1, 0.96, 0.90);
+
+            const dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1.5, 1.5, 1.0), sc);
+            dirLight2.intensity = 0.45;
+            dirLight2.diffuse = new BABYLON.Color3(0.35, 0.55, 0.90);
+
+            // Entorno de reflejos para materiales metálicos PBR
+            try {
+                const helper = sc.createDefaultEnvironment({
+                    createGround: false,
+                    createSkybox: false
+                });
+                if (helper) helper.setMainColor(new BABYLON.Color3(0.05, 0.08, 0.12));
+            } catch (e) {
+                console.warn("Entorno omitido:", e);
+            }
+
+            // Cámara Orbital
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2.2, Math.PI / 2.8, 6.0, BABYLON.Vector3.Zero(), sc);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 40;
+            camera.minZ = 0.1;
+            camera.maxZ = 500;
+            camera.lowerRadiusLimit = 1.5;
+            camera.upperRadiusLimit = 25;
+
+            // Suelo Pedestal Elegante
+            const pedestal = BABYLON.MeshBuilder.CreateCylinder("pedestal", { diameter: 7, height: 0.15, tessellation: 64 }, sc);
+            pedestal.position.y = -1.6;
+            const pedMat = new BABYLON.StandardMaterial("pedMat", sc);
+            pedMat.diffuseColor = new BABYLON.Color3(0.05, 0.08, 0.15);
+            pedMat.specularColor = new BABYLON.Color3(0.2, 0.3, 0.5);
+            pedMat.specularPower = 32;
+            pedestal.material = pedMat;
+
+            const ring = BABYLON.MeshBuilder.CreateTorus("ring", { diameter: 7.1, thickness: 0.05, tessellation: 64 }, sc);
+            ring.position.y = -1.55;
+            const ringMat = new BABYLON.StandardMaterial("ringMat", sc);
+            ringMat.emissiveColor = new BABYLON.Color3(0.96, 0.62, 0.07);
+            ring.material = ringMat;
+
+            // Rotación continua suave idéntica a Star Trek
+            sc.registerBeforeRender(() => {
+                if (isAutoRotating && currentPivotNode) {
+                    currentPivotNode.rotation.y += 0.0018;
+                }
+            });
+
+            return sc;
+        };
+
+        // =========================================================================
+        // CARGA ROBUSTA DE MODELOS 3D (ARQUITECTURA STAR TREK)
+        // =========================================================================
+        async function loadModel(item) {
+            if (!item) return;
+            loadingOverlay.classList.remove("hidden");
+            loadingText.textContent = `Cargando ${item.shortTitle}...`;
+            loadingSubtext.textContent = `Sincronizando telemetría 3D...`;
+
+            // Actualizar panel didáctico inmediatamente
+            updateInfoPanel(item);
+
+            // Eliminar modelo anterior de memoria completamente
+            if (currentPivotNode) {
+                currentPivotNode.dispose(false, true);
+                currentPivotNode = null;
+            }
+
+            currentAnimGroups.forEach(ag => ag.stop());
+            currentAnimGroups = [];
+
+            try {
+                const onProgress = (evt) => {
+                    if (evt.lengthComputable && evt.total > 0) {
+                        const pct = Math.round((evt.loaded / evt.total) * 100);
+                        const mbLoaded = (evt.loaded / 1048576).toFixed(1);
+                        const mbTotal = (evt.total / 1048576).toFixed(1);
+                        loadingSubtext.textContent = `Descargando geometría: ${pct}% (${mbLoaded} MB / ${mbTotal} MB)`;
+                    } else if (evt.loaded) {
+                        const mbLoaded = (evt.loaded / 1048576).toFixed(1);
+                        loadingSubtext.textContent = `Descargando: ${mbLoaded} MB...`;
+                    }
+                };
+
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Tiempo de espera agotado (>120s)")), 120000)
+                );
+
+                const result = await Promise.race([
+                    BABYLON.SceneLoader.ImportMeshAsync("", item.folder, item.file, scene, onProgress),
+                    timeoutPromise
+                ]);
+                
+                const rootMesh = result.meshes[0];
+
+                if (item.file && item.file.endsWith(".obj")) {
+                    const mat = new BABYLON.StandardMaterial("objMat", scene);
+                    mat.diffuseColor = new BABYLON.Color3(0.75, 0.78, 0.82);
+                    mat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                    mat.specularPower = 32;
+                    result.meshes.forEach(m => {
+                        if (m.getTotalVertices && m.getTotalVertices() > 0) {
+                            m.material = mat;
+                        }
+                    });
+                } else if (item.id === "xwing") {
+                    result.meshes.forEach(m => {
+                        if (!m.material) return;
+                        const matName = (m.material.name || "").toLowerCase();
+                        if (matName.includes("scratchedmetalred")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.55, 0.10, 0.10);
+                                m.material.metallic = 0.12;
+                                m.material.roughness = 0.50;
+                            }
+                        } else if (matName.includes("scratchedmetalyellow")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.83, 0.75, 0.34);
+                                m.material.metallic = 0.30;
+                                m.material.roughness = 0.40;
+                            }
+                        } else if (matName.includes("scratchedmetaldark")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.156, 0.153, 0.153);
+                                m.material.metallic = 0.45;
+                                m.material.roughness = 0.42;
+                            }
+                        } else if (matName.includes("reflectiveglassred")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.95, 0.05, 0.05);
+                                m.material.emissiveColor = new BABYLON.Color3(0.85, 0.05, 0.05);
+                                m.material.emissiveIntensity = 1.6;
+                            }
+                        } else if (matName.includes("reflectiveglass")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.015, 0.02, 0.03);
+                                m.material.metallic = 0.10;
+                                m.material.roughness = 0.08;
+                            }
+                        } else if (matName.includes("metalgrey")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.75, 0.77, 0.82);
+                                m.material.metallic = 0.85;
+                                m.material.roughness = 0.18;
+                            }
+                        } else if (matName.includes("metalpurple")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.03, 0.08, 0.35);
+                                m.material.metallic = 0.40;
+                                m.material.roughness = 0.30;
+                            }
+                        } else if (matName.includes("metalwhite")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.88, 0.88, 0.90);
+                                m.material.metallic = 0.10;
+                                m.material.roughness = 0.35;
+                            }
+                        } else if (matName.includes("yellowengineglow")) {
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(1.0, 0.7, 0.2);
+                                m.material.emissiveColor = new BABYLON.Color3(1.0, 0.65, 0.15);
+                                m.material.emissiveIntensity = 2.0;
+                            }
+                        } else if (matName.includes("scratchedmetal") || matName.includes("metal")) {
+                            // Durasteel gris original auténtico (evita el blanco plano)
+                            if (m.material instanceof BABYLON.PBRMaterial) {
+                                m.material.albedoColor = new BABYLON.Color3(0.310, 0.310, 0.330);
+                                m.material.metallic = 0.22;
+                                m.material.roughness = 0.50;
+                            }
+                        }
+                    });
+                }
+
+                } else if (item.id === "vaders_tie") {
+                    result.meshes.forEach(m => {
+                        if (!m.material) return;
+                        const matName = (m.material.name || "").toLowerCase();
+                        if (m.material instanceof BABYLON.PBRMaterial) {
+                            if (matName.includes("bluehull")) {
+                                if (matName.includes("dark")) {
+                                    m.material.albedoColor = new BABYLON.Color3(0.12, 0.16, 0.22);
+                                    m.material.metallic = 0.35;
+                                    m.material.roughness = 0.45;
+                                } else {
+                                    m.material.albedoColor = new BABYLON.Color3(0.18, 0.24, 0.32);
+                                    m.material.metallic = 0.30;
+                                    m.material.roughness = 0.40;
+                                }
+                            } else if (matName.includes("solar")) {
+                                m.material.albedoColor = new BABYLON.Color3(0.015, 0.015, 0.02);
+                                m.material.metallic = 0.02;
+                                m.material.roughness = 0.85;
+                            } else if (matName.includes("windowblack")) {
+                                m.material.albedoColor = new BABYLON.Color3(0.005, 0.005, 0.01);
+                                m.material.metallic = 0.90;
+                                m.material.roughness = 0.05;
+                            } else if (matName.includes("engine")) {
+                                m.material.albedoColor = new BABYLON.Color3(1.0, 0.05, 0.05);
+                                m.material.emissiveColor = new BABYLON.Color3(1.0, 0.15, 0.05);
+                                m.material.emissiveIntensity = 2.5;
+                            } else if (matName.includes("gun")) {
+                                m.material.albedoColor = new BABYLON.Color3(0.85, 0.05, 0.05);
+                                m.material.emissiveColor = new BABYLON.Color3(0.6, 0.02, 0.02);
+                                m.material.emissiveIntensity = 1.2;
+                            }
+                        }
+                    });
+                } else if (item.id === "nubian_327") {
+                    result.meshes.forEach(m => {
+                        if (!m.material) return;
+                        if (m.material instanceof BABYLON.PBRMaterial) {
+                            m.material.albedoColor = new BABYLON.Color3(0.94, 0.96, 0.98);
+                            m.material.metallic = 0.98;
+                            m.material.roughness = 0.08;
+                        }
+                    });
+                }
+
+                // Normalización robusta
+                rootMesh.normalizeToUnitCube();
+                const targetScale = item.scaleFactor || 3.8;
+                rootMesh.scaling.scaleInPlace(targetScale);
+
+                // Crear nodo pivote de transformación limpio
+                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                rootMesh.parent = pivot;
+
+                // Centrado dinámico geométrico
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let validVertices = false;
+
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m && m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                        max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                        validVertices = true;
+                    }
+                });
+
+                if (validVertices) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    rootMesh.position.subtractInPlace(center);
+                }
+
+                // Configurar cámara centrada en vista frontal por defecto
+                camera.setTarget(BABYLON.Vector3.Zero());
+                camera.radius = item.cameraRadius || 6.0;
+                camera.alpha = item.cameraAlpha !== undefined ? item.cameraAlpha : (Math.PI - Math.PI / 2.2);
+                camera.beta = item.cameraBeta !== undefined ? item.cameraBeta : Math.PI / 3.0;
+
+                currentPivotNode = pivot;
+
+                if (result.animationGroups && result.animationGroups.length > 0) {
+                    currentAnimGroups = result.animationGroups;
+                    btnAnimToggle.style.display = "flex";
+                    btnAnimToggle.classList.add("active");
+                    isAnimPlaying = true;
+                    currentAnimGroups.forEach(ag => {
+                        ag.loopAnimation = true;
+                        ag.play(true);
+                    });
+                } else {
+                    btnAnimToggle.style.display = "none";
+                }
+
+            } catch (err) {
+                console.error("Error al cargar modelo:", err);
+                loadingText.textContent = "Error al transferir modelo";
+                loadingSubtext.textContent = err.message || "Continuando al siguiente elemento...";
+            } finally {
+                window.requestAnimationFrame(() => loadingOverlay.classList.add("hidden"));
+            }
+        }
+
+        function updateInfoPanel(item) {
+            if (!item) return;
+            if (infoSector) infoSector.textContent = `SECTOR: ${item.sector || 'GENERAL'}`;
+            if (infoTitle) infoTitle.textContent = `[${STAR_WARS_DB.indexOf(item) + 1}] ${item.title}`;
+            if (infoCharAvatar) infoCharAvatar.textContent = item.charAvatar || "👤";
+            if (infoCharName) infoCharName.textContent = item.character || "Varios";
+            if (infoRealInvention) infoRealInvention.textContent = item.realInvention || "-";
+            if (infoDescription) infoDescription.textContent = item.description || "-";
+            if (infoCuriosity) infoCuriosity.textContent = item.curiosity || "-";
+
+            const visorLink = document.getElementById("visorDirectLink");
+            if (visorLink) {
+                if (item.visorUrl) {
+                    visorLink.href = item.visorUrl;
+                    visorLink.style.display = "flex";
+                    visorLink.innerHTML = `<span>🚀</span> Abrir Visor 3D Individual #${STAR_WARS_DB.indexOf(item) + 1} ↗`;
+                } else {
+                    visorLink.style.display = "none";
+                }
+            }
+        }
+
+        // =========================================================================
+        // CARRUSEL Y FILTRADO POR CATEGORÍAS
+        // =========================================================================
+        function getFilteredItems() {
+            return STAR_WARS_DB.map((item, originalIndex) => ({ item, originalIndex }))
+                .filter(({ item }) => currentCategory === "all" || item.category === currentCategory);
+        }
+
+        function renderCarousel() {
+            carouselTrack.innerHTML = "";
+            const filtered = getFilteredItems();
+
+            filtered.forEach(({ item, originalIndex }) => {
+                const card = document.createElement("div");
+                card.className = `showcase-card ${originalIndex === activeModelIndex ? "active" : ""}`;
+                card.dataset.index = originalIndex;
+
+                card.innerHTML = `
+                    <div class="card-top">
+                        <span class="card-icon">${item.icon}</span>
+                        <span class="card-title">${item.shortTitle.match(/^\d+\./) ? item.shortTitle : (originalIndex + 1) + ". " + item.shortTitle}</span>
+                    </div>
+                    <div class="card-sub">${item.character}</div>
+                `;
+
+                card.addEventListener("click", () => {
+                    selectModel(originalIndex);
+                });
+
+                carouselTrack.appendChild(card);
+            });
+        }
+
+        function selectModel(index) {
+            if (index < 0 || index >= STAR_WARS_DB.length) return;
+            activeModelIndex = index;
+
+            document.querySelectorAll(".showcase-card").forEach(c => {
+                c.classList.toggle("active", parseInt(c.dataset.index) === activeModelIndex);
+            });
+
+            const activeCard = document.querySelector(`.showcase-card[data-index="${activeModelIndex}"]`);
+            if (activeCard) {
+                activeCard.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+            }
+
+            loadModel(STAR_WARS_DB[activeModelIndex]);
+        }
+
+        // Eventos de Categoría
+        document.querySelectorAll(".filter-tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".filter-tab-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentCategory = btn.dataset.cat;
+                renderCarousel();
+
+                const filtered = getFilteredItems();
+                if (filtered.length > 0) {
+                    const isCurrentInFilter = filtered.some(f => f.originalIndex === activeModelIndex);
+                    if (!isCurrentInFilter) {
+                        selectModel(filtered[0].originalIndex);
+                    }
+                }
+            });
+        });
+
+        // Botones de Acción y Sincronización de Pausa
+        function updateAutoRotateUI() {
+            const icon = document.getElementById("btnAutoRotateIcon");
+            const txt = document.getElementById("btnAutoRotateText");
+            if (isAutoRotating) {
+                btnAutoRotate.classList.remove("paused");
+                btnAutoRotate.title = "Pausar rotación automática 360°";
+                if (icon) icon.textContent = "⏸️";
+                if (txt) txt.textContent = "Pausar Giro";
+            } else {
+                btnAutoRotate.classList.add("paused");
+                btnAutoRotate.title = "Reanudar rotación automática 360°";
+                if (icon) icon.textContent = "▶️";
+                if (txt) txt.textContent = "Reanudar Giro";
+            }
+        }
+
+        btnAutoRotate.addEventListener("click", () => {
+            isAutoRotating = !isAutoRotating;
+            updateAutoRotateUI();
+        });
+
+        // Pausar rotación automáticamente al hacer clic o arrastrar en la escena para explorar
+        scene.onPointerObservable.add((pointerInfo) => {
+            if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+                if (isAutoRotating) {
+                    isAutoRotating = false;
+                    updateAutoRotateUI();
+                }
+            }
+        });
+
+        btnAnimToggle.addEventListener("click", () => {
+            if (currentAnimGroups.length === 0) return;
+            isAnimPlaying = !isAnimPlaying;
+            btnAnimToggle.classList.toggle("active", isAnimPlaying);
+            currentAnimGroups.forEach(ag => {
+                if (isAnimPlaying) ag.play(true);
+                else ag.pause();
+            });
+        });
+
+        btnPlaySound.addEventListener("click", () => {
+            audioR2D2.currentTime = 0;
+            audioR2D2.play().catch(e => console.log("Audio interactivo:", e));
+        });
+
+        btnToggleInfo.addEventListener("click", () => {
+            infoPanel.classList.toggle("collapsed");
+            btnToggleInfo.classList.toggle("active", !infoPanel.classList.contains("collapsed"));
+        });
+
+        btnResetView.addEventListener("click", () => {
+            const item = STAR_WARS_DB[activeModelIndex];
+            if (camera) {
+                camera.alpha = item.cameraAlpha !== undefined ? item.cameraAlpha : (Math.PI - Math.PI / 2.2);
+                camera.beta = item.cameraBeta !== undefined ? item.cameraBeta : (Math.PI / 3);
+                camera.radius = item.cameraRadius || 6.0;
+                camera.setTarget(BABYLON.Vector3.Zero());
+            }
+        });
+
+        btnPrevCard.addEventListener("click", () => {
+            const filtered = getFilteredItems();
+            const currentPos = filtered.findIndex(f => f.originalIndex === activeModelIndex);
+            let nextPos = currentPos - 1;
+            if (nextPos < 0) nextPos = filtered.length - 1;
+            selectModel(filtered[nextPos].originalIndex);
+        });
+
+        btnNextCard.addEventListener("click", () => {
+            const filtered = getFilteredItems();
+            const currentPos = filtered.findIndex(f => f.originalIndex === activeModelIndex);
+            let nextPos = currentPos + 1;
+            if (nextPos >= filtered.length) nextPos = 0;
+            selectModel(filtered[nextPos].originalIndex);
+        });
+
+        // =========================================================================
+        // INICIALIZACIÓN SEGURA Y RESISTENTE A FALLOS
+        // =========================================================================
+        function initApp() {
+            if (typeof BABYLON === "undefined") {
+                console.error("Babylon.js CDN no se ha cargado.");
+                loadingText.textContent = "Error al cargar motor 3D (Babylon.js)";
+                loadingSubtext.textContent = "Verifica tu conexión a Internet para descargar la librería 3D";
+                setTimeout(() => {
+                    loadingOverlay.classList.add("hidden");
+                }, 2500);
+                return;
+            }
+
+            try {
+                engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+                scene = createScene();
+
+                renderCarousel();
+                selectModel(0);
+
+                engine.runRenderLoop(() => {
+                    if (scene) scene.render();
+                });
+
+                window.addEventListener("resize", () => {
+                    if (engine) engine.resize();
+                });
+            } catch (err) {
+                console.error("Error al inicializar el motor Babylon:", err);
+                loadingText.textContent = "Error de inicialización WebGL";
+                loadingSubtext.textContent = err.message || "Tu navegador no pudo iniciar el contexto gráfico 3D";
+                setTimeout(() => {
+                    loadingOverlay.classList.add("hidden");
+                }, 2000);
+            }
+        }
+
+        // =========================================================================
+        // SELECTOR DE FLOTA EN CUADRÍCULA (VISOR GENERAL RÁPIDO)
+        // =========================================================================
+        function renderFleetGrid() {
+            const grid = document.getElementById("fleetModalGrid");
+            if (!grid) return;
+            grid.innerHTML = "";
+            
+            STAR_WARS_DB.forEach((item, idx) => {
+                const isCurrent = idx === activeModelIndex;
+                const card = document.createElement("div");
+                card.style.cssText = `
+                    background: ${isCurrent ? 'rgba(245, 158, 11, 0.12)' : 'rgba(15, 23, 42, 0.85)'};
+                    border: 1px solid ${isCurrent ? 'var(--sw-gold)' : 'rgba(255,255,255,0.12)'};
+                    border-radius: 12px;
+                    padding: 16px;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+                    backdrop-filter: blur(8px);
+                `;
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:1.6rem;">${item.icon}</span>
+                        <span style="font-size:0.75rem; font-weight:800; color:var(--sw-gold); border:1px solid rgba(245,158,11,0.35); padding:2px 6px; border-radius:4px;">#${idx + 1}</span>
+                    </div>
+                    <div style="font-size:0.95rem; font-weight:800; color:#fff; line-height:1.2;">${item.shortTitle}</div>
+                    <div style="font-size:0.75rem; color:#94a3b8;">${item.character}</div>
+                    <div style="margin-top:auto; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.7rem; color:var(--sw-cyan); text-transform:uppercase; font-weight:700;">${item.category}</span>
+                        <span style="font-size:0.78rem; color:${isCurrent ? 'var(--sw-gold)' : '#38bdf8'}; font-weight:700;">${isCurrent ? 'CARGADO 🟢' : 'VER EN 3D ➡️'}</span>
+                    </div>
+                `;
+                card.addEventListener("mouseenter", () => {
+                    card.style.transform = "translateY(-3px)";
+                    card.style.borderColor = "var(--sw-cyan)";
+                    card.style.boxShadow = "0 8px 20px rgba(56, 189, 248, 0.2)";
+                });
+                card.addEventListener("mouseleave", () => {
+                    card.style.transform = "none";
+                    card.style.borderColor = idx === activeModelIndex ? "var(--sw-gold)" : "rgba(255,255,255,0.12)";
+                    card.style.boxShadow = "none";
+                });
+                card.addEventListener("click", () => {
+                    selectModel(idx);
+                    document.getElementById("fleetModal").classList.add("hidden");
+                });
+                grid.appendChild(card);
+            });
+        }
+
+        const btnToggleFleetGrid = document.getElementById("btnToggleFleetGrid");
+        const fleetModal = document.getElementById("fleetModal");
+        const btnCloseFleetModal = document.getElementById("btnCloseFleetModal");
+
+        if (btnToggleFleetGrid && fleetModal) {
+            btnToggleFleetGrid.addEventListener("click", () => {
+                renderFleetGrid();
+                fleetModal.classList.remove("hidden");
+            });
+        }
+        if (btnCloseFleetModal && fleetModal) {
+            btnCloseFleetModal.addEventListener("click", () => {
+                fleetModal.classList.add("hidden");
+            });
+        }
+        if (fleetModal) {
+            fleetModal.addEventListener("click", (e) => {
+                if (e.target === fleetModal) {
+                    fleetModal.classList.add("hidden");
+                }
+            });
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", initApp);
+        } else {
+            initApp();
+        }
+    </script>
+
+    <!-- Modal Cuadrícula de la Flota (Selector Visual Directo) -->
+    <div id="fleetModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,7,13,0.85); backdrop-filter:blur(12px); z-index:2000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:var(--sw-panel); border:1px solid var(--sw-border); border-radius:16px; max-width:1150px; width:100%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.8);">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 24px; border-bottom:1px solid rgba(255,255,255,0.1);">
+                <div>
+                    <h3 style="margin:0; font-size:1.3rem; color:#fff;">🗂️ Selector de Flota Galáctica Star Wars</h3>
+                    <p style="margin:4px 0 0 0; font-size:0.85rem; color:#94a3b8;">Haz clic en cualquiera de los 42 modelos interactivos y 22 naves para cargarlo directamente en el visor 3D central</p>
+                </div>
+                <button id="btnCloseFleetModal" style="background:rgba(255,255,255,0.1); border:none; color:#fff; font-size:1.4rem; width:36px; height:36px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+            </div>
+            <div id="fleetModalGrid" style="padding:24px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px;"></div>
+        </div>
+    </div>
+</body>
+</html>
