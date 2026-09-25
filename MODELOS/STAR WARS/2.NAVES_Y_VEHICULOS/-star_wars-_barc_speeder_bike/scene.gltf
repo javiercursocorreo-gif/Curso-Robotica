@@ -1,0 +1,427 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 14676,
+      "max": [
+        0.6954082250595093,
+        2.344086170196533,
+        1.4140000343322754
+      ],
+      "min": [
+        -0.6954082250595093,
+        -2.399970293045044,
+        0.44999998807907104
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 176112,
+      "componentType": 5126,
+      "count": 14676,
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 14676,
+      "max": [
+        3.8570735454559326,
+        3.6767470836639404
+      ],
+      "min": [
+        -2.4278852939605713,
+        -1.4369704723358154
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 67014,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 352224,
+      "componentType": 5126,
+      "count": 785,
+      "max": [
+        0.38614627718925476,
+        1.2023168802261353,
+        0.9416382908821106
+      ],
+      "min": [
+        -0.38614627718925476,
+        -1.947832703590393,
+        0.5234298706054688
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 361644,
+      "componentType": 5126,
+      "count": 785,
+      "max": [
+        1.0,
+        0.853029191493988,
+        0.9999697208404541
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 117408,
+      "componentType": 5126,
+      "count": 785,
+      "max": [
+        0.3562653064727783,
+        2.2062759399414063
+      ],
+      "min": [
+        -0.9869759678840637,
+        -1.4369704723358154
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 268056,
+      "componentType": 5125,
+      "count": 2922,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 371064,
+      "componentType": 5126,
+      "count": 8724,
+      "max": [
+        0.6241772174835205,
+        1.7588717937469482,
+        1.4140000343322754
+      ],
+      "min": [
+        -0.6241772174835205,
+        -2.399970054626465,
+        0.19104871153831482
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 475752,
+      "componentType": 5126,
+      "count": 8724,
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 123688,
+      "componentType": 5126,
+      "count": 8724,
+      "max": [
+        3.718339443206787,
+        3.6595211029052734
+      ],
+      "min": [
+        -2.4005470275878906,
+        -1.4173823595046997
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 279744,
+      "componentType": 5125,
+      "count": 27564,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "ARKON-83 (https://sketchfab.com/ARKON-83)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/star-wars-barc-speeder-bike-56ff0b8c18744664aa121db5d2039eb3",
+      "title": "-Star Wars- BARC Speeder Bike"
+    },
+    "generator": "Sketchfab-13.31.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 390000,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 193480,
+      "byteOffset": 390000,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 580440,
+      "byteOffset": 583480,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1163920,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/Barc_Speeder_Base_baseColor.png"
+    },
+    {
+      "uri": "textures/Barc_Speeder_Base_Red_baseColor.png"
+    },
+    {
+      "uri": "textures/Barc_Speeder_Texture_2_baseColor.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Barc_Speeder_Base",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7982127330986387
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Barc_Speeder_Base_Red",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9301370684188387
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Barc_Speeder_Texture_2",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9301370684188387
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Barc Speeder.001_Barc Speeder Base_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Barc Speeder.001_Barc Speeder Base Red_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Barc Speeder.001_Barc Speeder Texture 2_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "67441dd4543a4ec1a8a9f9415d0cee1f.fbx"
+    },
+    {
+      "children": [
+        3
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4,
+        5,
+        6
+      ],
+      "matrix": [
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.629206793918314e-05,
+        -99.99999999999868,
+        0.0,
+        0.0,
+        99.99999999999868,
+        -1.629206793918314e-05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Barc Speeder.001"
+    },
+    {
+      "mesh": 0,
+      "name": "Barc Speeder.001_Barc Speeder Base_0"
+    },
+    {
+      "mesh": 1,
+      "name": "Barc Speeder.001_Barc Speeder Base Red_0"
+    },
+    {
+      "mesh": 2,
+      "name": "Barc Speeder.001_Barc Speeder Texture 2_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ]
+}
