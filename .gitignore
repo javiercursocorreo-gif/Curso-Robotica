@@ -102,3 +102,7 @@ scratch/
 !MODELOS/STAR WARS/**/*.html
 !MODELOS/STAR WARS/**/*.js
 
+# Ignorar copias de seguridad de texturas pesadas
+textures_backup_4k/
+*.backup*
+
