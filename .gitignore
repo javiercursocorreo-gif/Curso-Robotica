@@ -30,9 +30,16 @@
 .DS_Store
 ~$*
 
-# 6. Ignorar todo lo que NO sean BLOQUES (Carpetas de la raíz)
+# 6. Ignorar todo lo que NO sean BLOQUES ni MODELOS
 MODELOS/*
 !MODELOS/STAR WARS/
+!MODELOS/STAR TRECK/
+!MODELOS/SPACE X_FALCON 9/
+!MODELOS/INTERSTELLAR__endurance_high_fidelity/
+!MODELOS/MODELOS NUEVOS 1/
+!MODELOS/space_station_v_2001_a_space_odyssey/
+!MODELOS/CIUDADES FUTURISTAS/
+!MODELOS/futuristic_transport_shuttle_animated.glb
 GEMINI/
 GITHUB/
 PRACTICAS_UNITY/
@@ -87,22 +94,25 @@ scratch/
 !BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.command
 !BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.png
 
-# 13. Excepciones para modelos 3D del Gran Museo Star Wars
-!MODELOS/STAR WARS/**/
-!MODELOS/STAR WARS/**/*.gltf
-!MODELOS/STAR WARS/**/*.glb
-!MODELOS/STAR WARS/**/*.bin
-!MODELOS/STAR WARS/**/*.png
-!MODELOS/STAR WARS/**/*.jpg
-!MODELOS/STAR WARS/**/*.jpeg
-!MODELOS/STAR WARS/**/*.obj
-!MODELOS/STAR WARS/**/*.mtl
-!MODELOS/STAR WARS/**/*.fbx
-!MODELOS/STAR WARS/**/*.mp3
-!MODELOS/STAR WARS/**/*.html
-!MODELOS/STAR WARS/**/*.js
+# 13. Excepciones para modelos 3D y recursos de MODELOS (Star Wars, Star Trek, SpaceX, Interstellar, Modelos Nuevos, etc.)
+!MODELOS/**/
+!MODELOS/**/*.gltf
+!MODELOS/**/*.glb
+!MODELOS/**/*.bin
+!MODELOS/**/*.png
+!MODELOS/**/*.jpg
+!MODELOS/**/*.jpeg
+!MODELOS/**/*.obj
+!MODELOS/**/*.mtl
+!MODELOS/**/*.fbx
+!MODELOS/**/*.mp3
+!MODELOS/**/*.html
+!MODELOS/**/*.js
 
-# Ignorar copias de seguridad de texturas pesadas
+# Ignorar archivos mayores a 100MB (límite duro de GitHub) y temporales
+MODELOS/girl_warrior_motorcycle_cyber_by_oscar_creativo.glb
+MODELOS/MODELOS NUEVOS 1/MOON/trimble_sx20__air_rover__dog/**
+MODELOS/STAR TRECK/Transporter.rar
 textures_backup_4k/
 textures_orig/
 *.backup*
