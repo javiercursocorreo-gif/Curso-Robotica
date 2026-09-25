@@ -31,7 +31,8 @@
 ~$*
 
 # 6. Ignorar todo lo que NO sean BLOQUES (Carpetas de la raíz)
-MODELOS/
+MODELOS/*
+!MODELOS/STAR WARS/
 GEMINI/
 GITHUB/
 PRACTICAS_UNITY/
@@ -85,4 +86,19 @@ scratch/
 !BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.md
 !BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.command
 !BLOQUE-6_Naves_espaciales/6.2_Star_Wars/4.GRAN_MUSEO_STAR_WARS/**/*.png
+
+# 13. Excepciones para modelos 3D del Gran Museo Star Wars
+!MODELOS/STAR WARS/**/
+!MODELOS/STAR WARS/**/*.gltf
+!MODELOS/STAR WARS/**/*.glb
+!MODELOS/STAR WARS/**/*.bin
+!MODELOS/STAR WARS/**/*.png
+!MODELOS/STAR WARS/**/*.jpg
+!MODELOS/STAR WARS/**/*.jpeg
+!MODELOS/STAR WARS/**/*.obj
+!MODELOS/STAR WARS/**/*.mtl
+!MODELOS/STAR WARS/**/*.fbx
+!MODELOS/STAR WARS/**/*.mp3
+!MODELOS/STAR WARS/**/*.html
+!MODELOS/STAR WARS/**/*.js
 
