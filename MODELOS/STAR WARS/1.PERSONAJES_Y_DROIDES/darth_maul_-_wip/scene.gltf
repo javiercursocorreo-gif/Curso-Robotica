@@ -1,0 +1,509 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        0.25861161947250366,
+        0.4303686320781708,
+        1.6306098699569702
+      ],
+      "min": [
+        -0.2787640690803528,
+        -0.7527177929878235,
+        -0.015283050946891308
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 38892,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        0.9988324642181396,
+        0.9997179508209229,
+        0.9981911778450012
+      ],
+      "min": [
+        -0.9983239769935608,
+        -0.9994178414344788,
+        -0.9981894493103027
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        0.9999631643295288,
+        0.9999998211860657,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -0.9999298453330994,
+        -0.9999999403953552,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        0.9808187484741211,
+        0.9780808687210083
+      ],
+      "min": [
+        0.011650444939732552,
+        0.0015644216910004616
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 25928,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        1.0018800497055054,
+        1.0
+      ],
+      "min": [
+        -0.0008911748300306499,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 51856,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        1.0018800497055054,
+        1.0
+      ],
+      "min": [
+        -0.0008911748300306499,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 77784,
+      "componentType": 5126,
+      "count": 3241,
+      "max": [
+        1.0018800497055054,
+        1.0
+      ],
+      "min": [
+        -0.0008911748300306499,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 10218,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 77784,
+      "componentType": 5126,
+      "count": 625,
+      "max": [
+        0.7284632921218872,
+        1.2045938968658447,
+        1.0311774015426636
+      ],
+      "min": [
+        0.38965409994125366,
+        -1.1258833408355713,
+        0.9526812434196472
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 85284,
+      "componentType": 5126,
+      "count": 625,
+      "max": [
+        0.9992295503616333,
+        0.9929970502853394,
+        1.0
+      ],
+      "min": [
+        -0.9992295503616333,
+        -0.9929970502853394,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 103712,
+      "componentType": 5126,
+      "count": 625,
+      "max": [
+        0.9788084030151367,
+        0.8941895961761475
+      ],
+      "min": [
+        0.03159034252166748,
+        0.07313341647386551
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 40872,
+      "componentType": 5125,
+      "count": 2112,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Luciano Soares (https://sketchfab.com/lucianosoares)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/darth-maul-wip-db4fdcd9eead4782af5aad3beec8c947",
+      "title": "Darth Maul - WIP"
+    },
+    "generator": "Sketchfab-12.67.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 49320,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 108712,
+      "byteOffset": 49320,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 92784,
+      "byteOffset": 158032,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 51856,
+      "byteOffset": 250816,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 302672,
+      "uri": "scene.bin"
+    }
+  ],
+  "extensionsRequired": [
+    "KHR_materials_pbrSpecularGlossiness"
+  ],
+  "extensionsUsed": [
+    "KHR_materials_pbrSpecularGlossiness"
+  ],
+  "images": [
+    {
+      "uri": "textures/maul_diffuse.png"
+    },
+    {
+      "uri": "textures/maul_specularGlossiness.png"
+    },
+    {
+      "uri": "textures/maul_normal.png"
+    },
+    {
+      "uri": "textures/lightsaber_diffuse.png"
+    },
+    {
+      "uri": "textures/lightsaber_specularGlossiness.png"
+    },
+    {
+      "uri": "textures/lightsaber_emissive.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_pbrSpecularGlossiness": {
+          "diffuseFactor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuseTexture": {
+            "index": 0
+          },
+          "glossinessFactor": 0.25,
+          "specularFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularGlossinessTexture": {
+            "index": 1
+          }
+        }
+      },
+      "name": "maul",
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.25
+      }
+    },
+    {
+      "alphaMode": "OPAQUE",
+      "doubleSided": true,
+      "emissiveFactor": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "emissiveTexture": {
+        "index": 5
+      },
+      "extensions": {
+        "KHR_materials_pbrSpecularGlossiness": {
+          "diffuseFactor": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "diffuseTexture": {
+            "index": 3
+          },
+          "glossinessFactor": 1.0,
+          "specularFactor": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "specularGlossinessTexture": {
+            "index": 4
+          }
+        }
+      },
+      "name": "lightsaber"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "BaseMesh.002_maul_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3,
+            "TEXCOORD_1": 4,
+            "TEXCOORD_2": 5,
+            "TEXCOORD_3": 6
+          },
+          "indices": 7,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Cylinder.002_lightsaber_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        0.01226895209401846,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.7242546205604644e-18,
+        -0.01226895209401846,
+        0.0,
+        0.0,
+        0.01226895209401846,
+        2.7242546205604644e-18,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "826d27b53ae9410fb479341b3d112fb5.fbx"
+    },
+    {
+      "children": [
+        3,
+        5
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4
+      ],
+      "matrix": [
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.629206793918314e-05,
+        -99.99999999999868,
+        0.0,
+        0.0,
+        99.99999999999868,
+        -1.629206793918314e-05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "BaseMesh.002"
+    },
+    {
+      "mesh": 0,
+      "name": "BaseMesh.002_maul_0"
+    },
+    {
+      "children": [
+        6
+      ],
+      "matrix": [
+        12.353129479673163,
+        39.50166359844814,
+        91.03303060702073,
+        0.0,
+        99.23411265530046,
+        -4.917370323340392,
+        -11.332233226235724,
+        0.0,
+        1.0584285395524463e-05,
+        91.73568459285985,
+        -39.8065653680442,
+        0.0,
+        -6.954073905944824,
+        -20.476806640625,
+        59.495906829833984,
+        1.0
+      ],
+      "name": "Cylinder.002"
+    },
+    {
+      "mesh": 1,
+      "name": "Cylinder.002_lightsaber_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 4
+    },
+    {
+      "sampler": 0,
+      "source": 5
+    }
+  ]
+}
