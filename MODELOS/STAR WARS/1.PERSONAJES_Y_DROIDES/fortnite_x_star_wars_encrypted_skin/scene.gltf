@@ -1,0 +1,285 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4132,
+      "max": [
+        13.798334121704102,
+        14.190655708312988,
+        168.86312866210938
+      ],
+      "min": [
+        -13.798334121704102,
+        -13.69268798828125,
+        139.77520751953125
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 49584,
+      "componentType": 5126,
+      "count": 4132,
+      "max": [
+        0.9999780058860779,
+        0.9992796182632446,
+        0.9997862577438354
+      ],
+      "min": [
+        -0.9999780058860779,
+        -0.9999204874038696,
+        -0.9999880194664001
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4132,
+      "max": [
+        0.9946290254592896,
+        0.9938849806785583
+      ],
+      "min": [
+        3.099999958067201e-05,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 22434,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 99168,
+      "componentType": 5126,
+      "count": 14946,
+      "max": [
+        60.356834411621094,
+        20.471040725708008,
+        151.05523681640625
+      ],
+      "min": [
+        -60.356834411621094,
+        -16.69249153137207,
+        0.029968999326229095
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 278520,
+      "componentType": 5126,
+      "count": 14946,
+      "max": [
+        1.0,
+        0.9999808669090271,
+        0.9999998807907104
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -0.9999955296516418
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 33056,
+      "componentType": 5126,
+      "count": 14946,
+      "max": [
+        0.9985349774360657,
+        0.9952319860458374
+      ],
+      "min": [
+        0.0009869999485090375,
+        0.0014649999793618917
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 89736,
+      "componentType": 5125,
+      "count": 76107,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Yung Samzy (https://sketchfab.com/SSLeaker)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/fortnite-x-star-wars-encrypted-skin-1a281d7f0fa94ceda83fcac3c40f7438",
+      "title": "Fortnite X Star Wars (Encrypted Skin)"
+    },
+    "generator": "Sketchfab-12.67.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 394164,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 152624,
+      "byteOffset": 394164,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 457872,
+      "byteOffset": 546788,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1004660,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/M_MEDColumbus_FaceAccessory_baseColor.png"
+    },
+    {
+      "uri": "textures/M_MED_Commando_Body_Columbus_baseColor.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "M_MEDColumbus_FaceAccessory",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "M_MED_Commando_Body_Columbus",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2,
+        3
+      ],
+      "name": "Fortnite X Star Wars.obj.cleaner.materialmerger.gles"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    }
+  ]
+}
