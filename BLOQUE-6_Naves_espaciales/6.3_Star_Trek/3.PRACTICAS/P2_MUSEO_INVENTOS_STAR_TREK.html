@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Museo Interactivo de Inventos de Star Trek — De la Ficción a la Realidad</title>
+    <!-- Babylon.js y Loaders Oficiales -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <style>
+        :root {
+            --lcars-orange: #ff9900;
+            --lcars-gold: #e5a823;
+            --lcars-purple: #cc6699;
+            --lcars-blue: #4a90e2;
+            --lcars-cyan: #50e3c2;
+            --lcars-dark: #070b10;
+            --lcars-panel: rgba(12, 19, 29, 0.85);
+            --lcars-border: rgba(255, 153, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--lcars-dark);
+            color: #ffffff;
+        }
+
+        /* Lienzo 3D */
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+            display: block;
+            background: radial-gradient(circle at center, #131c28 0%, #0a0f16 60%, #030508 100%);
+        }
+
+        /* Estrellas sutiles en el fondo */
+        .stars-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 150px 180px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 280px 70px, #99ccff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 450px 320px, #ffcc88, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 600px 210px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 800px 450px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 950px 120px, #99ccff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 1100px 290px, #ffaa44, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 1200px 600px;
+            opacity: 0.35;
+            z-index: 1;
+        }
+
+        /* Cabecera Superior Estilo LCARS */
+        #headerBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+            background: linear-gradient(180deg, rgba(7, 11, 16, 0.9) 0%, rgba(7, 11, 16, 0) 100%);
+            pointer-events: none;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .lcars-pill {
+            display: inline-block;
+            background-color: var(--lcars-orange);
+            color: #000000;
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .header-titles h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .header-titles p {
+            margin: 3px 0 0 0;
+            font-size: 0.85rem;
+            color: #8fa0b5;
+            font-weight: 400;
+        }
+
+        .header-right {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: rgba(20, 30, 45, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background: var(--lcars-orange);
+            color: #000000;
+            border-color: var(--lcars-orange);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.active {
+            background: var(--lcars-gold);
+            color: #000000;
+            border-color: var(--lcars-gold);
+            font-weight: 700;
+        }
+
+        /* Panel Lateral de Información Didáctica */
+        #infoPanel {
+            position: absolute;
+            top: 90px;
+            left: 24px;
+            width: 360px;
+            max-height: calc(100% - 240px);
+            background: var(--lcars-panel);
+            backdrop-filter: blur(14px);
+            border-left: 5px solid var(--lcars-orange);
+            border-radius: 0 14px 14px 0;
+            padding: 22px 20px;
+            z-index: 10;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.3s ease;
+        }
+
+        #infoPanel.collapsed {
+            transform: translateX(-390px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .badge-sector {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--lcars-gold);
+            margin-bottom: 8px;
+        }
+
+        .model-title {
+            margin: 0 0 6px 0;
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.25;
+        }
+
+        .real-invention-card {
+            background: rgba(255, 153, 0, 0.12);
+            border: 1px solid rgba(255, 153, 0, 0.35);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 12px 0 16px 0;
+        }
+
+        .real-invention-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--lcars-orange);
+            font-weight: 800;
+            margin-bottom: 3px;
+        }
+
+        .real-invention-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ffe6b3;
+        }
+
+        .info-section-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            color: var(--lcars-blue);
+            text-transform: uppercase;
+            margin: 14px 0 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-desc {
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: #d1dbe5;
+            margin: 0 0 10px 0;
+        }
+
+        .info-curiosity {
+            background: rgba(80, 227, 194, 0.08);
+            border-left: 3px solid var(--lcars-cyan);
+            padding: 8px 12px;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: #a6f2e2;
+            margin-top: 12px;
+        }
+
+        /* Carrusel Inferior de Museo */
+        #bottomShowcase {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 48px);
+            max-width: 1200px;
+            background: rgba(10, 15, 23, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 18px;
+            padding: 12px 18px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .carousel-nav-btn {
+            background: rgba(255, 153, 0, 0.15);
+            border: 1px solid rgba(255, 153, 0, 0.4);
+            color: var(--lcars-orange);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .carousel-nav-btn:hover {
+            background: var(--lcars-orange);
+            color: #000000;
+            transform: scale(1.08);
+        }
+
+        .carousel-track {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 4px 2px;
+            flex-grow: 1;
+            scrollbar-width: thin;
+            scrollbar-color: var(--lcars-orange) transparent;
+        }
+
+        .carousel-track::-webkit-scrollbar {
+            height: 5px;
+        }
+        .carousel-track::-webkit-scrollbar-thumb {
+            background: var(--lcars-orange);
+            border-radius: 4px;
+        }
+
+        .showcase-card {
+            flex: 0 0 180px;
+            background: rgba(25, 35, 50, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 82px;
+        }
+
+        .showcase-card:hover {
+            background: rgba(45, 60, 85, 0.85);
+            border-color: var(--lcars-orange);
+            transform: translateY(-4px);
+        }
+
+        .showcase-card.active {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.25) 0%, rgba(20, 30, 45, 0.9) 100%);
+            border: 2px solid var(--lcars-orange);
+            box-shadow: 0 0 18px rgba(255, 153, 0, 0.45);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-number {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--lcars-orange);
+            background: rgba(255, 153, 0, 0.15);
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .card-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 4px 0 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-invention {
+            font-size: 0.72rem;
+            color: var(--lcars-gold);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Pantalla de Carga */
+        #loadingOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 8, 12, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+        }
+
+        #loadingOverlay.active {
+            pointer-events: auto;
+            opacity: 1;
+        }
+
+        #loadingOverlay.hidden {
+            opacity: 0;
+        }
+
+        .lcars-spinner {
+            width: 65px;
+            height: 65px;
+            border: 5px solid rgba(255, 153, 0, 0.15);
+            border-top: 5px solid var(--lcars-orange);
+            border-right: 5px solid var(--lcars-gold);
+            border-radius: 50%;
+            animation: spin 0.9s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #ffffff;
+        }
+
+        .loading-subtext {
+            font-size: 0.85rem;
+            color: var(--lcars-gold);
+            margin-top: 6px;
+        }
+
+        /* Notificación Flotante de Ayuda */
+        .hint-pill {
+            position: absolute;
+            top: 86px;
+            right: 24px;
+            background: rgba(15, 23, 34, 0.75);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #a0b2c6;
+            font-size: 0.78rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        @media (max-width: 900px) {
+            #infoPanel {
+                width: 90%;
+                left: 5%;
+                top: 80px;
+                max-height: 40%;
+            }
+            #bottomShowcase {
+                width: calc(100% - 20px);
+                bottom: 10px;
+            }
+            .showcase-card {
+                flex: 0 0 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fondo de estrellas sutiles -->
+    <div class="stars-bg"></div>
+
+    <!-- Pantalla de Carga -->
+    <div id="loadingOverlay" class="active">
+        <div class="lcars-spinner"></div>
+        <div class="loading-text" id="loadingText">Materializando Artefacto 3D...</div>
+        <div class="loading-subtext" id="loadingSubtext">Cargando geometrías y texturas</div>
+    </div>
+
+    <!-- Cabecera Superior LCARS -->
+    <div id="headerBar">
+        <div class="header-left">
+            <span class="lcars-pill">STAR TREK • TECNOLOGÍA</span>
+            <div class="header-titles">
+                <h1>Museo Interactivo de Inventos</h1>
+                <p>De la ciencia ficción a los dispositivos que usamos hoy</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="action-btn active" id="btnAutoRotate" title="Pausar o reanudar el giro automático (Espacio)">
+                <span id="iconAutoRotate">⏸️</span> <span id="labelAutoRotate">Pausa</span>
+            </button>
+            <button class="action-btn" id="btnResetView" title="Recentrar vista">
+                <span>🎯</span> <span>Centrar</span>
+            </button>
+            <button class="action-btn" id="btnToggleLight" title="Alternar modo de luz">
+                <span>💡</span> <span id="labelLight">Luz: Estudio</span>
+            </button>
+            <button class="action-btn" id="btnToggleInfo" title="Mostrar/Ocultar Ficha Técnica">
+                <span>📋</span> <span>Ficha</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Píldora de ayuda para navegación -->
+    <div class="hint-pill">
+        <span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>
+    </div>
+
+    <!-- Panel Lateral de Información Didáctica -->
+    <div id="infoPanel">
+        <div class="badge-sector">
+            <span>⚡</span> <span id="infoSector">REGISTRO DE LA FLOTA ESTELAR</span>
+        </div>
+        <h2 class="model-title" id="infoTitle">Cargando...</h2>
+
+        <div class="real-invention-card">
+            <div class="real-invention-label">💡 INVENTO REAL QUE USAMOS HOY:</div>
+            <div class="real-invention-value" id="infoRealInvention">-</div>
+        </div>
+
+        <div class="info-section-title">
+            <span>🔬</span> CÓMO FUNCIONA & CONEXIÓN CIENTÍFICA
+        </div>
+        <p class="info-desc" id="infoDescription">-</p>
+
+        <div class="info-curiosity" id="infoCuriosity">-</div>
+    </div>
+
+    <!-- Carrusel Inferior de Museo -->
+    <div id="bottomShowcase">
+        <button class="carousel-nav-btn" id="btnPrevCard" title="Modelo anterior">◀</button>
+        <div class="carousel-track" id="carouselTrack">
+            <!-- Las tarjetas se generan dinámicamente -->
+        </div>
+        <button class="carousel-nav-btn" id="btnNextCard" title="Modelo siguiente">▶</button>
+    </div>
+
+    <!-- Canvas de Renderizado 3D de Babylon.js -->
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        // =========================================================================
+        // BASE DE DATOS DE LOS 9 ACCESORIOS E INVENTOS DE STAR TREK
+        // =========================================================================
+        const INVENTOS_DB = [
+            {
+                id: "padd",
+                folder: "star_trek_voyager_small_padds",
+                file: "scene.gltf",
+                icon: "📱",
+                title: "PADD (Tablets Táctiles)",
+                shortTitle: "PADD Voyager",
+                realInvention: "Pantallas Táctiles, iPads y Tablets",
+                sector: "COMPUTACIÓN MÓVIL & INTERFACES",
+                description: "El PADD (*Personal Access Display Device*) era el terminal portátil estándar de la tripulación para consultar registros de misión, leer diagnósticos y autorizar órdenes con un lápiz o directamente con el dedo sobre su interfaz gráfica LCARS. Anticipó por varias décadas a los dispositivos iPad y tablets modernas con pantallas multitáctiles capacitivas.",
+                curiosity: "⭐ Dato real: Diseñadores de Apple y pioneros de las tablets táctiles citaron explícitamente a Star Trek: The Next Generation y Voyager como su inspiración fundamental para sustituir teclados físicos por pantallas planas interactivas.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.5
+            },
+            {
+                id: "combadge",
+                folder: "star_fleet_communicator_badge",
+                file: "scene.gltf",
+                icon: "🎙️",
+                title: "Insignia Comunicadora (Combadge)",
+                shortTitle: "Combadge Solapa",
+                realInvention: "Comunicadores de Solapa y Wearables Manos Libres",
+                sector: "TELECOMUNICACIONES & WEARABLES",
+                description: "Un sofisticado transceptor de audio incorporado directamente en la insignia metálica de la solapa. Con un leve toque en el pecho o una orden de voz, conectaba al oficial instantáneamente con la computadora central de la nave o con cualquier miembro del equipo mediante frecuencia subspacial.",
+                curiosity: "⭐ Dato real: Es el abuelo espiritual de los micrófonos de solapa inalámbricos, los auriculares Bluetooth manos libres y los modernos 'AI Pins' que se llevan en la ropa para interactuar mediante voz con inteligencias artificiales.",
+                scaleFactor: 0.9,
+                cameraRadius: 5.2
+            },
+            {
+                id: "classic_communicator",
+                imageFile: "Captura de pantalla 2026-09-08 a las 21.06.40.png",
+                icon: "📞",
+                title: "Comunicador Clásico de Mano (TOS)",
+                shortTitle: "Comunicador Clásico",
+                realInvention: "Teléfonos Móviles Plegables (Motorola StarTAC)",
+                sector: "TELEFONÍA MÓVIL & COMUNICACIÓN INALÁMBRICA",
+                description: "El mítico comunicador de mano del Capitán Kirk con rejilla dorada abatible. Su gesto icónico de abrir la tapa para hablar inspiró directamente a Martin Cooper (ingeniero jefe de Motorola) a concebir y fabricar en 1973 el primer teléfono móvil portátil de la historia (DynaTAC) y, más tarde, los teléfonos móviles plegables de tapa como el legendario Motorola StarTAC.",
+                curiosity: "⭐ Declaración histórica: Martin Cooper declaró públicamente que el comunicador de Star Trek fue la inspiración directa para inventar el teléfono móvil: 'Esa no era una fantasía para nosotros, era un objetivo real que queríamos alcanzar'.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.5,
+                isImageShowcase: true
+            },
+            {
+                id: "tricorder",
+                folder: "tricorder_mk_vii",
+                file: "scene.gltf",
+                icon: "🩺",
+                title: "Tricorder Médico Mark VII",
+                shortTitle: "Tricorder Médico",
+                realInvention: "Escáneres Portátiles y Diagnóstico No Invasivo",
+                sector: "BIOMEDICINA & SENSORES",
+                description: "El dispositivo insignia de los oficiales médicos como McCoy y Beverly Crusher. Diseñado para realizar análisis biofísicos, medir constantes vitales, detectar toxinas y emitir diagnósticos en tiempo real sin requerir cirugías ni procedimientos invasivos sobre el paciente.",
+                curiosity: "⭐ Dato real: La fundación XPRIZE y Qualcomm crearon el concurso millonario 'Tricorder XPRIZE' para premiar a equipos de bioingeniería capaces de fabricar un dispositivo de bolsillo real que diagnostique hasta 13 afecciones médicas en minutos.",
+                scaleFactor: 3.8,
+                cameraRadius: 6.0
+            },
+            {
+                id: "phaser_tng",
+                folder: "type_2_phaser_-_tng",
+                file: "scene.gltf",
+                icon: "⚡",
+                title: "Fáser de Mano Tipo 2 (TNG)",
+                shortTitle: "Fáser TNG",
+                realInvention: "Armas de Energía Dirigida y Láseres Industriales",
+                sector: "ENERGÍA DIRIGIDA & FOTÓNICA",
+                description: "Emisor de partículas concentradas (rayos nadiónicos) con selectores de intensidad regulables desde 'aturdir' (no letal) hasta 'calentar' o 'desintegrar'. Revolucionó el concepto de las armas en la ciencia ficción al prescindir por completo de proyectiles cinéticos o pólvora química.",
+                curiosity: "⭐ Dato real: La investigación de sistemas de defensa láser de alta potencia (como los sistemas de haz de fibra óptica de la marina moderna) y los bisturís láser médicos se benefician de las teorías de haces coherentes popularizadas por el universo Trek.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.5
+            },
+            {
+                id: "phaser_gun",
+                folder: "cad02_-_low_poly_star_trek_phaser_gun",
+                file: "scene.gltf",
+                icon: "🔫",
+                title: "Pistola Fáser Clásica (TOS)",
+                shortTitle: "Pistola Fáser Clásica",
+                realInvention: "Punteros Láser y Armamento de Pulsos Electromagnéticos",
+                sector: "HISTORIA DE LA CIENCIA FICCIÓN",
+                description: "El arma de reglamento de la tripulación original del Capitán Kirk y Spock en los años 60. Su diseño ergonómico de pistola modular (con un emisor desmontable tipo 1 encajado en la empuñadura tipo 2) marcó un antes y un después en la utilería televisiva espacial.",
+                curiosity: "⭐ Dato real: A principios de los años 60, el láser acababa de ser inventado (1960, Theodore Maiman). Gene Roddenberry quiso que Star Trek usara una tecnología más futurista que el láser ordinario y acuñó el término 'Fáser' (PHASed Energy Rectification).",
+                scaleFactor: 4.0,
+                cameraRadius: 5.8
+            },
+            {
+                id: "bridge",
+                folder: "u",
+                file: "scene.gltf",
+                icon: "🚪",
+                title: "Puente USS Enterprise (NCC-1701)",
+                shortTitle: "Puente & Puertas Auto",
+                realInvention: "Puertas Automáticas por Sensor & Centros de Control",
+                sector: "ARQUITECTURA AUTOMATIZADA & SENSORES",
+                description: "El mítico puente de mando circular de la nave estelar Enterprise. Entre sus elementos más influyentes destacaban las **puertas correderas automáticas que se abrían con un silbido de aire** cuando alguien se acercaba, las pantallas de visualización integradas y el control por comandos de voz.",
+                curiosity: "⭐ Dato real: Aunque en el rodaje de 1966 dos técnicos tiraban de cuerdas ocultas para abrir las puertas, la fascinación del público por este efecto impulsó decisivamente a empresas de arquitectura a fabricar las puertas automáticas con sensores de radar e infrarrojos que hoy usamos en todas partes.",
+                scaleFactor: 3.5,
+                cameraRadius: 7.5
+            },
+            {
+                id: "pips",
+                folder: "star_trek_rank_pips",
+                file: "scene.gltf",
+                icon: "⭐",
+                title: "Pines de Rango de la Flota Estelar",
+                shortTitle: "Pines de Rango",
+                realInvention: "Identificación Jerárquica y Modular en Equipos",
+                sector: "PROTOCOLOS Y ORGANIZACIÓN",
+                description: "Pequeños pines dorados y negros colocados en el cuello del uniforme que identificaban con precisión la jerarquía del oficial (desde Alférez con 1 pin hueco hasta Capitán con 4 pines dorados macizos). Reflejan una organización espacial basada en la meritocracia y la responsabilidad técnica.",
+                curiosity: "⭐ Dato real: Las misiones de la NASA y la Agencia Espacial Europea utilizan protocolos jerárquicos similares en la Estación Espacial Internacional para coordinar tripulaciones internacionales multiculturales de forma eficiente y pacífica.",
+                scaleFactor: 2.5,
+                cameraRadius: 5.0
+            },
+            {
+                id: "spock",
+                folder: "eaglemoss_spock",
+                file: "scene.gltf",
+                icon: "🖖",
+                title: "Comandante Spock (Oficial Científico)",
+                shortTitle: "Spock (Asesoría NASA)",
+                realInvention: "Asesoramiento Científico de la NASA en Ficción",
+                sector: "EL MÉTODO CIENTÍFICO Y LA LÓGICA",
+                description: "El primer oficial y jefe de la división científica de la nave. Medio vulcaniano y medio humano, Spock personifica el rigor analítico, la búsqueda constante de la verdad basada en datos empíricos y el respeto absoluto a todas las formas de vida inteligentes.",
+                curiosity: "⭐ Dato real: Gene Roddenberry contrató como asesores técnicos a investigadores de la NASA y al laboratorio RAND Corporation (como Harvey Lynn) para garantizar que los diálogos científicos de Spock y las especificaciones de la nave tuvieran una base de física matemática rigurosa.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2
+            },
+            {
+                id: "kirk",
+                folder: "eaglemoss_kirk",
+                file: "scene.gltf",
+                icon: "🚀",
+                title: "Capitán James T. Kirk (Mando)",
+                shortTitle: "Capitán Kirk",
+                realInvention: "Inspiración de Vocaciones Espaciales Reales",
+                sector: "LIDERAZGO Y EXPLORACIÓN CÓSMICA",
+                description: "El carismático capitán al frente de la legendaria misión de cinco años de la nave estelar Enterprise. Su misión: explorar nuevos y extraños mundos, buscar nuevas formas de vida y nuevas civilizaciones, y viajar audazmente hacia donde nadie ha llegado jamás.",
+                curiosity: "⭐ Dato real: El impacto social de Kirk y la Enterprise fue tan extraordinario que en 1976 los ciudadanos enviaron cientos de miles de cartas a la Casa Blanca para que la NASA bautizara su primer transbordador espacial de pruebas como 'Enterprise'.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2
+            }
+        ];
+
+        // =========================================================================
+        // MOTOR GRÁFICO BABYLON.JS & GESTIÓN DE ESCENA
+        // =========================================================================
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        let scene = null;
+        let camera = null;
+        let currentPivotNode = null;
+        let autoRotateActive = true;
+        let lightModeStudio = true;
+        let hemiLight = null;
+        let dirLight1 = null;
+        let dirLight2 = null;
+        let currentIndex = 0;
+        let currentIsImageShowcase = false;
+
+        // Función para resolver la URL relativa correcta según la ubicación desde donde se abra
+        function getModelBaseUrl(subfolder) {
+            const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
+                                   window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
+            const prefix = isDirectFolder ? './' : '../../../MODELOS/STAR%20TRECK/ACCESORIOS/';
+            return prefix + encodeURIComponent(subfolder) + '/';
+        }
+
+        async function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.09, 1.0); // Fondo espacial oscuro uniforme
+
+            // Cámara orbital suave
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 6.0, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 35;
+            camera.lowerRadiusLimit = 1.5;
+            camera.upperRadiusLimit = 20.0;
+
+            // Iluminación Profesional PBR y Estándar
+            hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.2;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.35);
+
+            dirLight1 = new BABYLON.DirectionalLight("dirLight1", new BABYLON.Vector3(-1, -2, -1.5), scene);
+            dirLight1.intensity = 1.2;
+
+            dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1.5, 1.5, 1.0), scene);
+            dirLight2.intensity = 0.9;
+
+            // Entorno de reflejos para materiales metálicos PBR
+            try {
+                const helper = scene.createDefaultEnvironment({
+                    createGround: false,
+                    createSkybox: false
+                });
+                if (helper) helper.setMainColor(new BABYLON.Color3(0.05, 0.08, 0.12));
+            } catch (e) {
+                console.warn("Entorno por defecto omitido:", e);
+            }
+
+            // Render loop con rotación continua suave (se omite para la foto del comunicador)
+            scene.onBeforeRenderObservable.add(() => {
+                if (autoRotateActive && currentPivotNode && !currentIsImageShowcase) {
+                    currentPivotNode.rotation.y += 0.0016; // Rotación lenta y majestuosa de museo
+                }
+            });
+
+            // Arrancar el bucle continuo de renderizado de Babylon
+            engine.runRenderLoop(() => {
+                if (scene && scene.activeCamera) {
+                    scene.render();
+                }
+            });
+
+            // Crear el carrusel de botones
+            buildCarouselUI();
+
+            // Cargar el primer modelo (PADD)
+            await loadModel(0);
+        }
+
+        // =========================================================================
+        // CARGA DINÁMICA DE MODELOS 3D
+        // =========================================================================
+        async function loadModel(index) {
+            if (index < 0 || index >= INVENTOS_DB.length) return;
+            currentIndex = index;
+
+            const item = INVENTOS_DB[index];
+            showLoading(true, `Materializando: ${item.shortTitle}`, item.realInvention);
+
+            // Actualizar tarjeta activa en el carrusel
+            updateCarouselActiveCard(index);
+
+            // Actualizar ficha técnica lateral
+            updateInfoPanel(item);
+
+            try {
+                // Eliminar modelo anterior de memoria completamente
+                if (currentPivotNode) {
+                    currentPivotNode.dispose(false, true);
+                    currentPivotNode = null;
+                }
+
+                currentIsImageShowcase = !!item.isImageShowcase;
+
+                // Si es un artefacto documentado con imagen en alta definición (como la foto del comunicador)
+                if (item.isImageShowcase) {
+                    const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
+                                           window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
+                    const imgUrl = (isDirectFolder ? './' : '../../../MODELOS/STAR%20TRECK/ACCESORIOS/') + encodeURIComponent(item.imageFile);
+
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                    pivot.rotation.y = 0; // Sin giro, completamente estático y de frente
+                    
+                    // Plano fotográfico limpio sin base ni pedestal, en proporción 1.1 x 1.0
+                    const card = BABYLON.MeshBuilder.CreatePlane("photoCard", { width: 4.4, height: 4.0 }, scene);
+                    card.parent = pivot;
+                    card.position = new BABYLON.Vector3(0, 0, 0);
+                    
+                    const mat = new BABYLON.StandardMaterial("cardMat", scene);
+                    mat.emissiveTexture = new BABYLON.Texture(imgUrl, scene);
+                    mat.disableLighting = true; // Colores vivos y nítidos directos de la fotografía sin sombras
+                    mat.backFaceCulling = false;
+                    card.material = mat;
+
+                    camera.target = BABYLON.Vector3.Zero(); // Centrado perfecto en la pantalla
+                    camera.radius = 5.0;
+                    camera.alpha = -Math.PI / 2; // Vista recta perpendicular
+                    camera.beta = Math.PI / 2;   // Vista 100% frontal (90º)
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                const modelUrl = getModelBaseUrl(item.folder);
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, item.file, scene);
+
+                const rootMesh = result.meshes[0];
+
+                // 1. Si es el PADD, mostrar solo UNA tableta (la Voyager clásica gris con interfaz LCARS)
+                if (item.id === "padd") {
+                    rootMesh.getChildMeshes().forEach(m => {
+                        const name = m.name.toLowerCase();
+                        if (name.includes("black") || name.includes("red") || name.includes("blue") ||
+                            m.name.includes("Cube.005") || m.name.includes("Cube.006") || m.name.includes("Cube.007") || 
+                            m.name.includes("Cube.008") || m.name.includes("Cube.009") || m.name.includes("Cube.010")) {
+                            m.setEnabled(false);
+                            m.isVisible = false;
+                        }
+                    });
+                }
+
+                // 2. Si es el Combadge de Solapa, aplicar oro metálico pulido de la Flota Estelar
+                if (item.id === "combadge") {
+                    const goldMat = new BABYLON.PBRMaterial("combadgeGoldMat", scene);
+                    goldMat.albedoColor = new BABYLON.Color3(0.98, 0.78, 0.22); // Oro Starfleet reluciente
+                    goldMat.metallic = 0.95;
+                    goldMat.roughness = 0.18;
+                    goldMat.environmentIntensity = 1.8;
+                    if (rootMesh.material) rootMesh.material = goldMat;
+                    rootMesh.getChildMeshes().forEach(m => {
+                        m.material = goldMat;
+                    });
+                }
+
+                // Normalización robusta idéntica a P1_VISOR_STAR_TREK
+                rootMesh.normalizeToUnitCube();
+                const targetScale = item.scaleFactor || 3.5;
+                rootMesh.scaling.scaleInPlace(targetScale);
+
+                // Crear nodo pivote de transformación y orientNode para giros específicos
+                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                let orientNode = null;
+
+                if (item.id === "padd") {
+                    orientNode = new BABYLON.TransformNode("orient_" + item.id, scene);
+                    orientNode.parent = pivot;
+                    rootMesh.parent = orientNode;
+                    // PADD en posición vertical erguida, girado 180º sobre su eje horizontal y 180º sobre el eje vertical
+                    orientNode.rotation.x = Math.PI / 2;
+                    orientNode.rotation.y = Math.PI;
+                } else {
+                    rootMesh.parent = pivot;
+                }
+
+                // Centrado dinámico basado en geometría visible y habilitada
+                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let validVertices = false;
+
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
+                        max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
+                        validVertices = true;
+                    }
+                });
+
+                if (validVertices) {
+                    const center = BABYLON.Vector3.Center(min, max);
+                    if (orientNode) {
+                        orientNode.position.subtractInPlace(center);
+                    } else {
+                        rootMesh.position.subtractInPlace(center);
+                    }
+                }
+
+                // Configurar encuadre de cámara centrado
+                camera.target = BABYLON.Vector3.Zero(); // Centrado perfecto en la pantalla
+                camera.radius = item.cameraRadius || 5.5;
+                camera.alpha = -Math.PI / 2.2;
+                camera.beta = item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 3.0); // De frente a la altura de los ojos para el PADD vertical
+
+                currentPivotNode = pivot;
+
+                // Ocultar pantalla de carga
+                setTimeout(() => {
+                    showLoading(false);
+                }, 250);
+
+            } catch (error) {
+                console.error("Error cargando modelo:", error);
+                showLoading(true, "Error al cargar el artefacto 3D", "Comprueba que los archivos del modelo existan");
+            }
+        }
+
+        // =========================================================================
+        // INTERFAZ DE USUARIO: CARRUSEL & FICHA TÉCNICA
+        // =========================================================================
+        function buildCarouselUI() {
+            const track = document.getElementById("carouselTrack");
+            track.innerHTML = "";
+
+            INVENTOS_DB.forEach((item, idx) => {
+                const card = document.createElement("div");
+                card.className = `showcase-card ${idx === 0 ? 'active' : ''}`;
+                card.id = `card-${idx}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-icon">${item.icon}</span>
+                        <span class="card-number">${idx + 1 < 10 ? '0' : ''}${idx + 1}</span>
+                    </div>
+                    <div>
+                        <div class="card-title">${item.shortTitle}</div>
+                        <div class="card-invention">${item.realInvention}</div>
+                    </div>
+                `;
+                card.addEventListener("click", () => {
+                    loadModel(idx);
+                });
+                track.appendChild(card);
+            });
+
+            // Botones de navegación del carrusel
+            document.getElementById("btnPrevCard").addEventListener("click", () => {
+                const prevIndex = (currentIndex - 1 + INVENTOS_DB.length) % INVENTOS_DB.length;
+                loadModel(prevIndex);
+            });
+
+            document.getElementById("btnNextCard").addEventListener("click", () => {
+                const nextIndex = (currentIndex + 1) % INVENTOS_DB.length;
+                loadModel(nextIndex);
+            });
+
+            // Navegación con teclado (Flechas izquierda/derecha y Barra espaciadora para Pausa)
+            window.addEventListener("keydown", (e) => {
+                if (e.code === "Space") {
+                    e.preventDefault();
+                    toggleAutoRotate();
+                } else if (e.key === "ArrowLeft") {
+                    const prevIndex = (currentIndex - 1 + INVENTOS_DB.length) % INVENTOS_DB.length;
+                    loadModel(prevIndex);
+                } else if (e.key === "ArrowRight") {
+                    const nextIndex = (currentIndex + 1) % INVENTOS_DB.length;
+                    loadModel(nextIndex);
+                }
+            });
+        }
+
+        function updateCarouselActiveCard(activeIndex) {
+            const cards = document.querySelectorAll(".showcase-card");
+            cards.forEach((card, idx) => {
+                if (idx === activeIndex) {
+                    card.classList.add("active");
+                    card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                } else {
+                    card.classList.remove("active");
+                }
+            });
+        }
+
+        function updateInfoPanel(item) {
+            document.getElementById("infoSector").textContent = item.sector;
+            document.getElementById("infoTitle").textContent = item.title;
+            document.getElementById("infoRealInvention").textContent = item.realInvention;
+            document.getElementById("infoDescription").textContent = item.description;
+            document.getElementById("infoCuriosity").textContent = item.curiosity;
+        }
+
+        function showLoading(show, mainText, subText) {
+            const overlay = document.getElementById("loadingOverlay");
+            const txt = document.getElementById("loadingText");
+            const sub = document.getElementById("loadingSubtext");
+
+            if (show) {
+                if (mainText) txt.textContent = mainText;
+                if (subText) sub.textContent = subText;
+                overlay.style.display = "flex";
+                overlay.className = "active";
+            } else {
+                overlay.className = "hidden";
+                setTimeout(() => {
+                    if (overlay.classList.contains("hidden")) {
+                        overlay.style.display = "none";
+                    }
+                }, 400);
+            }
+        }
+
+        // =========================================================================
+        // CONTROLES DE LA CABECERA (BOTONES DE ACCIÓN)
+        // =========================================================================
+        // 1. Botón de Pausa / Reanudar giro automático
+        const btnAutoRotate = document.getElementById("btnAutoRotate");
+        const labelAutoRotate = document.getElementById("labelAutoRotate");
+        const iconAutoRotate = document.getElementById("iconAutoRotate");
+
+        function toggleAutoRotate() {
+            autoRotateActive = !autoRotateActive;
+            btnAutoRotate.classList.toggle("active", autoRotateActive);
+            if (autoRotateActive) {
+                labelAutoRotate.textContent = "Pausa";
+                iconAutoRotate.textContent = "⏸️";
+            } else {
+                labelAutoRotate.textContent = "Girar";
+                iconAutoRotate.textContent = "▶️";
+            }
+        }
+
+        btnAutoRotate.addEventListener("click", toggleAutoRotate);
+
+        // 2. Centrar vista
+        document.getElementById("btnResetView").addEventListener("click", () => {
+            const item = INVENTOS_DB[currentIndex];
+            camera.target = BABYLON.Vector3.Zero(); // Centrado exacto
+            camera.radius = item.cameraRadius || 5.5;
+            camera.alpha = -Math.PI / 2.2;
+            camera.beta = item.isImageShowcase ? (Math.PI / 2) : (item.id === "padd" ? Math.PI / 2.05 : Math.PI / 3.0);
+            if (currentPivotNode && (item.isImageShowcase || item.id === "padd")) currentPivotNode.rotation.y = 0;
+        });
+
+        // 3. Alternar iluminación (Estudio vs Espacio Profundo)
+        const btnToggleLight = document.getElementById("btnToggleLight");
+        const labelLight = document.getElementById("labelLight");
+        btnToggleLight.addEventListener("click", () => {
+            lightModeStudio = !lightModeStudio;
+            if (lightModeStudio) {
+                hemiLight.intensity = 1.2;
+                dirLight1.intensity = 1.2;
+                dirLight2.intensity = 0.9;
+                labelLight.textContent = "Luz: Estudio";
+                btnToggleLight.classList.remove("active");
+            } else {
+                // Modo Espacio Dramático (luces de contraste alto)
+                hemiLight.intensity = 0.4;
+                dirLight1.intensity = 1.8;
+                dirLight2.intensity = 0.3;
+                labelLight.textContent = "Luz: Espacio";
+                btnToggleLight.classList.add("active");
+            }
+        });
+
+        // 4. Mostrar/Ocultar Ficha Técnica
+        const infoPanel = document.getElementById("infoPanel");
+        const btnToggleInfo = document.getElementById("btnToggleInfo");
+        btnToggleInfo.addEventListener("click", () => {
+            infoPanel.classList.toggle("collapsed");
+            btnToggleInfo.classList.toggle("active", !infoPanel.classList.contains("collapsed"));
+        });
+
+        // =========================================================================
+        // INICIALIZACIÓN
+        // =========================================================================
+        initScene();
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
