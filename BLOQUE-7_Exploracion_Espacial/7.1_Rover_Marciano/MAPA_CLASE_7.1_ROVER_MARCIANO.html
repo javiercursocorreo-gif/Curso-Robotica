@@ -3,123 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clase 7.1 • Rover Marciano: Exploración de Marte — Mapa Mental Radial</title>
+    <title>Clase 7.1 • Rover Marciano: Perseverance y Exploración de Marte — Mapa Mental Interactivo</title>
     <style>
+        :root {
+            --bg-base: #070b14;
+            --bg-card: rgba(15, 23, 42, 0.9);
+            --border-glow: rgba(248, 113, 113, 0.45);
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --text-muted: #64748b;
+            --primary: #f87171;
+            --cyan: #38bdf8;
+            --emerald: #34d399;
+            --amber: #fbbf24;
+            --purple: #c084fc;
+            --gold: #eab308;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #020509; color: #f8fafc; min-height: 100vh; overflow-x: auto;
-            background-image: 
-                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.98) 0%, #010306 100%),
-                radial-gradient(1px 1px at 35px 45px, #ffffff 100%, transparent),
-                radial-gradient(1.5px 1.5px at 220px 320px, rgba(56, 189, 248, 0.6) 100%, transparent),
-                radial-gradient(1.5px 1.5px at 620px 520px, rgba(234, 179, 8, 0.6) 100%, transparent),
-                radial-gradient(1.5px 1.5px at 1150px 820px, rgba(16, 185, 129, 0.6) 100%, transparent);
-            background-size: 100% 100%, 550px 550px, 450px 450px, 650px 650px, 500px 500px;
-            display: flex; flex-direction: column; align-items: center; padding-bottom: 40px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: radial-gradient(circle at 50% 30%, #10162a 0%, #090b14 65%, #040508 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
             user-select: none;
         }
 
-        /* Barra Superior */
-        .top-bar {
-            width: 100%; max-width: 1680px; margin: 16px auto 0;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 24px; z-index: 50;
-        }
-        .brand-wrap { display: flex; align-items: center; gap: 14px; }
-        .brand-pill {
-            font-size: 0.82rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
-            color: #ef4444; background: rgba(255, 255, 255, 0.06); border: 1.5px solid rgba(239, 68, 68, 0.45);
-            padding: 6px 18px; border-radius: 999px; backdrop-filter: blur(8px);
-        }
-        .info-tag {
-            font-size: 0.85rem; color: #94a3b8; font-weight: 500;
-        }
-
-        /* Lienzo del Mapa Mental Radial */
-        .mindmap-canvas {
-            position: relative; width: 1620px; height: 860px;
-            margin: 10px auto;
-        }
-
-        /* Capa SVG de Conectores */
-        .tree-svg {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 5;
-        }
-        .branch-line {
-            fill: none; stroke-linecap: round; transition: all 0.3s ease;
-        }
-
-        /* NIVEL 0: Núcleo Central */
-        .center-core {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 220px; height: 220px; border-radius: 50%;
-            background: radial-gradient(circle at 40% 40%, rgba(30, 58, 138, 0.92) 0%, rgba(10, 15, 28, 0.98) 75%);
-            border: 2.5px solid #ef4444;
-            box-shadow: 0 0 50px rgba(239, 68, 68, 0.45), inset 0 0 30px rgba(255, 255, 255, 0.1);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-            padding: 18px; cursor: default; z-index: 30; backdrop-filter: blur(14px);
-            animation: pulse-core 4s ease-in-out infinite;
-        }
-        @keyframes pulse-core {
-            0%, 100% { box-shadow: 0 0 45px rgba(239, 68, 68, 0.45); }
-            50% { box-shadow: 0 0 75px rgba(239, 68, 68, 0.45), 0 0 30px rgba(255, 255, 255, 0.2); }
-        }
-        .center-core-icon { font-size: 2.6rem; margin-bottom: 6px; filter: drop-shadow(0 0 10px #ef4444); }
-        .center-core-title {
-            font-size: 1.15rem; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase;
-            color: #ffffff; line-height: 1.25;
-        }
-        .center-core-sub {
-            font-size: 0.72rem; color: #ef4444; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
-            margin-top: 6px;
-        }
-
-        /* NIVEL 1: Hubs de Fase / Categoría */
-        .phase-hub {
-            position: absolute; z-index: 25;
-            padding: 10px 22px; border-radius: 999px; text-decoration: none;
-            background: rgba(10, 15, 28, 0.95); border: 2px solid var(--hub-color);
-            display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 0.92rem;
-            letter-spacing: 1.5px; text-transform: uppercase; color: #ffffff;
-            box-shadow: 0 0 25px var(--hub-glow), 0 8px 20px rgba(0, 0, 0, 0.7);
-            transform: translate(-50%, -50%); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            backdrop-filter: blur(12px); cursor: pointer; white-space: nowrap;
-        }
-        .phase-hub:hover {
-            transform: translate(-50%, -50%) scale(1.08);
-            box-shadow: 0 0 40px var(--hub-glow), 0 12px 28px rgba(0, 0, 0, 0.8);
-        }
-        .phase-icon { font-size: 1.2rem; }
-
-        /* NIVEL 2: Contenedores y Tarjetas de Recursos */
-        .cards-column {
-            position: absolute; z-index: 20; display: flex; flex-direction: column; gap: 10px;
-        }
-
-        .resource-card {
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            width: 380px;
-            background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(255, 255, 255, 0.12);
-            border-left: 4px solid var(--card-color);
-            padding: 11px 16px; border-radius: 8px; text-decoration: none; color: #f1f5f9;
-            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        header {
+            padding: 22px 20px 14px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
+            z-index: 10;
         }
-        .resource-card:hover {
-            background: rgba(30, 41, 59, 0.98); border-color: var(--card-color);
+        .header-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--primary);
+            border: 1px solid var(--border-glow);
+            border-radius: 9999px;
+            padding: 4px 16px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 40%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+        .subtitle {
+            font-size: 0.92rem;
+            color: var(--text-sub);
+            max-width: 760px;
+            margin: 0 auto;
+            line-height: 1.4;
+        }
+
+        .mindmap-canvas {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px 60px;
+            max-width: 1300px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .core-node {
+            background: radial-gradient(circle at 40% 30%, #1e293b 0%, #0f172a 80%);
+            border: 2px solid var(--primary);
+            border-radius: 28px;
+            padding: 24px 36px;
+            text-align: center;
+            box-shadow: 0 0 35px var(--border-glow), inset 0 0 20px rgba(255, 255, 255, 0.05);
+            margin-bottom: 45px;
+            position: relative;
+            z-index: 5;
+            transition: all 0.3s ease;
+        }
+        .core-node:hover {
             transform: scale(1.03);
-            box-shadow: 0 0 20px var(--card-glow), 0 8px 20px rgba(0, 0, 0, 0.6);
-            color: #ffffff; z-index: 40;
+            box-shadow: 0 0 50px var(--border-glow);
         }
-        .card-left {
-            display: flex; align-items: center; gap: 12px; overflow: hidden;
+        .core-icon {
+            font-size: 2.6rem;
+            display: inline-block;
+            margin-bottom: 6px;
         }
-        .card-tag {
-            font-family: monospace; font-weight: 800; font-size: 0.75rem;
-            padding: 4px 8px; border-radius: 5px; flex-shrink: 0; text-transform: uppercase;
+        .core-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .core-desc {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .branches-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            z-index: 4;
+        }
+        @media (max-width: 960px) {
+            .branches-container { grid-template-columns: 1fr; }
+        }
+
+        .branch-column {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 22px;
+            backdrop-filter: blur(14px);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+        .branch-column::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 4px;
+            background: var(--branch-color);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 0 12px var(--branch-color);
+        }
+        .branch-column:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .branch-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .branch-badge {
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--branch-color);
+            font-family: monospace;
+        }
+        .branch-title {
+            font-size: 1.12rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .branch-count {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+
+        .file-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+        }
+        .file-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+        }
+        .file-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--branch-color);
+            transform: translateX(4px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .file-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .file-tag {
+            font-family: monospace;
+            font-weight: 800;
+            font-size: 0.78rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            flex-shrink: 0;
         }
         .tag-pdf { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
         .tag-png { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4); }
@@ -127,239 +227,184 @@
         .tag-html { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
         .tag-gold { background: rgba(234, 179, 8, 0.2); color: #fef08a; border: 1px solid rgba(234, 179, 8, 0.4); }
 
-        .card-info {
-            display: flex; flex-direction: column; overflow: hidden;
+        .file-details {
+            display: flex;
+            flex-direction: column;
         }
-        .card-title {
-            font-size: 0.92rem; font-weight: 800; color: #ffffff;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        .file-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            line-height: 1.3;
         }
-        .card-desc {
-            font-size: 0.76rem; color: #94a3b8; margin-top: 2px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        .file-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
         }
-        .card-arrow {
-            font-size: 0.95rem; font-weight: 800; color: var(--card-color); flex-shrink: 0;
+        .file-arrow {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: 10px;
+            flex-shrink: 0;
         }
 
-        /* Pie informativo */
         .bottom-bar {
-            margin-top: 20px;
-            background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 999px; padding: 10px 28px;
-            display: flex; align-items: center; justify-content: space-between;
-            width: 100%; max-width: 900px; font-size: 0.85rem; color: #94a3b8;
+            margin-top: 36px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 900px;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .status-dot {
-            display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-            background: #10b981; box-shadow: 0 0 8px #10b981; margin-right: 6px;
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+            margin-right: 6px;
         }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <div class="brand-wrap">
-            <div class="brand-pill">BLOQUE 7 • EXPLORACIÓN ESPACIAL • CLASE 7.1</div>
-        </div>
-        <div class="info-tag">Suspensión Rocker-Bogie • Cámaras Mastcam-Z y SuperCam • Brazo Robótico de Muestreo • Simulador 3D</div>
-    </div>
+    <header>
+        <div class="header-pill">BLOQUE 7 • EXPLORACIÓN ESPACIAL • CLASE 7.1</div>
+        <h1>Rover Marciano: Misión Perseverance</h1>
+        <p class="subtitle">Robótica de Terreno • Cinemática Rocker-Bogie • Espectrometría Láser SuperCam • Helicóptero Ingenuity</p>
+    </header>
 
-    <div class="mindmap-canvas" id="canvasWrap">
-        <svg class="tree-svg" id="treeSvg"></svg>
+    <main class="mindmap-canvas">
 
-        <!-- NIVEL 0: Núcleo Central -->
-        <div class="center-core" id="coreNode">
-            <div class="center-core-icon">🤖</div>
-            <div class="center-core-title">7.1 Rover Marciano</div>
-            <div class="center-core-sub">Mapa Mental Radial</div>
+        <!-- NODO CENTRAL (NÚCLEO) -->
+        <div class="core-node">
+            <span class="core-icon">🔴</span>
+            <h2 class="core-title">Rover Marciano: Misión Perseverance</h2>
+            <p class="core-desc">Mapa de Recursos Educativos, Diapositivas, Visores 3D y Simuladores Gamificados</p>
         </div>
 
-
-        <!-- HUB: Infografías & Vídeos -->
-        <div class="phase-hub" id="hub_L_0" style="left: 480px; top: 430px; --hub-color: #38bdf8; --hub-glow: rgba(56, 189, 248, 0.4);">
-            <span class="phase-icon">📹</span>
-            <span>Infografías & Vídeos</span>
-        </div>
-
-        <!-- CARDS FOR Infografías & Vídeos -->
-        <div class="cards-column" style="left: 70px; top: 303px;">
-
-            <a href="2.TEORIA/INFOGRAFIA.jpg" target="_blank" class="resource-card" id="card_1" style="--card-color: #38bdf8; --card-glow: rgba(56, 189, 248, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-png">INFO 1</span>
-                    <div class="card-info">
-                        <span class="card-title">Infografía: Anatomía del Rover</span>
-                        <span class="card-desc">Sistemas de propulsión, sensores e instrumentos</span>
-                    </div>
+        <!-- CONTENEDOR DE RAMAS -->
+        <div class="branches-container">
+            <!-- FASE 1 -->
+            <div class="branch-column" style="--branch-color: var(--cyan);">
+                <div class="branch-header">
+                    <span class="branch-badge">FASE 1</span>
+                    <h3 class="branch-title">Teoría y Fundamentos</h3>
+                    <span class="branch-count">4 recursos</span>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
+                <div class="file-stack">
 
-            <a href="2.TEORIA/INFOGRAFIA 2.jpg" target="_blank" class="resource-card" id="card_2" style="--card-color: #38bdf8; --card-glow: rgba(56, 189, 248, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-png">INFO 2</span>
-                    <div class="card-info">
-                        <span class="card-title">Infografía: Sistema de Muestreo</span>
-                        <span class="card-desc">Taladro percutor y sellado de tubos de regolito</span>
-                    </div>
+        <a href="2.TEORIA/INFOGRAFIA.jpg" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-png">INFOGRAFÍA 1</span>
+                <div class="file-details">
+                    <span class="file-title">Infografía Técnica Rover</span>
+                    <span class="file-desc">Esquema y subsistemas del rover marciano Perseverance.</span>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
+            </div>
+            <span class="file-arrow" style="color: var(--cyan);">↗</span>
+        </a>
 
-            <a href="2.TEORIA/VIDEO.mp4" target="_blank" class="resource-card" id="card_3" style="--card-color: #38bdf8; --card-glow: rgba(56, 189, 248, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-mp4">VID 1</span>
-                    <div class="card-info">
-                        <span class="card-title">Vídeo: Aterrizaje SkyCrane</span>
-                        <span class="card-desc">Secuencia de entrada y descenso marciano</span>
-                    </div>
+        <a href="2.TEORIA/INFOGRAFIA%202.jpg" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-png">INFOGRAFÍA 2</span>
+                <div class="file-details">
+                    <span class="file-title">Infografía de Componentes</span>
+                    <span class="file-desc">Detalle de cámaras Mastcam-Z y sensores MEDA.</span>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
+            </div>
+            <span class="file-arrow" style="color: var(--cyan);">↗</span>
+        </a>
 
-            <a href="2.TEORIA/VIDEO1.mp4" target="_blank" class="resource-card" id="card_4" style="--card-color: #38bdf8; --card-glow: rgba(56, 189, 248, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-mp4">VID 2</span>
-                    <div class="card-info">
-                        <span class="card-title">Vídeo: Conducción y Muestreo</span>
-                        <span class="card-desc">Operaciones autónomas del rover en Marte</span>
-                    </div>
+        <a href="2.TEORIA/VIDEO.mp4" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-mp4">VÍDEO 1</span>
+                <div class="file-details">
+                    <span class="file-title">Vídeo de Misión</span>
+                    <span class="file-desc">Vídeo de operaciones y despliegue en Marte.</span>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
-        </div>
+            </div>
+            <span class="file-arrow" style="color: var(--cyan);">↗</span>
+        </a>
 
-        <!-- HUB: Modelado 3D Interactivo -->
-        <div class="phase-hub" id="hub_R_0" style="left: 1140px; top: 270px; --hub-color: #ef4444; --hub-glow: rgba(239, 68, 68, 0.4);">
-            <span class="phase-icon">🤖</span>
-            <span>Modelado 3D Interactivo</span>
-        </div>
-
-        <!-- CARDS FOR Modelado 3D Interactivo -->
-        <div class="cards-column" style="left: 1170px; top: 242px;">
-
-            <a href="3.PRACTICAS/P1_VISOR_ROVER.html" target="_blank" class="resource-card" id="card_5" style="--card-color: #ef4444; --card-glow: rgba(239, 68, 68, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-html">P1</span>
-                    <div class="card-info">
-                        <span class="card-title">Visor 3D: Rover Perseverance</span>
-                        <span class="card-desc">Inspección 3D de chasis, suspensión y brazo robótico</span>
-                    </div>
+        <a href="2.TEORIA/VIDEO1.mp4" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-mp4">VÍDEO 2</span>
+                <div class="file-details">
+                    <span class="file-title">Vídeo Cinemático</span>
+                    <span class="file-desc">Visualización hiperrealista en la superficie marciana.</span>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
-        </div>
-
-        <!-- HUB: Exploración & Reto -->
-        <div class="phase-hub" id="hub_R_1" style="left: 1140px; top: 590px; --hub-color: #fbbf24; --hub-glow: rgba(251, 191, 36, 0.4);">
-            <span class="phase-icon">🧪</span>
-            <span>Exploración & Reto</span>
-        </div>
-
-        <!-- CARDS FOR Exploración & Reto -->
-        <div class="cards-column" style="left: 1170px; top: 562px;">
-
-            <a href="3.PRACTICAS/P4.JUEGO.html" target="_blank" class="resource-card" id="card_6" style="--card-color: #fbbf24; --card-glow: rgba(251, 191, 36, 0.4);">
-                <div class="card-left">
-                    <span class="card-tag tag-html">P4</span>
-                    <div class="card-info">
-                        <span class="card-title">P4.JUEGO.html</span>
-                        <span class="card-desc">Juego interactivo: Muestreo científico en el cráter Jezero</span>
-                    </div>
+            </div>
+            <span class="file-arrow" style="color: var(--cyan);">↗</span>
+        </a>
                 </div>
-                <span class="card-arrow">↗</span>
-            </a>
+            </div>
+            <!-- FASE 2 -->
+            <div class="branch-column" style="--branch-color: var(--emerald);">
+                <div class="branch-header">
+                    <span class="branch-badge">FASE 2</span>
+                    <h3 class="branch-title">Modelado 3D Perseverance</h3>
+                    <span class="branch-count">1 visor 3D</span>
+                </div>
+                <div class="file-stack">
+
+        <a href="3.PRACTICAS/P1_VISOR_ROVER.html" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-html">P1</span>
+                <div class="file-details">
+                    <span class="file-title">Visor 3D Rover Perseverance</span>
+                    <span class="file-desc">Exploración 3D del chasis, brazo robótico y mástil.</span>
+                </div>
+            </div>
+            <span class="file-arrow" style="color: var(--emerald);">↗</span>
+        </a>
+                </div>
+            </div>
+            <!-- FASE 3 -->
+            <div class="branch-column" style="--branch-color: var(--amber);">
+                <div class="branch-header">
+                    <span class="branch-badge">FASE 3</span>
+                    <h3 class="branch-title">Misiones & Reto Gamificado</h3>
+                    <span class="branch-count">1 simulador</span>
+                </div>
+                <div class="file-stack">
+
+        <a href="3.PRACTICAS/P4.JUEGO.html" target="_blank" class="file-card">
+            <div class="file-left">
+                <span class="file-tag tag-html">P4</span>
+                <div class="file-details">
+                    <span class="file-title">P4.JUEGO.html</span>
+                    <span class="file-desc">Simulador de exploración y toma de muestras en el Cráter Jezero.</span>
+                </div>
+            </div>
+            <span class="file-arrow" style="color: var(--amber);">↗</span>
+        </a>
+                </div>
+            </div>
+
         </div>
 
-    </div>
-
-    <div class="bottom-bar">
-        <div>
-            <span class="status-dot"></span>
-            <span>Clase Activa • 6 Recursos Interactivos Conectados</span>
+        <div class="bottom-bar">
+            <div>
+                <span class="status-dot"></span>
+                <span>Clase activa e interactiva • 6 recursos vinculados</span>
+            </div>
+            <div>
+                <span>Acceso unificado para Google Classroom</span>
+            </div>
         </div>
-        <div>
-            <span>Acceso Unificado para Google Classroom</span>
-        </div>
-    </div>
 
-    <script>
-        const svg = document.getElementById("treeSvg");
-        const core = document.getElementById("coreNode");
+    </main>
 
-        function getCenter(el) {
-            const canvasRect = document.getElementById("canvasWrap").getBoundingClientRect();
-            const rect = el.getBoundingClientRect();
-            return {
-                x: rect.left - canvasRect.left + rect.width / 2,
-                y: rect.top - canvasRect.top + rect.height / 2,
-                left: rect.left - canvasRect.left,
-                right: rect.right - canvasRect.left
-            };
-        }
-
-        const structureData = [{"hubId": "hub_L_0", "color": "#38bdf8", "side": "left", "cardIds": ["card_1", "card_2", "card_3", "card_4"]}, {"hubId": "hub_R_0", "color": "#ef4444", "side": "right", "cardIds": ["card_5"]}, {"hubId": "hub_R_1", "color": "#fbbf24", "side": "right", "cardIds": ["card_6"]}];
-
-        function drawLines() {
-            svg.innerHTML = "";
-            const corePos = getCenter(core);
-
-            structureData.forEach(phase => {
-                const hubEl = document.getElementById(phase.hubId);
-                if (!hubEl) return;
-                const hubPos = getCenter(hubEl);
-
-                // 1. Radio grueso desde Núcleo Central al Hub de Fase (Nivel 0 -> Nivel 1)
-                const coreLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                coreLine.setAttribute("x1", corePos.x);
-                coreLine.setAttribute("y1", corePos.y);
-                coreLine.setAttribute("x2", hubPos.x);
-                coreLine.setAttribute("y2", hubPos.y);
-                coreLine.setAttribute("stroke", phase.color);
-                coreLine.setAttribute("stroke-width", "3.5");
-                coreLine.setAttribute("stroke-opacity", "0.85");
-                svg.appendChild(coreLine);
-
-                // 2. Ramas curvas Bézier desde el Hub a cada tarjeta de recurso (Nivel 1 -> Nivel 2)
-                phase.cardIds.forEach(cardId => {
-                    const cardEl = document.getElementById(cardId);
-                    if (!cardEl) return;
-                    const cardPos = getCenter(cardEl);
-
-                    const targetX = phase.side === "left" ? cardPos.right : cardPos.left;
-                    const targetY = cardPos.y;
-
-                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                    const mx = (hubPos.x + targetX) / 2;
-                    const d = `M ${hubPos.x} ${hubPos.y} C ${mx} ${hubPos.y}, ${mx} ${targetY}, ${targetX} ${targetY}`;
-
-                    path.setAttribute("d", d);
-                    path.setAttribute("class", "branch-line");
-                    path.setAttribute("stroke", phase.color);
-                    path.setAttribute("stroke-width", "1.8");
-                    path.setAttribute("stroke-opacity", "0.5");
-                    path.setAttribute("id", "branch_" + cardId);
-                    svg.appendChild(path);
-
-                    cardEl.addEventListener("mouseenter", () => {
-                        path.setAttribute("stroke-width", "3.5");
-                        path.setAttribute("stroke-opacity", "1");
-                        path.setAttribute("filter", `drop-shadow(0 0 8px ${phase.color})`);
-                    });
-                    cardEl.addEventListener("mouseleave", () => {
-                        path.setAttribute("stroke-width", "1.8");
-                        path.setAttribute("stroke-opacity", "0.5");
-                        path.removeAttribute("filter");
-                    });
-                });
-            });
-        }
-
-        window.addEventListener("load", drawLines);
-        window.addEventListener("resize", drawLines);
-        setTimeout(drawLines, 100);
-        setTimeout(drawLines, 500);
-    </script>
 </body>
 </html>
