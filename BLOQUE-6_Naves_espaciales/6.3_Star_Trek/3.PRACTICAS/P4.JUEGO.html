@@ -1,6 +1,933 @@
-<!-- Plantilla base para P4.JUEGO.html -->
-<html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <title>Clase 6.3 • Minijuego: Misión USS Enterprise (Defensa Táctica Warp)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --lcars-orange: #ff9900;
+            --lcars-gold: #ffcc00;
+            --lcars-red: #cc4444;
+            --lcars-purple: #cc99cc;
+            --lcars-cyan: #38bdf8;
+            --lcars-blue: #4488ff;
+            --bg-dark: #050711;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* LCARS Header Frame */
+        header {
+            display: flex;
+            align-items: center;
+            background: #000;
+            padding: 8px 16px;
+            border-bottom: 2px solid var(--lcars-orange);
+            z-index: 20;
+            gap: 12px;
+        }
+
+        .lcars-pill {
+            background: var(--lcars-orange);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            padding: 4px 14px;
+            border-radius: 16px 0 0 16px;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .lcars-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--lcars-cyan);
+            letter-spacing: 2px;
+        }
+
+        .lcars-bar {
+            flex: 1;
+            height: 12px;
+            background: linear-gradient(90deg, var(--lcars-purple) 0%, var(--lcars-blue) 40%, var(--lcars-orange) 100%);
+            border-radius: 6px;
+            opacity: 0.8;
+        }
+
+        /* Game Container & Canvas */
+        #game-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            height: calc(100vh - 50px);
+            background: radial-gradient(circle at center, #0e172e 0%, #060914 70%, #020307 100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-panel {
+            background: rgba(10, 16, 32, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-left: 4px solid var(--lcars-orange);
+            border-radius: 8px;
+            padding: 10px 16px;
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+        }
+
+        .hud-label {
+            font-size: 0.75rem;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--lcars-orange);
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hud-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .hud-bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s ease;
+        }
+
+        .fill-shields { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+        .fill-hull { background: linear-gradient(90deg, #16a34a, #4ade80); }
+        .fill-warp { background: linear-gradient(90deg, #9333ea, #c084fc); }
+
+        .hud-stats {
+            text-align: right;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .hud-score {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--lcars-gold);
+        }
+
+        .hud-sector {
+            font-size: 0.85rem;
+            color: var(--lcars-cyan);
+        }
+
+        /* Modal Overlay (Start / Game Over / Victory) */
+        .modal-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(4, 7, 16, 0.88);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .modal-card {
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid var(--lcars-cyan);
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.3);
+            border-radius: 16px;
+            padding: 30px 40px;
+            max-width: 520px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px var(--lcars-cyan);
+        }
+
+        .modal-desc {
+            font-size: 1.05rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .keys-guide {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .key-badge {
+            background: rgba(56, 189, 248, 0.2);
+            color: var(--lcars-cyan);
+            border: 1px solid var(--lcars-cyan);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .cyber-btn {
+            background: linear-gradient(135deg, var(--lcars-orange) 0%, #ea580c 100%);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1.15rem;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 10px;
+        }
+
+        .cyber-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 153, 0, 0.7);
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: none;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        @media (max-width: 900px) {
+            #mobile-controls { display: flex; }
+        }
+
+        .touch-btn {
+            pointer-events: auto;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.75);
+            border: 2px solid var(--lcars-cyan);
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        .touch-btn:active {
+            background: var(--lcars-cyan);
+            color: #000;
+        }
+    </style>
+</head>
 <body>
-<h1>Minijuego</h1>
+
+    <header>
+        <div class="lcars-pill">LCARS 6.3</div>
+        <div class="lcars-title">USS ENTERPRISE • TACTICAL SIMULATOR</div>
+        <div class="lcars-bar"></div>
+    </header>
+
+    <div id="game-container">
+        <!-- HUD -->
+        <div id="hud">
+            <div class="hud-panel">
+                <div class="hud-label"><span>ESCUDOS DEFLECTORES</span><span id="txt-shields">100%</span></div>
+                <div class="hud-bar-bg"><div id="bar-shields" class="hud-bar-fill fill-shields"></div></div>
+                <div class="hud-label"><span>INTEGRIDAD CASCO</span><span id="txt-hull">100%</span></div>
+                <div class="hud-bar-bg"><div id="bar-hull" class="hud-bar-fill fill-hull"></div></div>
+                <div class="hud-label"><span>MOTOR WARP</span><span id="txt-warp">100%</span></div>
+                <div class="hud-bar-bg"><div id="bar-warp" class="hud-bar-fill fill-warp"></div></div>
+            </div>
+
+            <div class="hud-panel hud-stats">
+                <div class="hud-label" style="justify-content: flex-end;">PUNTUACIÓN DE LA FLOTA</div>
+                <div id="score" class="hud-score">0000</div>
+                <div id="sector" class="hud-sector">CUADRANTE ALFA • SECTOR 001</div>
+                <div class="hud-label" style="margin-top: 4px; justify-content: flex-end;">TORPEDOS DE FOTONES: <span id="torp-count" style="color:var(--lcars-gold); font-weight:bold; margin-left:4px;">5</span></div>
+            </div>
+        </div>
+
+        <!-- CANVAS -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- START SCREEN -->
+        <div id="start-screen" class="modal-screen">
+            <div class="modal-card">
+                <h2 class="modal-title">ORDEN DE LA FLOTA ESTELAR</h2>
+                <p class="modal-desc">
+                    Capitán al mando de la <strong>USS Enterprise NCC-1701</strong>: Anomalías y naves no identificadas están bloqueando el Cuadrante Alfa. Emplea tus <strong>Fásers</strong>, <strong>Torpedos de Fotones</strong> y el <strong>Impulso Warp</strong> para defender la Federación.
+                </p>
+                <div class="keys-guide">
+                    <div><span class="key-badge">◄ ▲ ▼ ►</span> / <span class="key-badge">WASD</span> Mover</div>
+                    <div><span class="key-badge">ESPACIO</span> Disparar Fáser</div>
+                    <div><span class="key-badge">B</span> Torpedo de Fotones</div>
+                    <div><span class="key-badge">SHIFT</span> Impulso Warp</div>
+                </div>
+                <button id="btn-start" class="cyber-btn">INICIAR MISIÓN</button>
+            </div>
+        </div>
+
+        <!-- GAME OVER / RESTART SCREEN -->
+        <div id="gameover-screen" class="modal-screen" style="display: none;">
+            <div class="modal-card">
+                <h2 id="end-title" class="modal-title" style="color: var(--lcars-red);">BRECHA EN EL NÚCLEO WARP</h2>
+                <p id="end-desc" class="modal-desc">La nave ha sufrido daños críticos en el sector.</p>
+                <div class="hud-score" style="margin: 10px 0;">Puntuación Final: <span id="final-score">0</span></div>
+                <button id="btn-restart" class="cyber-btn">REINTENTAR SIMULACIÓN</button>
+            </div>
+        </div>
+
+        <!-- MOBILE CONTROLS -->
+        <div id="mobile-controls">
+            <div style="display: flex; gap: 8px;">
+                <div class="touch-btn" id="m-left">◄</div>
+                <div class="touch-btn" id="m-right">►</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <div class="touch-btn" id="m-warp" style="border-color: var(--lcars-purple);">W</div>
+                <div class="touch-btn" id="m-torp" style="border-color: var(--lcars-gold);">B</div>
+                <div class="touch-btn" id="m-fire" style="border-color: var(--lcars-orange); width: 70px;">⚡</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUDIO SYNTHESIS (Web Audio API) ---
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playPhaser() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+            playTorpedo() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(1200, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+            playExplosion() {
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.4;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                noise.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
+            playWarp() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // --- GAME LOGIC ---
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let width, height;
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight - 50;
+        }
+        window.addEventListener("resize", resize);
+        resize();
+
+        // Game State
+        let isRunning = false;
+        let score = 0;
+        let sectorLevel = 1;
+        let torpedoes = 5;
+        let lastTorpedoTime = 0;
+
+        // Player Ship (Enterprise)
+        const player = {
+            x: width / 2,
+            y: height - 100,
+            radius: 28,
+            speed: 7,
+            shields: 100,
+            hull: 100,
+            warpEnergy: 100,
+            isWarping: false,
+            invulnerable: 0
+        };
+
+        // Entities
+        let stars = [];
+        let lasers = [];
+        let torps = [];
+        let enemies = [];
+        let particles = [];
+
+        // Stars Init
+        for (let i = 0; i < 150; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 2 + 0.5,
+                speed: Math.random() * 2 + 0.5,
+                color: Math.random() > 0.3 ? "#ffffff" : "#38bdf8"
+            });
+        }
+
+        // Controls input
+        const keys = {};
+        window.addEventListener("keydown", (e) => {
+            keys[e.code] = true;
+            if (e.code === "KeyB" && isRunning) fireTorpedo();
+        });
+        window.addEventListener("keyup", (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch input
+        function bindTouch(id, code) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener("touchstart", (e) => { e.preventDefault(); keys[code] = true; if(code==='KeyB') fireTorpedo(); });
+            btn.addEventListener("touchend", (e) => { e.preventDefault(); keys[code] = false; });
+        }
+        bindTouch("m-left", "ArrowLeft");
+        bindTouch("m-right", "ArrowRight");
+        bindTouch("m-warp", "ShiftLeft");
+        bindTouch("m-fire", "Space");
+
+        // Fire Weapons
+        let lastLaser = 0;
+        function fireLaser() {
+            if (Date.now() - lastLaser < 160) return;
+            lastLaser = Date.now();
+            sound.playPhaser();
+            lasers.push({
+                x: player.x - 14,
+                y: player.y - 20,
+                vx: -0.5,
+                vy: -14,
+                color: "#ff3333"
+            });
+            lasers.push({
+                x: player.x + 14,
+                y: player.y - 20,
+                vx: 0.5,
+                vy: -14,
+                color: "#ff3333"
+            });
+        }
+
+        function fireTorpedo() {
+            if (torpedoes <= 0 || Date.now() - lastTorpedoTime < 500) return;
+            torpedoes--;
+            lastTorpedoTime = Date.now();
+            document.getElementById("torp-count").innerText = torpedoes;
+            sound.playTorpedo();
+            torps.push({
+                x: player.x,
+                y: player.y - 30,
+                vy: -9,
+                radius: 6,
+                glow: 0
+            });
+        }
+
+        // Enemy Spawner
+        let spawnTimer = 0;
+        function spawnEnemies() {
+            spawnTimer++;
+            if (spawnTimer % Math.max(35, 90 - sectorLevel * 8) === 0) {
+                const type = Math.random() > 0.4 ? "klingon" : (Math.random() > 0.5 ? "asteroid" : "romulan");
+                enemies.push({
+                    x: Math.random() * (width - 60) + 30,
+                    y: -40,
+                    type: type,
+                    hp: type === "romulan" ? 4 : (type === "klingon" ? 2 : 1),
+                    maxHp: type === "romulan" ? 4 : (type === "klingon" ? 2 : 1),
+                    radius: type === "asteroid" ? 22 : (type === "romulan" ? 26 : 20),
+                    speedY: Math.random() * 2 + 1.5 + (sectorLevel * 0.3),
+                    speedX: (Math.random() - 0.5) * 2,
+                    angle: 0
+                });
+            }
+        }
+
+        // Explosions Particles
+        function createExplosion(x, y, color = "#ff9900", count = 18) {
+            sound.playExplosion();
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = Math.random() * 5 + 1;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    life: 1.0,
+                    decay: Math.random() * 0.03 + 0.02,
+                    size: Math.random() * 4 + 2,
+                    color: color
+                });
+            }
+        }
+
+        // Drawing Functions
+        function drawEnterprise(x, y, isWarp, invuln) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            if (invuln > 0 && Math.floor(Date.now() / 100) % 2 === 0) {
+                ctx.globalAlpha = 0.4;
+            }
+
+            // Shield Glow Bubble
+            if (player.shields > 10) {
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 38, 44, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(56, 189, 248, ${player.shields / 250})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            // Nacelles Warp Trail
+            if (isWarp) {
+                ctx.fillStyle = "rgba(192, 132, 252, 0.7)";
+                ctx.fillRect(-22, 15, 6, 40);
+                ctx.fillRect(16, 15, 6, 40);
+            }
+
+            // Warp Nacelles (Left & Right Engines)
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillRect(-24, -10, 6, 32);
+            ctx.fillRect(18, -10, 6, 32);
+            // Bussard Collectors (Glowing Red Tips)
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(-21, -10, 3.5, 0, Math.PI * 2);
+            ctx.arc(21, -10, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pylons (Wings connecting to hull)
+            ctx.strokeStyle = "#64748b";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-21, 8); ctx.lineTo(-6, 12);
+            ctx.moveTo(21, 8); ctx.lineTo(6, 12);
+            ctx.stroke();
+
+            // Secondary Hull
+            ctx.fillStyle = "#cbd5e1";
+            ctx.beginPath();
+            ctx.ellipse(0, 10, 7, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Primary Saucer Section (Platillo Principal)
+            ctx.fillStyle = "#f8fafc";
+            ctx.beginPath();
+            ctx.ellipse(0, -14, 24, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#38bdf8";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Bridge Dome
+            ctx.fillStyle = "#38bdf8";
+            ctx.beginPath();
+            ctx.arc(0, -14, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawEnemy(e) {
+            ctx.save();
+            ctx.translate(e.x, e.y);
+
+            if (e.type === "klingon") {
+                // Klingon Bird-of-Prey (Verde y Rojo)
+                ctx.fillStyle = "#166534";
+                ctx.beginPath();
+                ctx.moveTo(0, 18);
+                ctx.lineTo(-20, -10);
+                ctx.lineTo(-6, -4);
+                ctx.lineTo(0, -18);
+                ctx.lineTo(6, -4);
+                ctx.lineTo(20, -10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = "#ef4444";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            } else if (e.type === "romulan") {
+                // Romulan Warbird (Verde esmeralda y Cyan)
+                ctx.fillStyle = "#047857";
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 24, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#10b981";
+                ctx.beginPath();
+                ctx.arc(0, 4, 8, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Asteroid
+                ctx.fillStyle = "#78716c";
+                ctx.beginPath();
+                ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "#44403c";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Health Bar for large enemies
+            if (e.maxHp > 1) {
+                ctx.fillStyle = "rgba(0,0,0,0.6)";
+                ctx.fillRect(-15, -e.radius - 8, 30, 4);
+                ctx.fillStyle = "#22c55e";
+                ctx.fillRect(-15, -e.radius - 8, 30 * (e.hp / e.maxHp), 4);
+            }
+
+            ctx.restore();
+        }
+
+        // Main Game Loop
+        function update() {
+            if (!isRunning) return;
+
+            // Player Movement
+            let currentSpeed = player.speed;
+            player.isWarping = false;
+
+            if ((keys["ShiftLeft"] || keys["ShiftRight"] || keys["KeyW"]) && player.warpEnergy > 5) {
+                player.isWarping = true;
+                currentSpeed *= 1.8;
+                player.warpEnergy = Math.max(0, player.warpEnergy - 0.6);
+                if (Math.random() < 0.3) sound.playWarp();
+            } else {
+                player.warpEnergy = Math.min(100, player.warpEnergy + 0.25);
+            }
+
+            if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= currentSpeed;
+            if (keys["ArrowRight"] || keys["KeyD"]) player.x += currentSpeed;
+            if (keys["ArrowUp"]) player.y -= currentSpeed;
+            if (keys["ArrowDown"]) player.y += currentSpeed;
+
+            // Fire Phasers
+            if (keys["Space"]) fireLaser();
+
+            // Screen bounds
+            player.x = Math.max(player.radius, Math.min(width - player.radius, player.x));
+            player.y = Math.max(player.radius + 20, Math.min(height - player.radius - 20, player.y));
+
+            if (player.invulnerable > 0) player.invulnerable--;
+
+            // Stars Scroll
+            stars.forEach(s => {
+                s.y += player.isWarping ? s.speed * 6 : s.speed;
+                if (s.y > height) {
+                    s.y = 0;
+                    s.x = Math.random() * width;
+                }
+            });
+
+            // Update Lasers
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.x += l.vx;
+                l.y += l.vy;
+                if (l.y < -10) lasers.splice(i, 1);
+            }
+
+            // Update Torpedoes
+            for (let i = torps.length - 1; i >= 0; i--) {
+                const t = torps[i];
+                t.y += t.vy;
+                t.glow = (t.glow + 0.2) % (Math.PI * 2);
+                if (t.y < -20) torps.splice(i, 1);
+            }
+
+            // Spawn & Update Enemies
+            spawnEnemies();
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.y += player.isWarping ? e.speedY * 1.5 : e.speedY;
+                e.x += e.speedX;
+
+                // Collision with Lasers
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const l = lasers[j];
+                    const dist = Math.hypot(e.x - l.x, e.y - l.y);
+                    if (dist < e.radius + 6) {
+                        e.hp--;
+                        createExplosion(l.x, l.y, "#ff3838", 6);
+                        lasers.splice(j, 1);
+                        if (e.hp <= 0) break;
+                    }
+                }
+
+                // Collision with Torpedoes
+                for (let j = torps.length - 1; j >= 0; j--) {
+                    const t = torps[j];
+                    const dist = Math.hypot(e.x - t.x, e.y - t.y);
+                    if (dist < e.radius + 15) {
+                        e.hp -= 4;
+                        createExplosion(t.x, t.y, "#fbbf24", 25);
+                        torps.splice(j, 1);
+                        if (e.hp <= 0) break;
+                    }
+                }
+
+                // Enemy Destruction
+                if (e.hp <= 0) {
+                    createExplosion(e.x, e.y, e.type === "klingon" ? "#22c55e" : "#ff9900", 22);
+                    score += e.maxHp * 150;
+                    enemies.splice(i, 1);
+                    if (score > sectorLevel * 1200) {
+                        sectorLevel++;
+                        torpedoes = Math.min(8, torpedoes + 2);
+                        document.getElementById("sector").innerText = `CUADRANTE ALFA • SECTOR 00${sectorLevel}`;
+                    }
+                    continue;
+                }
+
+                // Collision with Player
+                const pDist = Math.hypot(e.x - player.x, e.y - player.y);
+                if (pDist < e.radius + player.radius && player.invulnerable === 0) {
+                    player.invulnerable = 60;
+                    createExplosion(player.x, player.y, "#38bdf8", 15);
+                    if (player.shields > 0) {
+                        player.shields = Math.max(0, player.shields - 35);
+                    } else {
+                        player.hull = Math.max(0, player.hull - 35);
+                    }
+                    enemies.splice(i, 1);
+
+                    if (player.hull <= 0) {
+                        gameOver();
+                        return;
+                    }
+                }
+
+                if (e.y > height + 50) enemies.splice(i, 1);
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= p.decay;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Passive Shield Recovery
+            if (player.shields < 100 && player.hull > 0) {
+                player.shields = Math.min(100, player.shields + 0.04);
+            }
+
+            // Update UI HUD
+            document.getElementById("score").innerText = String(score).padStart(4, "0");
+            document.getElementById("txt-shields").innerText = `${Math.round(player.shields)}%`;
+            document.getElementById("bar-shields").style.width = `${player.shields}%`;
+            document.getElementById("txt-hull").innerText = `${Math.round(player.hull)}%`;
+            document.getElementById("bar-hull").style.width = `${player.hull}%`;
+            document.getElementById("txt-warp").innerText = `${Math.round(player.warpEnergy)}%`;
+            document.getElementById("bar-warp").style.width = `${player.warpEnergy}%`;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Stars
+            stars.forEach(s => {
+                ctx.fillStyle = s.color;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw Lasers
+            lasers.forEach(l => {
+                ctx.fillStyle = l.color;
+                ctx.shadowColor = "#ff3333";
+                ctx.shadowBlur = 10;
+                ctx.fillRect(l.x - 2, l.y, 4, 18);
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Torpedoes
+            torps.forEach(t => {
+                ctx.fillStyle = "#fbbf24";
+                ctx.shadowColor = "#ffaa00";
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(t.x, t.y, t.radius + Math.sin(t.glow) * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Enemies
+            enemies.forEach(drawEnemy);
+
+            // Draw Player
+            if (player.hull > 0) {
+                drawEnterprise(player.x, player.y, player.isWarping, player.invulnerable);
+            }
+
+            // Draw Particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+        }
+
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+        loop();
+
+        // Game State Controls
+        function startGame() {
+            sound.init();
+            document.getElementById("start-screen").style.display = "none";
+            document.getElementById("gameover-screen").style.display = "none";
+            score = 0;
+            sectorLevel = 1;
+            torpedoes = 5;
+            document.getElementById("torp-count").innerText = torpedoes;
+            document.getElementById("sector").innerText = "CUADRANTE ALFA • SECTOR 001";
+            player.x = width / 2;
+            player.y = height - 100;
+            player.shields = 100;
+            player.hull = 100;
+            player.warpEnergy = 100;
+            player.invulnerable = 60;
+            enemies = [];
+            lasers = [];
+            torps = [];
+            particles = [];
+            isRunning = true;
+        }
+
+        function gameOver() {
+            isRunning = false;
+            createExplosion(player.x, player.y, "#ff3333", 40);
+            document.getElementById("final-score").innerText = score;
+            document.getElementById("gameover-screen").style.display = "flex";
+        }
+
+        document.getElementById("btn-start").addEventListener("click", startGame);
+        document.getElementById("btn-restart").addEventListener("click", startGame);
+    </script>
 </body>
 </html>
