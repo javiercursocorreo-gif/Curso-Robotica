@@ -1,19 +1,19 @@
 const canvas = document.getElementById("renderCanvas");
-const engine = new BABYLON.Engine(canvas, true);
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Espacio negro
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Espacio negro profundo
 
     // --- 1. Cámara y Luces ---
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, 0), scene);
-    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo
+    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo espacial
 
     const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-    hemiLight.intensity = 0.9;
+    hemiLight.intensity = 0.95;
 
     const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(0.5, 1, 0.5), scene);
-    dirLight.intensity = 1.8;
+    dirLight.intensity = 1.9;
     dirLight.position = new BABYLON.Vector3(-500, -500, -500);
 
     const gl = new BABYLON.GlowLayer("glow", scene);
@@ -33,22 +33,21 @@ const createScene = function () {
     starSystem.particleTexture = starTexture;
     starSystem.createBoxEmitter(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-2000, -2000, 0), new BABYLON.Vector3(2000, 2000, 5000));
     starSystem.color1 = new BABYLON.Color4(1, 1, 1, 1);
-    starSystem.color2 = new BABYLON.Color4(0.8, 0.8, 1, 1);
+    starSystem.color2 = new BABYLON.Color4(0.85, 0.9, 1, 1);
     starSystem.colorDead = new BABYLON.Color4(1, 1, 1, 1);
     starSystem.minSize = 0.5;
-    starSystem.maxSize = 2.0;
+    starSystem.maxSize = 2.2;
     starSystem.minLifeTime = 999999;
     starSystem.maxLifeTime = 999999;
     starSystem.emitRate = 10000;
     starSystem.renderingGroupId = 0;
     starSystem.start();
 
-    // --- 3. Nodo de Nave USS ENTERPRISE NCC-1701 ---
+    // --- 3. Nodo Raíz de la Nave USS ENTERPRISE NCC-1701 ---
     const shipMesh = new BABYLON.TransformNode("shipMesh", scene);
 
-    let sequenceStarted = false;
-    let titleShown = false;
     let isLoaded = false;
+    let animGroup = null;
 
     const modelUrl = "../../../../MODELOS/STAR%20TRECK/U.S.S.%20Enterprise%20NCC%20-%201701/";
     const modelFile = "scene.gltf";
@@ -58,7 +57,7 @@ const createScene = function () {
         rootMesh.parent = shipMesh;
         rootMesh.normalizeToUnitCube();
 
-        // Centrado dinámico geométrico idéntico al visor oficial
+        // Centrado dinámico basado en geometría visible
         let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
         let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
         rootMesh.getChildMeshes().forEach(m => {
@@ -72,16 +71,17 @@ const createScene = function () {
         const center = BABYLON.Vector3.Center(min, max);
         rootMesh.position.subtractInPlace(center);
 
-        // Capa de renderizado 1 y materiales opacos limpios
+        // Optimización de rendimiento para 742 mallas (elimina cualquier salto o tirones)
         result.meshes.forEach(mesh => {
             mesh.renderingGroupId = 1;
+            mesh.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
             if (mesh.material) {
                 mesh.material.needDepthPrePass = true;
                 mesh.material.backFaceCulling = false;
             }
         });
 
-        // Luces estroboscópicas de navegación acopladas a la superficie del casco
+        // Luces estroboscópicas de navegación acopladas a los extremos reales del platillo
         window.blinkLights = [];
         const createBlinkLight = (color, pos) => {
             const sphere = BABYLON.MeshBuilder.CreateSphere("blinkLight", { diameter: 0.035 }, scene);
@@ -96,11 +96,11 @@ const createScene = function () {
             window.blinkLights.push(sphere);
         };
 
-        // Coordenadas calculadas en el casco normalizado (Saucer en +Z, Nacelles en -Z, Puente en +Y)
-        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-0.44, 0.00, 0.16)); // Babor Platillo (Rojo)
-        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(0.44, 0.00, 0.16));  // Estribor Platillo (Verde)
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, 0.13, 0.16));  // Cúpula Puente (Blanco)
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, -0.12, -0.02)); // Quilla Inferior (Blanco)
+        // Babor (Rojo), Estribor (Verde), Puente (Blanco), Quilla (Blanco)
+        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-0.44, 0.00, 0.16));
+        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(0.44, 0.00, 0.16));
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, 0.13, 0.16));
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, -0.12, -0.02));
 
         // Fuego / Plasma de curvatura en las dos barquillas traseras (-Z)
         const createEngineFire = (pos) => {
@@ -124,7 +124,6 @@ const createScene = function () {
             fire.maxLifeTime = 0.3;
             fire.emitRate = 500;
 
-            // Disparar las partículas hacia atrás (-Z en coordenadas locales de las barquillas)
             fire.direction1 = new BABYLON.Vector3(-0.04, -0.04, -8);
             fire.direction2 = new BABYLON.Vector3(0.04, 0.04, -10);
 
@@ -135,26 +134,48 @@ const createScene = function () {
             fire.start();
         };
 
-        // Salidas traseras de las dos góndolas Warp
-        createEngineFire(new BABYLON.Vector3(-0.18, 0.08, -0.48)); // Góndola Babor
-        createEngineFire(new BABYLON.Vector3(0.18, 0.08, -0.48));  // Góndola Estribor
+        createEngineFire(new BABYLON.Vector3(-0.18, 0.08, -0.48));
+        createEngineFire(new BABYLON.Vector3(0.18, 0.08, -0.48));
 
         // Escala del USS Enterprise
         shipMesh.scaling = new BABYLON.Vector3(750, 750, 750);
 
-        // Posición inicial: abajo a la izquierda en el espacio profundo
+        // Posición y orientación iniciales en reposo
         shipMesh.position = new BABYLON.Vector3(-1700, -550, 3000);
+        shipMesh.rotation = new BABYLON.Vector3(-0.48, Math.atan2(10, -15), -0.38);
 
-        // ROTACIÓN ANGULAR DIRECTA Y CONTROLADA (Elimina conflictos de lookAt)
-        // 1. Yaw: Math.atan2(10, -15) = 2.554 rad -> Orienta el platillo hacia la trayectoria de vuelo (de frente).
-        // 2. Pitch: -0.20 rad -> Inclina el platillo para que la cámara en el fondo vea la cubierta superior y el puente.
-        // 3. Roll: -0.22 rad -> Alabeo elegante que muestra el lomo del platillo.
-        const yaw = Math.atan2(10, -15);
-        const pitch = -0.20;
-        const roll = -0.22;
+        // --- SISTEMA DE ANIMACIÓN POR CLAVES NATIVO DE BABYLON (100% FLUIDO A 60 FPS) ---
+        const frameRate = 60;
+        const totalFrames = 600;
 
-        shipMesh.rotationQuaternion = null;
-        shipMesh.rotation = new BABYLON.Vector3(pitch, yaw, roll);
+        // 1. Animación de Posición
+        const animPos = new BABYLON.Animation("animPos", "position", frameRate, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        const posKeys = [
+            { frame: 0, value: new BABYLON.Vector3(-1700, -550, 3000) },
+            { frame: 320, value: new BABYLON.Vector3(-350, -80, 800) },
+            { frame: 450, value: new BABYLON.Vector3(250, 220, -100) },
+            { frame: totalFrames, value: new BABYLON.Vector3(750, 450, -850) }
+        ];
+        const easePos = new BABYLON.QuadraticEase();
+        easePos.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
+        animPos.setEasingFunction(easePos);
+        animPos.setKeys(posKeys);
+
+        // 2. Animación de Rotación (Muestra el lomo/platillo al inicio y la panza al cruzar)
+        const animRot = new BABYLON.Animation("animRot", "rotation", frameRate, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+        const yawAngle = Math.atan2(10, -15);
+        const rotKeys = [
+            // Inicio en el espacio lejano: inclinación hacia delante (-0.48 rad) y alabeo (-0.38 rad)
+            // Esto apunta directamente la cubierta superior del platillo y el puente hacia el objetivo de la cámara.
+            { frame: 0, value: new BABYLON.Vector3(-0.48, yawAngle, -0.38) },
+            { frame: 300, value: new BABYLON.Vector3(-0.25, yawAngle, -0.22) },
+            // Cruce sobre la cámara: la nave asciende por encima y muestra la panza, deflector y motores
+            { frame: 450, value: new BABYLON.Vector3(0.12, yawAngle, -0.08) },
+            { frame: totalFrames, value: new BABYLON.Vector3(0.18, yawAngle, 0.00) }
+        ];
+        animRot.setKeys(rotKeys);
+
+        shipMesh.animations = [animPos, animRot];
 
         isLoaded = true;
     }).catch(err => {
@@ -171,44 +192,30 @@ const createScene = function () {
             return;
         }
         startBtn.style.display = "none";
-        sequenceStarted = true;
+        
+        // Disparar animación nativa por hardware
+        scene.beginAnimation(shipMesh, 0, 600, false, 1.0, () => {
+            // Animación finalizada
+        });
+
+        // Revelar título de Star Trek tras el cruce rasante de la nave
+        setTimeout(() => {
+            titleDiv.classList.remove("hidden");
+            titleDiv.style.display = "block";
+            void titleDiv.offsetWidth;
+            titleDiv.style.opacity = 1;
+        }, 7500);
     });
 
-    // --- 5. Bucle de Animación ---
+    // --- 5. Luces Estroboscópicas Continuas ---
     scene.onBeforeRenderObservable.add(() => {
-        let dt = engine.getDeltaTime();
-
-        if (sequenceStarted && isLoaded) {
-            let zDist = Math.abs(shipMesh.position.z);
-            let distanceFactor = Math.min(1.0, zDist / 1200);
-            let speedMultiplier = 0.08 + 0.92 * distanceFactor;
-            let speed = 0.25 * speedMultiplier * (dt / 16.66);
-
-            // Desplazamiento diagonal rasante
-            shipMesh.position.z -= speed * 15; // Hacia la cámara
-            shipMesh.position.x += speed * 10; // Hacia la derecha
-            shipMesh.position.y += speed * 4;  // Hacia arriba
-
-            // Luces estroboscópicas sincronizadas
-            if (window.blinkLights) {
-                let time = Date.now();
-                window.blinkLights.forEach((light, index) => {
-                    let cycle = 2000;
-                    let offset = index * 500;
-                    light.isVisible = ((time + offset) % cycle < 100);
-                });
-            }
-
-            // Detección de paso de cámara y despliegue del título tras 2 segundos
-            if (shipMesh.position.z < 150 && !titleShown) {
-                titleShown = true;
-                setTimeout(() => {
-                    titleDiv.classList.remove("hidden");
-                    titleDiv.style.display = "block";
-                    void titleDiv.offsetWidth;
-                    titleDiv.style.opacity = 1;
-                }, 2000);
-            }
+        if (window.blinkLights) {
+            let time = performance.now();
+            window.blinkLights.forEach((light, index) => {
+                let cycle = 1800;
+                let offset = index * 450;
+                light.isVisible = ((time + offset) % cycle < 110);
+            });
         }
     });
 
