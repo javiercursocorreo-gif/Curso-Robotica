@@ -4,8 +4,10 @@
 # 2. Permitir que Git lea las carpetas
 !*/
 
-# 3. Permitir solo las extensiones deseadas (HTML, PDF, MP4, PNG y el propio .gitignore)
+# 3. Permitir solo las extensiones deseadas (HTML, CSS, JS, PDF, MP4, PNG y el propio .gitignore)
 !*.html
+!*.css
+!*.js
 !*.pdf
 !*.mp4
 !*.png
