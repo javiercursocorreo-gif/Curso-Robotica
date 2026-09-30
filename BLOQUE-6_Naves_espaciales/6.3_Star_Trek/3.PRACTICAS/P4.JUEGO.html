@@ -2,18 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
-    <title>Clase 6.3 • Minijuego: Misión USS Enterprise (Defensa Táctica Warp)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <title>P4.JUEGO • Quiz de la Flota Estelar (Star Trek)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --lcars-orange: #ff9900;
             --lcars-gold: #ffcc00;
-            --lcars-red: #cc4444;
+            --lcars-red: #ff3344;
+            --lcars-green: #33ff88;
+            --lcars-blue: #38bdf8;
             --lcars-purple: #cc99cc;
-            --lcars-cyan: #38bdf8;
-            --lcars-blue: #4488ff;
-            --bg-dark: #050711;
+            --bg-space: #04060f;
         }
 
         * {
@@ -25,7 +28,7 @@
         }
 
         body {
-            background-color: var(--bg-dark);
+            background-color: var(--bg-space);
             color: #fff;
             font-family: 'Rajdhani', sans-serif;
             overflow: hidden;
@@ -35,60 +38,64 @@
             flex-direction: column;
         }
 
-        /* LCARS Header Frame */
+        /* Cabecera LCARS */
         header {
             display: flex;
             align-items: center;
-            background: #000;
-            padding: 8px 16px;
+            background: rgba(6, 10, 20, 0.95);
+            padding: 10px 20px;
             border-bottom: 2px solid var(--lcars-orange);
-            z-index: 20;
-            gap: 12px;
+            z-index: 30;
+            gap: 14px;
         }
 
-        .lcars-pill {
+        .lcars-badge {
             background: var(--lcars-orange);
             color: #000;
             font-family: 'Orbitron', sans-serif;
             font-weight: 900;
             padding: 4px 14px;
-            border-radius: 16px 0 0 16px;
+            border-radius: 12px 0 0 12px;
             font-size: 0.85rem;
             letter-spacing: 1px;
         }
 
-        .lcars-title {
+        .header-title {
             font-family: 'Orbitron', sans-serif;
             font-size: 1.15rem;
-            font-weight: 700;
-            color: var(--lcars-cyan);
-            letter-spacing: 2px;
+            font-weight: 800;
+            color: var(--lcars-blue);
+            letter-spacing: 1.5px;
         }
 
-        .lcars-bar {
+        .header-bar {
             flex: 1;
-            height: 12px;
-            background: linear-gradient(90deg, var(--lcars-purple) 0%, var(--lcars-blue) 40%, var(--lcars-orange) 100%);
-            border-radius: 6px;
+            height: 8px;
+            background: linear-gradient(90deg, var(--lcars-purple) 0%, var(--lcars-blue) 50%, var(--lcars-orange) 100%);
+            border-radius: 4px;
             opacity: 0.8;
         }
 
-        /* Game Container & Canvas */
-        #game-container {
+        /* Contenedor Principal */
+        #game-layout {
             position: relative;
             flex: 1;
             width: 100%;
             height: calc(100vh - 50px);
-            background: radial-gradient(circle at center, #0e172e 0%, #060914 70%, #020307 100%);
+            display: flex;
+            flex-direction: column;
         }
 
         canvas {
-            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            z-index: 1;
         }
 
-        /* HUD Overlay */
+        /* HUD Superior */
         #hud {
             position: absolute;
             top: 15px;
@@ -100,17 +107,17 @@
             z-index: 10;
         }
 
-        .hud-panel {
-            background: rgba(10, 16, 32, 0.8);
-            border: 1px solid rgba(56, 189, 248, 0.4);
+        .hud-card {
+            background: rgba(10, 16, 32, 0.88);
+            border: 1px solid rgba(255, 153, 0, 0.4);
             border-left: 4px solid var(--lcars-orange);
-            border-radius: 8px;
-            padding: 10px 16px;
-            backdrop-filter: blur(8px);
+            border-radius: 10px;
+            padding: 10px 18px;
+            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             gap: 6px;
-            min-width: 180px;
+            min-width: 200px;
         }
 
         .hud-label {
@@ -133,51 +140,170 @@
         .hud-bar-fill {
             height: 100%;
             width: 100%;
-            transition: width 0.2s ease;
+            transition: width 0.3s ease;
         }
 
         .fill-shields { background: linear-gradient(90deg, #0284c7, #38bdf8); }
-        .fill-hull { background: linear-gradient(90deg, #16a34a, #4ade80); }
-        .fill-warp { background: linear-gradient(90deg, #9333ea, #c084fc); }
-
-        .hud-stats {
-            text-align: right;
-            font-family: 'Orbitron', sans-serif;
-        }
+        .fill-progress { background: linear-gradient(90deg, #e5a823, #ff9900); }
 
         .hud-score {
+            font-family: 'Orbitron', sans-serif;
             font-size: 1.4rem;
             font-weight: 900;
             color: var(--lcars-gold);
+            text-align: right;
         }
 
-        .hud-sector {
+        /* Panel de Preguntas del Quiz */
+        #quiz-overlay {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 820px;
+            background: rgba(8, 14, 28, 0.94);
+            border: 2px solid var(--lcars-orange);
+            box-shadow: 0 0 35px rgba(255, 153, 0, 0.35), inset 0 0 15px rgba(255, 153, 0, 0.1);
+            border-radius: 14px;
+            padding: 22px 28px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            backdrop-filter: blur(14px);
+            transition: all 0.3s ease;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding-bottom: 8px;
+        }
+
+        .quiz-sector {
+            font-family: 'Orbitron', sans-serif;
             font-size: 0.85rem;
-            color: var(--lcars-cyan);
+            color: var(--lcars-orange);
+            font-weight: 700;
+            letter-spacing: 1px;
         }
 
-        /* Modal Overlay (Start / Game Over / Victory) */
+        .quiz-timer {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem;
+            color: var(--lcars-red);
+            font-weight: 900;
+        }
+
+        .quiz-question {
+            font-size: 1.22rem;
+            font-weight: 700;
+            color: #f8fafc;
+            line-height: 1.4;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .quiz-options { grid-template-columns: 1fr; }
+        }
+
+        .opt-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .opt-btn:hover {
+            background: rgba(255, 153, 0, 0.2);
+            border-color: var(--lcars-orange);
+            transform: translateX(4px);
+        }
+
+        .opt-btn.correct {
+            background: rgba(34, 197, 94, 0.35) !important;
+            border-color: #22c55e !important;
+            color: #86efac !important;
+        }
+
+        .opt-btn.wrong {
+            background: rgba(239, 68, 68, 0.35) !important;
+            border-color: #ef4444 !important;
+            color: #fca5a5 !important;
+        }
+
+        .opt-key {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--lcars-orange);
+            flex-shrink: 0;
+        }
+
+        .quiz-feedback {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            padding: 10px 14px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .quiz-feedback.success {
+            display: block;
+            background: rgba(34, 197, 94, 0.15);
+            border-left: 4px solid #22c55e;
+            color: #bbf7d0;
+        }
+
+        .quiz-feedback.failure {
+            display: block;
+            background: rgba(239, 68, 68, 0.15);
+            border-left: 4px solid #ef4444;
+            color: #fecaca;
+        }
+
+        /* Modales */
         .modal-screen {
             position: absolute;
             inset: 0;
-            background: rgba(4, 7, 16, 0.88);
-            backdrop-filter: blur(12px);
+            background: rgba(3, 5, 13, 0.92);
+            backdrop-filter: blur(14px);
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 30;
+            z-index: 50;
             padding: 20px;
             text-align: center;
         }
 
         .modal-card {
-            background: rgba(15, 23, 42, 0.95);
-            border: 2px solid var(--lcars-cyan);
-            box-shadow: 0 0 40px rgba(56, 189, 248, 0.3);
+            background: rgba(12, 18, 32, 0.96);
+            border: 2px solid var(--lcars-orange);
+            box-shadow: 0 0 50px rgba(255, 153, 0, 0.4);
             border-radius: 16px;
-            padding: 30px 40px;
-            max-width: 520px;
+            padding: 34px 44px;
+            max-width: 600px;
             width: 90%;
             display: flex;
             flex-direction: column;
@@ -186,748 +312,471 @@
 
         .modal-title {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.8rem;
+            font-size: 1.75rem;
             font-weight: 900;
-            color: #fff;
+            color: var(--lcars-orange);
             letter-spacing: 2px;
-            text-shadow: 0 0 15px var(--lcars-cyan);
+            text-shadow: 0 0 20px rgba(255, 153, 0, 0.6);
         }
 
         .modal-desc {
-            font-size: 1.05rem;
-            line-height: 1.5;
+            font-size: 1.1rem;
             color: #cbd5e1;
+            line-height: 1.5;
         }
 
-        .keys-guide {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 8px;
-            padding: 12px;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        .key-badge {
-            background: rgba(56, 189, 248, 0.2);
-            color: var(--lcars-cyan);
-            border: 1px solid var(--lcars-cyan);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .cyber-btn {
-            background: linear-gradient(135deg, var(--lcars-orange) 0%, #ea580c 100%);
+        .btn-start {
+            background: linear-gradient(135deg, var(--lcars-orange) 0%, var(--lcars-gold) 100%);
             color: #000;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 900;
-            font-size: 1.15rem;
-            padding: 14px 28px;
             border: none;
+            padding: 14px 28px;
             border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 0 20px rgba(255, 153, 0, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-top: 10px;
-        }
-
-        .cyber-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(255, 153, 0, 0.7);
-        }
-
-        /* Mobile Controls */
-        #mobile-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            display: none;
-            justify-content: space-between;
-            pointer-events: none;
-            z-index: 15;
-        }
-
-        @media (max-width: 900px) {
-            #mobile-controls { display: flex; }
-        }
-
-        .touch-btn {
-            pointer-events: auto;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(15, 23, 42, 0.75);
-            border: 2px solid var(--lcars-cyan);
-            color: #fff;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 25px rgba(255, 153, 0, 0.4);
         }
 
-        .touch-btn:active {
-            background: var(--lcars-cyan);
-            color: #000;
+        .btn-start:hover {
+            transform: scale(1.04);
+            box-shadow: 0 0 35px rgba(255, 153, 0, 0.7);
         }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="lcars-pill">LCARS 6.3</div>
-        <div class="lcars-title">USS ENTERPRISE • TACTICAL SIMULATOR</div>
-        <div class="lcars-bar"></div>
+        <div class="lcars-badge">P4 • EVALUACIÓN</div>
+        <div class="header-title">ACADEMIA DE LA FLOTA ESTELAR • QUIZ DE TECNOLOGÍA</div>
+        <div class="header-bar"></div>
     </header>
 
-    <div id="game-container">
-        <!-- HUD -->
-        <div id="hud">
-            <div class="hud-panel">
-                <div class="hud-label"><span>ESCUDOS DEFLECTORES</span><span id="txt-shields">100%</span></div>
-                <div class="hud-bar-bg"><div id="bar-shields" class="hud-bar-fill fill-shields"></div></div>
-                <div class="hud-label"><span>INTEGRIDAD CASCO</span><span id="txt-hull">100%</span></div>
-                <div class="hud-bar-bg"><div id="bar-hull" class="hud-bar-fill fill-hull"></div></div>
-                <div class="hud-label"><span>MOTOR WARP</span><span id="txt-warp">100%</span></div>
-                <div class="hud-bar-bg"><div id="bar-warp" class="hud-bar-fill fill-warp"></div></div>
-            </div>
-
-            <div class="hud-panel hud-stats">
-                <div class="hud-label" style="justify-content: flex-end;">PUNTUACIÓN DE LA FLOTA</div>
-                <div id="score" class="hud-score">0000</div>
-                <div id="sector" class="hud-sector">CUADRANTE ALFA • SECTOR 001</div>
-                <div class="hud-label" style="margin-top: 4px; justify-content: flex-end;">TORPEDOS DE FOTONES: <span id="torp-count" style="color:var(--lcars-gold); font-weight:bold; margin-left:4px;">5</span></div>
-            </div>
-        </div>
-
-        <!-- CANVAS -->
+    <div id="game-layout">
         <canvas id="gameCanvas"></canvas>
 
-        <!-- START SCREEN -->
-        <div id="start-screen" class="modal-screen">
-            <div class="modal-card">
-                <h2 class="modal-title">ORDEN DE LA FLOTA ESTELAR</h2>
-                <p class="modal-desc">
-                    Capitán al mando de la <strong>USS Enterprise NCC-1701</strong>: Anomalías y naves no identificadas están bloqueando el Cuadrante Alfa. Emplea tus <strong>Fásers</strong>, <strong>Torpedos de Fotones</strong> y el <strong>Impulso Warp</strong> para defender la Federación.
-                </p>
-                <div class="keys-guide">
-                    <div><span class="key-badge">◄ ▲ ▼ ►</span> / <span class="key-badge">WASD</span> Mover</div>
-                    <div><span class="key-badge">ESPACIO</span> Disparar Fáser</div>
-                    <div><span class="key-badge">B</span> Torpedo de Fotones</div>
-                    <div><span class="key-badge">SHIFT</span> Impulso Warp</div>
+        <div id="hud">
+            <div class="hud-card">
+                <div class="hud-label">
+                    <span>ESCUDOS DEL ENTERPRISE</span>
+                    <span id="shield-val">100%</span>
                 </div>
-                <button id="btn-start" class="cyber-btn">INICIAR MISIÓN</button>
+                <div class="hud-bar-bg">
+                    <div id="shield-fill" class="hud-bar-fill fill-shields"></div>
+                </div>
+            </div>
+
+            <div class="hud-card">
+                <div class="hud-label">
+                    <span>PROGRESO DE MISIÓN</span>
+                    <span id="progress-val">1 / 10</span>
+                </div>
+                <div class="hud-bar-bg">
+                    <div id="progress-fill" class="hud-bar-fill fill-progress" style="width: 10%;"></div>
+                </div>
+            </div>
+
+            <div class="hud-card" style="min-width: 140px;">
+                <div class="hud-label">
+                    <span>PUNTUACIÓN</span>
+                </div>
+                <div class="hud-score" id="score-val">0000</div>
             </div>
         </div>
 
-        <!-- GAME OVER / RESTART SCREEN -->
-        <div id="gameover-screen" class="modal-screen" style="display: none;">
+        <div id="quiz-overlay">
+            <div class="quiz-header">
+                <span class="quiz-sector" id="q-sector">SECTOR 01: PROPULSIÓN WARP</span>
+                <span class="quiz-timer" id="q-timer">⏱️ 25s</span>
+            </div>
+            <div class="quiz-question" id="q-text">Cargando pregunta...</div>
+            <div class="quiz-options" id="q-options"></div>
+            <div class="quiz-feedback" id="q-feedback"></div>
+        </div>
+
+        <!-- Modal de Inicio -->
+        <div id="start-modal" class="modal-screen">
             <div class="modal-card">
-                <h2 id="end-title" class="modal-title" style="color: var(--lcars-red);">BRECHA EN EL NÚCLEO WARP</h2>
-                <p id="end-desc" class="modal-desc">La nave ha sufrido daños críticos en el sector.</p>
-                <div class="hud-score" style="margin: 10px 0;">Puntuación Final: <span id="final-score">0</span></div>
-                <button id="btn-restart" class="cyber-btn">REINTENTAR SIMULACIÓN</button>
+                <div class="modal-title">ACADEMIA FLOTA ESTELAR</div>
+                <div class="modal-desc">
+                    ¡Bienvenido a bordo, Cadete! Para graduarte como Oficial Científico de la nave <strong>USS Enterprise</strong>, debes superar esta evaluación interactiva de 10 preguntas sobre la ciencia, los motores Warp y las tecnologías reales inspiradas en Star Trek.
+                </div>
+                <button class="btn-start" id="btn-start-game">INICIAR EVALUACIÓN</button>
             </div>
         </div>
 
-        <!-- MOBILE CONTROLS -->
-        <div id="mobile-controls">
-            <div style="display: flex; gap: 8px;">
-                <div class="touch-btn" id="m-left">◄</div>
-                <div class="touch-btn" id="m-right">►</div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <div class="touch-btn" id="m-warp" style="border-color: var(--lcars-purple);">W</div>
-                <div class="touch-btn" id="m-torp" style="border-color: var(--lcars-gold);">B</div>
-                <div class="touch-btn" id="m-fire" style="border-color: var(--lcars-orange); width: 70px;">⚡</div>
+        <!-- Modal de Fin de Juego -->
+        <div id="end-modal" class="modal-screen" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-title" id="end-title">MISIÓN COMPLETADA</div>
+                <div class="modal-desc" id="end-desc">Has demostrado un conocimiento ejemplar.</div>
+                <div class="hud-score" id="end-score" style="text-align: center; font-size: 2rem; color: var(--lcars-orange);">Puntos: 0</div>
+                <button class="btn-start" id="btn-restart">REPETIR EVALUACIÓN</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- AUDIO SYNTHESIS (Web Audio API) ---
-        class SoundFX {
-            constructor() {
-                this.ctx = null;
+        // =========================================================================
+        // PREGUNTAS DIDÁCTICAS SOBRE STAR TREK Y CIENCIA REAL
+        // =========================================================================
+        const QUESTIONS = [
+            {
+                sector: "PROPULSIÓN & RELATIVIDAD",
+                text: "¿Qué teoría física real explica el funcionamiento teórico del Motor Warp sin violar la teoría de la relatividad de Einstein?",
+                options: [
+                    "La Métrica de Alcubierre (deformación del espacio-tiempo)",
+                    "La gravedad cero de Newton",
+                    "La propulsión nuclear de combustible fósil",
+                    "El efecto Doppler acústico"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Correcto! El físico mexicano Miguel Alcubierre propuso en 1994 que contrayendo el espacio delante de la nave y expandiéndolo detrás, la nave viaja en una 'burbuja' a velocidad aparente superlumínica."
+            },
+            {
+                sector: "COMPUTACIÓN & ASISTENTES DE VOZ",
+                text: "¿Qué invento cotidiano que usamos hoy en móviles y altavoces fue inspirado por la computadora conversacional de Star Trek?",
+                options: [
+                    "Asistentes inteligentes por voz (Alexa, Siri, Google Assistant)",
+                    "El código Morse por telégrafo",
+                    "Los diskettes magnéticos de 3.5 pulgadas",
+                    "Las calculadoras mecánicas de engranajes"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Exacto! Los creadores de Alexa y Google Voice han declarado que la voz de la computadora de Star Trek (Majel Barrett) fue su modelo directo a seguir."
+            },
+            {
+                sector: "TELECOMUNICACIONES MÓVILES",
+                text: "Martin Cooper (ingeniero de Motorola) se inspiró en Star Trek para inventar en 1973:",
+                options: [
+                    "El primer teléfono móvil portátil de la historia (DynaTAC)",
+                    "El telégrafo submarino transatlántico",
+                    "La radio de válvulas de vacío",
+                    "El satélite Sputnik"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Correcto! Cooper vio al Capitán Kirk abrir la tapa de su comunicador y decidió que la humanidad debía comunicarse en movimiento sin cables."
+            },
+            {
+                sector: "FÍSICA CUÁNTICA",
+                text: "¿Qué fenómeno de la física cuántica real guarda similitud teórica con el concepto del teletransporte de información?",
+                options: [
+                    "El entrelazamiento cuántico (transmisión de estados cuánticos)",
+                    "La combustión interna de cuatro tiempos",
+                    "La ley de la palanca de Arquímedes",
+                    "La evaporación del agua"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Brillante! En 1997 se demostró el primer teletransporte de estados cuánticos de fotones, base de las futuras redes de Internet Cuántico."
+            },
+            {
+                sector: "BIOMEDICINA Y SENSORES",
+                text: "¿Qué función cumple el 'Tricorder Médico' que la ciencia actual replica con escáneres no invasivos?",
+                options: [
+                    "Diagnosticar constantes vitales y afecciones sin cirugía",
+                    "Imprimir billetes de banco espaciales",
+                    "Cocinar alimentos mediante microondas",
+                    "Controlar el clima planetario"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Correcto! La fundación XPRIZE impulsó el 'Tricorder XPRIZE' para crear dispositivos de bolsillo que diagnostiquen hasta 13 enfermedades al instante."
+            },
+            {
+                sector: "DISPOSITIVOS Y PANTALLAS",
+                text: "¿Qué dispositivo de Star Trek: The Next Generation anticipó a las tablets y iPads táctiles modernas?",
+                options: [
+                    "El PADD (Personal Access Display Device)",
+                    "La cinta perforada de papel",
+                    "La máquina de escribir Underwood",
+                    "El reloj de péndulo"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Exacto! El PADD mostraba una pantalla plana táctil interactiva sin teclados físicos, concepto base de las tablets modernas."
+            },
+            {
+                sector: "ARQUITECTURA AUTOMATIZADA",
+                text: "¿Qué elemento del puente del Enterprise impulsó la instalación de sensores en edificios modernos?",
+                options: [
+                    "Las puertas correderas automáticas por sensor de movimiento",
+                    "Las ventanas con persianas de madera",
+                    "Las chimeneas de leña espaciales",
+                    "Los buzones de correo postal"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Correcto! El impacto visual de las puertas automáticas del Enterprise aceleró el uso de sensores de infrarrojos y radar en la arquitectura comercial."
+            },
+            {
+                sector: "ENERGÍA Y FÍSICA",
+                text: "¿Qué término acuñó Star Trek en los años 60 para describir un arma de partículas concentradas más avanzada que el láser?",
+                options: [
+                    "Fáser (PHASed Energy Rectification)",
+                    "Cañón de pólvora negra",
+                    "Ballesta magnética",
+                    "Catapulta de plasma"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Muy bien! Como el láser acababa de ser inventado en 1960, Roddenberry creó el 'Fáser' como una evolución futurista de energía en fase."
+            },
+            {
+                sector: "HISTORIA ESPACIAL",
+                text: "¿Por qué la NASA bautizó a su primer transbordador espacial de pruebas en 1976 con el nombre de 'Enterprise'?",
+                options: [
+                    "Por una campaña de cartas masiva de los fans de Star Trek a la Casa Blanca",
+                    "Por sorteo entre los astronautas de la misión Apolo",
+                    "Por el nombre de una empresa petrolera",
+                    "Por orden de la reina de Inglaterra"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Exacto! Cientos de miles de cartas convencieron al presidente Gerald Ford de bautizar al transbordador OV-101 como 'Enterprise'."
+            },
+            {
+                sector: "LÓGICA Y ASESORÍA CIENTÍFICA",
+                text: "¿Qué agencia espacial asesoró a Star Trek para asegurar el rigor científico del personaje de Spock y de la nave?",
+                options: [
+                    "La NASA y laboratorios como RAND Corporation",
+                    "El observatorio de la antigua Grecia",
+                    "La sociedad de la tierra plana",
+                    "El departamento de bomberos de Los Ángeles"
+                ],
+                correct: 0,
+                feedback: "⭐ ¡Excelente! Asesores de la NASA ayudaron a escribir los diálogos de Spock para que reflejaran el verdadero método científico."
             }
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            }
-            playPhaser() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.15);
-            }
-            playTorpedo() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(1200, this.ctx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.25);
-            }
-            playExplosion() {
-                if (!this.ctx) return;
-                const bufferSize = this.ctx.sampleRate * 0.4;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
-                noise.connect(gain);
-                gain.connect(this.ctx.destination);
-                noise.start();
-            }
-            playWarp() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = "triangle";
-                osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.5);
-                gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.5);
-            }
-        }
+        ];
 
-        const sound = new SoundFX();
-
-        // --- GAME LOGIC ---
+        // =========================================================================
+        // MOTOR DEL JUEGO & CANVAS
+        // =========================================================================
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        let width, height;
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight - 50;
-        }
-        window.addEventListener("resize", resize);
-        resize();
-
-        // Game State
-        let isRunning = false;
+        let currentQIndex = 0;
         let score = 0;
-        let sectorLevel = 1;
-        let torpedoes = 5;
-        let lastTorpedoTime = 0;
+        let shields = 100;
+        let timer = 25;
+        let timerInterval = null;
+        let isAnswering = false;
 
-        // Player Ship (Enterprise)
-        const player = {
-            x: width / 2,
-            y: height - 100,
-            radius: 28,
-            speed: 7,
-            shields: 100,
-            hull: 100,
-            warpEnergy: 100,
-            isWarping: false,
-            invulnerable: 0
-        };
-
-        // Entities
-        let stars = [];
-        let lasers = [];
-        let torps = [];
-        let enemies = [];
-        let particles = [];
-
-        // Stars Init
-        for (let i = 0; i < 150; i++) {
+        // Estrellas animadas en el canvas
+        const stars = [];
+        for (let i = 0; i < 200; i++) {
             stars.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
                 size: Math.random() * 2 + 0.5,
-                speed: Math.random() * 2 + 0.5,
-                color: Math.random() > 0.3 ? "#ffffff" : "#38bdf8"
+                speed: Math.random() * 3 + 1
             });
         }
 
-        // Controls input
-        const keys = {};
-        window.addEventListener("keydown", (e) => {
-            keys[e.code] = true;
-            if (e.code === "KeyB" && isRunning) fireTorpedo();
-        });
-        window.addEventListener("keyup", (e) => {
-            keys[e.code] = false;
-        });
-
-        // Touch input
-        function bindTouch(id, code) {
-            const btn = document.getElementById(id);
-            if (!btn) return;
-            btn.addEventListener("touchstart", (e) => { e.preventDefault(); keys[code] = true; if(code==='KeyB') fireTorpedo(); });
-            btn.addEventListener("touchend", (e) => { e.preventDefault(); keys[code] = false; });
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
-        bindTouch("m-left", "ArrowLeft");
-        bindTouch("m-right", "ArrowRight");
-        bindTouch("m-warp", "ShiftLeft");
-        bindTouch("m-fire", "Space");
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
 
-        // Fire Weapons
-        let lastLaser = 0;
-        function fireLaser() {
-            if (Date.now() - lastLaser < 160) return;
-            lastLaser = Date.now();
-            sound.playPhaser();
-            lasers.push({
-                x: player.x - 14,
-                y: player.y - 20,
-                vx: -0.5,
-                vy: -14,
-                color: "#ff3333"
-            });
-            lasers.push({
-                x: player.x + 14,
-                y: player.y - 20,
-                vx: 0.5,
-                vy: -14,
-                color: "#ff3333"
-            });
-        }
+        function renderSpace() {
+            ctx.fillStyle = "#04060f";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function fireTorpedo() {
-            if (torpedoes <= 0 || Date.now() - lastTorpedoTime < 500) return;
-            torpedoes--;
-            lastTorpedoTime = Date.now();
-            document.getElementById("torp-count").innerText = torpedoes;
-            sound.playTorpedo();
-            torps.push({
-                x: player.x,
-                y: player.y - 30,
-                vy: -9,
-                radius: 6,
-                glow: 0
-            });
-        }
-
-        // Enemy Spawner
-        let spawnTimer = 0;
-        function spawnEnemies() {
-            spawnTimer++;
-            if (spawnTimer % Math.max(35, 90 - sectorLevel * 8) === 0) {
-                const type = Math.random() > 0.4 ? "klingon" : (Math.random() > 0.5 ? "asteroid" : "romulan");
-                enemies.push({
-                    x: Math.random() * (width - 60) + 30,
-                    y: -40,
-                    type: type,
-                    hp: type === "romulan" ? 4 : (type === "klingon" ? 2 : 1),
-                    maxHp: type === "romulan" ? 4 : (type === "klingon" ? 2 : 1),
-                    radius: type === "asteroid" ? 22 : (type === "romulan" ? 26 : 20),
-                    speedY: Math.random() * 2 + 1.5 + (sectorLevel * 0.3),
-                    speedX: (Math.random() - 0.5) * 2,
-                    angle: 0
-                });
-            }
-        }
-
-        // Explosions Particles
-        function createExplosion(x, y, color = "#ff9900", count = 18) {
-            sound.playExplosion();
-            for (let i = 0; i < count; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const spd = Math.random() * 5 + 1;
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * spd,
-                    vy: Math.sin(angle) * spd,
-                    life: 1.0,
-                    decay: Math.random() * 0.03 + 0.02,
-                    size: Math.random() * 4 + 2,
-                    color: color
-                });
-            }
-        }
-
-        // Drawing Functions
-        function drawEnterprise(x, y, isWarp, invuln) {
-            ctx.save();
-            ctx.translate(x, y);
-
-            if (invuln > 0 && Math.floor(Date.now() / 100) % 2 === 0) {
-                ctx.globalAlpha = 0.4;
-            }
-
-            // Shield Glow Bubble
-            if (player.shields > 10) {
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 38, 44, 0, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(56, 189, 248, ${player.shields / 250})`;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            }
-
-            // Nacelles Warp Trail
-            if (isWarp) {
-                ctx.fillStyle = "rgba(192, 132, 252, 0.7)";
-                ctx.fillRect(-22, 15, 6, 40);
-                ctx.fillRect(16, 15, 6, 40);
-            }
-
-            // Warp Nacelles (Left & Right Engines)
-            ctx.fillStyle = "#94a3b8";
-            ctx.fillRect(-24, -10, 6, 32);
-            ctx.fillRect(18, -10, 6, 32);
-            // Bussard Collectors (Glowing Red Tips)
-            ctx.fillStyle = "#ef4444";
-            ctx.beginPath();
-            ctx.arc(-21, -10, 3.5, 0, Math.PI * 2);
-            ctx.arc(21, -10, 3.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Pylons (Wings connecting to hull)
-            ctx.strokeStyle = "#64748b";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(-21, 8); ctx.lineTo(-6, 12);
-            ctx.moveTo(21, 8); ctx.lineTo(6, 12);
-            ctx.stroke();
-
-            // Secondary Hull
-            ctx.fillStyle = "#cbd5e1";
-            ctx.beginPath();
-            ctx.ellipse(0, 10, 7, 18, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Primary Saucer Section (Platillo Principal)
-            ctx.fillStyle = "#f8fafc";
-            ctx.beginPath();
-            ctx.ellipse(0, -14, 24, 18, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "#38bdf8";
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // Bridge Dome
-            ctx.fillStyle = "#38bdf8";
-            ctx.beginPath();
-            ctx.arc(0, -14, 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.restore();
-        }
-
-        function drawEnemy(e) {
-            ctx.save();
-            ctx.translate(e.x, e.y);
-
-            if (e.type === "klingon") {
-                // Klingon Bird-of-Prey (Verde y Rojo)
-                ctx.fillStyle = "#166534";
-                ctx.beginPath();
-                ctx.moveTo(0, 18);
-                ctx.lineTo(-20, -10);
-                ctx.lineTo(-6, -4);
-                ctx.lineTo(0, -18);
-                ctx.lineTo(6, -4);
-                ctx.lineTo(20, -10);
-                ctx.closePath();
-                ctx.fill();
-                ctx.strokeStyle = "#ef4444";
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            } else if (e.type === "romulan") {
-                // Romulan Warbird (Verde esmeralda y Cyan)
-                ctx.fillStyle = "#047857";
-                ctx.beginPath();
-                ctx.ellipse(0, 0, 24, 12, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = "#10b981";
-                ctx.beginPath();
-                ctx.arc(0, 4, 8, 0, Math.PI * 2);
-                ctx.fill();
-            } else {
-                // Asteroid
-                ctx.fillStyle = "#78716c";
-                ctx.beginPath();
-                ctx.arc(0, 0, e.radius, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = "#44403c";
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            // Health Bar for large enemies
-            if (e.maxHp > 1) {
-                ctx.fillStyle = "rgba(0,0,0,0.6)";
-                ctx.fillRect(-15, -e.radius - 8, 30, 4);
-                ctx.fillStyle = "#22c55e";
-                ctx.fillRect(-15, -e.radius - 8, 30 * (e.hp / e.maxHp), 4);
-            }
-
-            ctx.restore();
-        }
-
-        // Main Game Loop
-        function update() {
-            if (!isRunning) return;
-
-            // Player Movement
-            let currentSpeed = player.speed;
-            player.isWarping = false;
-
-            if ((keys["ShiftLeft"] || keys["ShiftRight"] || keys["KeyW"]) && player.warpEnergy > 5) {
-                player.isWarping = true;
-                currentSpeed *= 1.8;
-                player.warpEnergy = Math.max(0, player.warpEnergy - 0.6);
-                if (Math.random() < 0.3) sound.playWarp();
-            } else {
-                player.warpEnergy = Math.min(100, player.warpEnergy + 0.25);
-            }
-
-            if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= currentSpeed;
-            if (keys["ArrowRight"] || keys["KeyD"]) player.x += currentSpeed;
-            if (keys["ArrowUp"]) player.y -= currentSpeed;
-            if (keys["ArrowDown"]) player.y += currentSpeed;
-
-            // Fire Phasers
-            if (keys["Space"]) fireLaser();
-
-            // Screen bounds
-            player.x = Math.max(player.radius, Math.min(width - player.radius, player.x));
-            player.y = Math.max(player.radius + 20, Math.min(height - player.radius - 20, player.y));
-
-            if (player.invulnerable > 0) player.invulnerable--;
-
-            // Stars Scroll
+            // Dibujar estrellas en movimiento
+            ctx.fillStyle = "#ffffff";
             stars.forEach(s => {
-                s.y += player.isWarping ? s.speed * 6 : s.speed;
-                if (s.y > height) {
-                    s.y = 0;
-                    s.x = Math.random() * width;
+                s.x -= s.speed * 1.5;
+                if (s.x < 0) {
+                    s.x = canvas.width;
+                    s.y = Math.random() * canvas.height;
                 }
-            });
-
-            // Update Lasers
-            for (let i = lasers.length - 1; i >= 0; i--) {
-                const l = lasers[i];
-                l.x += l.vx;
-                l.y += l.vy;
-                if (l.y < -10) lasers.splice(i, 1);
-            }
-
-            // Update Torpedoes
-            for (let i = torps.length - 1; i >= 0; i--) {
-                const t = torps[i];
-                t.y += t.vy;
-                t.glow = (t.glow + 0.2) % (Math.PI * 2);
-                if (t.y < -20) torps.splice(i, 1);
-            }
-
-            // Spawn & Update Enemies
-            spawnEnemies();
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                const e = enemies[i];
-                e.y += player.isWarping ? e.speedY * 1.5 : e.speedY;
-                e.x += e.speedX;
-
-                // Collision with Lasers
-                for (let j = lasers.length - 1; j >= 0; j--) {
-                    const l = lasers[j];
-                    const dist = Math.hypot(e.x - l.x, e.y - l.y);
-                    if (dist < e.radius + 6) {
-                        e.hp--;
-                        createExplosion(l.x, l.y, "#ff3838", 6);
-                        lasers.splice(j, 1);
-                        if (e.hp <= 0) break;
-                    }
-                }
-
-                // Collision with Torpedoes
-                for (let j = torps.length - 1; j >= 0; j--) {
-                    const t = torps[j];
-                    const dist = Math.hypot(e.x - t.x, e.y - t.y);
-                    if (dist < e.radius + 15) {
-                        e.hp -= 4;
-                        createExplosion(t.x, t.y, "#fbbf24", 25);
-                        torps.splice(j, 1);
-                        if (e.hp <= 0) break;
-                    }
-                }
-
-                // Enemy Destruction
-                if (e.hp <= 0) {
-                    createExplosion(e.x, e.y, e.type === "klingon" ? "#22c55e" : "#ff9900", 22);
-                    score += e.maxHp * 150;
-                    enemies.splice(i, 1);
-                    if (score > sectorLevel * 1200) {
-                        sectorLevel++;
-                        torpedoes = Math.min(8, torpedoes + 2);
-                        document.getElementById("sector").innerText = `CUADRANTE ALFA • SECTOR 00${sectorLevel}`;
-                    }
-                    continue;
-                }
-
-                // Collision with Player
-                const pDist = Math.hypot(e.x - player.x, e.y - player.y);
-                if (pDist < e.radius + player.radius && player.invulnerable === 0) {
-                    player.invulnerable = 60;
-                    createExplosion(player.x, player.y, "#38bdf8", 15);
-                    if (player.shields > 0) {
-                        player.shields = Math.max(0, player.shields - 35);
-                    } else {
-                        player.hull = Math.max(0, player.hull - 35);
-                    }
-                    enemies.splice(i, 1);
-
-                    if (player.hull <= 0) {
-                        gameOver();
-                        return;
-                    }
-                }
-
-                if (e.y > height + 50) enemies.splice(i, 1);
-            }
-
-            // Update Particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life -= p.decay;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-
-            // Passive Shield Recovery
-            if (player.shields < 100 && player.hull > 0) {
-                player.shields = Math.min(100, player.shields + 0.04);
-            }
-
-            // Update UI HUD
-            document.getElementById("score").innerText = String(score).padStart(4, "0");
-            document.getElementById("txt-shields").innerText = `${Math.round(player.shields)}%`;
-            document.getElementById("bar-shields").style.width = `${player.shields}%`;
-            document.getElementById("txt-hull").innerText = `${Math.round(player.hull)}%`;
-            document.getElementById("bar-hull").style.width = `${player.hull}%`;
-            document.getElementById("txt-warp").innerText = `${Math.round(player.warpEnergy)}%`;
-            document.getElementById("bar-warp").style.width = `${player.warpEnergy}%`;
-        }
-
-        function render() {
-            ctx.clearRect(0, 0, width, height);
-
-            // Draw Stars
-            stars.forEach(s => {
-                ctx.fillStyle = s.color;
                 ctx.beginPath();
                 ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
                 ctx.fill();
             });
 
-            // Draw Lasers
-            lasers.forEach(l => {
-                ctx.fillStyle = l.color;
-                ctx.shadowColor = "#ff3333";
-                ctx.shadowBlur = 10;
-                ctx.fillRect(l.x - 2, l.y, 4, 18);
-                ctx.shadowBlur = 0;
-            });
+            // Dibujar nebulosa sutil de fondo
+            const grad = ctx.createRadialGradient(canvas.width * 0.5, canvas.height * 0.35, 50, canvas.width * 0.5, canvas.height * 0.35, 400);
+            grad.addColorStop(0, "rgba(56, 189, 248, 0.12)");
+            grad.addColorStop(0.5, "rgba(204, 153, 204, 0.08)");
+            grad.addColorStop(1, "transparent");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Torpedoes
-            torps.forEach(t => {
-                ctx.fillStyle = "#fbbf24";
-                ctx.shadowColor = "#ffaa00";
-                ctx.shadowBlur = 15;
-                ctx.beginPath();
-                ctx.arc(t.x, t.y, t.radius + Math.sin(t.glow) * 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            });
+            requestAnimationFrame(renderSpace);
+        }
+        renderSpace();
 
-            // Draw Enemies
-            enemies.forEach(drawEnemy);
+        // =========================================================================
+        // SONIDOS PROCEDIMENTALES (Web Audio API)
+        // =========================================================================
+        let aCtx = null;
+        function getAudio() {
+            if (!aCtx) aCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (aCtx.state === 'suspended') aCtx.resume();
+            return aCtx;
+        }
 
-            // Draw Player
-            if (player.hull > 0) {
-                drawEnterprise(player.x, player.y, player.isWarping, player.invulnerable);
+        function playBeep(freq, type, dur) {
+            try {
+                const ac = getAudio();
+                const o = ac.createOscillator();
+                const g = ac.createGain();
+                o.type = type || "sine";
+                o.frequency.value = freq;
+                g.gain.setValueAtTime(0.15, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+                o.connect(g);
+                g.connect(ac.destination);
+                o.start();
+                o.stop(ac.currentTime + dur);
+            } catch(e) {}
+        }
+
+        function playSuccessSound() {
+            playBeep(587.33, "sine", 0.1);
+            setTimeout(() => playBeep(880, "sine", 0.25), 100);
+        }
+
+        function playFailSound() {
+            playBeep(220, "sawtooth", 0.15);
+            setTimeout(() => playBeep(146.83, "sawtooth", 0.35), 120);
+        }
+
+        // =========================================================================
+        // GESTIÓN DEL QUIZ
+        // =========================================================================
+        function showQuestion(index) {
+            if (index >= QUESTIONS.length) {
+                endGame(true);
+                return;
             }
 
-            // Draw Particles
-            particles.forEach(p => {
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = Math.max(0, p.life);
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
+            const q = QUESTIONS[index];
+            isAnswering = true;
+            timer = 25;
+
+            document.getElementById("q-sector").textContent = `SECTOR ${index + 1 < 10 ? '0' : ''}${index + 1}: ${q.sector}`;
+            document.getElementById("q-text").textContent = q.text;
+            document.getElementById("progress-val").textContent = `${index + 1} / ${QUESTIONS.length}`;
+            document.getElementById("progress-fill").style.width = `${((index + 1) / QUESTIONS.length) * 100}%`;
+
+            const fb = document.getElementById("q-feedback");
+            fb.className = "quiz-feedback";
+            fb.style.display = "none";
+
+            const optContainer = document.getElementById("q-options");
+            optContainer.innerHTML = "";
+
+            const keys = ["A", "B", "C", "D"];
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement("button");
+                btn.className = "opt-btn";
+                btn.innerHTML = `<span class="opt-key">${keys[idx]}</span> <span>${opt}</span>`;
+                btn.addEventListener("click", () => handleAnswer(idx));
+                optContainer.appendChild(btn);
             });
+
+            clearInterval(timerInterval);
+            document.getElementById("q-timer").textContent = `⏱️ ${timer}s`;
+            timerInterval = setInterval(() => {
+                timer--;
+                document.getElementById("q-timer").textContent = `⏱️ ${timer}s`;
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    handleAnswer(-1); // Tiempo agotado
+                }
+            }, 1000);
         }
 
-        function loop() {
-            update();
-            render();
-            requestAnimationFrame(loop);
-        }
-        loop();
+        function handleAnswer(selectedIndex) {
+            if (!isAnswering) return;
+            isAnswering = false;
+            clearInterval(timerInterval);
 
-        // Game State Controls
+            const q = QUESTIONS[currentQIndex];
+            const buttons = document.querySelectorAll(".opt-btn");
+            const fb = document.getElementById("q-feedback");
+
+            if (selectedIndex === q.correct) {
+                playSuccessSound();
+                score += 150 + timer * 10;
+                document.getElementById("score-val").textContent = score.toString().padStart(4, "0");
+                if (buttons[selectedIndex]) buttons[selectedIndex].classList.add("correct");
+                fb.className = "quiz-feedback success";
+                fb.innerHTML = q.feedback;
+            } else {
+                playFailSound();
+                shields = Math.max(0, shields - 20);
+                document.getElementById("shield-val").textContent = `${shields}%`;
+                document.getElementById("shield-fill").style.width = `${shields}%`;
+
+                if (selectedIndex >= 0 && buttons[selectedIndex]) {
+                    buttons[selectedIndex].classList.add("wrong");
+                }
+                if (buttons[q.correct]) {
+                    buttons[q.correct].classList.add("correct");
+                }
+                fb.className = "quiz-feedback failure";
+                fb.innerHTML = `❌ Respuesta incorrecta. ` + q.feedback;
+
+                if (shields <= 0) {
+                    setTimeout(() => endGame(false), 2200);
+                    return;
+                }
+            }
+
+            setTimeout(() => {
+                currentQIndex++;
+                showQuestion(currentQIndex);
+            }, 2500);
+        }
+
+        function endGame(victory) {
+            clearInterval(timerInterval);
+            const modal = document.getElementById("end-modal");
+            const title = document.getElementById("end-title");
+            const desc = document.getElementById("end-desc");
+            const scoreDisplay = document.getElementById("end-score");
+
+            modal.style.display = "flex";
+            scoreDisplay.textContent = `Puntuación Final: ${score}`;
+
+            if (victory) {
+                playSuccessSound();
+                title.textContent = "🎓 ¡GRADUADO CON HONORES!";
+                title.style.color = "var(--lcars-orange)";
+                desc.textContent = "Has superado con éxito la evaluación de la Flota Estelar. Tu conocimiento de los motores Warp, la física cuántica y las tecnologías de Star Trek te califica como Oficial Científico del USS Enterprise.";
+            } else {
+                playFailSound();
+                title.textContent = "⚠️ ESCUDOS AGOTADOS";
+                title.style.color = "var(--lcars-red)";
+                desc.textContent = "Los escudos del Enterprise han caído por debajo del umbral de seguridad. Repasa los inventos del museo y vuelve a intentarlo.";
+            }
+        }
+
         function startGame() {
-            sound.init();
-            document.getElementById("start-screen").style.display = "none";
-            document.getElementById("gameover-screen").style.display = "none";
+            currentQIndex = 0;
             score = 0;
-            sectorLevel = 1;
-            torpedoes = 5;
-            document.getElementById("torp-count").innerText = torpedoes;
-            document.getElementById("sector").innerText = "CUADRANTE ALFA • SECTOR 001";
-            player.x = width / 2;
-            player.y = height - 100;
-            player.shields = 100;
-            player.hull = 100;
-            player.warpEnergy = 100;
-            player.invulnerable = 60;
-            enemies = [];
-            lasers = [];
-            torps = [];
-            particles = [];
-            isRunning = true;
+            shields = 100;
+            document.getElementById("score-val").textContent = "0000";
+            document.getElementById("shield-val").textContent = "100%";
+            document.getElementById("shield-fill").style.width = "100%";
+            document.getElementById("start-modal").style.display = "none";
+            document.getElementById("end-modal").style.display = "none";
+            showQuestion(0);
         }
 
-        function gameOver() {
-            isRunning = false;
-            createExplosion(player.x, player.y, "#ff3333", 40);
-            document.getElementById("final-score").innerText = score;
-            document.getElementById("gameover-screen").style.display = "flex";
-        }
-
-        document.getElementById("btn-start").addEventListener("click", startGame);
+        document.getElementById("btn-start-game").addEventListener("click", startGame);
         document.getElementById("btn-restart").addEventListener("click", startGame);
+
+        // Teclado 1, 2, 3, 4 y A, B, C, D
+        window.addEventListener("keydown", (e) => {
+            if (!isAnswering) return;
+            const key = e.key.toUpperCase();
+            if (key === "1" || key === "A") handleAnswer(0);
+            if (key === "2" || key === "B") handleAnswer(1);
+            if (key === "3" || key === "C") handleAnswer(2);
+            if (key === "4" || key === "D") handleAnswer(3);
+        });
     </script>
 </body>
 </html>

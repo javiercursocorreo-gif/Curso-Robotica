@@ -49,7 +49,6 @@
     })();
     </script>
 
-
     <style>
         :root {
             --lcars-orange: #ff9900;
@@ -58,7 +57,7 @@
             --lcars-blue: #4a90e2;
             --lcars-cyan: #50e3c2;
             --lcars-dark: #070b10;
-            --lcars-panel: rgba(12, 19, 29, 0.85);
+            --lcars-panel: rgba(12, 19, 29, 0.88);
             --lcars-border: rgba(255, 153, 0, 0.4);
         }
 
@@ -79,7 +78,6 @@
             color: #ffffff;
         }
 
-        /* Lienzo 3D */
         #renderCanvas {
             width: 100%;
             height: 100%;
@@ -89,7 +87,6 @@
             background: radial-gradient(circle at center, #131c28 0%, #0a0f16 60%, #030508 100%);
         }
 
-        /* Estrellas sutiles en el fondo */
         .stars-bg {
             position: absolute;
             top: 0;
@@ -112,7 +109,6 @@
             z-index: 1;
         }
 
-        /* Cabecera Superior Estilo LCARS */
         #headerBar {
             position: absolute;
             top: 0;
@@ -123,7 +119,7 @@
             align-items: center;
             justify-content: space-between;
             z-index: 10;
-            background: linear-gradient(180deg, rgba(7, 11, 16, 0.9) 0%, rgba(7, 11, 16, 0) 100%);
+            background: linear-gradient(180deg, rgba(7, 11, 16, 0.95) 0%, rgba(7, 11, 16, 0) 100%);
             pointer-events: none;
         }
 
@@ -168,7 +164,7 @@
         }
 
         .action-btn {
-            background: rgba(20, 30, 45, 0.7);
+            background: rgba(20, 30, 45, 0.75);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
             padding: 8px 14px;
@@ -180,61 +176,111 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            font-weight: 600;
         }
 
         .action-btn:hover {
-            background: var(--lcars-orange);
-            color: #000000;
+            background: rgba(255, 153, 0, 0.25);
             border-color: var(--lcars-orange);
-            transform: translateY(-2px);
+            color: var(--lcars-orange);
+            transform: translateY(-1px);
         }
 
         .action-btn.active {
-            background: var(--lcars-gold);
+            background: var(--lcars-orange);
             color: #000000;
-            border-color: var(--lcars-gold);
-            font-weight: 700;
+            border-color: var(--lcars-orange);
+        }
+
+        .hint-pill {
+            position: absolute;
+            top: 76px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 16, 25, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 5px 16px;
+            font-size: 0.8rem;
+            color: #9ab0c8;
+            pointer-events: none;
+            z-index: 5;
+            backdrop-filter: blur(6px);
+        }
+
+        /* Banner de Interacción Especial del Invento */
+        #interactiveBanner {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            display: none;
+            gap: 10px;
+        }
+
+        .special-interact-btn {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.9), rgba(229, 168, 35, 0.9));
+            color: #000;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.5);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .special-interact-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 153, 0, 0.8);
         }
 
         /* Panel Lateral de Información Didáctica */
         #infoPanel {
             position: absolute;
-            top: 90px;
+            top: 85px;
             left: 24px;
-            width: 360px;
+            width: 380px;
             max-height: calc(100% - 240px);
-            background: var(--lcars-panel);
-            backdrop-filter: blur(14px);
-            border-left: 5px solid var(--lcars-orange);
-            border-radius: 0 14px 14px 0;
-            padding: 22px 20px;
-            z-index: 10;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
             overflow-y: auto;
-            transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.3s ease;
+            background: var(--lcars-panel);
+            border: 1px solid var(--lcars-border);
+            border-left: 6px solid var(--lcars-orange);
+            border-radius: 12px;
+            padding: 22px 20px;
+            backdrop-filter: blur(14px);
+            z-index: 10;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s ease, opacity 0.3s ease;
         }
 
-        #infoPanel.collapsed {
-            transform: translateX(-390px);
+        #infoPanel.hidden {
+            transform: translateX(-420px);
             opacity: 0;
             pointer-events: none;
         }
 
         .badge-sector {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
             font-size: 0.7rem;
             font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
             color: var(--lcars-gold);
-            margin-bottom: 8px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .model-title {
-            margin: 0 0 6px 0;
-            font-size: 1.35rem;
+            margin: 0 0 12px 0;
+            font-size: 1.45rem;
             font-weight: 800;
             color: #ffffff;
             line-height: 1.25;
@@ -242,31 +288,31 @@
 
         .real-invention-card {
             background: rgba(255, 153, 0, 0.12);
-            border: 1px solid rgba(255, 153, 0, 0.35);
+            border: 1px solid rgba(255, 153, 0, 0.3);
             border-radius: 8px;
             padding: 10px 14px;
-            margin: 12px 0 16px 0;
+            margin-bottom: 16px;
         }
 
         .real-invention-label {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--lcars-orange);
+            font-size: 0.72rem;
             font-weight: 800;
+            color: var(--lcars-orange);
+            letter-spacing: 1px;
+            text-transform: uppercase;
             margin-bottom: 3px;
         }
 
         .real-invention-value {
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 700;
-            color: #ffe6b3;
+            color: #50e3c2;
         }
 
         .info-section-title {
             font-size: 0.75rem;
             font-weight: 800;
-            letter-spacing: 1.2px;
+            letter-spacing: 1px;
             color: var(--lcars-blue);
             text-transform: uppercase;
             margin: 14px 0 6px 0;
@@ -278,53 +324,124 @@
         .info-desc {
             font-size: 0.88rem;
             line-height: 1.55;
-            color: #d1dbe5;
-            margin: 0 0 10px 0;
+            color: #c5d4e6;
+            margin: 0 0 12px 0;
         }
 
         .info-curiosity {
-            background: rgba(80, 227, 194, 0.08);
-            border-left: 3px solid var(--lcars-cyan);
-            padding: 8px 12px;
-            border-radius: 0 6px 6px 0;
+            background: rgba(204, 102, 153, 0.12);
+            border-left: 3px solid var(--lcars-purple);
+            padding: 10px 12px;
+            border-radius: 4px;
             font-size: 0.82rem;
+            color: #e8b3cf;
             line-height: 1.45;
-            color: #a6f2e2;
-            margin-top: 12px;
         }
 
-        /* Carrusel Inferior de Museo */
+        /* Carrusel Inferior de Inventos */
         #bottomShowcase {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             width: calc(100% - 48px);
-            max-width: 1200px;
-            background: rgba(10, 15, 23, 0.88);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 153, 0, 0.3);
-            border-radius: 18px;
-            padding: 12px 18px;
-            z-index: 20;
+            max-width: 1280px;
             display: flex;
             align-items: center;
-            gap: 14px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .carousel-track {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 8px 4px;
+            scrollbar-width: none;
+        }
+        .carousel-track::-webkit-scrollbar { display: none; }
+
+        .showcase-card {
+            flex: 0 0 168px;
+            background: rgba(14, 22, 33, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 85px;
+        }
+
+        .showcase-card:hover {
+            background: rgba(25, 38, 56, 0.95);
+            border-color: var(--lcars-orange);
+            transform: translateY(-4px);
+            box-shadow: 0 6px 18px rgba(255, 153, 0, 0.3);
+        }
+
+        .showcase-card.active {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.25) 0%, rgba(14, 22, 33, 0.95) 100%);
+            border: 2px solid var(--lcars-orange);
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .card-icon {
+            font-size: 1.25rem;
+        }
+
+        .card-number {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--lcars-gold);
+            font-family: monospace;
+        }
+
+        .card-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-invention {
+            font-size: 0.7rem;
+            color: #50e3c2;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .carousel-nav-btn {
-            background: rgba(255, 153, 0, 0.15);
-            border: 1px solid rgba(255, 153, 0, 0.4);
+            background: rgba(14, 22, 33, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: var(--lcars-orange);
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 36px;
+            height: 50px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.3rem;
             cursor: pointer;
+            backdrop-filter: blur(8px);
+            font-size: 1.1rem;
             transition: all 0.2s ease;
             flex-shrink: 0;
         }
@@ -332,130 +449,36 @@
         .carousel-nav-btn:hover {
             background: var(--lcars-orange);
             color: #000000;
-            transform: scale(1.08);
-        }
-
-        .carousel-track {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            scroll-behavior: smooth;
-            padding: 4px 2px;
-            flex-grow: 1;
-            scrollbar-width: thin;
-            scrollbar-color: var(--lcars-orange) transparent;
-        }
-
-        .carousel-track::-webkit-scrollbar {
-            height: 5px;
-        }
-        .carousel-track::-webkit-scrollbar-thumb {
-            background: var(--lcars-orange);
-            border-radius: 4px;
-        }
-
-        .showcase-card {
-            flex: 0 0 180px;
-            background: rgba(25, 35, 50, 0.65);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 10px 12px;
-            cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 82px;
-        }
-
-        .showcase-card:hover {
-            background: rgba(45, 60, 85, 0.85);
-            border-color: var(--lcars-orange);
-            transform: translateY(-4px);
-        }
-
-        .showcase-card.active {
-            background: linear-gradient(135deg, rgba(255, 153, 0, 0.25) 0%, rgba(20, 30, 45, 0.9) 100%);
-            border: 2px solid var(--lcars-orange);
-            box-shadow: 0 0 18px rgba(255, 153, 0, 0.45);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .card-icon {
-            font-size: 1.2rem;
-        }
-
-        .card-number {
-            font-size: 0.65rem;
-            font-weight: 800;
-            color: var(--lcars-orange);
-            background: rgba(255, 153, 0, 0.15);
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-
-        .card-title {
-            font-size: 0.82rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin: 4px 0 2px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .card-invention {
-            font-size: 0.72rem;
-            color: var(--lcars-gold);
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         /* Pantalla de Carga */
         #loadingOverlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(5, 8, 12, 0.85);
-            backdrop-filter: blur(10px);
+            inset: 0;
+            background: rgba(5, 8, 12, 0.88);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
-        }
-
-        #loadingOverlay.active {
-            pointer-events: auto;
-            opacity: 1;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s ease;
         }
 
         #loadingOverlay.hidden {
             opacity: 0;
+            pointer-events: none;
         }
 
         .lcars-spinner {
-            width: 65px;
-            height: 65px;
-            border: 5px solid rgba(255, 153, 0, 0.15);
-            border-top: 5px solid var(--lcars-orange);
-            border-right: 5px solid var(--lcars-gold);
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 153, 0, 0.15);
+            border-top: 4px solid var(--lcars-orange);
+            border-right: 4px solid var(--lcars-gold);
             border-radius: 50%;
-            animation: spin 0.9s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
-            margin-bottom: 20px;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
         }
 
         @keyframes spin {
@@ -464,57 +487,22 @@
         }
 
         .loading-text {
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
             color: #ffffff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
         }
 
         .loading-subtext {
-            font-size: 0.85rem;
-            color: var(--lcars-gold);
-            margin-top: 6px;
-        }
-
-        /* Notificación Flotante de Ayuda */
-        .hint-pill {
-            position: absolute;
-            top: 86px;
-            right: 24px;
-            background: rgba(15, 23, 34, 0.75);
-            backdrop-filter: blur(6px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: #a0b2c6;
-            font-size: 0.78rem;
-            padding: 6px 12px;
-            border-radius: 20px;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        @media (max-width: 900px) {
-            #infoPanel {
-                width: 90%;
-                left: 5%;
-                top: 80px;
-                max-height: 40%;
-            }
-            #bottomShowcase {
-                width: calc(100% - 20px);
-                bottom: 10px;
-            }
-            .showcase-card {
-                flex: 0 0 150px;
-            }
+            font-size: 0.82rem;
+            color: #8fa0b5;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Fondo de estrellas sutiles -->
     <div class="stars-bg"></div>
 
     <!-- Pantalla de Carga -->
@@ -549,9 +537,16 @@
         </div>
     </div>
 
-    <!-- Píldora de ayuda para navegación -->
     <div class="hint-pill">
         <span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>
+    </div>
+
+    <!-- Banner de Interacción Especial -->
+    <div id="interactiveBanner">
+        <button class="special-interact-btn" id="btnSpecialAction">
+            <span id="specialIcon">⚡</span>
+            <span id="specialLabel">ACCION ESPECIAL</span>
+        </button>
     </div>
 
     <!-- Panel Lateral de Información Didáctica -->
@@ -577,18 +572,130 @@
     <!-- Carrusel Inferior de Museo -->
     <div id="bottomShowcase">
         <button class="carousel-nav-btn" id="btnPrevCard" title="Modelo anterior">◀</button>
-        <div class="carousel-track" id="carouselTrack">
-            <!-- Las tarjetas se generan dinámicamente -->
-        </div>
+        <div class="carousel-track" id="carouselTrack"></div>
         <button class="carousel-nav-btn" id="btnNextCard" title="Modelo siguiente">▶</button>
     </div>
 
-    <!-- Canvas de Renderizado 3D de Babylon.js -->
     <canvas id="renderCanvas"></canvas>
 
     <script>
         // =========================================================================
-        // BASE DE DATOS DE LOS 9 ACCESORIOS E INVENTOS DE STAR TREK
+        // SÍNTESIS DE AUDIO PROCEDIMENTAL WEB AUDIO (Cero dependencias externas)
+        // =========================================================================
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        // Sonido de Chime LCARS
+        function playComputerChime() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(880, t);
+                osc1.frequency.setValueAtTime(1174.66, t + 0.08); // A5 -> D6
+
+                osc2.type = "triangle";
+                osc2.frequency.setValueAtTime(1760, t);
+                osc2.frequency.setValueAtTime(2349.32, t + 0.08);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc1.start(t);
+                osc2.start(t);
+                osc1.stop(t + 0.36);
+                osc2.stop(t + 0.36);
+            } catch (e) { console.log(e); }
+        }
+
+        // Sonido de Puertas Automáticas ("Whoosh")
+        function playDoorWhoosh() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const bufferSize = ctx.sampleRate * 0.4;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.5;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.setValueAtTime(400, t);
+                filter.frequency.linearRampToValueAtTime(1800, t + 0.15);
+                filter.frequency.exponentialRampToValueAtTime(200, t + 0.4);
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start(t);
+            } catch (e) { console.log(e); }
+        }
+
+        // Sonido de Teletransporte Energizado
+        function playTransporterHum() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const lfo = ctx.createOscillator();
+                const lfoGain = ctx.createGain();
+                const gain = ctx.createGain();
+
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(320, t);
+                osc.frequency.linearRampToValueAtTime(680, t + 0.8);
+                osc.frequency.linearRampToValueAtTime(320, t + 1.6);
+
+                lfo.frequency.setValueAtTime(28, t);
+                lfoGain.gain.setValueAtTime(80, t);
+
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.25, t + 0.3);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                lfo.start(t);
+                osc.start(t);
+                lfo.stop(t + 1.8);
+                osc.stop(t + 1.8);
+            } catch (e) { console.log(e); }
+        }
+
+        // =========================================================================
+        // BASE DE DATOS DE LOS INVENTOS DE STAR TREK
         // =========================================================================
         const INVENTOS_DB = [
             {
@@ -606,6 +713,38 @@
                 cameraRadius: 5.5
             },
             {
+                id: "voice_computer",
+                isCustomCore: true,
+                icon: "🗣️",
+                title: "Computadora Central con Interfaz por Voz",
+                shortTitle: "Computadora por Voz (IA)",
+                realInvention: "Asistentes de Voz Inteligentes (Siri, Alexa, ChatGPT Voice)",
+                sector: "INTELIGENCIA ARTIFICIAL & NLP",
+                description: "Star Trek fue la primera obra en la historia en mostrar a humanos hablando de forma natural y conversacional con una supercomputadora ('Computadora, calcula las coordenadas...'). La computadora procesaba órdenes de lenguaje natural y respondía en voz sintetizada humana (voz original de Majel Barrett).",
+                curiosity: "⭐ Declaración histórica: Los directores del equipo de Amazon Echo (Alexa) y los ingenieros de Google han confirmado que la computadora conversacional del Enterprise fue la visión exacta que guiaba el desarrollo de sus asistentes de voz inteligentes.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.0,
+                hasSpecialAction: true,
+                specialActionLabel: "🗣️ HABLAR CON LA COMPUTADORA",
+                specialIcon: "🎤"
+            },
+            {
+                id: "transporter",
+                isCustomTransporter: true,
+                icon: "⚡",
+                title: "Plataforma de Teletransporte Cuántico",
+                shortTitle: "Teletransporte",
+                realInvention: "Teletransporte Cuántico y Entrelazamiento de Fotones",
+                sector: "FÍSICA CUÁNTICA & TELECOMUNICACIONES",
+                description: "El sistema de teletransporte descompone la materia a nivel subatómico, la transmite a través de un haz de fase energética y la reconstituye intacta en el punto de destino. Sentó las bases en la cultura popular de la física de partículas y la transmisión instantánea de estados cuánticos.",
+                curiosity: "⭐ Hito científico real: En 1997, el físico Anton Zeilinger logró el primer teletransporte cuántico real de estados de fotones en laboratorio. Hoy día, satélites como el 'Micius' teletransportan qubits de información cuántica a más de 1.200 km de distancia.",
+                scaleFactor: 3.8,
+                cameraRadius: 7.2,
+                hasSpecialAction: true,
+                specialActionLabel: "⚡ ENERGIZAR TELETRANSPORTE",
+                specialIcon: "✨"
+            },
+            {
                 id: "combadge",
                 folder: "star_fleet_communicator_badge",
                 file: "scene.gltf",
@@ -616,7 +755,7 @@
                 sector: "TELECOMUNICACIONES & WEARABLES",
                 description: "Un sofisticado transceptor de audio incorporado directamente en la insignia metálica de la solapa. Con un leve toque en el pecho o una orden de voz, conectaba al oficial instantáneamente con la computadora central de la nave o con cualquier miembro del equipo mediante frecuencia subspacial.",
                 curiosity: "⭐ Dato real: Es el abuelo espiritual de los micrófonos de solapa inalámbricos, los auriculares Bluetooth manos libres y los modernos 'AI Pins' que se llevan en la ropa para interactuar mediante voz con inteligencias artificiales.",
-                scaleFactor: 0.9,
+                scaleFactor: 4.0,
                 cameraRadius: 5.2
             },
             {
@@ -644,8 +783,8 @@
                 sector: "BIOMEDICINA & SENSORES",
                 description: "El dispositivo insignia de los oficiales médicos como McCoy y Beverly Crusher. Diseñado para realizar análisis biofísicos, medir constantes vitales, detectar toxinas y emitir diagnósticos en tiempo real sin requerir cirugías ni procedimientos invasivos sobre el paciente.",
                 curiosity: "⭐ Dato real: La fundación XPRIZE y Qualcomm crearon el concurso millonario 'Tricorder XPRIZE' para premiar a equipos de bioingeniería capaces de fabricar un dispositivo de bolsillo real que diagnostique hasta 13 afecciones médicas en minutos.",
-                scaleFactor: 3.8,
-                cameraRadius: 6.0
+                scaleFactor: 4.0,
+                cameraRadius: 5.8
             },
             {
                 id: "phaser_tng",
@@ -657,7 +796,7 @@
                 realInvention: "Armas de Energía Dirigida y Láseres Industriales",
                 sector: "ENERGÍA DIRIGIDA & FOTÓNICA",
                 description: "Emisor de partículas concentradas (rayos nadiónicos) con selectores de intensidad regulables desde 'aturdir' (no letal) hasta 'calentar' o 'desintegrar'. Revolucionó el concepto de las armas en la ciencia ficción al prescindir por completo de proyectiles cinéticos o pólvora química.",
-                curiosity: "⭐ Dato real: La investigación de sistemas de defensa láser de alta potencia (como los sistemas de haz de fibra óptica de la marina moderna) y los bisturís láser médicos se benefician de las teorías de haces coherentes popularizadas por el universo Trek.",
+                curiosity: "⭐ Dato real: La investigación de sistemas de defensa láser de alta potencia y los bisturís láser médicos se benefician de las teorías de haces coherentes popularizadas por el universo Trek.",
                 scaleFactor: 4.2,
                 cameraRadius: 5.5
             },
@@ -684,10 +823,13 @@
                 shortTitle: "Puente & Puertas Auto",
                 realInvention: "Puertas Automáticas por Sensor & Centros de Control",
                 sector: "ARQUITECTURA AUTOMATIZADA & SENSORES",
-                description: "El mítico puente de mando circular de la nave estelar Enterprise. Entre sus elementos más influyentes destacaban las **puertas correderas automáticas que se abrían con un silbido de aire** cuando alguien se acercaba, las pantallas de visualización integradas y el control por comandos de voz.",
-                curiosity: "⭐ Dato real: Aunque en el rodaje de 1966 dos técnicos tiraban de cuerdas ocultas para abrir las puertas, la fascinación del público por este efecto impulsó decisivamente a empresas de arquitectura a fabricar las puertas automáticas con sensores de radar e infrarrojos que hoy usamos en todas partes.",
+                description: "El mítico puente de mando circular de la nave estelar Enterprise. Entre sus elementos más influyentes destacaban las puertas correderas automáticas que se abrían al aproximarse, las pantallas de visualización integradas y el control por comandos de voz.",
+                curiosity: "⭐ Dato real: Aunque en el rodaje de 1966 dos técnicos tiraban de cuerdas ocultas para abrir las puertas, la fascinación del público impulsó decisivamente a empresas de arquitectura a fabricar las puertas automáticas con sensores de radar e infrarrojos que hoy usamos en todas partes.",
                 scaleFactor: 3.5,
-                cameraRadius: 7.5
+                cameraRadius: 7.5,
+                hasSpecialAction: true,
+                specialActionLabel: "🚪 ABRIR / CERRAR PUERTAS",
+                specialIcon: "🚪"
             },
             {
                 id: "pips",
@@ -700,7 +842,7 @@
                 sector: "PROTOCOLOS Y ORGANIZACIÓN",
                 description: "Pequeños pines dorados y negros colocados en el cuello del uniforme que identificaban con precisión la jerarquía del oficial (desde Alférez con 1 pin hueco hasta Capitán con 4 pines dorados macizos). Reflejan una organización espacial basada en la meritocracia y la responsabilidad técnica.",
                 curiosity: "⭐ Dato real: Las misiones de la NASA y la Agencia Espacial Europea utilizan protocolos jerárquicos similares en la Estación Espacial Internacional para coordinar tripulaciones internacionales multiculturales de forma eficiente y pacífica.",
-                scaleFactor: 2.5,
+                scaleFactor: 3.0,
                 cameraRadius: 5.0
             },
             {
@@ -750,7 +892,15 @@
         let currentIndex = 0;
         let currentIsImageShowcase = false;
 
-        // Función para resolver la URL relativa correcta según la ubicación desde donde se abra
+        // Variables de estado para interactivos
+        let transporterCaptains = [];
+        let transporterMaterials = [];
+        let isTeleporting = false;
+        let doorLeftMesh = null;
+        let doorRightMesh = null;
+        let doorsOpen = false;
+        let voiceCorePillars = [];
+
         function getModelBaseUrl(subfolder) {
             const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
                                    window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
@@ -760,16 +910,14 @@
 
         async function initScene() {
             scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.09, 1.0); // Fondo espacial oscuro uniforme
+            scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.09, 1.0);
 
-            // Cámara orbital suave
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 6.0, BABYLON.Vector3.Zero(), scene);
             camera.attachControl(canvas, true);
             camera.wheelPrecision = 35;
             camera.lowerRadiusLimit = 1.5;
-            camera.upperRadiusLimit = 20.0;
+            camera.upperRadiusLimit = 25.0;
 
-            // Iluminación Profesional PBR y Estándar
             hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
             hemiLight.intensity = 1.2;
             hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.35);
@@ -780,35 +928,31 @@
             dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1.5, 1.5, 1.0), scene);
             dirLight2.intensity = 0.9;
 
-            // Entorno de reflejos para materiales metálicos PBR
-            try {
-                const helper = scene.createDefaultEnvironment({
-                    createGround: false,
-                    createSkybox: false
-                });
-                if (helper) helper.setMainColor(new BABYLON.Color3(0.05, 0.08, 0.12));
-            } catch (e) {
-                console.warn("Entorno por defecto omitido:", e);
-            }
+            const gl = new BABYLON.GlowLayer("glow", scene);
+            gl.intensity = 0.8;
 
-            // Render loop con rotación continua suave (se omite para la foto del comunicador)
             scene.onBeforeRenderObservable.add(() => {
                 if (autoRotateActive && currentPivotNode && !currentIsImageShowcase) {
-                    currentPivotNode.rotation.y += 0.0016; // Rotación lenta y majestuosa de museo
+                    currentPivotNode.rotation.y += 0.0016;
+                }
+                // Animación de pulso del Núcleo de Computadora
+                if (voiceCorePillars.length > 0) {
+                    const time = Date.now() * 0.003;
+                    voiceCorePillars.forEach((p, idx) => {
+                        const pulse = 0.8 + Math.sin(time + idx * 0.7) * 0.3;
+                        p.scaling.y = pulse;
+                    });
                 }
             });
 
-            // Arrancar el bucle continuo de renderizado de Babylon
             engine.runRenderLoop(() => {
                 if (scene && scene.activeCamera) {
                     scene.render();
                 }
             });
 
-            // Crear el carrusel de botones
             buildCarouselUI();
-
-            // Cargar el primer modelo (PADD)
+            setupHeaderButtons();
             await loadModel(0);
         }
 
@@ -822,57 +966,215 @@
             const item = INVENTOS_DB[index];
             showLoading(true, `Materializando: ${item.shortTitle}`, item.realInvention);
 
-            // Actualizar tarjeta activa en el carrusel
             updateCarouselActiveCard(index);
-
-            // Actualizar ficha técnica lateral
             updateInfoPanel(item);
 
+            // Gestionar botón de acción especial
+            const banner = document.getElementById("interactiveBanner");
+            const btnSpecial = document.getElementById("btnSpecialAction");
+            const specialIcon = document.getElementById("specialIcon");
+            const specialLabel = document.getElementById("specialLabel");
+
+            if (item.hasSpecialAction) {
+                banner.style.display = "flex";
+                specialIcon.textContent = item.specialIcon || "⚡";
+                specialLabel.textContent = item.specialActionLabel || "ACCION";
+                btnSpecial.onclick = () => handleSpecialAction(item.id);
+            } else {
+                banner.style.display = "none";
+            }
+
             try {
-                // Eliminar modelo anterior de memoria completamente
                 if (currentPivotNode) {
                     currentPivotNode.dispose(false, true);
                     currentPivotNode = null;
                 }
-
+                voiceCorePillars = [];
+                transporterCaptains = [];
+                transporterMaterials = [];
+                doorLeftMesh = null;
+                doorRightMesh = null;
+                doorsOpen = false;
                 currentIsImageShowcase = !!item.isImageShowcase;
 
-                // Si es un artefacto documentado con imagen en alta definición (como la foto del comunicador)
+                // CASO A: Imagen 2D HD (Comunicador clásico)
                 if (item.isImageShowcase) {
                     const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
                                            window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
                     const imgUrl = (isDirectFolder ? './' : '../../../MODELOS/STAR%20TRECK/ACCESORIOS/') + encodeURIComponent(item.imageFile);
 
                     const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
-                    pivot.rotation.y = 0; // Sin giro, completamente estático y de frente
+                    pivot.rotation.y = 0;
                     
-                    // Plano fotográfico limpio sin base ni pedestal, en proporción 1.1 x 1.0
                     const card = BABYLON.MeshBuilder.CreatePlane("photoCard", { width: 4.4, height: 4.0 }, scene);
                     card.parent = pivot;
                     card.position = new BABYLON.Vector3(0, 0, 0);
                     
                     const mat = new BABYLON.StandardMaterial("cardMat", scene);
                     mat.emissiveTexture = new BABYLON.Texture(imgUrl, scene);
-                    mat.disableLighting = true; // Colores vivos y nítidos directos de la fotografía sin sombras
+                    mat.disableLighting = true;
                     mat.backFaceCulling = false;
                     card.material = mat;
 
-                    camera.target = BABYLON.Vector3.Zero(); // Centrado perfecto en la pantalla
+                    camera.target = BABYLON.Vector3.Zero();
                     camera.radius = 5.0;
-                    camera.alpha = -Math.PI / 2; // Vista recta perpendicular
-                    camera.beta = Math.PI / 2;   // Vista 100% frontal (90º)
+                    camera.alpha = -Math.PI / 2;
+                    camera.beta = Math.PI / 2;
 
                     currentPivotNode = pivot;
                     setTimeout(() => showLoading(false), 200);
                     return;
                 }
 
+                // CASO B: Computadora Principal por Voz (Núcleo LCARS Interactivo 3D)
+                if (item.isCustomCore) {
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                    
+                    // Plataforma base circular LCARS
+                    const baseMat = new BABYLON.StandardMaterial("coreBaseMat", scene);
+                    baseMat.diffuseColor = new BABYLON.Color3(0.1, 0.15, 0.22);
+                    baseMat.specularColor = new BABYLON.Color3(0.5, 0.7, 0.9);
+
+                    const glowMatCyan = new BABYLON.StandardMaterial("glowCyan", scene);
+                    glowMatCyan.emissiveColor = new BABYLON.Color3(0.2, 0.8, 1.0);
+                    glowMatCyan.disableLighting = true;
+
+                    const glowMatAmber = new BABYLON.StandardMaterial("glowAmber", scene);
+                    glowMatAmber.emissiveColor = new BABYLON.Color3(1.0, 0.6, 0.1);
+                    glowMatAmber.disableLighting = true;
+
+                    const base = BABYLON.MeshBuilder.CreateCylinder("coreBase", { height: 0.4, diameter: 4.5 }, scene);
+                    base.parent = pivot;
+                    base.position.y = -1.5;
+                    base.material = baseMat;
+
+                    const topCap = BABYLON.MeshBuilder.CreateCylinder("coreTop", { height: 0.4, diameter: 4.5 }, scene);
+                    topCap.parent = pivot;
+                    topCap.position.y = 1.5;
+                    topCap.material = baseMat;
+
+                    // Columna central de luz
+                    const centerCore = BABYLON.MeshBuilder.CreateCylinder("centerCore", { height: 2.8, diameter: 1.2 }, scene);
+                    centerCore.parent = pivot;
+                    centerCore.material = glowMatCyan;
+
+                    // 6 Columnas ópticas periféricas
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI * 2) / 6;
+                        const col = BABYLON.MeshBuilder.CreateCylinder("coreCol" + i, { height: 2.6, diameter: 0.35 }, scene);
+                        col.parent = pivot;
+                        col.position.x = Math.cos(angle) * 1.6;
+                        col.position.z = Math.sin(angle) * 1.6;
+                        col.material = (i % 2 === 0) ? glowMatAmber : glowMatCyan;
+                        voiceCorePillars.push(col);
+                    }
+
+                    // Anillos holográficos orbitales
+                    const ring1 = BABYLON.MeshBuilder.CreateTorus("coreRing1", { diameter: 3.6, thickness: 0.08, tessellation: 48 }, scene);
+                    ring1.parent = pivot;
+                    ring1.material = glowMatCyan;
+
+                    const ring2 = BABYLON.MeshBuilder.CreateTorus("coreRing2", { diameter: 2.6, thickness: 0.08, tessellation: 48 }, scene);
+                    ring2.parent = pivot;
+                    ring2.position.y = 0.5;
+                    ring2.material = glowMatAmber;
+
+                    camera.target = BABYLON.Vector3.Zero();
+                    camera.radius = 6.5;
+                    camera.alpha = -Math.PI / 2.2;
+                    camera.beta = Math.PI / 2.6;
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                // CASO C: Sala de Teletransporte con Capitanes
+                if (item.isCustomTransporter) {
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+
+                    const darkMetalMat = new BABYLON.StandardMaterial("tDarkMetal", scene);
+                    darkMetalMat.diffuseColor = new BABYLON.Color3(0.15, 0.18, 0.22);
+
+                    const lightMetalMat = new BABYLON.StandardMaterial("tLightMetal", scene);
+                    lightMetalMat.diffuseColor = new BABYLON.Color3(0.4, 0.45, 0.5);
+
+                    const glowPadMat = new BABYLON.StandardMaterial("tGlowPad", scene);
+                    glowPadMat.emissiveColor = new BABYLON.Color3(0.9, 0.8, 0.4);
+                    glowPadMat.disableLighting = true;
+
+                    // Plataforma base
+                    const baseStep = BABYLON.MeshBuilder.CreateCylinder("tBaseStep", { height: 0.3, diameter: 6.0 }, scene);
+                    baseStep.parent = pivot;
+                    baseStep.position.y = -1.2;
+                    baseStep.material = darkMetalMat;
+
+                    const topStep = BABYLON.MeshBuilder.CreateCylinder("tTopStep", { height: 0.2, diameter: 5.2 }, scene);
+                    topStep.parent = pivot;
+                    topStep.position.y = -1.0;
+                    topStep.material = lightMetalMat;
+
+                    // Pads circulares de teletransporte
+                    const centerPad = BABYLON.MeshBuilder.CreateCylinder("tCenterPad", { height: 0.22, diameter: 1.4 }, scene);
+                    centerPad.parent = pivot;
+                    centerPad.position.y = -1.0;
+                    centerPad.material = glowPadMat;
+
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i * Math.PI * 2) / 5;
+                        const pad = BABYLON.MeshBuilder.CreateCylinder("tOuterPad" + i, { height: 0.22, diameter: 0.9 }, scene);
+                        pad.parent = pivot;
+                        pad.position.x = Math.cos(angle) * 1.8;
+                        pad.position.z = Math.sin(angle) * 1.8;
+                        pad.position.y = -1.0;
+                        pad.material = glowPadMat;
+                    }
+
+                    // Panel trasero
+                    const backWall = BABYLON.MeshBuilder.CreateBox("tBackWall", { width: 6.0, height: 3.5, depth: 0.2 }, scene);
+                    backWall.parent = pivot;
+                    backWall.position.y = 0.6;
+                    backWall.position.z = 2.8;
+                    backWall.material = darkMetalMat;
+
+                    // Intentar cargar los capitanes para los pads
+                    try {
+                        const capModelUrl = "../P1.3_USS_Enterprise_Teletransporte/low_poly_-_star_trek_captains_rigged_male/";
+                        const result = await BABYLON.SceneLoader.ImportMeshAsync("", capModelUrl, "scene.gltf", scene);
+                        const rootMesh = result.meshes[0];
+                        rootMesh.setParent(pivot);
+                        rootMesh.position = new BABYLON.Vector3(0, -0.9, 0);
+                        rootMesh.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+
+                        result.meshes.forEach(m => {
+                            if (m.material) {
+                                m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                                m.material.alpha = 1.0;
+                                if (!transporterMaterials.includes(m.material)) {
+                                    transporterMaterials.push(m.material);
+                                }
+                            }
+                        });
+                    } catch (errCap) {
+                        console.log("Capitanes procedurales para Teletransporte...");
+                    }
+
+                    camera.target = BABYLON.Vector3.Zero();
+                    camera.radius = 7.5;
+                    camera.alpha = -Math.PI / 2.2;
+                    camera.beta = Math.PI / 2.7;
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                // CASO D: Modelo GLTF Estándar (PADD, Tricorder, Fáser, Puente, Spock, Kirk, etc.)
                 const modelUrl = getModelBaseUrl(item.folder);
                 const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, item.file, scene);
-
                 const rootMesh = result.meshes[0];
 
-                // 1. Si es el PADD, mostrar solo UNA tableta (la Voyager clásica gris con interfaz LCARS)
+                // Filtro para el PADD (dejar solo 1 tableta)
                 if (item.id === "padd") {
                     rootMesh.getChildMeshes().forEach(m => {
                         const name = m.name.toLowerCase();
@@ -885,40 +1187,17 @@
                     });
                 }
 
-                // 2. Si es el Combadge de Solapa, aplicar oro metálico pulido de la Flota Estelar
+                // Combadge en oro metálico de Starfleet
                 if (item.id === "combadge") {
                     const goldMat = new BABYLON.PBRMaterial("combadgeGoldMat", scene);
-                    goldMat.albedoColor = new BABYLON.Color3(0.98, 0.78, 0.22); // Oro Starfleet reluciente
+                    goldMat.albedoColor = new BABYLON.Color3(0.98, 0.78, 0.22);
                     goldMat.metallic = 0.95;
                     goldMat.roughness = 0.18;
                     goldMat.environmentIntensity = 1.8;
-                    if (rootMesh.material) rootMesh.material = goldMat;
-                    rootMesh.getChildMeshes().forEach(m => {
-                        m.material = goldMat;
-                    });
+                    rootMesh.getChildMeshes().forEach(m => { m.material = goldMat; });
                 }
 
-                // Normalización robusta idéntica a P1_VISOR_STAR_TREK
-                rootMesh.normalizeToUnitCube();
-                const targetScale = item.scaleFactor || 3.5;
-                rootMesh.scaling.scaleInPlace(targetScale);
-
-                // Crear nodo pivote de transformación y orientNode para giros específicos
-                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
-                let orientNode = null;
-
-                if (item.id === "padd") {
-                    orientNode = new BABYLON.TransformNode("orient_" + item.id, scene);
-                    orientNode.parent = pivot;
-                    rootMesh.parent = orientNode;
-                    // PADD en posición vertical erguida, girado 180º sobre su eje horizontal y 180º sobre el eje vertical
-                    orientNode.rotation.x = Math.PI / 2;
-                    orientNode.rotation.y = Math.PI;
-                } else {
-                    rootMesh.parent = pivot;
-                }
-
-                // Centrado dinámico basado en geometría visible y habilitada
+                // Normalización robusta manual por vértices reales (¡Soluciona el fallo del Tricorder!)
                 let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
                 let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
                 let validVertices = false;
@@ -933,6 +1212,29 @@
                     }
                 });
 
+                const size = max.subtract(min);
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const targetScale = item.scaleFactor || 3.8;
+                if (validVertices && maxDim > 0) {
+                    const s = targetScale / maxDim;
+                    rootMesh.scaling = new BABYLON.Vector3(s, s, s);
+                }
+
+                // Pivot y orientación
+                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                let orientNode = null;
+
+                if (item.id === "padd") {
+                    orientNode = new BABYLON.TransformNode("orient_" + item.id, scene);
+                    orientNode.parent = pivot;
+                    rootMesh.parent = orientNode;
+                    orientNode.rotation.x = Math.PI / 2;
+                    orientNode.rotation.y = Math.PI;
+                } else {
+                    rootMesh.parent = pivot;
+                }
+
+                // Centrado geométrico
                 if (validVertices) {
                     const center = BABYLON.Vector3.Center(min, max);
                     if (orientNode) {
@@ -942,22 +1244,101 @@
                     }
                 }
 
-                // Configurar encuadre de cámara centrado
-                camera.target = BABYLON.Vector3.Zero(); // Centrado perfecto en la pantalla
+                // Si es el Puente de Mando, configurar puertas automáticas
+                if (item.id === "bridge") {
+                    const doorMat = new BABYLON.StandardMaterial("bridgeDoorMat", scene);
+                    doorMat.diffuseColor = new BABYLON.Color3(0.7, 0.2, 0.2); // Puertas rojas de turbolift
+                    doorMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+
+                    doorLeftMesh = BABYLON.MeshBuilder.CreateBox("doorLeft", { width: 0.6, height: 1.8, depth: 0.08 }, scene);
+                    doorLeftMesh.parent = pivot;
+                    doorLeftMesh.position = new BABYLON.Vector3(-0.3, -0.1, 2.2);
+                    doorLeftMesh.material = doorMat;
+
+                    doorRightMesh = BABYLON.MeshBuilder.CreateBox("doorRight", { width: 0.6, height: 1.8, depth: 0.08 }, scene);
+                    doorRightMesh.parent = pivot;
+                    doorRightMesh.position = new BABYLON.Vector3(0.3, -0.1, 2.2);
+                    doorRightMesh.material = doorMat;
+                }
+
+                camera.target = BABYLON.Vector3.Zero();
                 camera.radius = item.cameraRadius || 5.5;
                 camera.alpha = -Math.PI / 2.2;
-                camera.beta = item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 3.0); // De frente a la altura de los ojos para el PADD vertical
+                camera.beta = item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 3.0);
 
                 currentPivotNode = pivot;
-
-                // Ocultar pantalla de carga
-                setTimeout(() => {
-                    showLoading(false);
-                }, 250);
+                setTimeout(() => showLoading(false), 200);
 
             } catch (error) {
                 console.error("Error cargando modelo:", error);
                 showLoading(true, "Error al cargar el artefacto 3D", "Comprueba que los archivos del modelo existan");
+            }
+        }
+
+        // =========================================================================
+        // ACCIONES ESPECIALES INTERACTIVAS
+        // =========================================================================
+        function handleSpecialAction(itemId) {
+            // 1. Teletransporte
+            if (itemId === "transporter") {
+                if (isTeleporting) return;
+                isTeleporting = true;
+                playTransporterHum();
+
+                // Animación de desmaterialización y materialización
+                let step = 0;
+                const interval = setInterval(() => {
+                    step++;
+                    if (step <= 20) {
+                        // Desvanecer
+                        const alpha = 1.0 - (step / 20);
+                        transporterMaterials.forEach(m => m.alpha = alpha);
+                    } else if (step === 35) {
+                        playTransporterHum();
+                    } else if (step > 35 && step <= 55) {
+                        // Rematerializar
+                        const alpha = (step - 35) / 20;
+                        transporterMaterials.forEach(m => m.alpha = alpha);
+                    } else if (step > 55) {
+                        clearInterval(interval);
+                        isTeleporting = false;
+                        transporterMaterials.forEach(m => m.alpha = 1.0);
+                    }
+                }, 40);
+            }
+
+            // 2. Computadora por Voz
+            else if (itemId === "voice_computer") {
+                playComputerChime();
+                const phrases = [
+                    "Computadora en línea. Todos los sistemas del Enterprise operan al cien por ciento.",
+                    "Reconocimiento de voz confirmado. Procesando solicitud de la Flota Estelar.",
+                    "Sensores de largo alcance activos. Sin anomalías en el cuadrante.",
+                    "Bienvenido a bordo, Capitán. Computadora a su disposición."
+                ];
+                const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+
+                if ('speechSynthesis' in window) {
+                    setTimeout(() => {
+                        const utterance = new SpeechSynthesisUtterance(phrase);
+                        utterance.lang = "es-ES";
+                        utterance.rate = 0.95;
+                        utterance.pitch = 1.05;
+                        window.speechSynthesis.speak(utterance);
+                    }, 300);
+                }
+            }
+
+            // 3. Puertas Automáticas del Puente
+            else if (itemId === "bridge") {
+                playDoorWhoosh();
+                doorsOpen = !doorsOpen;
+                const targetOffset = doorsOpen ? 0.6 : 0.0;
+                
+                if (doorLeftMesh && doorRightMesh) {
+                    BABYLON.Animation.CreateAndStartAnimation("doorL", doorLeftMesh, "position.x", 30, 15, doorLeftMesh.position.x, -0.3 - targetOffset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                    BABYLON.Animation.CreateAndStartAnimation("doorR", doorRightMesh, "position.x", 30, 15, doorRightMesh.position.x, 0.3 + targetOffset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                }
             }
         }
 
@@ -988,7 +1369,6 @@
                 track.appendChild(card);
             });
 
-            // Botones de navegación del carrusel
             document.getElementById("btnPrevCard").addEventListener("click", () => {
                 const prevIndex = (currentIndex - 1 + INVENTOS_DB.length) % INVENTOS_DB.length;
                 loadModel(prevIndex);
@@ -999,7 +1379,6 @@
                 loadModel(nextIndex);
             });
 
-            // Navegación con teclado (Flechas izquierda/derecha y Barra espaciadora para Pausa)
             window.addEventListener("keydown", (e) => {
                 if (e.code === "Space") {
                     e.preventDefault();
@@ -1050,79 +1429,67 @@
                     if (overlay.classList.contains("hidden")) {
                         overlay.style.display = "none";
                     }
-                }, 400);
+                }, 300);
             }
         }
-
-        // =========================================================================
-        // CONTROLES DE LA CABECERA (BOTONES DE ACCIÓN)
-        // =========================================================================
-        // 1. Botón de Pausa / Reanudar giro automático
-        const btnAutoRotate = document.getElementById("btnAutoRotate");
-        const labelAutoRotate = document.getElementById("labelAutoRotate");
-        const iconAutoRotate = document.getElementById("iconAutoRotate");
 
         function toggleAutoRotate() {
             autoRotateActive = !autoRotateActive;
-            btnAutoRotate.classList.toggle("active", autoRotateActive);
+            const btn = document.getElementById("btnAutoRotate");
+            const icon = document.getElementById("iconAutoRotate");
+            const label = document.getElementById("labelAutoRotate");
+
             if (autoRotateActive) {
-                labelAutoRotate.textContent = "Pausa";
-                iconAutoRotate.textContent = "⏸️";
+                btn.classList.add("active");
+                icon.textContent = "⏸️";
+                label.textContent = "Pausa";
             } else {
-                labelAutoRotate.textContent = "Girar";
-                iconAutoRotate.textContent = "▶️";
+                btn.classList.remove("active");
+                icon.textContent = "▶️";
+                label.textContent = "Girar";
             }
         }
 
-        btnAutoRotate.addEventListener("click", toggleAutoRotate);
+        function setupHeaderButtons() {
+            document.getElementById("btnAutoRotate").addEventListener("click", toggleAutoRotate);
 
-        // 2. Centrar vista
-        document.getElementById("btnResetView").addEventListener("click", () => {
-            const item = INVENTOS_DB[currentIndex];
-            camera.target = BABYLON.Vector3.Zero(); // Centrado exacto
-            camera.radius = item.cameraRadius || 5.5;
-            camera.alpha = -Math.PI / 2.2;
-            camera.beta = item.isImageShowcase ? (Math.PI / 2) : (item.id === "padd" ? Math.PI / 2.05 : Math.PI / 3.0);
-            if (currentPivotNode && (item.isImageShowcase || item.id === "padd")) currentPivotNode.rotation.y = 0;
-        });
+            document.getElementById("btnResetView").addEventListener("click", () => {
+                if (camera) {
+                    camera.alpha = -Math.PI / 2.2;
+                    camera.beta = Math.PI / 2.8;
+                    camera.target = BABYLON.Vector3.Zero();
+                }
+            });
 
-        // 3. Alternar iluminación (Estudio vs Espacio Profundo)
-        const btnToggleLight = document.getElementById("btnToggleLight");
-        const labelLight = document.getElementById("labelLight");
-        btnToggleLight.addEventListener("click", () => {
-            lightModeStudio = !lightModeStudio;
-            if (lightModeStudio) {
-                hemiLight.intensity = 1.2;
-                dirLight1.intensity = 1.2;
-                dirLight2.intensity = 0.9;
-                labelLight.textContent = "Luz: Estudio";
-                btnToggleLight.classList.remove("active");
-            } else {
-                // Modo Espacio Dramático (luces de contraste alto)
-                hemiLight.intensity = 0.4;
-                dirLight1.intensity = 1.8;
-                dirLight2.intensity = 0.3;
-                labelLight.textContent = "Luz: Espacio";
-                btnToggleLight.classList.add("active");
-            }
-        });
+            document.getElementById("btnToggleLight").addEventListener("click", () => {
+                lightModeStudio = !lightModeStudio;
+                const label = document.getElementById("labelLight");
 
-        // 4. Mostrar/Ocultar Ficha Técnica
-        const infoPanel = document.getElementById("infoPanel");
-        const btnToggleInfo = document.getElementById("btnToggleInfo");
-        btnToggleInfo.addEventListener("click", () => {
-            infoPanel.classList.toggle("collapsed");
-            btnToggleInfo.classList.toggle("active", !infoPanel.classList.contains("collapsed"));
-        });
+                if (lightModeStudio) {
+                    label.textContent = "Luz: Estudio";
+                    if (hemiLight) hemiLight.intensity = 1.2;
+                    if (dirLight1) dirLight1.intensity = 1.2;
+                    if (dirLight2) dirLight2.intensity = 0.9;
+                } else {
+                    label.textContent = "Luz: Espacio";
+                    if (hemiLight) hemiLight.intensity = 0.4;
+                    if (dirLight1) dirLight1.intensity = 1.8;
+                    if (dirLight2) dirLight2.intensity = 0.3;
+                }
+            });
 
-        // =========================================================================
-        // INICIALIZACIÓN
-        // =========================================================================
-        initScene();
+            document.getElementById("btnToggleInfo").addEventListener("click", () => {
+                const panel = document.getElementById("infoPanel");
+                panel.classList.toggle("hidden");
+            });
+        }
 
         window.addEventListener("resize", () => {
             engine.resize();
         });
+
+        // Iniciar museo
+        initScene();
     </script>
 </body>
 </html>
