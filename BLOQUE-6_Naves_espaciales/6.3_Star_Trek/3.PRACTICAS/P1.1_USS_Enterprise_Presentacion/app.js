@@ -3,11 +3,11 @@ const engine = new BABYLON.Engine(canvas, true);
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Espacio negro profundo
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1); // Espacio negro
 
     // --- 1. Cámara y Luces ---
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, 0), scene);
-    camera.setTarget(new BABYLON.Vector3(0, 0, 100));
+    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo
 
     const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemiLight.intensity = 0.8;
@@ -33,7 +33,7 @@ const createScene = function () {
     starSystem.particleTexture = starTexture;
     starSystem.createBoxEmitter(new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(-2000, -2000, 0), new BABYLON.Vector3(2000, 2000, 5000));
     starSystem.color1 = new BABYLON.Color4(1, 1, 1, 1);
-    starSystem.color2 = new BABYLON.Color4(0.85, 0.9, 1, 1);
+    starSystem.color2 = new BABYLON.Color4(0.8, 0.8, 1, 1);
     starSystem.colorDead = new BABYLON.Color4(1, 1, 1, 1);
     starSystem.minSize = 0.5;
     starSystem.maxSize = 2.0;
@@ -54,19 +54,21 @@ const createScene = function () {
     BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, modelFile, scene).then((result) => {
         shipMesh = result.meshes[0];
 
-        // Capa de renderizado 1 y materiales opacos para profundidad correcta
+        // Capa de renderizado 1 y materiales nítidos
         result.meshes.forEach(mesh => {
             mesh.renderingGroupId = 1;
             if (mesh.material) {
+                mesh.material.transparencyMode = 0;
+                mesh.material.alphaMode = 0;
                 mesh.material.needDepthPrePass = true;
                 mesh.material.backFaceCulling = false;
             }
         });
 
-        // Luces estroboscópicas ajustadas exactamente a la escala del modelo
+        // Luces estroboscópicas adheridas milimétricamente al casco del Enterprise
         window.blinkLights = [];
         const createBlinkLight = (color, pos) => {
-            const sphere = BABYLON.MeshBuilder.CreateSphere("blinkLight", { diameter: 1.4 }, scene);
+            const sphere = BABYLON.MeshBuilder.CreateSphere("blinkLight", { diameter: 1.2 }, scene);
             const mat = new BABYLON.StandardMaterial("blinkMat", scene);
             mat.emissiveColor = color;
             mat.diffuseColor = color;
@@ -78,13 +80,13 @@ const createScene = function () {
             window.blinkLights.push(sphere);
         };
 
-        // Posiciones sobre la superficie del casco del USS Enterprise
-        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-29.2, 0.4, 10.0));  // Babor Platillo (Rojo)
-        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(29.2, 0.4, 10.0));   // Estribor Platillo (Verde)
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, 12.0, 14.0));     // Cúpula Superior (Blanco)
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, -9.5, -4.0));     // Quilla Inferior (Blanco)
+        // Posiciones exactas sobre el casco nativo del Enterprise (Platillo en -Z, Puente en +Y)
+        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-29.3, 31.0, -15.0)); // Babor Platillo (Rojo)
+        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(29.3, 31.0, -15.0));  // Estribor Platillo (Verde)
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, 53.0, -15.0));    // Cúpula Puente Superior (Blanco)
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, 20.0, -5.0));     // Quilla Inferior (Blanco)
 
-        // Fuego / Plasma de curvatura en las dos barquillas traseras
+        // Fuego / Plasma de curvatura en las dos barquillas superiores traseras (+Z)
         const createEngineFire = (pos) => {
             const emitterMesh = BABYLON.MeshBuilder.CreateBox("engineAnchor", { size: 1.0 }, scene);
             emitterMesh.parent = shipMesh;
@@ -96,18 +98,19 @@ const createScene = function () {
             fire.emitter = emitterMesh;
             fire.isLocal = true;
 
-            fire.color1 = new BABYLON.Color4(0.2, 0.8, 1.0, 1.0);
-            fire.color2 = new BABYLON.Color4(0.1, 0.2, 1.0, 1.0);
+            fire.color1 = new BABYLON.Color4(0.2, 0.8, 1.0, 1.0); // Cyan
+            fire.color2 = new BABYLON.Color4(0.1, 0.2, 1.0, 1.0); // Azul oscuro
             fire.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
 
-            fire.minSize = 8.0;
-            fire.maxSize = 18.0;
+            fire.minSize = 6.0;
+            fire.maxSize = 14.0;
             fire.minLifeTime = 0.1;
             fire.maxLifeTime = 0.3;
-            fire.emitRate = 450;
+            fire.emitRate = 500;
 
-            fire.direction1 = new BABYLON.Vector3(-0.5, -0.5, -80);
-            fire.direction2 = new BABYLON.Vector3(0.5, 0.5, -100);
+            // Disparar hacia la popa (+Z en coordenadas locales nativas del modelo)
+            fire.direction1 = new BABYLON.Vector3(-0.5, -0.5, 60);
+            fire.direction2 = new BABYLON.Vector3(0.5, 0.5, 80);
 
             fire.minEmitPower = 5;
             fire.maxEmitPower = 10;
@@ -116,25 +119,26 @@ const createScene = function () {
             fire.start();
         };
 
-        // Salidas traseras de las dos góndolas Warp
-        createEngineFire(new BABYLON.Vector3(-17.2, 8.5, -44.0)); // Góndola Babor
-        createEngineFire(new BABYLON.Vector3(17.2, 8.5, -44.0));  // Góndola Estribor
+        createEngineFire(new BABYLON.Vector3(-17.5, 46.0, 36.0)); // Barquilla Babor
+        createEngineFire(new BABYLON.Vector3(17.5, 46.0, 36.0));  // Barquilla Estribor
 
-        // Escala del USS Enterprise para igualar presencia visual del Intrepid
+        // Escala del USS Enterprise para tamaño majestuoso
         shipMesh.scaling = new BABYLON.Vector3(7.0, 7.0, 7.0);
 
-        // Posición inicial idéntica a P1.4: abajo a la izquierda y lejos en el espacio profundo
-        // Al comenzar abajo (Y=-550) y lejos (Z=3000), la cámara ve el platillo desde ARRIBA (vista dorsal).
-        // Al cruzar cerca (Z=0, Y=+250), pasa por encima de la cámara, viéndose toda la panza (vista ventral).
+        // Posición inicial: abajo a la izquierda en el espacio profundo
+        // Al comenzar abajo (Y = -550, Z = 3000), la cámara mira hacia abajo enfocando la parte SUPERIOR (platillo y puente).
+        // Al subir en diagonal y pasar rozando por encima (Z = 0, Y = +250), la cámara enfoca toda la parte INFERIOR (panza y deflector).
         shipMesh.position = new BABYLON.Vector3(-1700, -550, 3000);
 
-        // Vector de trayectoria en diagonal ascendente
+        // Vector de dirección del movimiento
         const moveDir = new BABYLON.Vector3(10, 4, -15);
+
+        // Orientación idéntica a Intrepid: Math.PI de corrección yaw para apuntar el platillo hacia la trayectoria
         shipMesh.rotationQuaternion = null;
-        shipMesh.lookAt(shipMesh.position.add(moveDir), 0, 0, 0);
+        shipMesh.lookAt(shipMesh.position.add(moveDir), Math.PI, 0, 0);
 
     }).catch(err => {
-        console.error("Error al cargar USS Enterprise:", err);
+        console.error("Error cargando USS Enterprise:", err);
     });
 
     // --- 4. Eventos de la Interfaz ---
@@ -160,12 +164,12 @@ const createScene = function () {
             let speedMultiplier = 0.08 + 0.92 * distanceFactor;
             let speed = 0.25 * speedMultiplier * (dt / 16.66);
 
-            // Desplazamiento diagonal: subiendo (+Y), a la derecha (+X) y hacia la cámara (-Z)
-            shipMesh.position.z -= speed * 15;
-            shipMesh.position.x += speed * 10;
-            shipMesh.position.y += speed * 4;
+            // Desplazamiento diagonal
+            shipMesh.position.z -= speed * 15; // Hacia la cámara
+            shipMesh.position.x += speed * 10; // Hacia la derecha
+            shipMesh.position.y += speed * 4;  // Hacia arriba
 
-            // Parpadeo de luces estroboscópicas de navegación
+            // Animación de luces intermitentes
             if (window.blinkLights) {
                 let time = Date.now();
                 window.blinkLights.forEach((light, index) => {
@@ -175,7 +179,7 @@ const createScene = function () {
                 });
             }
 
-            // Despliegue de rótulo Star Trek USS Enterprise tras cruzar la cámara
+            // Detección de cruce de cámara y despliegue de título tras 2s
             if (shipMesh.position.z < 150 && !titleShown) {
                 titleShown = true;
                 setTimeout(() => {
