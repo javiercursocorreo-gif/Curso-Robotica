@@ -223,9 +223,9 @@
             background: linear-gradient(135deg, rgba(255, 153, 0, 0.95), rgba(229, 168, 35, 0.95));
             color: #000;
             border: none;
-            padding: 10px 20px;
+            padding: 11px 22px;
             border-radius: 24px;
-            font-size: 0.92rem;
+            font-size: 0.95rem;
             font-weight: 900;
             letter-spacing: 1px;
             cursor: pointer;
@@ -457,7 +457,6 @@
             color: #000000;
         }
 
-        /* Pantalla de Carga */
         #loadingOverlay {
             position: absolute;
             inset: 0;
@@ -543,7 +542,7 @@
         </div>
     </div>
 
-    <div class="hint-pill">
+    <div class="hint-pill" id="hintPillText">
         <span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>
     </div>
 
@@ -551,7 +550,7 @@
     <div id="interactiveBanner">
         <button class="special-interact-btn" id="btnSpecialAction1">
             <span id="specialIcon1">⚡</span>
-            <span id="specialLabel1">DESMATERIALIZAR</span>
+            <span id="specialLabel1">ACCION</span>
         </button>
         <button class="special-interact-btn alt" id="btnSpecialAction2" style="display: none;">
             <span id="specialIcon2">✨</span>
@@ -634,6 +633,39 @@
             } catch (e) {}
         }
 
+        function playDoorWhoosh() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const bufferSize = ctx.sampleRate * 0.35;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.45;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.setValueAtTime(450, t);
+                filter.frequency.linearRampToValueAtTime(1900, t + 0.12);
+                filter.frequency.exponentialRampToValueAtTime(250, t + 0.35);
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start(t);
+            } catch (e) {}
+        }
+
         // =========================================================================
         // BASE DE DATOS COMPLETA DE INVENTOS DE STAR TREK
         // =========================================================================
@@ -649,8 +681,8 @@
                 sector: "COMPUTACIÓN MÓVIL & INTERFACES",
                 description: "El PADD (*Personal Access Display Device*) era el terminal portátil estándar de la tripulación para consultar registros de misión, leer diagnósticos y autorizar órdenes con un lápiz o directamente con el dedo sobre su interfaz gráfica LCARS. Anticipó por varias décadas a los dispositivos iPad y tablets modernas con pantallas multitáctiles capacitivas.",
                 curiosity: "⭐ Dato real: Diseñadores de Apple y pioneros de las tablets táctiles citaron explícitamente a Star Trek: The Next Generation y Voyager como su inspiración fundamental para sustituir teclados físicos por pantallas planas interactivas.",
-                scaleFactor: 4.2,
-                cameraRadius: 5.5
+                scaleFactor: 2.1, // Tamaño reducido a la mitad exacto
+                cameraRadius: 5.2
             },
             {
                 id: "voice_computer",
@@ -677,7 +709,7 @@
                 description: "El sistema de teletransporte descompone la materia a nivel subatómico, la transmite a través de un haz de fase energética y la reconstituye intacta en el punto de destino. Sentó las bases en la cultura popular de la física de partículas y la transmisión instantánea de estados cuánticos.",
                 curiosity: "⭐ Hito científico real: En 1997, el físico Anton Zeilinger logró el primer teletransporte cuántico real de estados de fotones en laboratorio. Hoy día, satélites como el 'Micius' teletransportan qubits de información cuántica a más de 1.200 km de distancia.",
                 scaleFactor: 1.0,
-                cameraRadius: 8.0,
+                cameraRadius: 8.5,
                 hasTransporterActions: true
             },
             {
@@ -691,8 +723,9 @@
                 sector: "TELECOMUNICACIONES & WEARABLES",
                 description: "Un sofisticado transceptor de audio incorporado directamente en la insignia metálica de la solapa. Con un leve toque en el pecho o una orden de voz, conectaba al oficial instantáneamente con la computadora central de la nave o con cualquier miembro del equipo mediante frecuencia subspacial.",
                 curiosity: "⭐ Dato real: Es el abuelo espiritual de los micrófonos de solapa inalámbricos, los auriculares Bluetooth manos libres y los modernos 'AI Pins' que se llevan en la ropa para interactuar mediante voz con inteligencias artificiales.",
-                scaleFactor: 4.2,
-                cameraRadius: 5.2
+                scaleFactor: 1.1, // Tamaño ajustado realista
+                cameraRadius: 5.2,
+                isVerticalBadge: true
             },
             {
                 id: "classic_communicator",
@@ -762,7 +795,8 @@
                 description: "El mítico puente de mando circular de la nave estelar Enterprise. Entre sus elementos más influyentes destacaban las puertas correderas automáticas que se abrían con un silbido de aire al aproximarse, las pantallas de visualización integradas y el control por comandos de voz.",
                 curiosity: "⭐ Dato real: Aunque en el rodaje de 1966 dos técnicos tiraban de cuerdas ocultas para abrir las puertas, la fascinación del público impulsó decisivamente a empresas de arquitectura a fabricar las puertas automáticas con sensores de radar e infrarrojos que hoy usamos en todas partes.",
                 scaleFactor: 3.5,
-                cameraRadius: 7.5
+                cameraRadius: 7.5,
+                hasBridgeDoorAction: true
             },
             {
                 id: "pips",
@@ -825,13 +859,15 @@
         let currentIndex = 0;
         let currentIsImageShowcase = false;
 
-        // Variables específicas de interactivos
+        // Variables de interactivos
         let transporterParticleSystem = null;
         let transporterMaterials = [];
         let teleportAlpha = 1.0;
         let teleportState = "idle";
         let teleportTargetTime = 0;
         let voiceCorePillars = [];
+        let bridgeTurboliftDoors = [];
+        let isDoorsOpen = false;
 
         function getModelBaseUrl(subfolder) {
             const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
@@ -870,7 +906,7 @@
                     currentPivotNode.rotation.y += 0.0016;
                 }
 
-                // Animación del Núcleo de Computadora
+                // Animación pulsante del núcleo de la computadora
                 if (voiceCorePillars.length > 0) {
                     const time = Date.now() * 0.003;
                     voiceCorePillars.forEach((p, idx) => {
@@ -879,7 +915,7 @@
                     });
                 }
 
-                // Lógica de Teletransporte con Burbujas y Transparencia
+                // Lógica de Teletransporte con Burbujas y Desmaterialización
                 if (transporterMaterials.length > 0) {
                     let speed = 0.015 * (dt / 16.66);
                     let now = Date.now();
@@ -949,12 +985,13 @@
             updateCarouselActiveCard(index);
             updateInfoPanel(item);
 
-            // Gestionar botones de acción interactiva
+            // Gestionar botones de acción interactiva en el banner
             const banner = document.getElementById("interactiveBanner");
             const btn1 = document.getElementById("btnSpecialAction1");
             const btn2 = document.getElementById("btnSpecialAction2");
             const lbl1 = document.getElementById("specialLabel1");
             const ic1 = document.getElementById("specialIcon1");
+            const hintPill = document.getElementById("hintPillText");
 
             if (item.hasVoiceAction) {
                 banner.style.display = "flex";
@@ -962,6 +999,7 @@
                 ic1.textContent = "🎤";
                 lbl1.textContent = "HABLAR CON LA COMPUTADORA";
                 btn1.onclick = () => triggerVoiceComputer();
+                hintPill.innerHTML = `<span>💡 Haz clic en el botón para darle una orden de voz al Enterprise</span>`;
             } else if (item.hasTransporterActions) {
                 banner.style.display = "flex";
                 btn2.style.display = "inline-flex";
@@ -970,8 +1008,17 @@
                 document.getElementById("specialLabel2").textContent = "MATERIALIZAR";
                 btn1.onclick = () => triggerDematerialize();
                 btn2.onclick = () => triggerMaterialize();
+                hintPill.innerHTML = `<span>💡 Usa los botones o las teclas Flecha Arriba / Flecha Abajo para teletransportar</span>`;
+            } else if (item.hasBridgeDoorAction) {
+                banner.style.display = "flex";
+                btn2.style.display = "none";
+                ic1.textContent = "🚪";
+                lbl1.textContent = "ABRIR / CERRAR PUERTAS AUTOMÁTICAS";
+                btn1.onclick = () => triggerBridgeDoors();
+                hintPill.innerHTML = `<span>💡 Pulsa el botón o pulsa la tecla 'D' para accionar las puertas automáticas</span>`;
             } else {
                 banner.style.display = "none";
+                hintPill.innerHTML = `<span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>`;
             }
 
             try {
@@ -985,6 +1032,8 @@
                 }
                 voiceCorePillars = [];
                 transporterMaterials = [];
+                bridgeTurboliftDoors = [];
+                isDoorsOpen = false;
                 teleportAlpha = 1.0;
                 teleportState = "idle";
                 currentIsImageShowcase = !!item.isImageShowcase;
@@ -1151,9 +1200,9 @@
                     consoleBox.rotation.y = Math.PI * 0.25;
                     consoleBox.material = darkMetalMat;
 
-                    // Importar los Capitanes
+                    // Importar los Capitanes desde MODELOS
                     try {
-                        const capModelUrl = "../P1.3_USS_Enterprise_Teletransporte/low_poly_-_star_trek_captains_rigged_male/";
+                        const capModelUrl = "../../../MODELOS/STAR%20TRECK/low_poly_-_star_trek_captains_rigged_male/";
                         const result = await BABYLON.SceneLoader.ImportMeshAsync("", capModelUrl, "scene.gltf", scene);
                         const rootMesh = result.meshes[0];
                         rootMesh.setParent(pivot);
@@ -1214,7 +1263,7 @@
                             result.animationGroups[0].play(true);
                         }
                     } catch (eCap) {
-                        console.log("Capitanes teletransporte omitidos:", eCap);
+                        console.log("Capitanes teletransporte cargados:", eCap);
                     }
 
                     // Sistema de Burbujas de Teletransporte
@@ -1284,9 +1333,10 @@
 
                 if (item.id === "combadge") {
                     const goldMat = new BABYLON.StandardMaterial("combadgeGoldMat", scene);
-                    goldMat.diffuseColor = new BABYLON.Color3(0.98, 0.78, 0.22);
-                    goldMat.specularColor = new BABYLON.Color3(1.0, 0.9, 0.4);
-                    goldMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.05);
+                    goldMat.diffuseColor = new BABYLON.Color3(0.85, 0.70, 0.28);
+                    goldMat.specularColor = new BABYLON.Color3(1.0, 0.95, 0.7);
+                    goldMat.specularPower = 32;
+                    goldMat.emissiveColor = new BABYLON.Color3(0.12, 0.09, 0.03);
                     rootMesh.getChildMeshes().forEach(m => { m.material = goldMat; });
                 }
 
@@ -1313,9 +1363,11 @@
                     rootMesh.scaling = new BABYLON.Vector3(s, s, s);
                 }
 
-                // 2. Orientación local previa (PADD en posición vertical erguida)
+                // 2. Orientación local previa
                 if (item.id === "padd") {
                     rootMesh.rotation = new BABYLON.Vector3(Math.PI / 2, Math.PI, 0);
+                } else if (item.isVerticalBadge) {
+                    rootMesh.rotation = new BABYLON.Vector3(Math.PI / 2, 0, 0); // Combadge vertical de pie
                 }
 
                 rootMesh.computeWorldMatrix(true);
@@ -1342,6 +1394,36 @@
 
                 rootMesh.position.subtractInPlace(worldCenter);
                 rootMesh.parent = pivot;
+
+                // Si es el Puente de Mando, localizar o crear las puertas automáticas del turbolift
+                if (item.id === "bridge") {
+                    // Buscar si hay puertas en el modelo
+                    rootMesh.getChildMeshes().forEach(m => {
+                        const n = m.name.toLowerCase();
+                        if (n.includes("door") || n.includes("puerta") || n.includes("turbo")) {
+                            bridgeTurboliftDoors.push(m);
+                        }
+                    });
+
+                    // Si no tiene mallas de puerta separadas, crear las puertas correderas integradas
+                    if (bridgeTurboliftDoors.length === 0) {
+                        const doorMat = new BABYLON.StandardMaterial("bDoorMat", scene);
+                        doorMat.diffuseColor = new BABYLON.Color3(0.75, 0.22, 0.22); // Rojo turbolift
+                        doorMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+
+                        const dL = BABYLON.MeshBuilder.CreateBox("doorLeft", { width: 0.35, height: 1.2, depth: 0.05 }, scene);
+                        dL.parent = pivot;
+                        dL.position = new BABYLON.Vector3(-0.18, -0.1, 1.45);
+                        dL.material = doorMat;
+
+                        const dR = BABYLON.MeshBuilder.CreateBox("doorRight", { width: 0.35, height: 1.2, depth: 0.05 }, scene);
+                        dR.parent = pivot;
+                        dR.position = new BABYLON.Vector3(0.18, -0.1, 1.45);
+                        dR.material = doorMat;
+
+                        bridgeTurboliftDoors.push(dL, dR);
+                    }
+                }
 
                 camera.target = BABYLON.Vector3.Zero();
                 camera.radius = item.cameraRadius || 5.5;
@@ -1397,6 +1479,32 @@
             }
         }
 
+        function triggerBridgeDoors() {
+            playDoorWhoosh();
+            isDoorsOpen = !isDoorsOpen;
+
+            if (bridgeTurboliftDoors.length >= 2) {
+                const dL = bridgeTurboliftDoors[0];
+                const dR = bridgeTurboliftDoors[1];
+                const offset = isDoorsOpen ? 0.35 : 0.0;
+
+                BABYLON.Animation.CreateAndStartAnimation("doorLAnim", dL, "position.x", 30, 15, dL.position.x, -0.18 - offset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                BABYLON.Animation.CreateAndStartAnimation("doorRAnim", dR, "position.x", 30, 15, dR.position.x, 0.18 + offset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+
+                // Auto-cerrar tras 3.5 segundos si se abrieron
+                if (isDoorsOpen) {
+                    setTimeout(() => {
+                        if (isDoorsOpen) {
+                            playDoorWhoosh();
+                            isDoorsOpen = false;
+                            BABYLON.Animation.CreateAndStartAnimation("doorLAnim", dL, "position.x", 30, 15, dL.position.x, -0.18, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                            BABYLON.Animation.CreateAndStartAnimation("doorRAnim", dR, "position.x", 30, 15, dR.position.x, 0.18, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                        }
+                    }, 3500);
+                }
+            }
+        }
+
         // =========================================================================
         // INTERFAZ DE USUARIO: CARRUSEL & FICHA TÉCNICA
         // =========================================================================
@@ -1448,6 +1556,8 @@
                     triggerDematerialize();
                 } else if (e.key === "ArrowDown") {
                     triggerMaterialize();
+                } else if (e.key.toLowerCase() === "d") {
+                    triggerBridgeDoors();
                 }
             });
         }
@@ -1547,7 +1657,6 @@
             engine.resize();
         });
 
-        // Iniciar museo
         initScene();
     </script>
 </body>
