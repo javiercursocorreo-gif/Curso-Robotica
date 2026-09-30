@@ -7,7 +7,7 @@ const createScene = function () {
 
     // --- 1. Cámara y Luces ---
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, 0), scene);
-    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo
+    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo espacial
 
     const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemiLight.intensity = 0.95;
@@ -43,7 +43,7 @@ const createScene = function () {
     starSystem.renderingGroupId = 0;
     starSystem.start();
 
-    // --- 3. Nodo de la Nave USS ENTERPRISE NCC-1701 ---
+    // --- 3. Modelo de la Nave USS ENTERPRISE NCC-1701 ---
     const shipMesh = new BABYLON.TransformNode("shipMesh", scene);
     let sequenceStarted = false;
     let titleShown = false;
@@ -57,7 +57,7 @@ const createScene = function () {
         rootMesh.parent = shipMesh;
         rootMesh.normalizeToUnitCube();
 
-        // Centrado dinámico
+        // Centrado dinámico geométrico idéntico al visor oficial
         let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
         let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
         rootMesh.getChildMeshes().forEach(m => {
@@ -71,22 +71,21 @@ const createScene = function () {
         const center = BABYLON.Vector3.Center(min, max);
         rootMesh.position.subtractInPlace(center);
 
-        // CORRECCIÓN ROTACIÓN ROLL 180º:
-        // El modelo importado estaba boca abajo. Al aplicar rotación de 180º en Z (roll),
-        // el puente y la cubierta superior del platillo quedan arriba (visibles desde el inicio)
-        // y el deflector de cobre y la panza quedan abajo.
+        // CORRECCIÓN ERGUIDA (+Y Puente arriba, -Y Panza abajo, +Z Platillo delante)
         rootMesh.rotation.z = Math.PI;
 
-        // Renderizado nítido en capa 1
+        // Optimización extrema para 742 mallas: congelar matrices del sub-árbol para 60 FPS estables
         result.meshes.forEach(mesh => {
             mesh.renderingGroupId = 1;
+            mesh.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
             if (mesh.material) {
                 mesh.material.needDepthPrePass = true;
                 mesh.material.backFaceCulling = false;
             }
+            mesh.freezeWorldMatrix();
         });
 
-        // Luces estroboscópicas sobre la superficie del casco corregido
+        // Luces estroboscópicas de navegación acopladas a la superficie del casco
         window.blinkLights = [];
         const createBlinkLight = (color, pos) => {
             const sphere = BABYLON.MeshBuilder.CreateSphere("blinkLight", { diameter: 0.035 }, scene);
@@ -101,13 +100,13 @@ const createScene = function () {
             window.blinkLights.push(sphere);
         };
 
-        // Luces en el platillo y puente
+        // Luces en los extremos del platillo y puente
         createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(0.44, 0.00, 0.16));  // Babor (Rojo)
         createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(-0.44, 0.00, 0.16)); // Estribor (Verde)
         createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, -0.13, 0.16)); // Cúpula Puente
         createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, 0.12, -0.02)); // Quilla Inferior
 
-        // Fuego / Plasma de curvatura en las dos barquillas traseras
+        // Fuego / Plasma de curvatura en las dos barquillas traseras (-Z)
         const createEngineFire = (pos) => {
             const emitterMesh = BABYLON.MeshBuilder.CreateBox("engineAnchor", { size: 0.02 }, scene);
             emitterMesh.parent = rootMesh;
@@ -129,6 +128,7 @@ const createScene = function () {
             fire.maxLifeTime = 0.3;
             fire.emitRate = 500;
 
+            // Disparar las partículas hacia atrás (-Z)
             fire.direction1 = new BABYLON.Vector3(-0.04, -0.04, -8);
             fire.direction2 = new BABYLON.Vector3(0.04, 0.04, -10);
 
@@ -146,16 +146,16 @@ const createScene = function () {
         shipMesh.scaling = new BABYLON.Vector3(750, 750, 750);
 
         // Posición inicial: abajo a la izquierda en el espacio profundo
+        // Al comenzar abajo (Y = -550, Z = 3000), la cámara mira en picado viendo el lomo y platillo superior.
+        // Al subir y cruzar rasante por encima (Z = 0, Y = +250), la cámara mira en contrapicado viendo la panza inferior.
         shipMesh.position = new BABYLON.Vector3(-1700, -550, 3000);
 
-        // Orientación angular: platillo apuntando hacia la trayectoria de vuelo
+        // Vector de trayectoria en diagonal ascendente
         const moveDir = new BABYLON.Vector3(10, 4, -15);
-        const yaw = Math.atan2(10, -15);
-        const pitch = -0.15; // Inclinación suave para vista dorsal perfecta desde el inicio
-        const roll = -0.20;  // Alabeo elegante hacia la cámara
 
+        // Orientación frontal: el platillo lidera el avance con el puente apuntando hacia arriba
         shipMesh.rotationQuaternion = null;
-        shipMesh.rotation = new BABYLON.Vector3(pitch, yaw, roll);
+        shipMesh.lookAt(shipMesh.position.add(moveDir), 0, 0, 0);
 
         isLoaded = true;
     }).catch(err => {
@@ -175,24 +175,24 @@ const createScene = function () {
         sequenceStarted = true;
     });
 
-    // --- 5. Bucle de Animación Continuo y Fluido (Sin parones ni saltos) ---
+    // --- 5. Bucle de Animación Rápido, Continuo y 100% Fluido ---
     scene.onBeforeRenderObservable.add(() => {
         const rawDt = engine.getDeltaTime();
         const dt = Math.min(Math.max(rawDt, 10), 33.33);
 
         if (sequenceStarted && isLoaded) {
-            // Velocidad constante y progresiva (nunca se frena a mitad de camino)
+            // Velocidad de crucero ágil idéntica a la Intrepid
             const zDist = Math.max(0, shipMesh.position.z);
             const distanceFactor = Math.min(1.0, zDist / 1200);
-            const speedMultiplier = 0.45 + 0.55 * distanceFactor;
-            const speed = 0.28 * speedMultiplier * (dt / 16.666);
+            const speedMultiplier = 0.20 + 0.80 * distanceFactor;
+            const speed = 0.30 * speedMultiplier * (dt / 16.666);
 
             // Desplazamiento continuo en diagonal
             shipMesh.position.z -= speed * 15; // Hacia la cámara
             shipMesh.position.x += speed * 10; // Hacia la derecha
             shipMesh.position.y += speed * 4;  // Hacia arriba
 
-            // Luces estroboscópicas de navegación
+            // Luces estroboscópicas sincronizadas
             if (window.blinkLights) {
                 const now = performance.now();
                 window.blinkLights.forEach((light, index) => {
@@ -202,7 +202,7 @@ const createScene = function () {
                 });
             }
 
-            // Detección de cruce de cámara y despliegue del título
+            // Despliegue del título tras cruzar la cámara
             if (shipMesh.position.z < 150 && !titleShown) {
                 titleShown = true;
                 setTimeout(() => {
