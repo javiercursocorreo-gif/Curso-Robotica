@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
-    <title>Arcade Ala-X: Asalto a la Trinchera 3D — Gran Quiz Galáctico</title>
+    <title>P4.JUEGO • Quiz Star Wars (Asalto a la Trinchera)</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -325,8 +325,8 @@
 <body>
 
     <header>
-        <div class="rebel-badge">ALIANZA REBELDE</div>
-        <div class="header-title">ARCADE ALA-X • ASALTO A LA TRINCHERA 3D (QUIZ)</div>
+        <div class="rebel-badge">P4.JUEGO</div>
+        <div class="header-title">P4.JUEGO • QUIZ STAR WARS (ASALTO A LA TRINCHERA)</div>
         <div class="header-bar"></div>
     </header>
 
@@ -363,7 +363,7 @@
         <!-- PANTALLA INICIAL -->
         <div id="start-screen" class="modal-screen">
             <div class="modal-card">
-                <h2 class="modal-title">ASALTO A LA ESTRELLA DE LA MUERTE</h2>
+                <h2 class="modal-title">P4.JUEGO: ASALTO A LA ESTRELLA DE LA MUERTE</h2>
                 <p class="modal-desc">
                     Piloto del <strong>Escuadrón Rojo (Ala-X T-65)</strong>: Para neutralizar las defensas de la trinchera y alcanzar el conducto térmico de escape, debes resolver con éxito las <strong>8 preguntas tácticas</strong> sobre la tecnología, propulsión y naves de Star Wars.
                 </p>
@@ -669,6 +669,8 @@
         }
 
         // --- LÓGICA DEL QUIZ ---
+        let currentCorrectIdx = 0;
+
         function loadQuestion() {
             if (currentQIndex >= questions.length) {
                 victory();
@@ -684,11 +686,26 @@
             const optsContainer = document.getElementById("q-options");
             optsContainer.innerHTML = "";
 
+            // Mapear opciones preservando cuál es la correcta
+            const optionsWithMeta = qData.opts.map((optText, index) => ({
+                text: optText,
+                isCorrect: index === qData.ans
+            }));
+
+            // Barajar aleatoriamente las opciones (Fisher-Yates) para distribuirlas entre A, B, C, D
+            for (let i = optionsWithMeta.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [optionsWithMeta[i], optionsWithMeta[j]] = [optionsWithMeta[j], optionsWithMeta[i]];
+            }
+
+            // Registrar el nuevo índice de la respuesta correcta
+            currentCorrectIdx = optionsWithMeta.findIndex(item => item.isCorrect);
+
             const letters = ["A", "B", "C", "D"];
-            qData.opts.forEach((opt, idx) => {
+            optionsWithMeta.forEach((item, idx) => {
                 const btn = document.createElement("button");
                 btn.className = "opt-btn";
-                btn.innerHTML = `<span class="opt-key">${letters[idx]}</span> <span>${opt}</span>`;
+                btn.innerHTML = `<span class="opt-key">${letters[idx]}</span> <span>${item.text}</span>`;
                 btn.onclick = () => selectAnswer(idx);
                 optsContainer.appendChild(btn);
             });
@@ -712,12 +729,11 @@
             isAnswering = true;
             clearInterval(timerInterval);
 
-            const qData = questions[currentQIndex];
             const optButtons = document.querySelectorAll(".opt-btn");
 
-            if (selectedIdx === qData.ans) {
+            if (selectedIdx === currentCorrectIdx) {
                 // Acierto
-                optButtons[selectedIdx].classList.add("correct");
+                if (optButtons[selectedIdx]) optButtons[selectedIdx].classList.add("correct");
                 score += 250 + (timeLeft * 20);
                 distance = Math.max(0, distance - 125);
                 audio.playR2Beep();
@@ -725,8 +741,8 @@
                 setTimeout(() => createExplosion(width / 2, height * 0.45, "#ffe81f"), 400);
             } else {
                 // Fallo
-                optButtons[selectedIdx].classList.add("wrong");
-                optButtons[qData.ans].classList.add("correct");
+                if (optButtons[selectedIdx]) optButtons[selectedIdx].classList.add("wrong");
+                if (optButtons[currentCorrectIdx]) optButtons[currentCorrectIdx].classList.add("correct");
                 shields = Math.max(0, shields - 25);
                 audio.playHit();
                 createExplosion(width / 2, height * 0.7, "#ff3333");
@@ -746,6 +762,8 @@
         function handleTimeOut() {
             if (isAnswering) return;
             isAnswering = true;
+            const optButtons = document.querySelectorAll(".opt-btn");
+            if (optButtons[currentCorrectIdx]) optButtons[currentCorrectIdx].classList.add("correct");
             shields = Math.max(0, shields - 25);
             audio.playHit();
             createExplosion(width / 2, height * 0.7, "#ff3333");
