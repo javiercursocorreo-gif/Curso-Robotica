@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>P1.1: Presentación USS Enterprise</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Trek: USS Enterprise NCC-1701 Intro</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2">
-    
-    <!-- Babylon.js core and loaders -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Babylon.js core -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <!-- GitHub Pages / Classroom CDN Asset Resolver -->
@@ -52,16 +51,26 @@
     })();
     </script>
 
-
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
-    <canvas id="renderCanvas"></canvas>
-
+    
+    <!-- UI Overlay -->
     <div id="ui-container">
-        <h1>USS ENTERPRISE</h1>
-        <p id="telemetry">Clase Constitution - Nave de exploración espacial</p>
+        <!-- Botón de Inicio -->
+        <button id="startButton">INICIAR SECUENCIA</button>
+        
+        <!-- Título que aparecerá luego -->
+        <div id="tng-title" class="hidden">
+            <h1>STAR TREK</h1>
+            <h2>USS ENTERPRISE NCC-1701</h2>
+        </div>
     </div>
 
-    <script src="app.js?v=18"></script>
+    <!-- Canvas para Babylon.js -->
+    <canvas id="renderCanvas"></canvas>
+
+    <script src="app.js?v=20"></script>
 </body>
 </html>
