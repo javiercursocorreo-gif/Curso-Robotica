@@ -1290,47 +1290,58 @@
                     rootMesh.getChildMeshes().forEach(m => { m.material = goldMat; });
                 }
 
-                // Normalización de escala
-                rootMesh.normalizeToUnitCube();
-                const targetScale = item.scaleFactor || 3.5;
-                rootMesh.scaling.scaleInPlace(targetScale);
-
-                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
-                let orientNode = null;
-
-                if (item.id === "padd") {
-                    orientNode = new BABYLON.TransformNode("orient_" + item.id, scene);
-                    orientNode.parent = pivot;
-                    rootMesh.parent = orientNode;
-                    orientNode.rotation.x = Math.PI / 2;
-                    orientNode.rotation.y = Math.PI;
-                } else {
-                    rootMesh.parent = pivot;
-                }
-
-                // Centrado dinámico
-                let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
-                let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
-                let validVertices = false;
+                // 1. Escala proporcional basada en las mallas activas
+                let minInit = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let maxInit = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let hasVerts = false;
 
                 rootMesh.getChildMeshes().forEach(m => {
                     if (m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
                         m.computeWorldMatrix(true);
                         const b = m.getBoundingInfo().boundingBox;
-                        min = BABYLON.Vector3.Minimize(min, b.minimumWorld);
-                        max = BABYLON.Vector3.Maximize(max, b.maximumWorld);
-                        validVertices = true;
+                        minInit = BABYLON.Vector3.Minimize(minInit, b.minimumWorld);
+                        maxInit = BABYLON.Vector3.Maximize(maxInit, b.maximumWorld);
+                        hasVerts = true;
                     }
                 });
 
-                if (validVertices) {
-                    const center = BABYLON.Vector3.Center(min, max);
-                    if (orientNode) {
-                        orientNode.position.subtractInPlace(center);
-                    } else {
-                        rootMesh.position.subtractInPlace(center);
-                    }
+                const initialSize = maxInit.subtract(minInit);
+                const maxDim = Math.max(initialSize.x, initialSize.y, initialSize.z);
+                const targetScale = item.scaleFactor || 3.5;
+                if (hasVerts && maxDim > 0) {
+                    const s = targetScale / maxDim;
+                    rootMesh.scaling = new BABYLON.Vector3(s, s, s);
                 }
+
+                // 2. Orientación local previa (PADD en posición vertical erguida)
+                if (item.id === "padd") {
+                    rootMesh.rotation = new BABYLON.Vector3(Math.PI / 2, Math.PI, 0);
+                }
+
+                rootMesh.computeWorldMatrix(true);
+
+                // 3. Cálculo del centro geométrico exacto tras rotación y escala
+                let minFinal = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let maxFinal = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        minFinal = BABYLON.Vector3.Minimize(minFinal, b.minimumWorld);
+                        maxFinal = BABYLON.Vector3.Maximize(maxFinal, b.maximumWorld);
+                    }
+                });
+
+                const worldCenter = BABYLON.Vector3.Center(minFinal, maxFinal);
+
+                // 4. Centrado en el origen (0,0,0) y asignación al nodo pivote de giro
+                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                pivot.position = BABYLON.Vector3.Zero();
+                pivot.rotation.y = 0;
+
+                rootMesh.position.subtractInPlace(worldCenter);
+                rootMesh.parent = pivot;
 
                 camera.target = BABYLON.Vector3.Zero();
                 camera.radius = item.cameraRadius || 5.5;
