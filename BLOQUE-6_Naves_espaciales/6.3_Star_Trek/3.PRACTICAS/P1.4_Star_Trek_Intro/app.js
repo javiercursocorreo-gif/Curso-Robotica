@@ -169,9 +169,13 @@ const createScene = function () {
         }
     });
 
-    // --- 4. Eventos de la Interfaz ---
+    // --- 4. Eventos de la Interfaz y Audio ---
     const startBtn = document.getElementById("startButton");
     const titleDiv = document.getElementById("tng-title");
+    const bgMusic = document.getElementById("bgMusic");
+    if (bgMusic) {
+        bgMusic.load(); // Precargar en memoria de inmediato para reproducción instantánea
+    }
 
     startBtn.addEventListener("click", () => {
         if (!shipMesh) {
@@ -181,6 +185,18 @@ const createScene = function () {
         
         startBtn.style.display = "none";
         sequenceStarted = true;
+
+        // Iniciar la música de fondo (Space Fanfare)
+        if (bgMusic) {
+            bgMusic.volume = 0.85;
+            bgMusic.currentTime = 0;
+            bgMusic.play().catch(e => {
+                console.log("Audio play error, retrying:", e);
+                const audioObj = new Audio("audio.mp3");
+                audioObj.volume = 0.85;
+                audioObj.play();
+            });
+        }
     });
 
     // --- 5. Bucle de Animación ---
@@ -247,6 +263,21 @@ const createScene = function () {
                     // Forzar reflow para la transición CSS
                     void titleDiv.offsetWidth;
                     titleDiv.style.opacity = 1;
+
+                    // Desvanecer y detener la música 2 segundos después del título
+                    setTimeout(() => {
+                        if (bgMusic) {
+                            let fadeInterval = setInterval(() => {
+                                if (bgMusic.volume > 0.06) {
+                                    bgMusic.volume = Math.max(0, bgMusic.volume - 0.05);
+                                } else {
+                                    bgMusic.volume = 0;
+                                    bgMusic.pause();
+                                    clearInterval(fadeInterval);
+                                }
+                            }, 80);
+                        }
+                    }, 2000);
                 }, 2000);
             }
         }

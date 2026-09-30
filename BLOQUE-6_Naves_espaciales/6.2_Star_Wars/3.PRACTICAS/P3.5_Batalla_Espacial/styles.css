@@ -1,0 +1,89 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Evitar barras de desplazamiento */
+    background-color: #000;
+}
+
+/* Canvas de Babylon.js que estará en el fondo */
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1; /* Detrás del texto */
+}
+
+/* Contenedor del texto (fijo en la pantalla) */
+#crawl-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2; /* Sobre el canvas */
+    display: flex;
+    justify-content: center;
+    perspective: 400px; /* Aquí aplicamos la perspectiva 3D */
+    overflow: hidden;
+    pointer-events: none; /* Dejar que los clics pasen al canvas */
+}
+
+/* El texto en sí que se animará */
+#crawl-text {
+    width: 60%;
+    max-width: 800px;
+    color: #fbd603; /* Amarillo característico */
+    font-family: 'Pathway Gothic One', sans-serif;
+    font-size: 4rem;
+    font-weight: 600;
+    text-align: justify;
+    line-height: 1.5;
+    
+    /* Inclinamos el texto en el eje X */
+    transform-origin: 50% 100%;
+    transform: rotateX(25deg) translateY(100vh);
+    
+    /* Animación: dura 30 segundos, aceleración lineal */
+    animation: scrollCrawl 30s linear forwards;
+}
+
+#crawl-text h1 {
+    font-size: 8rem;
+    text-align: center;
+    margin-bottom: 0;
+}
+
+#crawl-text h2 {
+    font-size: 5rem;
+    text-align: center;
+    margin-top: 0;
+}
+
+#crawl-text h3 {
+    font-size: 4rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Definición de la animación de desplazamiento */
+@keyframes scrollCrawl {
+    0% {
+        /* Empieza abajo de la pantalla, fuera de la vista */
+        transform: rotateX(25deg) translateY(100vh);
+        opacity: 1;
+    }
+    85% {
+        /* Desaparece lentamente mientras sigue subiendo */
+        opacity: 1;
+    }
+    100% {
+        /* Sube hasta desaparecer en el fondo y se desvanece */
+        transform: rotateX(25deg) translateY(-300vh);
+        opacity: 0;
+    }
+}

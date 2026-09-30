@@ -1,0 +1,68 @@
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: hidden; 
+    background-color: black; 
+    font-family: 'Arial', sans-serif; 
+}
+
+#renderCanvas { 
+    width: 100%; 
+    height: 100%; 
+    touch-action: none; 
+    display: block; 
+}
+
+/* Interfaz de Usuario (UI) superpuesta al Canvas (Estilo Sci-Fi Star Trek) */
+#ui-title {
+    position: absolute;
+    top: 40px;
+    left: 50px;
+    color: #000; /* Interior hueco/negro */
+    -webkit-text-stroke: 2px #44aaff; /* Borde azul futurista */
+    font-size: 40px;
+    font-family: 'Arial Black', Impact, sans-serif;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    /* Efecto 3D clásico: Inclinación hacia el fondo y sombra extruida */
+    transform: perspective(400px) rotateX(15deg) rotateY(10deg);
+    transform-origin: bottom left;
+    text-shadow: 
+         1px 1px 0 #44aaff,
+         2px 2px 0 #2277bb,
+         3px 3px 0 #2277bb,
+         4px 4px 0 #114477,
+         5px 5px 0 #114477;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#ui-instructions {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 20, 40, 0.7);
+    border: 1px solid #44aaff;
+    border-radius: 8px;
+    padding: 15px 20px;
+    color: #fff;
+    font-size: 16px;
+    line-height: 1.8;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(68, 170, 255, 0.5);
+}
+
+.key {
+    display: inline-block;
+    background: #002244;
+    border: 1px solid #44aaff;
+    border-radius: 3px;
+    padding: 2px 8px;
+    margin-right: 8px;
+    color: #44aaff;
+    font-weight: bold;
+}

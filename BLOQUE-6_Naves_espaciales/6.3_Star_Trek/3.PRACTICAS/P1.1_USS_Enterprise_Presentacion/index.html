@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Star Trek: USS Enterprise NCC-1701 Intro</title>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <!-- Babylon.js core -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
@@ -52,12 +52,31 @@
     </script>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="styles.css?v=20">
+    <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
     
+    <!-- Audio de Fondo (Star Trek Theme) -->
+    <audio id="bgMusic" src="audio.mp3" preload="auto" loop></audio>
+
     <!-- UI Overlay -->
     <div id="ui-container">
+        <!-- Banner LCARS Panorámico con la Frase Icónica (Ancho Completo) -->
+        <div id="quote-hud" class="hidden">
+            <div class="hud-header">
+                <div class="hud-header-left">
+                    <span class="hud-dot"></span>
+                    <span class="hud-tag">BITÁCORA DE LA FLOTA ESTELAR // NCC-1701</span>
+                </div>
+                <div class="hud-freq">SUBESPACIO CANAL-ALPHA // WARP FACTOR 5</div>
+            </div>
+            <div class="ticker-wrapper">
+                <div class="ticker-content" id="quote-text">
+                    «El espacio, la última frontera. Estos son los viajes de la nave estelar Enterprise, en una misión que durará cinco años, dedicada a la exploración de mundos desconocidos, al descubrimiento de nuevas vidas y de nuevas civilizaciones, hasta alcanzar lugares donde nadie ha podido llegar.»
+                </div>
+            </div>
+        </div>
+
         <!-- Botón de Inicio -->
         <button id="startButton">INICIAR SECUENCIA</button>
         
@@ -71,6 +90,6 @@
     <!-- Canvas para Babylon.js -->
     <canvas id="renderCanvas"></canvas>
 
-    <script src="app.js?v=20"></script>
+    <script src="app.js?v=25"></script>
 </body>
 </html>

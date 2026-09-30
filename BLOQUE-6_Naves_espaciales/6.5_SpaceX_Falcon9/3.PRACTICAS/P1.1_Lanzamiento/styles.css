@@ -1,0 +1,79 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+#ui-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Dejar pasar los clicks al canvas */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+#title-panel {
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    color: white;
+    padding: 20px 40px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#title-panel h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+#title-panel p {
+    margin: 5px 0 0 0;
+    color: #a0a0a0;
+    font-size: 1.1rem;
+}
+
+#controls-panel {
+    pointer-events: auto; /* Reactivar clicks para los botones */
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+
+#btn-launch {
+    background-color: #cc0000;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(204, 0, 0, 0.5);
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+#btn-launch:hover {
+    background-color: #ff0000;
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+
+#btn-launch:active {
+    transform: scale(0.95);
+}

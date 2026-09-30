@@ -112,6 +112,19 @@ scratch/
 !MODELOS/**/*.html
 !MODELOS/**/*.js
 
+# 14. Excepciones completas para Bloque 6 (Star Wars, Star Trek, Interstellar, SpaceX)
+!BLOQUE-6_Naves_espaciales/**/
+!BLOQUE-6_Naves_espaciales/**/*.html
+!BLOQUE-6_Naves_espaciales/**/*.css
+!BLOQUE-6_Naves_espaciales/**/*.js
+!BLOQUE-6_Naves_espaciales/**/*.mp3
+!BLOQUE-6_Naves_espaciales/**/*.gltf
+!BLOQUE-6_Naves_espaciales/**/*.glb
+!BLOQUE-6_Naves_espaciales/**/*.bin
+!BLOQUE-6_Naves_espaciales/**/*.png
+!BLOQUE-6_Naves_espaciales/**/*.jpg
+!BLOQUE-6_Naves_espaciales/**/*.jpeg
+
 # Ignorar archivos mayores a 100MB (límite duro de GitHub) y temporales
 MODELOS/girl_warrior_motorcycle_cyber_by_oscar_creativo.glb
 MODELOS/MODELOS NUEVOS 1/MOON/trimble_sx20__air_rover__dog/**

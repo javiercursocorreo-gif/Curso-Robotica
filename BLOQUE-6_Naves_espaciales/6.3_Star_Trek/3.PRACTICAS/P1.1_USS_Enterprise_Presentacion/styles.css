@@ -32,37 +32,124 @@ body, html {
     flex-direction: column;
 }
 
+/* --- Banner LCARS Panorámico de Ancho Completo --- */
+#quote-hud {
+    position: absolute;
+    top: 20px;
+    left: 28px;
+    right: 28px;
+    box-sizing: border-box;
+    background: linear-gradient(135deg, rgba(8, 18, 32, 0.92) 0%, rgba(5, 10, 20, 0.88) 100%);
+    border: 1.5px solid rgba(56, 189, 248, 0.65);
+    border-left: 6px solid #38bdf8;
+    border-right: 6px solid #ffd700;
+    border-radius: 8px;
+    padding: 14px 24px;
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.35), inset 0 0 20px rgba(56, 189, 248, 0.15);
+    backdrop-filter: blur(12px);
+    transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+}
+
+#quote-hud.hidden {
+    opacity: 0;
+    transform: translateY(-30px);
+    pointer-events: none;
+}
+
+.hud-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+    padding-bottom: 6px;
+}
+
+.hud-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hud-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #ef4444;
+    animation: blinkDot 1.2s infinite ease-in-out;
+}
+
+@keyframes blinkDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(0.8); }
+}
+
+.hud-tag {
+    font-size: 15px;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 3px;
+    color: #ffd700;
+    font-weight: 700;
+}
+
+.hud-freq {
+    font-size: 14px;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 2px;
+    color: #38bdf8;
+    opacity: 0.9;
+}
+
+.ticker-wrapper {
+    width: 100%;
+    line-height: 1.6;
+}
+
+.ticker-content {
+    font-family: 'Share Tech Mono', 'Orbitron', monospace;
+    font-size: 24px;
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.85), 0 0 25px rgba(56, 189, 248, 0.45);
+    letter-spacing: 1.2px;
+    font-weight: 600;
+}
+
+/* --- Botón de Inicio --- */
 #startButton {
     pointer-events: auto;
-    padding: 16px 44px;
-    font-size: 22px;
+    padding: 18px 50px;
+    font-size: 24px;
     font-family: 'Orbitron', sans-serif;
     font-weight: 700;
-    background: rgba(10, 20, 35, 0.7);
+    background: rgba(10, 20, 35, 0.75);
     color: #38bdf8;
     border: 2px solid #38bdf8;
-    border-radius: 8px;
+    border-radius: 10px;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 3px;
     transition: all 0.3s ease;
-    box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), inset 0 0 12px rgba(56, 189, 248, 0.3);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.5), inset 0 0 14px rgba(56, 189, 248, 0.3);
+    backdrop-filter: blur(10px);
 }
 
 #startButton:hover {
-    background-color: rgba(56, 189, 248, 0.25);
+    background-color: rgba(56, 189, 248, 0.3);
     color: #ffffff;
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.9), inset 0 0 18px rgba(56, 189, 248, 0.6);
-    transform: scale(1.04);
+    box-shadow: 0 0 35px rgba(56, 189, 248, 0.95), inset 0 0 20px rgba(56, 189, 248, 0.7);
+    transform: scale(1.05);
 }
 
+/* --- Título Final Cinemático --- */
 #tng-title {
     text-align: center;
     color: #ffd700;
-    text-shadow: 0 0 12px rgba(255, 215, 0, 0.7), 0 0 25px rgba(234, 179, 8, 0.5), 0 0 40px rgba(56, 189, 248, 0.6);
+    text-shadow: 0 0 14px rgba(255, 215, 0, 0.8), 0 0 28px rgba(234, 179, 8, 0.6), 0 0 45px rgba(56, 189, 248, 0.7);
     opacity: 1;
-    transition: opacity 3s ease-in-out;
+    transition: opacity 2.5s ease-in-out;
     transform: scale(1.15);
 }
 
@@ -72,18 +159,18 @@ body, html {
 }
 
 #tng-title h1 {
-    font-size: 5vw;
+    font-size: 5.5vw;
     margin: 0;
-    letter-spacing: 16px;
+    letter-spacing: 18px;
     font-weight: 900;
     font-family: 'Orbitron', sans-serif;
 }
 
 #tng-title h2 {
-    font-size: 2.2vw;
-    margin-top: 5px;
-    letter-spacing: 12px;
+    font-size: 2.3vw;
+    margin-top: 8px;
+    letter-spacing: 14px;
     font-weight: 700;
     color: #7dd3fc;
-    text-shadow: 0 0 10px rgba(125, 211, 252, 0.8);
+    text-shadow: 0 0 12px rgba(125, 211, 252, 0.85);
 }
