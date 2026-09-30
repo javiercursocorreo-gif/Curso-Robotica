@@ -1,5 +1,5 @@
 const canvas = document.getElementById("renderCanvas");
-const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+const engine = new BABYLON.Engine(canvas, true);
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
@@ -7,7 +7,7 @@ const createScene = function () {
 
     // --- 1. Cámara y Luces ---
     const camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, 0), scene);
-    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo espacial
+    camera.setTarget(new BABYLON.Vector3(0, 0, 100)); // Mirando hacia el fondo
 
     const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
     hemiLight.intensity = 0.95;
@@ -43,11 +43,11 @@ const createScene = function () {
     starSystem.renderingGroupId = 0;
     starSystem.start();
 
-    // --- 3. Nodo Raíz de la Nave USS ENTERPRISE NCC-1701 ---
+    // --- 3. Nodo de la Nave USS ENTERPRISE NCC-1701 ---
     const shipMesh = new BABYLON.TransformNode("shipMesh", scene);
-
+    let sequenceStarted = false;
+    let titleShown = false;
     let isLoaded = false;
-    let animGroup = null;
 
     const modelUrl = "../../../../MODELOS/STAR%20TRECK/U.S.S.%20Enterprise%20NCC%20-%201701/";
     const modelFile = "scene.gltf";
@@ -57,7 +57,7 @@ const createScene = function () {
         rootMesh.parent = shipMesh;
         rootMesh.normalizeToUnitCube();
 
-        // Centrado dinámico basado en geometría visible
+        // Centrado dinámico
         let min = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
         let max = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
         rootMesh.getChildMeshes().forEach(m => {
@@ -71,17 +71,22 @@ const createScene = function () {
         const center = BABYLON.Vector3.Center(min, max);
         rootMesh.position.subtractInPlace(center);
 
-        // Optimización de rendimiento para 742 mallas (elimina cualquier salto o tirones)
+        // CORRECCIÓN ROTACIÓN ROLL 180º:
+        // El modelo importado estaba boca abajo. Al aplicar rotación de 180º en Z (roll),
+        // el puente y la cubierta superior del platillo quedan arriba (visibles desde el inicio)
+        // y el deflector de cobre y la panza quedan abajo.
+        rootMesh.rotation.z = Math.PI;
+
+        // Renderizado nítido en capa 1
         result.meshes.forEach(mesh => {
             mesh.renderingGroupId = 1;
-            mesh.cullingStrategy = BABYLON.AbstractMesh.CULLINGSTRATEGY_BOUNDINGSPHERE_ONLY;
             if (mesh.material) {
                 mesh.material.needDepthPrePass = true;
                 mesh.material.backFaceCulling = false;
             }
         });
 
-        // Luces estroboscópicas de navegación acopladas a los extremos reales del platillo
+        // Luces estroboscópicas sobre la superficie del casco corregido
         window.blinkLights = [];
         const createBlinkLight = (color, pos) => {
             const sphere = BABYLON.MeshBuilder.CreateSphere("blinkLight", { diameter: 0.035 }, scene);
@@ -96,13 +101,13 @@ const createScene = function () {
             window.blinkLights.push(sphere);
         };
 
-        // Babor (Rojo), Estribor (Verde), Puente (Blanco), Quilla (Blanco)
-        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-0.44, 0.00, 0.16));
-        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(0.44, 0.00, 0.16));
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, 0.13, 0.16));
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, -0.12, -0.02));
+        // Luces en el platillo y puente
+        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(0.44, 0.00, 0.16));  // Babor (Rojo)
+        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(-0.44, 0.00, 0.16)); // Estribor (Verde)
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, -0.13, 0.16)); // Cúpula Puente
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0.00, 0.12, -0.02)); // Quilla Inferior
 
-        // Fuego / Plasma de curvatura en las dos barquillas traseras (-Z)
+        // Fuego / Plasma de curvatura en las dos barquillas traseras
         const createEngineFire = (pos) => {
             const emitterMesh = BABYLON.MeshBuilder.CreateBox("engineAnchor", { size: 0.02 }, scene);
             emitterMesh.parent = rootMesh;
@@ -134,48 +139,23 @@ const createScene = function () {
             fire.start();
         };
 
-        createEngineFire(new BABYLON.Vector3(-0.18, 0.08, -0.48));
-        createEngineFire(new BABYLON.Vector3(0.18, 0.08, -0.48));
+        createEngineFire(new BABYLON.Vector3(0.18, -0.08, -0.48));  // Barquilla Babor
+        createEngineFire(new BABYLON.Vector3(-0.18, -0.08, -0.48)); // Barquilla Estribor
 
         // Escala del USS Enterprise
         shipMesh.scaling = new BABYLON.Vector3(750, 750, 750);
 
-        // Posición y orientación iniciales en reposo
+        // Posición inicial: abajo a la izquierda en el espacio profundo
         shipMesh.position = new BABYLON.Vector3(-1700, -550, 3000);
-        shipMesh.rotation = new BABYLON.Vector3(-0.48, Math.atan2(10, -15), -0.38);
 
-        // --- SISTEMA DE ANIMACIÓN POR CLAVES NATIVO DE BABYLON (100% FLUIDO A 60 FPS) ---
-        const frameRate = 60;
-        const totalFrames = 600;
+        // Orientación angular: platillo apuntando hacia la trayectoria de vuelo
+        const moveDir = new BABYLON.Vector3(10, 4, -15);
+        const yaw = Math.atan2(10, -15);
+        const pitch = -0.15; // Inclinación suave para vista dorsal perfecta desde el inicio
+        const roll = -0.20;  // Alabeo elegante hacia la cámara
 
-        // 1. Animación de Posición
-        const animPos = new BABYLON.Animation("animPos", "position", frameRate, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-        const posKeys = [
-            { frame: 0, value: new BABYLON.Vector3(-1700, -550, 3000) },
-            { frame: 320, value: new BABYLON.Vector3(-350, -80, 800) },
-            { frame: 450, value: new BABYLON.Vector3(250, 220, -100) },
-            { frame: totalFrames, value: new BABYLON.Vector3(750, 450, -850) }
-        ];
-        const easePos = new BABYLON.QuadraticEase();
-        easePos.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT);
-        animPos.setEasingFunction(easePos);
-        animPos.setKeys(posKeys);
-
-        // 2. Animación de Rotación (Muestra el lomo/platillo al inicio y la panza al cruzar)
-        const animRot = new BABYLON.Animation("animRot", "rotation", frameRate, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-        const yawAngle = Math.atan2(10, -15);
-        const rotKeys = [
-            // Inicio en el espacio lejano: inclinación hacia delante (-0.48 rad) y alabeo (-0.38 rad)
-            // Esto apunta directamente la cubierta superior del platillo y el puente hacia el objetivo de la cámara.
-            { frame: 0, value: new BABYLON.Vector3(-0.48, yawAngle, -0.38) },
-            { frame: 300, value: new BABYLON.Vector3(-0.25, yawAngle, -0.22) },
-            // Cruce sobre la cámara: la nave asciende por encima y muestra la panza, deflector y motores
-            { frame: 450, value: new BABYLON.Vector3(0.12, yawAngle, -0.08) },
-            { frame: totalFrames, value: new BABYLON.Vector3(0.18, yawAngle, 0.00) }
-        ];
-        animRot.setKeys(rotKeys);
-
-        shipMesh.animations = [animPos, animRot];
+        shipMesh.rotationQuaternion = null;
+        shipMesh.rotation = new BABYLON.Vector3(pitch, yaw, roll);
 
         isLoaded = true;
     }).catch(err => {
@@ -192,30 +172,46 @@ const createScene = function () {
             return;
         }
         startBtn.style.display = "none";
-        
-        // Disparar animación nativa por hardware
-        scene.beginAnimation(shipMesh, 0, 600, false, 1.0, () => {
-            // Animación finalizada
-        });
-
-        // Revelar título de Star Trek tras el cruce rasante de la nave
-        setTimeout(() => {
-            titleDiv.classList.remove("hidden");
-            titleDiv.style.display = "block";
-            void titleDiv.offsetWidth;
-            titleDiv.style.opacity = 1;
-        }, 7500);
+        sequenceStarted = true;
     });
 
-    // --- 5. Luces Estroboscópicas Continuas ---
+    // --- 5. Bucle de Animación Continuo y Fluido (Sin parones ni saltos) ---
     scene.onBeforeRenderObservable.add(() => {
-        if (window.blinkLights) {
-            let time = performance.now();
-            window.blinkLights.forEach((light, index) => {
-                let cycle = 1800;
-                let offset = index * 450;
-                light.isVisible = ((time + offset) % cycle < 110);
-            });
+        const rawDt = engine.getDeltaTime();
+        const dt = Math.min(Math.max(rawDt, 10), 33.33);
+
+        if (sequenceStarted && isLoaded) {
+            // Velocidad constante y progresiva (nunca se frena a mitad de camino)
+            const zDist = Math.max(0, shipMesh.position.z);
+            const distanceFactor = Math.min(1.0, zDist / 1200);
+            const speedMultiplier = 0.45 + 0.55 * distanceFactor;
+            const speed = 0.28 * speedMultiplier * (dt / 16.666);
+
+            // Desplazamiento continuo en diagonal
+            shipMesh.position.z -= speed * 15; // Hacia la cámara
+            shipMesh.position.x += speed * 10; // Hacia la derecha
+            shipMesh.position.y += speed * 4;  // Hacia arriba
+
+            // Luces estroboscópicas de navegación
+            if (window.blinkLights) {
+                const now = performance.now();
+                window.blinkLights.forEach((light, index) => {
+                    const cycle = 1800;
+                    const offset = index * 450;
+                    light.isVisible = ((now + offset) % cycle < 110);
+                });
+            }
+
+            // Detección de cruce de cámara y despliegue del título
+            if (shipMesh.position.z < 150 && !titleShown) {
+                titleShown = true;
+                setTimeout(() => {
+                    titleDiv.classList.remove("hidden");
+                    titleDiv.style.display = "block";
+                    void titleDiv.offsetWidth;
+                    titleDiv.style.opacity = 1;
+                }, 2000);
+            }
         }
     });
 
