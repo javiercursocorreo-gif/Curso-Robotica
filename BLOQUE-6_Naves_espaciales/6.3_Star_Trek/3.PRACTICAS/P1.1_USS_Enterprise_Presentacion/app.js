@@ -73,10 +73,7 @@ const createScene = function () {
         const center = BABYLON.Vector3.Center(min, max);
         rootMesh.position.subtractInPlace(center);
 
-        // Orientación del modelo 3D: rotar para que mire hacia +Z y el puente quede hacia +Y
-        rootMesh.rotation = new BABYLON.Vector3(-Math.PI / 2, 0, 0);
-
-        // Configuración de renderizado visible sin congelaciones problemáticas
+        // Sin rotaciones forzadas: Babylon carga el modelo horizontalmente con el platillo hacia +Z
         result.meshes.forEach(mesh => {
             mesh.renderingGroupId = 1;
             if (mesh.material) {
@@ -100,13 +97,13 @@ const createScene = function () {
             window.blinkLights.push(sphere);
         };
 
-        // Posiciones de luces sobre el casco
-        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-0.35, 0.04, 0.20)); // Babor Rojo
-        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(0.35, 0.04, 0.20));  // Estribor Verde
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, 0.16, 0.22));     // Cúpula Superior
-        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, -0.12, -0.05));   // Quilla
+        // Posiciones sobre el platillo y casco (Platillo en +Z, Góndolas en -Z)
+        createBlinkLight(new BABYLON.Color3(1, 0, 0), new BABYLON.Vector3(-0.35, 0.04, 0.18)); // Babor Rojo
+        createBlinkLight(new BABYLON.Color3(0, 1, 0), new BABYLON.Vector3(0.35, 0.04, 0.18));  // Estribor Verde
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, 0.16, 0.15));     // Cúpula Superior
+        createBlinkLight(new BABYLON.Color3(1, 1, 1), new BABYLON.Vector3(0, -0.12, 0.0));     // Quilla Inferior
 
-        // Fuego / Plasma de curvatura en las dos barquillas traseras
+        // Fuego / Plasma de curvatura en las dos barquillas traseras (-Z)
         const createEngineFire = (pos) => {
             const emitterMesh = BABYLON.MeshBuilder.CreateBox("engineAnchor", { size: 0.04 }, scene);
             emitterMesh.parent = shipMesh;
@@ -141,7 +138,7 @@ const createScene = function () {
         shipMesh.scaling = new BABYLON.Vector3(650, 650, 650);
         shipMesh.position = new BABYLON.Vector3(-1700, -550, 3000);
 
-        // Trayectoria orientada hacia la cámara
+        // Orientación de vuelo hacia la cámara (+Z platillo apunta a la dirección de movimiento)
         const moveDir = new BABYLON.Vector3(10, 4, -15);
         shipMesh.rotationQuaternion = null;
         shipMesh.lookAt(shipMesh.position.add(moveDir), 0, 0, 0);
@@ -164,7 +161,7 @@ const createScene = function () {
         sequenceStarted = true;
     });
 
-    // --- 5. Animación de Vuelo Continuo ---
+    // --- 5. Animación de Vuelo Continuo y Fluido ---
     scene.onBeforeRenderObservable.add(() => {
         if (sequenceStarted && isLoaded) {
             const dt = engine.getDeltaTime();
