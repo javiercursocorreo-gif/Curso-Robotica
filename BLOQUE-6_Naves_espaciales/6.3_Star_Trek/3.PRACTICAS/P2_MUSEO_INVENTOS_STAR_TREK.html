@@ -666,6 +666,39 @@
             } catch (e) {}
         }
 
+        function playTransporterSound() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(360, t);
+                osc.frequency.linearRampToValueAtTime(740, t + 1.2);
+                osc.frequency.linearRampToValueAtTime(520, t + 2.4);
+
+                osc2.type = "triangle";
+                osc2.frequency.setValueAtTime(720, t);
+                osc2.frequency.linearRampToValueAtTime(1480, t + 1.2);
+                osc2.frequency.linearRampToValueAtTime(1040, t + 2.4);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.2, t + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
+
+                osc.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(t);
+                osc2.start(t);
+                osc.stop(t + 2.55);
+                osc2.stop(t + 2.55);
+            } catch (e) {}
+        }
+
         // =========================================================================
         // BASE DE DATOS COMPLETA DE INVENTOS DE STAR TREK
         // =========================================================================
@@ -858,6 +891,7 @@
         let dirLight2 = null;
         let currentIndex = 0;
         let currentIsImageShowcase = false;
+        let currentIsTransporterRoom = false;
 
         // Variables de interactivos
         let transporterParticleSystem = null;
@@ -882,9 +916,9 @@
 
             camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 6.0, BABYLON.Vector3.Zero(), scene);
             camera.attachControl(canvas, true);
-            camera.wheelPrecision = 35;
-            camera.lowerRadiusLimit = 1.5;
-            camera.upperRadiusLimit = 25.0;
+            camera.wheelPrecision = 25;
+            camera.lowerRadiusLimit = 1.0;
+            camera.upperRadiusLimit = 250.0;
 
             hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
             hemiLight.intensity = 1.2;
@@ -902,7 +936,7 @@
             scene.onBeforeRenderObservable.add(() => {
                 let dt = engine.getDeltaTime();
 
-                if (autoRotateActive && currentPivotNode && !currentIsImageShowcase) {
+                if (autoRotateActive && currentPivotNode && !currentIsImageShowcase && !currentIsTransporterRoom) {
                     currentPivotNode.rotation.y += 0.0016;
                 }
 
@@ -1036,7 +1070,7 @@
                 isDoorsOpen = false;
                 teleportAlpha = 1.0;
                 teleportState = "idle";
-                currentIsImageShowcase = !!item.isImageShowcase;
+                currentIsTransporterRoom = !!item.isFullTransporterRoom;
 
                 // CASO 1: Imagen 2D HD (Comunicador clásico)
                 if (item.isImageShowcase) {
@@ -1126,7 +1160,7 @@
                     return;
                 }
 
-                // CASO 3: Sala de Teletransporte Completa con Capitanes y Burbujas
+                // CASO 3: Sala de Teletransporte Completa con Capitanes y Burbujas (Exacta de P1.3)
                 if (item.isFullTransporterRoom) {
                     const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
 
@@ -1142,63 +1176,83 @@
                     emissiveWhiteMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
                     emissiveWhiteMat.disableLighting = true;
 
-                    // Escenario de Teletransporte
-                    const floor = BABYLON.MeshBuilder.CreateGround("tFloor", {width: 20, height: 20}, scene);
+                    // Suelo
+                    const floor = BABYLON.MeshBuilder.CreateGround("tFloor", {width: 200, height: 200}, scene);
                     floor.parent = pivot;
-                    floor.position.y = -1.5;
                     floor.material = lightMetalMat;
 
-                    const baseStep = BABYLON.MeshBuilder.CreateCylinder("tBaseStep", {height: 0.4, diameter: 7.0}, scene);
+                    // Escalón Base
+                    const baseStep = BABYLON.MeshBuilder.CreateCylinder("tBaseStep", {height: 4, diameter: 70}, scene);
                     baseStep.parent = pivot;
-                    baseStep.position.y = -1.3;
+                    baseStep.position.y = 2;
                     baseStep.material = darkMetalMat;
 
-                    const topStep = BABYLON.MeshBuilder.CreateCylinder("tTopStep", {height: 0.2, diameter: 6.0}, scene);
+                    // Escalón Superior
+                    const topStep = BABYLON.MeshBuilder.CreateCylinder("tTopStep", {height: 2, diameter: 60}, scene);
                     topStep.parent = pivot;
-                    topStep.position.y = -1.0;
+                    topStep.position.y = 5;
                     topStep.material = darkMetalMat;
 
-                    const centerLight = BABYLON.MeshBuilder.CreateCylinder("tCenterLight", {height: 0.21, diameter: 2.0}, scene);
+                    // Luz Central del Pad
+                    const centerLight = BABYLON.MeshBuilder.CreateCylinder("tCenterLight", {height: 2.1, diameter: 20}, scene);
                     centerLight.parent = pivot;
-                    centerLight.position.y = -1.0;
+                    centerLight.position.y = 5;
                     centerLight.material = emissiveWhiteMat;
 
+                    // 5 Pads exteriores
                     for (let i = 0; i < 5; i++) {
                         let angle = (i * Math.PI * 2) / 5;
-                        let pad = BABYLON.MeshBuilder.CreateCylinder("tOuterPad" + i, {height: 0.21, diameter: 1.2}, scene);
+                        let pad = BABYLON.MeshBuilder.CreateCylinder("tOuterPad" + i, {height: 2.1, diameter: 12}, scene);
                         pad.parent = pivot;
-                        pad.position.x = Math.cos(angle) * 2.2;
-                        pad.position.z = Math.sin(angle) * 2.2;
-                        pad.position.y = -1.0;
+                        pad.position.x = Math.cos(angle) * 22;
+                        pad.position.z = Math.sin(angle) * 22;
+                        pad.position.y = 5;
                         pad.material = emissiveWhiteMat;
                     }
 
-                    const backWall = BABYLON.MeshBuilder.CreateBox("tBackWall", {width: 12, height: 6, depth: 0.2}, scene);
+                    // Pared Trasera Plana
+                    const backWall = BABYLON.MeshBuilder.CreateBox("tBackWall", {width: 120, height: 60, depth: 2}, scene);
                     backWall.parent = pivot;
-                    backWall.position.y = 1.5;
-                    backWall.position.z = 4.5;
+                    backWall.position.y = 30;
+                    backWall.position.z = 45;
                     backWall.material = lightMetalMat;
 
+                    // Paneles Luminosos en la pared trasera
                     for (let i = 0; i < 5; i++) {
-                        let panel = BABYLON.MeshBuilder.CreateBox("tPanel" + i, {width: 0.4, height: 4.0, depth: 0.1}, scene);
+                        let panel = BABYLON.MeshBuilder.CreateBox("tPanel" + i, {width: 4, height: 40, depth: 1}, scene);
                         panel.parent = pivot;
-                        panel.position.x = -4.0 + (i * 2.0);
-                        panel.position.z = 4.4;
-                        panel.position.y = 1.5;
+                        panel.position.x = -40 + (i * 20);
+                        panel.position.z = 44;
+                        panel.position.y = 30;
                         panel.material = emissiveWhiteMat;
                     }
 
-                    const ceiling = BABYLON.MeshBuilder.CreateBox("tCeiling", {width: 12, height: 0.2, depth: 6}, scene);
+                    // Techo
+                    const ceiling = BABYLON.MeshBuilder.CreateBox("tCeiling", {width: 120, height: 2, depth: 60}, scene);
                     ceiling.parent = pivot;
-                    ceiling.position.y = 4.5;
-                    ceiling.position.z = 1.5;
+                    ceiling.position.y = 60;
+                    ceiling.position.z = 15;
                     ceiling.material = lightMetalMat;
 
-                    const consoleBox = BABYLON.MeshBuilder.CreateBox("tConsoleBox", {width: 1.5, height: 1.2, depth: 0.8}, scene);
+                    // Consola de Control
+                    const consoleBox = BABYLON.MeshBuilder.CreateBox("tConsoleBox", {width: 15, height: 12, depth: 8}, scene);
                     consoleBox.parent = pivot;
-                    consoleBox.position = new BABYLON.Vector3(-3.0, -0.9, -3.0);
+                    consoleBox.position = new BABYLON.Vector3(-30, 6, -30);
                     consoleBox.rotation.y = Math.PI * 0.25;
                     consoleBox.material = darkMetalMat;
+
+                    const consoleTop = BABYLON.MeshBuilder.CreateBox("tConsoleTop", {width: 14, height: 1, depth: 7}, scene);
+                    consoleTop.parent = pivot;
+                    consoleTop.position = new BABYLON.Vector3(-30, 12, -30);
+                    consoleTop.rotation.y = Math.PI / 4;
+                    consoleTop.rotation.x = Math.PI / 6;
+                    consoleTop.material = emissiveWhiteMat;
+
+                    // Luz Cenital del Pad
+                    const padLight = new BABYLON.PointLight("tPadLight", new BABYLON.Vector3(0, 40, 0), scene);
+                    padLight.parent = pivot;
+                    padLight.intensity = 0.8;
+                    padLight.diffuse = new BABYLON.Color3(0.5, 0.8, 1);
 
                     // Importar los Capitanes desde MODELOS
                     try {
@@ -1206,8 +1260,8 @@
                         const result = await BABYLON.SceneLoader.ImportMeshAsync("", capModelUrl, "scene.gltf", scene);
                         const rootMesh = result.meshes[0];
                         rootMesh.setParent(pivot);
-                        rootMesh.scaling = new BABYLON.Vector3(0.6, 0.6, 0.6);
-                        rootMesh.position = new BABYLON.Vector3(0, -0.9, 0);
+                        rootMesh.scaling = new BABYLON.Vector3(6, 6, 6);
+                        rootMesh.position = new BABYLON.Vector3(0, 6.1, 0);
 
                         result.meshes.forEach(m => {
                             if (m.material) {
@@ -1235,24 +1289,24 @@
                                     // Capitán en la consola
                                     capNode.getChildMeshes(false).forEach(m => {
                                         if (m.material) {
-                                            m.material = m.material.clone(m.material.name + "_cons");
+                                            m.material = m.material.clone(m.material.name + "_console");
                                             m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
                                             m.material.alpha = 1.0;
                                         }
                                     });
                                     rootMesh.computeWorldMatrix(true);
-                                    let invRoot = rootMesh.getWorldMatrix().clone().invert();
-                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-3.8, 0, -3.8), invRoot);
+                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-38, 0, -38), invRootMatrix);
                                     capNode.rotationQuaternion = null;
                                     capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
                                 } else {
-                                    // 5 capitanes en los pads
+                                    // 5 capitanes en los 5 pads
                                     let angle = (i * Math.PI * 2) / 5;
-                                    let worldX = Math.cos(angle) * 2.2;
-                                    let worldZ = Math.sin(angle) * 2.2;
+                                    let worldX = Math.cos(angle) * 22;
+                                    let worldZ = Math.sin(angle) * 22;
                                     rootMesh.computeWorldMatrix(true);
-                                    let invRoot = rootMesh.getWorldMatrix().clone().invert();
-                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(worldX, 0.1, worldZ), invRoot);
+                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(worldX, 6.1, worldZ), invRootMatrix);
                                     capNode.rotationQuaternion = null;
                                     capNode.rotation = new BABYLON.Vector3(0, 0, 0);
                                 }
@@ -1263,21 +1317,21 @@
                             result.animationGroups[0].play(true);
                         }
                     } catch (eCap) {
-                        console.log("Capitanes teletransporte cargados:", eCap);
+                        console.warn("Capitanes teletransporte cargados:", eCap);
                     }
 
                     // Sistema de Burbujas de Teletransporte
-                    transporterParticleSystem = new BABYLON.ParticleSystem("transporterParticles", 8000, scene);
-                    const bubbleTexture = new BABYLON.DynamicTexture("bTex", 64, scene, true);
-                    const bCtx = bubbleTexture.getContext();
-                    bCtx.clearRect(0, 0, 64, 64);
-                    bCtx.beginPath();
-                    bCtx.arc(32, 32, 26, 0, Math.PI * 2);
-                    bCtx.fillStyle = "#FFFFFF";
-                    bCtx.fill();
-                    bCtx.shadowColor = "white";
-                    bCtx.shadowBlur = 10;
-                    bCtx.fill();
+                    transporterParticleSystem = new BABYLON.ParticleSystem("particles", 15000, scene);
+                    const bubbleTexture = new BABYLON.DynamicTexture("bubbleTexture", 64, scene, true);
+                    const bctx = bubbleTexture.getContext();
+                    bctx.clearRect(0, 0, 64, 64);
+                    bctx.beginPath();
+                    bctx.arc(32, 32, 28, 0, Math.PI * 2);
+                    bctx.fillStyle = "#FFFFFF";
+                    bctx.fill();
+                    bctx.shadowColor = "white";
+                    bctx.shadowBlur = 10;
+                    bctx.fill();
                     bubbleTexture.update();
 
                     transporterParticleSystem.particleTexture = bubbleTexture;
@@ -1285,29 +1339,32 @@
                     transporterParticleSystem.createBoxEmitter(
                         new BABYLON.Vector3(0, 1, 0),
                         new BABYLON.Vector3(0, 1, 0),
-                        new BABYLON.Vector3(-2.5, -0.5, -2.5),
-                        new BABYLON.Vector3(2.5, -0.5, 2.5)
+                        new BABYLON.Vector3(-25, 6, -25),
+                        new BABYLON.Vector3(25, 6, 25)
                     );
                     transporterParticleSystem.color1 = new BABYLON.Color4(1.0, 1.0, 1.0, 1.0);
-                    transporterParticleSystem.color2 = new BABYLON.Color4(0.9, 0.9, 1.0, 1.0);
+                    transporterParticleSystem.color2 = new BABYLON.Color4(0.9, 0.9, 0.9, 1.0);
                     transporterParticleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
-                    transporterParticleSystem.minSize = 0.05;
-                    transporterParticleSystem.maxSize = 0.18;
+                    transporterParticleSystem.minSize = 0.2;
+                    transporterParticleSystem.maxSize = 0.8;
                     transporterParticleSystem.minLifeTime = 1.0;
-                    transporterParticleSystem.maxLifeTime = 2.0;
+                    transporterParticleSystem.maxLifeTime = 2.5;
                     transporterParticleSystem.emitRate = 0;
                     transporterParticleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
-                    transporterParticleSystem.gravity = new BABYLON.Vector3(0, 2.0, 0);
-                    transporterParticleSystem.direction1 = new BABYLON.Vector3(-0.1, 0.5, -0.1);
-                    transporterParticleSystem.direction2 = new BABYLON.Vector3(0.1, 0.5, 0.1);
-                    transporterParticleSystem.minEmitPower = 0.5;
-                    transporterParticleSystem.maxEmitPower = 1.5;
+                    transporterParticleSystem.gravity = new BABYLON.Vector3(0, 20, 0);
+                    transporterParticleSystem.direction1 = new BABYLON.Vector3(-1, 5, -1);
+                    transporterParticleSystem.direction2 = new BABYLON.Vector3(1, 5, 1);
+                    transporterParticleSystem.minAngularSpeed = 0;
+                    transporterParticleSystem.maxAngularSpeed = Math.PI;
+                    transporterParticleSystem.minEmitPower = 5;
+                    transporterParticleSystem.maxEmitPower = 15;
+                    transporterParticleSystem.updateSpeed = 0.02;
                     transporterParticleSystem.start();
 
-                    camera.target = new BABYLON.Vector3(0, 0.5, 0);
-                    camera.radius = 9.0;
-                    camera.alpha = -Math.PI / 2.2;
-                    camera.beta = Math.PI / 2.6;
+                    camera.target = new BABYLON.Vector3(0, 20, 0);
+                    camera.radius = 125;
+                    camera.alpha = -Math.PI / 2;
+                    camera.beta = Math.PI / 2.25;
 
                     currentPivotNode = pivot;
                     setTimeout(() => showLoading(false), 200);
@@ -1444,17 +1501,19 @@
         // =========================================================================
         function triggerDematerialize() {
             if (teleportAlpha >= 0.5) {
+                playTransporterSound();
                 teleportState = "pre_dissolve";
                 teleportTargetTime = Date.now() + 1500;
-                if (transporterParticleSystem) transporterParticleSystem.emitRate = 2500;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 4000;
             }
         }
 
         function triggerMaterialize() {
             if (teleportAlpha <= 0.5) {
+                playTransporterSound();
                 teleportState = "pre_materialize";
                 teleportTargetTime = Date.now() + 1500;
-                if (transporterParticleSystem) transporterParticleSystem.emitRate = 2500;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 4000;
             }
         }
 
@@ -1715,9 +1774,18 @@
 
             document.getElementById("btnResetView").addEventListener("click", () => {
                 if (camera) {
-                    camera.alpha = -Math.PI / 2.2;
-                    camera.beta = Math.PI / 2.8;
-                    camera.target = BABYLON.Vector3.Zero();
+                    if (currentIsTransporterRoom) {
+                        camera.target = new BABYLON.Vector3(0, 20, 0);
+                        camera.radius = 125;
+                        camera.alpha = -Math.PI / 2;
+                        camera.beta = Math.PI / 2.25;
+                    } else {
+                        const item = INVENTOS_DB[currentIndex];
+                        camera.alpha = -Math.PI / 2.2;
+                        camera.beta = item && item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 2.8);
+                        camera.radius = (item && item.cameraRadius) || 5.5;
+                        camera.target = BABYLON.Vector3.Zero();
+                    }
                 }
             });
 
