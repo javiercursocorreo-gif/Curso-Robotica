@@ -109,72 +109,69 @@ const createScene = function () {
     let teleportAlpha = 1.0; // Estado inicial: materializados
     
     BABYLON.SceneLoader.ImportMeshAsync("", "low_poly_-_star_trek_captains_rigged_male/", "scene.gltf", scene).then((result) => {
-        let rootMesh = result.meshes[0];
-        // Escalar modelo original a un tamaño más normal
-        rootMesh.scaling = new BABYLON.Vector3(6, 6, 6);
-        rootMesh.position = new BABYLON.Vector3(0, 6.1, 0); // Altura de los pads (6.1)
-        
-        // Recolectar todos los materiales del modelo original
+        if (result.skeletons) {
+            result.skeletons.forEach(s => s.dispose());
+        }
         result.meshes.forEach(m => {
-            if (m.material) {
-                // Hacer el material transparente
-                m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                m.material.alpha = teleportAlpha;
-                if(!characterMaterials.includes(m.material)){
-                    characterMaterials.push(m.material);
-                }
-            }
+            m.skeleton = null;
         });
 
-        // Los 6 capitanes que vienen dentro del archivo
-        let captainNames = [
-            "ST-TOS_Captain_34",
-            "ST-DISC_Captain_68",
-            "ST-ENT_Captain_102",
-            "ST-TNG_Captain_136",
-            "ST-VOY_Captain_170",
-            "ST-DS9_Captain_204"
+        const captainGroups = [
+            { name: "TOS", meshes: [0, 1, 2, 3, 4, 5], restX: -2.0 },
+            { name: "DISC", meshes: [6, 7, 8, 9, 10], restX: -6.0 },
+            { name: "ENT", meshes: [11, 12, 13, 14, 15, 16], restX: -10.0 },
+            { name: "TNG", meshes: [17, 18, 19, 20], restX: 2.0 },
+            { name: "VOY", meshes: [21, 22, 23, 24, 25], restX: 6.0 },
+            { name: "DS9", meshes: [26, 27, 28, 29, 30], restX: 10.0 }
         ];
-        
-        for (let i = 0; i < captainNames.length; i++) {
-            let capNode = scene.getNodeByName(captainNames[i]);
-            if (capNode) {
-                if (i === 5) {
-                    // El 6º capitán va a la consola de mandos
-                    capNode.getChildMeshes(true).forEach(m => {
-                        if (m.material) {
-                            m.material = m.material.clone(m.material.name + "_console");
-                            m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                            m.material.alpha = 1.0;
+
+        captainGroups.forEach((group, i) => {
+            const capPivot = new BABYLON.TransformNode("capPivot_" + group.name, scene);
+            capPivot.scaling = new BABYLON.Vector3(6, 6, 6);
+
+            let worldX, worldY, worldZ, rotY;
+            if (i === 5) {
+                // 6º capitán en la consola
+                worldX = -30;
+                worldY = 0;
+                worldZ = -30;
+                rotY = Math.PI * 1.25;
+            } else {
+                // 5 capitanes en los 5 pads
+                const angle = (i * Math.PI * 2) / 5;
+                worldX = Math.cos(angle) * 22;
+                worldY = 6.1;
+                worldZ = Math.sin(angle) * 22;
+                rotY = 0;
+            }
+
+            capPivot.position = new BABYLON.Vector3(worldX, worldY, worldZ);
+            capPivot.rotation = new BABYLON.Vector3(0, rotY, 0);
+
+            group.meshes.forEach(mIdx => {
+                const mesh = scene.getMeshByName("Object_" + mIdx);
+                if (mesh) {
+                    mesh.setParent(capPivot);
+                    mesh.position = new BABYLON.Vector3(-group.restX, 0, 0);
+                    mesh.rotation = BABYLON.Vector3.Zero();
+                    mesh.scaling = BABYLON.Vector3.One();
+
+                    if (mesh.material) {
+                        if (i === 5) {
+                            mesh.material = mesh.material.clone(mesh.material.name + "_console");
+                            mesh.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                            mesh.material.alpha = 1.0;
+                        } else {
+                            mesh.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                            mesh.material.alpha = teleportAlpha;
+                            if (!characterMaterials.includes(mesh.material)) {
+                                characterMaterials.push(mesh.material);
+                            }
                         }
-                    });
-                    
-                    capNode.position = new BABYLON.Vector3(-30 / 6, 0, -30 / 6);
-                    if (capNode.rotationQuaternion) {
-                        capNode.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(0, Math.PI * 1.25, 0);
-                    } else {
-                        capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
-                    }
-                } else {
-                    // Los 5 capitanes restantes van a los 5 pads
-                    let angle = (i * Math.PI * 2) / 5;
-                    let worldX = Math.cos(angle) * 22;
-                    let worldZ = Math.sin(angle) * 22;
-                    
-                    capNode.position = new BABYLON.Vector3(worldX / 6, 0, worldZ / 6);
-                    if (capNode.rotationQuaternion) {
-                        capNode.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(0, 0, 0);
-                    } else {
-                        capNode.rotation = new BABYLON.Vector3(0, 0, 0);
                     }
                 }
-            }
-        }
-        
-        // Ejecutar animaciones si las hay (idle)
-        if(result.animationGroups && result.animationGroups.length > 0){
-            result.animationGroups[0].play(true); // Loop
-        }
+            });
+        });
     });
 
     // --- 6. Sistema de Partículas (Teletransporte) ---
