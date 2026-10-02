@@ -1458,22 +1458,62 @@
             }
         }
 
+        // Banco completo de respuestas de la Computadora LCARS del Enterprise
+        const MASTER_COMPUTER_PHRASES = [
+            "Computadora en línea. Todos los sistemas del Enterprise operan al cien por ciento.",
+            "Reconocimiento de voz confirmado. Procesando solicitud de la Flota Estelar.",
+            "Sensores de largo alcance activos. No se detectan anomalías gravitacionales en este cuadrante.",
+            "Bienvenido a bordo, Capitán. Computadora central a su disposición.",
+            "Acceso a la base de datos de la Federación concedido. Nivel de seguridad diez verificado.",
+            "Simulación de holocubierta preparada. Parámetros de seguridad de la Flota activados.",
+            "Diagnóstico de propulsión warp completado. Métrica de curvatura estable a factor ocho.",
+            "Replicador de materia preparado. Indique el patrón molecular que desea sintetizar.",
+            "Escudos deflectores cargados al noventa y ocho por ciento. Frecuencia modulada.",
+            "Análisis espectrográfico finalizado. No hay presencia de naves hostiles en el sector.",
+            "Canales de comunicación subespacial abiertos con el Cuartel General de la Flota.",
+            "Ajuste de gravedad artificial verificado. Soporte vital en parámetros óptimos.",
+            "Enfermería central informa: constantes biológicas de la tripulación dentro de rangos normales.",
+            "Cálculo de vector de navegación completado. Listos para entrar en órbita sincrónica.",
+            "Transductor de teletransporte en espera. Coordenadas de superficie fijadas con precisión.",
+            "Red de microprocesadores isolineales sincronizada. Velocidad de procesamiento óptima."
+        ];
+
+        let remainingComputerPhrases = [];
+
+        function getNextComputerPhrase() {
+            if (remainingComputerPhrases.length === 0) {
+                // Rellenar y barajar aleatoriamente (algoritmo Fisher-Yates) para que no se repita ninguna hasta agotarlas todas
+                remainingComputerPhrases = [...MASTER_COMPUTER_PHRASES];
+                for (let i = remainingComputerPhrases.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [remainingComputerPhrases[i], remainingComputerPhrases[j]] = [remainingComputerPhrases[j], remainingComputerPhrases[i]];
+                }
+            }
+            return remainingComputerPhrases.pop();
+        }
+
         function triggerVoiceComputer() {
             playComputerChime();
-            const phrases = [
-                "Computadora en línea. Todos los sistemas del Enterprise operan al cien por ciento.",
-                "Reconocimiento de voz confirmado. Procesando solicitud de la Flota Estelar.",
-                "Sensores de largo alcance activos. Sin anomalías en el cuadrante.",
-                "Bienvenido a bordo, Capitán. Computadora a su disposición."
-            ];
-            const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+            const phrase = getNextComputerPhrase();
+
+            const hintPill = document.getElementById("hintPillText");
+            if (hintPill) {
+                hintPill.innerHTML = `<span style="color:#ffcc00; font-weight:700;">🗣️ Computadora: "${phrase}"</span>`;
+            }
 
             if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Cancelar locución previa si estuviera hablando
                 setTimeout(() => {
                     const utterance = new SpeechSynthesisUtterance(phrase);
                     utterance.lang = "es-ES";
                     utterance.rate = 0.95;
                     utterance.pitch = 1.05;
+
+                    // Intentar seleccionar una voz femenina/clara en español si está disponible en el navegador
+                    const voices = window.speechSynthesis.getVoices();
+                    const esVoice = voices.find(v => v.lang.startsWith("es") && (v.name.includes("Google") || v.name.includes("Monica") || v.name.includes("Paulina") || v.name.includes("Helena") || v.name.includes("Laura")));
+                    if (esVoice) utterance.voice = esVoice;
+
                     window.speechSynthesis.speak(utterance);
                 }, 300);
             }
