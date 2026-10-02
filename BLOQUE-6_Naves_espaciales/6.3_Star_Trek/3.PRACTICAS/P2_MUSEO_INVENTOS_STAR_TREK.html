@@ -1492,6 +1492,56 @@
             return remainingComputerPhrases.pop();
         }
 
+        // Gestión de voces del navegador con filtro estricto de Español de España (Castellano / es-ES)
+        let availableVoices = [];
+        function populateVoices() {
+            if ('speechSynthesis' in window) {
+                availableVoices = window.speechSynthesis.getVoices();
+            }
+        }
+        if ('speechSynthesis' in window) {
+            populateVoices();
+            window.speechSynthesis.onvoiceschanged = populateVoices;
+        }
+
+        function getSpanishSpainVoice() {
+            if (!('speechSynthesis' in window)) return null;
+            if (availableVoices.length === 0) populateVoices();
+
+            // Filtrar voces estrictamente de España (es-ES), excluyendo dialectos de América Latina
+            const spainVoices = availableVoices.filter(v => {
+                const lang = (v.lang || "").replace("_", "-").toLowerCase();
+                const name = (v.name || "").toLowerCase();
+
+                // Exclusión explícita de América Latina (México, EE.UU., Argentina, Colombia, etc.)
+                const isLatin = lang.includes("es-mx") || lang.includes("es-us") || lang.includes("es-419") ||
+                                lang.includes("es-ar") || lang.includes("es-co") || lang.includes("es-cl") ||
+                                lang.includes("es-pe") || lang.includes("es-ve") ||
+                                name.includes("mexic") || name.includes("paulina") || name.includes("diego") ||
+                                name.includes("juan") || name.includes("francisca") || name.includes("soledad") ||
+                                name.includes("sabina") || name.includes("carlos") || name.includes("lupe") ||
+                                name.includes("latin") || name.includes("america");
+                if (isLatin) return false;
+
+                // Debe ser exactamente es-ES o indicar España / Spain / Castellano
+                return lang === "es-es" || lang === "es" || name.includes("spain") || name.includes("españa") || name.includes("castilian");
+            });
+
+            if (spainVoices.length > 0) {
+                // Preferir voces femeninas o de alta fidelidad de España
+                const preferred = spainVoices.find(v => {
+                    const n = v.name.toLowerCase();
+                    return n.includes("monica") || n.includes("mónica") || n.includes("lucia") || n.includes("lucía") || 
+                           n.includes("helena") || n.includes("laura") || n.includes("elvira") || n.includes("marisol") ||
+                           n.includes("conchita") || n.includes("carmen") || n.includes("siri") || n.includes("jorge") ||
+                           n.includes("enrique") || (n.includes("google") && (v.lang || "").toLowerCase().includes("es-es"));
+                });
+                return preferred || spainVoices[0];
+            }
+
+            return null;
+        }
+
         function triggerVoiceComputer() {
             playComputerChime();
             const phrase = getNextComputerPhrase();
@@ -1502,17 +1552,18 @@
             }
 
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Cancelar locución previa si estuviera hablando
+                window.speechSynthesis.cancel(); // Cancelar locución previa
                 setTimeout(() => {
                     const utterance = new SpeechSynthesisUtterance(phrase);
                     utterance.lang = "es-ES";
                     utterance.rate = 0.95;
                     utterance.pitch = 1.05;
 
-                    // Intentar seleccionar una voz femenina/clara en español si está disponible en el navegador
-                    const voices = window.speechSynthesis.getVoices();
-                    const esVoice = voices.find(v => v.lang.startsWith("es") && (v.name.includes("Google") || v.name.includes("Monica") || v.name.includes("Paulina") || v.name.includes("Helena") || v.name.includes("Laura")));
-                    if (esVoice) utterance.voice = esVoice;
+                    const esVoice = getSpanishSpainVoice();
+                    if (esVoice) {
+                        utterance.voice = esVoice;
+                        utterance.lang = esVoice.lang || "es-ES";
+                    }
 
                     window.speechSynthesis.speak(utterance);
                 }, 300);
