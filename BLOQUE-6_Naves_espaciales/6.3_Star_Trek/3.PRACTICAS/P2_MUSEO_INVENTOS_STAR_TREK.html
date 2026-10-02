@@ -1268,12 +1268,12 @@
                         });
 
                         const captainGroups = [
-                            { name: "TOS", meshes: [0, 1, 2, 3, 4, 5], restX: -2.0 },
-                            { name: "DISC", meshes: [6, 7, 8, 9, 10], restX: -6.0 },
-                            { name: "ENT", meshes: [11, 12, 13, 14, 15, 16], restX: -10.0 },
-                            { name: "TNG", meshes: [17, 18, 19, 20], restX: 2.0 },
-                            { name: "VOY", meshes: [21, 22, 23, 24, 25], restX: 6.0 },
-                            { name: "DS9", meshes: [26, 27, 28, 29, 30], restX: 10.0 }
+                            { name: "TOS", nodes: ["Object_7", "Object_8", "Object_9", "Object_10", "Object_11", "Object_12"], restX: -2.0 },
+                            { name: "DISC", nodes: ["Object_49", "Object_50", "Object_51", "Object_52", "Object_53"], restX: -6.0 },
+                            { name: "ENT", nodes: ["Object_90", "Object_91", "Object_92", "Object_93", "Object_94", "Object_95"], restX: -10.0 },
+                            { name: "TNG", nodes: ["Object_132", "Object_133", "Object_134", "Object_135"], restX: 2.0 },
+                            { name: "VOY", nodes: ["Object_172", "Object_173", "Object_174", "Object_175", "Object_176"], restX: 6.0 },
+                            { name: "DS9", nodes: ["Object_213", "Object_214", "Object_215", "Object_216", "Object_217"], restX: 10.0 }
                         ];
 
                         captainGroups.forEach((group, i) => {
@@ -1300,8 +1300,8 @@
                             capPivot.position = new BABYLON.Vector3(worldX, worldY, worldZ);
                             capPivot.rotation = new BABYLON.Vector3(0, rotY, 0);
 
-                            group.meshes.forEach(mIdx => {
-                                const mesh = scene.getMeshByName("Object_" + mIdx);
+                            group.nodes.forEach(nodeName => {
+                                const mesh = scene.getMeshByName(nodeName);
                                 if (mesh) {
                                     mesh.setParent(capPivot);
                                     mesh.position = new BABYLON.Vector3(-group.restX, 0, 0);
