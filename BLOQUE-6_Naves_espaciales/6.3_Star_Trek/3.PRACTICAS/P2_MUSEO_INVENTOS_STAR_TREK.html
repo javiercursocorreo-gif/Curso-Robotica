@@ -1287,28 +1287,30 @@
                             if (capNode) {
                                 if (i === 5) {
                                     // Capitán en la consola
-                                    capNode.getChildMeshes(false).forEach(m => {
+                                    capNode.getChildMeshes(true).forEach(m => {
                                         if (m.material) {
                                             m.material = m.material.clone(m.material.name + "_console");
                                             m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
                                             m.material.alpha = 1.0;
                                         }
                                     });
-                                    rootMesh.computeWorldMatrix(true);
-                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
-                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-38, 0, -38), invRootMatrix);
-                                    capNode.rotationQuaternion = null;
-                                    capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
+                                    capNode.position = new BABYLON.Vector3(-30 / 6, 0, -30 / 6);
+                                    if (capNode.rotationQuaternion) {
+                                        capNode.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(0, Math.PI * 1.25, 0);
+                                    } else {
+                                        capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
+                                    }
                                 } else {
                                     // 5 capitanes en los 5 pads
                                     let angle = (i * Math.PI * 2) / 5;
                                     let worldX = Math.cos(angle) * 22;
                                     let worldZ = Math.sin(angle) * 22;
-                                    rootMesh.computeWorldMatrix(true);
-                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
-                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(worldX, 6.1, worldZ), invRootMatrix);
-                                    capNode.rotationQuaternion = null;
-                                    capNode.rotation = new BABYLON.Vector3(0, 0, 0);
+                                    capNode.position = new BABYLON.Vector3(worldX / 6, 0, worldZ / 6);
+                                    if (capNode.rotationQuaternion) {
+                                        capNode.rotationQuaternion = BABYLON.Quaternion.FromEulerAngles(0, 0, 0);
+                                    } else {
+                                        capNode.rotation = new BABYLON.Vector3(0, 0, 0);
+                                    }
                                 }
                             }
                         }
