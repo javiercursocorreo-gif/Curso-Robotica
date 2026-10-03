@@ -109,69 +109,85 @@ const createScene = function () {
     let teleportAlpha = 1.0; // Estado inicial: materializados
     
     BABYLON.SceneLoader.ImportMeshAsync("", "low_poly_-_star_trek_captains_rigged_male/", "scene.gltf", scene).then((result) => {
-        if (result.skeletons) {
-            result.skeletons.forEach(s => s.dispose());
-        }
+        let rootMesh = result.meshes[0];
+        // Escalar modelo original a un tamaño más normal
+        rootMesh.scaling = new BABYLON.Vector3(6, 6, 6);
+        rootMesh.position = new BABYLON.Vector3(0, 6.1, 0); // Altura de los pads (6.1)
+        
+        // Recolectar todos los materiales del modelo original
         result.meshes.forEach(m => {
-            m.skeleton = null;
-        });
-
-        const captainGroups = [
-            { name: "TOS", nodes: ["Object_7", "Object_8", "Object_9", "Object_10", "Object_11", "Object_12"], restX: -2.0 },
-            { name: "DISC", nodes: ["Object_49", "Object_50", "Object_51", "Object_52", "Object_53"], restX: -6.0 },
-            { name: "ENT", nodes: ["Object_90", "Object_91", "Object_92", "Object_93", "Object_94", "Object_95"], restX: -10.0 },
-            { name: "TNG", nodes: ["Object_132", "Object_133", "Object_134", "Object_135"], restX: 2.0 },
-            { name: "VOY", nodes: ["Object_172", "Object_173", "Object_174", "Object_175", "Object_176"], restX: 6.0 },
-            { name: "DS9", nodes: ["Object_213", "Object_214", "Object_215", "Object_216", "Object_217"], restX: 10.0 }
-        ];
-
-        captainGroups.forEach((group, i) => {
-            const capPivot = new BABYLON.TransformNode("capPivot_" + group.name, scene);
-            capPivot.scaling = new BABYLON.Vector3(6, 6, 6);
-
-            let worldX, worldY, worldZ, rotY;
-            if (i === 5) {
-                // 6º capitán en la consola
-                worldX = -30;
-                worldY = 0;
-                worldZ = -30;
-                rotY = Math.PI * 1.25;
-            } else {
-                // 5 capitanes en los 5 pads
-                const angle = (i * Math.PI * 2) / 5;
-                worldX = Math.cos(angle) * 22;
-                worldY = 6.1;
-                worldZ = Math.sin(angle) * 22;
-                rotY = 0;
-            }
-
-            capPivot.position = new BABYLON.Vector3(worldX, worldY, worldZ);
-            capPivot.rotation = new BABYLON.Vector3(0, rotY, 0);
-
-            group.nodes.forEach(nodeName => {
-                const mesh = scene.getMeshByName(nodeName);
-                if (mesh) {
-                    mesh.setParent(capPivot);
-                    mesh.position = new BABYLON.Vector3(-group.restX, 0, 0);
-                    mesh.rotation = BABYLON.Vector3.Zero();
-                    mesh.scaling = BABYLON.Vector3.One();
-
-                    if (mesh.material) {
-                        if (i === 5) {
-                            mesh.material = mesh.material.clone(mesh.material.name + "_console");
-                            mesh.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
-                            mesh.material.alpha = 1.0;
-                        } else {
-                            mesh.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-                            mesh.material.alpha = teleportAlpha;
-                            if (!characterMaterials.includes(mesh.material)) {
-                                characterMaterials.push(mesh.material);
-                            }
-                        }
-                    }
+            if (m.material) {
+                // Hacer el material transparente
+                m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                m.material.alpha = teleportAlpha;
+                if(!characterMaterials.includes(m.material)){
+                    characterMaterials.push(m.material);
                 }
-            });
+            }
         });
+
+        // Los 6 capitanes que vienen dentro del archivo
+        let captainNames = [
+            "ST-TOS_Captain_34",
+            "ST-DISC_Captain_68",
+            "ST-ENT_Captain_102",
+            "ST-TNG_Captain_136",
+            "ST-VOY_Captain_170",
+            "ST-DS9_Captain_204"
+        ];
+        
+        for (let i = 0; i < captainNames.length; i++) {
+            let capNode = scene.getNodeByName(captainNames[i]);
+            if (capNode) {
+                if (i === 5) {
+                    // El 6º capitán va a la consola de mandos
+                    // 1. Clonar sus materiales para que no desaparezca con los demás
+                    capNode.getChildMeshes(false).forEach(m => {
+                        if (m.material) {
+                            m.material = m.material.clone(m.material.name + "_console");
+                            m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                            m.material.alpha = 1.0;
+                        }
+                    });
+                    
+                    // 2. Colocarlo frente a la consola (más cerca de la cámara que la consola)
+                    // Como rootMesh tiene una rotación oculta al importarse el GLTF, 
+                    // usar coordenadas locales a ojo nos mandó al lado opuesto.
+                    // Usamos la matriz invertida para calcular la coordenada local exacta para (-38, 0, -38)
+                    rootMesh.computeWorldMatrix(true);
+                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-38, 0, -38), invRootMatrix);
+                    
+                    // 3. Rotarlo para que mire a la consola (de espaldas a la cámara)
+                    // Math.PI * 1.25 lo orienta hacia (+X, +Z), hacia la consola
+                    capNode.rotationQuaternion = null; 
+                    capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
+                    
+                } else {
+                    // Los 5 capitanes restantes van a los 5 pads
+                    let angle = (i * Math.PI * 2) / 5;
+                    let worldX = Math.cos(angle) * 22;
+                    let worldZ = Math.sin(angle) * 22;
+                    
+                    // Aseguramos la posición exacta en el mundo para evitar el desfase por la rotación interna del modelo
+                    rootMesh.computeWorldMatrix(true);
+                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+                    
+                    // Suelo mundo de los pads = Y: 6.1 (altura base de rootMesh)
+                    // Transformamos a coordenadas locales
+                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(worldX, 6.1, worldZ), invRootMatrix);
+                    
+                    // Con 0 grados mantenemos su orientación original (mirando a la cámara, -Z).
+                    capNode.rotationQuaternion = null; 
+                    capNode.rotation = new BABYLON.Vector3(0, 0, 0);
+                }
+            }
+        }
+        
+        // Ejecutar animaciones si las hay (idle)
+        if(result.animationGroups && result.animationGroups.length > 0){
+            result.animationGroups[0].play(true); // Loop
+        }
     });
 
     // --- 6. Sistema de Partículas (Teletransporte) ---
