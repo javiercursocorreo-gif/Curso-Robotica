@@ -186,7 +186,7 @@ const createScene = async function () {
         return { y, color: new BABYLON.Color4(r, g, b, a) };
     }
 
-    function buildGridLines(warpFactor) {
+    function buildGridLines(warpFactor, offsetX = 0, offsetZ = 0) {
         const lines = [];
         const colors = [];
 
@@ -197,7 +197,9 @@ const createScene = async function () {
             const lineColors = [];
             for (let i = 0; i <= gridXCount; i++) {
                 const x = -halfW + i * stepX;
-                const pt = getSpacetimeData(x, z, warpFactor);
+                const worldX = x + offsetX;
+                const worldZ = z + offsetZ;
+                const pt = getSpacetimeData(worldX, worldZ, warpFactor);
                 line.push(new BABYLON.Vector3(x, pt.y, z));
                 lineColors.push(pt.color);
             }
@@ -212,7 +214,9 @@ const createScene = async function () {
             const lineColors = [];
             for (let j = 0; j <= gridZCount; j++) {
                 const z = -halfD + j * stepZ;
-                const pt = getSpacetimeData(x, z, warpFactor);
+                const worldX = x + offsetX;
+                const worldZ = z + offsetZ;
+                const pt = getSpacetimeData(worldX, worldZ, warpFactor);
                 line.push(new BABYLON.Vector3(x, pt.y, z));
                 lineColors.push(pt.color);
             }
@@ -297,17 +301,27 @@ const createScene = async function () {
     const telemetry = document.getElementById("telemetry");
     telemetry.innerText = "SISTEMA WARP: EN ESPERA (VELOCIDAD SUB-LUZ) • ESPACIO EUCLÍDEO PLANO";
 
+    // --- BANDA SONORA WARP ---
+    const warpAudio = new Audio("luis_humanoide-space-fleet-sci-fi-orchestral-music-166953.mp3");
+    warpAudio.loop = true;
+    warpAudio.volume = 0.85;
+
     btnWarp.addEventListener("click", () => {
         if (!isWarping) {
             isWarping = true;
             telemetry.innerText = "SISTEMA WARP: CURVATURA EN PROCESO • EXPANDIENDO ESPACIO POPA / COMPRIMIENDO PROA";
             btnWarp.innerText = "DESACTIVAR SALTO WARP";
             btnWarp.classList.add("danger");
+            // Inicio inmediato directo sin fader
+            warpAudio.volume = 0.85;
+            warpAudio.currentTime = 0;
+            warpAudio.play().catch(e => console.log("Audio play info:", e));
         } else {
             isWarping = false;
             telemetry.innerText = "SISTEMA WARP: DESACTIVANDO • DISIPACIÓN GRADUAL DE LA CURVATURA MÉTRICA";
             btnWarp.innerText = "ACTIVAR SALTO WARP";
             btnWarp.classList.remove("danger");
+            // No pausamos de golpe: el bucle de render ejecutará el fader final suave
         }
     });
 
@@ -316,6 +330,7 @@ const createScene = async function () {
     const baseZ = shipRoot.position.z;
 
     let animTime = 0;
+    let gridDist = 0;
 
     scene.onBeforeRenderObservable.add(() => {
         const dt = engine.getDeltaTime();
@@ -340,9 +355,39 @@ const createScene = async function () {
             }
         }
 
+        // --- FADER FINAL DE AUDIO (SOLO AL DESACTIVAR) ---
+        if (warpAudio && !isWarping && !warpAudio.paused) {
+            warpAudio.volume = BABYLON.Scalar.Lerp(warpAudio.volume, 0.0, 0.02);
+            if (warpAudio.volume < 0.01) {
+                warpAudio.volume = 0.0;
+                warpAudio.pause();
+                warpAudio.currentTime = 0;
+            }
+        }
+
+        // --- FLUJO DEL ESPACIO-TIEMPO HACIA POPA ---
+        // La nave navega a velocidad sub-luz en reposo y a velocidad hiperlumínica en warp.
+        // La malla fluye a la misma velocidad que las estrellas en reposo (crucero sub-luz: ~2.4 u/s)
+        // y se acelera suavemente durante el salto warp.
+        const baseCruisingSpeed = 2.4; // Sincronizada con el drift de las estrellas a velocidad sub-luz
+        const flowSpeed = baseCruisingSpeed + warpProgress * 14.0;
+        gridDist += flowSpeed * (dt * 0.001);
+
+        // Desplazamiento modular cíclico respecto al tamaño de cada celda (stepX = 1.75, stepZ = 1.75)
+        const rawDispX = -gridDist * cosA;
+        const rawDispZ = -gridDist * sinA;
+        const offsetX = ((rawDispX % stepX) + stepX) % stepX - stepX;
+        const offsetZ = ((rawDispZ % stepZ) + stepZ) % stepZ - stepZ;
+
+        // Desplazar físicamente las mallas hacia popa
+        spacetimeLines.position.x = offsetX;
+        spacetimeLines.position.z = offsetZ;
+        darkGround.position.x = offsetX;
+        darkGround.position.z = offsetZ;
+
         // Ondulación métrica activa únicamente durante el salto warp
         const currentAmp = warpProgress + (isWarping && warpProgress > 0.4 ? Math.sin(animTime * 3.0) * 0.025 : 0);
-        const updated = buildGridLines(currentAmp);
+        const updated = buildGridLines(currentAmp, offsetX, offsetZ);
 
         BABYLON.MeshBuilder.CreateLineSystem("spacetime", {
             lines: updated.lines,
@@ -355,7 +400,9 @@ const createScene = async function () {
         for (let idx = 0; idx < darkPos.length; idx += 3) {
             const vx = darkPos[idx];
             const vz = darkPos[idx + 2];
-            const pt = getSpacetimeData(vx, vz, currentAmp);
+            const worldX = vx + offsetX;
+            const worldZ = vz + offsetZ;
+            const pt = getSpacetimeData(worldX, worldZ, currentAmp);
             darkPos[idx + 1] = pt.y - 0.06; // Ligeramente por debajo de las líneas para evitar z-fighting
         }
         darkGround.updateVerticesData(BABYLON.VertexBuffer.PositionKind, darkPos);
@@ -369,17 +416,10 @@ const createScene = async function () {
             starSystem.maxSize = 0.35 + warpProgress * 0.25;
         }
 
-        // Microvibración del casco de la nave solo durante el salto warp
-        const vib = isWarping ? (0.04 + 0.18 * warpProgress) : 0.0;
-        if (vib > 0) {
-            shipRoot.position.x = baseX + (Math.random() - 0.5) * vib;
-            shipRoot.position.y = baseY + (Math.random() - 0.5) * vib;
-            shipRoot.position.z = baseZ + (Math.random() - 0.5) * vib;
-        } else {
-            shipRoot.position.x = baseX;
-            shipRoot.position.y = baseY;
-            shipRoot.position.z = baseZ;
-        }
+        // La nave permanece completamente serena y estable (aceleración propia cero)
+        shipRoot.position.x = baseX;
+        shipRoot.position.y = baseY;
+        shipRoot.position.z = baseZ;
     });
 
     return scene;
