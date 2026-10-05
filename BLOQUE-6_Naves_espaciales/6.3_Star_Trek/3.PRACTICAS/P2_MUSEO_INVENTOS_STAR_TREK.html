@@ -666,279 +666,240 @@
             } catch (e) {}
         }
 
+        let cachedDematerializeBuffer = null;
+        let cachedMaterializeBuffer = null;
+        let isPreRenderingTransporterAudio = false;
+
+        function buildTransporterAudioGraph(ctx, t, totalDur, isMaterialize) {
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0.0001, t);
+            masterGain.gain.linearRampToValueAtTime(0.68, t + 0.35);
+            masterGain.gain.setValueAtTime(0.68, t + 4.2);
+            masterGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.setValueAtTime(-10, t);
+            comp.knee.setValueAtTime(15, t);
+            comp.ratio.setValueAtTime(3.5, t);
+            comp.attack.setValueAtTime(0.003, t);
+            comp.release.setValueAtTime(0.12, t);
+
+            masterGain.connect(comp);
+            comp.connect(ctx.destination);
+
+            // 1. LLUVIA DE ESTRELLITAS CRISTALINAS
+            const starNotes = [
+                1760.00, 2093.00, 2349.32, 2637.02, 3135.96, 3520.00,
+                3951.07, 4186.01, 4698.63, 5274.04, 6271.93, 7040.00
+            ];
+
+            const numStars = 64;
+            for (let i = 0; i < numStars; i++) {
+                const progress = i / (numStars - 1);
+                const delay = Math.max(0.03, progress * 4.6 + (Math.random() * 0.16 - 0.08));
+                const st = t + delay;
+
+                let noteIdx;
+                if (isMaterialize) {
+                    const targetIdx = Math.floor((1 - progress) * (starNotes.length - 1));
+                    noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx));
+                } else {
+                    const targetIdx = Math.floor(progress * (starNotes.length - 1));
+                    noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx));
+                }
+
+                const f0 = starNotes[noteIdx] * (1 + (Math.random() * 0.03 - 0.015));
+                const f1 = f0 * 2.756;
+                const starDur = 0.06 + Math.random() * 0.06;
+
+                const starGain = ctx.createGain();
+                const starVol = 0.12 + Math.random() * 0.08;
+                starGain.gain.setValueAtTime(0.0001, st);
+                starGain.gain.linearRampToValueAtTime(starVol, st + 0.002);
+                starGain.gain.exponentialRampToValueAtTime(0.0001, st + starDur);
+
+                const osc0 = ctx.createOscillator();
+                osc0.type = "sine";
+                osc0.frequency.setValueAtTime(f0, st);
+
+                const osc1 = ctx.createOscillator();
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(f1, st);
+                const osc1Gain = ctx.createGain();
+                osc1Gain.gain.setValueAtTime(0.4, st);
+
+                osc0.connect(starGain);
+                osc1.connect(osc1Gain);
+                osc1Gain.connect(starGain);
+
+                if (ctx.createStereoPanner) {
+                    const panner = ctx.createStereoPanner();
+                    panner.pan.setValueAtTime((Math.random() * 1.6) - 0.8, st);
+                    starGain.connect(panner);
+                    panner.connect(masterGain);
+                } else {
+                    starGain.connect(masterGain);
+                }
+
+                osc0.start(st);
+                osc1.start(st);
+                osc0.stop(st + starDur + 0.01);
+                osc1.stop(st + starDur + 0.01);
+            }
+
+            // 2. RESPLANDOR ETÉREO DE POLVO DE ESTRELLAS
+            const shimmerGain = ctx.createGain();
+            shimmerGain.gain.setValueAtTime(0.0001, t);
+            shimmerGain.gain.linearRampToValueAtTime(0.24, t + 0.4);
+            shimmerGain.gain.setValueAtTime(0.24, t + 4.0);
+            shimmerGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            const shimmerLFO = ctx.createOscillator();
+            shimmerLFO.frequency.setValueAtTime(16.0, t);
+            const shimmerLFOGain = ctx.createGain();
+            shimmerLFOGain.gain.setValueAtTime(0.08, t);
+            shimmerLFO.connect(shimmerLFOGain.gain);
+
+            const shimmerChord = [2637.0, 3135.9, 3951.0, 5274.0];
+            shimmerChord.forEach((freq) => {
+                const osc = ctx.createOscillator();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, t);
+                if (isMaterialize) {
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.95, t + 4.5);
+                } else {
+                    osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 4.5);
+                }
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.22 / shimmerChord.length, t);
+                osc.connect(g);
+                g.connect(shimmerGain);
+                osc.start(t);
+                osc.stop(t + totalDur);
+            });
+
+            shimmerGain.connect(masterGain);
+            shimmerLFO.start(t);
+            shimmerLFO.stop(t + totalDur);
+
+            // 3. SUSURRO DE ENERGÍA DE PARTÍCULAS
+            const noiseBufSize = Math.floor(ctx.sampleRate * totalDur);
+            const noiseBuf = ctx.createBuffer(1, noiseBufSize, ctx.sampleRate);
+            const noiseData = noiseBuf.getChannelData(0);
+            for (let i = 0; i < noiseBufSize; i++) {
+                noiseData[i] = (Math.random() * 2 - 1) * 0.04;
+            }
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+
+            const noiseFilter = ctx.createBiquadFilter();
+            noiseFilter.type = "bandpass";
+            noiseFilter.frequency.setValueAtTime(4800, t);
+            noiseFilter.Q.setValueAtTime(3.5, t);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.0001, t);
+            noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.4);
+            noiseGain.gain.setValueAtTime(0.14, t + 4.0);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(masterGain);
+
+            noiseSource.start(t);
+            noiseSource.stop(t + totalDur);
+
+            // 4. PASADA POR MARK TREE / BAR CHIMES
+            const chimesBus = ctx.createGain();
+            chimesBus.gain.setValueAtTime(0.48, t);
+            chimesBus.connect(masterGain);
+
+            const numChimes = 24;
+            const sweepDuration = 2.6;
+            const sweepStart = t + 0.2;
+
+            for (let i = 0; i < numChimes; i++) {
+                const normalizedPos = i / (numChimes - 1);
+                const freqExponent = isMaterialize ? (1 - normalizedPos) : normalizedPos;
+                const f0 = 1450 * Math.pow(6800 / 1450, freqExponent) * (1 + (Math.random() * 0.02 - 0.01));
+                const f1 = f0 * 2.756;
+
+                const chimeHitTime = sweepStart + normalizedPos * sweepDuration;
+                const ringDuration = 0.45 + (1 - (f0 / 6800)) * 0.75;
+
+                const chimeGain = ctx.createGain();
+                const strikeVol = 0.09 + Math.random() * 0.06;
+                chimeGain.gain.setValueAtTime(0.0001, chimeHitTime);
+                chimeGain.gain.linearRampToValueAtTime(strikeVol, chimeHitTime + 0.0015);
+                chimeGain.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration);
+
+                const osc0 = ctx.createOscillator();
+                osc0.type = "sine";
+                osc0.frequency.setValueAtTime(f0, chimeHitTime);
+
+                const osc1 = ctx.createOscillator();
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(f1, chimeHitTime);
+                const g1 = ctx.createGain();
+                g1.gain.setValueAtTime(0.35, chimeHitTime);
+                g1.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration * 0.6);
+
+                osc0.connect(chimeGain);
+                osc1.connect(g1);
+                g1.connect(chimeGain);
+
+                const panPos = isMaterialize ? (0.85 - normalizedPos * 1.7) : (-0.85 + normalizedPos * 1.7);
+                if (ctx.createStereoPanner) {
+                    const panner = ctx.createStereoPanner();
+                    panner.pan.setValueAtTime(Math.max(-0.95, Math.min(0.95, panPos)), chimeHitTime);
+                    chimeGain.connect(panner);
+                    panner.connect(chimesBus);
+                } else {
+                    chimeGain.connect(chimesBus);
+                }
+
+                osc0.start(chimeHitTime);
+                osc1.start(chimeHitTime);
+                osc0.stop(chimeHitTime + ringDuration + 0.02);
+                osc1.stop(chimeHitTime + ringDuration + 0.02);
+            }
+        }
+
+        function preRenderTransporterAudio() {
+            if (isPreRenderingTransporterAudio) return;
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            if (!OfflineCtx) return;
+            isPreRenderingTransporterAudio = true;
+
+            const renderBuffer = (isMat) => {
+                const totalDur = 5.3;
+                const sampleRate = 44100;
+                const offlineCtx = new OfflineCtx(2, Math.ceil(sampleRate * totalDur), sampleRate);
+                buildTransporterAudioGraph(offlineCtx, 0, totalDur, isMat);
+                return offlineCtx.startRendering();
+            };
+
+            Promise.all([renderBuffer(false), renderBuffer(true)]).then(([dematBuf, matBuf]) => {
+                cachedDematerializeBuffer = dematBuf;
+                cachedMaterializeBuffer = matBuf;
+            }).catch(e => {
+                console.warn("Pre-render audio fallback:", e);
+            });
+        }
+
         function playTransporterSound(isMaterialize = false) {
             try {
                 const ctx = getAudioContext();
-                const t = ctx.currentTime;
-                const totalDur = 5.3; // Sincronizado con la duración total de emisión de burbujas (~5.2s)
-
-                // Master gain y compresor de dinámica para volumen alto, nítido y sin distorsión
-                const masterGain = ctx.createGain();
-                masterGain.gain.setValueAtTime(0.0001, t);
-                masterGain.gain.linearRampToValueAtTime(0.68, t + 0.35); // Volumen potente y claro
-                masterGain.gain.setValueAtTime(0.68, t + 4.2);          // Mantiene presencia durante toda la emisión
-                masterGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur); // Desvanecimiento suave
-
-                const comp = ctx.createDynamicsCompressor();
-                comp.threshold.setValueAtTime(-10, t);
-                comp.knee.setValueAtTime(15, t);
-                comp.ratio.setValueAtTime(3.5, t);
-                comp.attack.setValueAtTime(0.003, t);
-                comp.release.setValueAtTime(0.12, t);
-
-                masterGain.connect(comp);
-                comp.connect(ctx.destination);
-
-                // -------------------------------------------------------------
-                // 1. LLUVIA DE ESTRELLITAS CRISTALINAS (Granular Star Sparkles)
-                // Efecto de "tirar decenas de estrellitas al suelo": 145 destellos a lo largo de 5.3s
-                // -------------------------------------------------------------
-                const starNotes = [
-                    1760.00, // A6
-                    2093.00, // C7
-                    2349.32, // D7
-                    2637.02, // E7
-                    3135.96, // G7
-                    3520.00, // A7
-                    3951.07, // B7
-                    4186.01, // C8
-                    4698.63, // D8
-                    5274.04, // E8
-                    6271.93, // G8
-                    7040.00  // A8
-                ];
-
-                const numStars = 145; // Decenas y decenas de pequeñas estrellitas chispeantes
-
-                for (let i = 0; i < numStars; i++) {
-                    const progress = i / (numStars - 1);
-                    // Dispersión temporal orgánica que cubre los 5.3s de las burbujas
-                    const delay = Math.max(0.03, progress * 4.6 + (Math.random() * 0.16 - 0.08));
-                    const st = t + delay;
-
-                    // Dirección de la lluvia de estrellas:
-                    // Materializar: caen de agudo a grave sobre el suelo
-                    // Desmaterializar: ascienden de grave a agudo desvaneciéndose
-                    let noteIdx;
-                    if (isMaterialize) {
-                        const targetIdx = Math.floor((1 - progress) * (starNotes.length - 1));
-                        const jitter = Math.floor(Math.random() * 3 - 1);
-                        noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx + jitter));
-                    } else {
-                        const targetIdx = Math.floor(progress * (starNotes.length - 1));
-                        const jitter = Math.floor(Math.random() * 3 - 1);
-                        noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx + jitter));
-                    }
-
-                    const f0 = starNotes[noteIdx] * (1 + (Math.random() * 0.03 - 0.015));
-                    const f1 = f0 * 2.756; // Parcial inarmónico cristalino metálico (tink de estrellita)
-                    const starDur = 0.05 + Math.random() * 0.075; // Duración chispeante (50ms a 125ms)
-
-                    // Envolvente de micro-impacto de la estrellita (volumen aumentado y bien audible)
-                    const starGain = ctx.createGain();
-                    const starVol = 0.09 + Math.random() * 0.09;
-                    starGain.gain.setValueAtTime(0.0001, st);
-                    starGain.gain.linearRampToValueAtTime(starVol, st + 0.002); // Micro-ataque de impacto (2ms)
-                    starGain.gain.exponentialRampToValueAtTime(0.0001, st + starDur);
-
-                    // Oscilador de la estrellita (onda senoidal pura brillante)
-                    const osc0 = ctx.createOscillator();
-                    osc0.type = "sine";
-                    osc0.frequency.setValueAtTime(f0, st);
-
-                    // Oscilador del tintineo armónico agudo
-                    const osc1 = ctx.createOscillator();
-                    osc1.type = "sine";
-                    osc1.frequency.setValueAtTime(f1, st);
-                    const osc1Gain = ctx.createGain();
-                    osc1Gain.gain.setValueAtTime(0.4, st);
-
-                    osc0.connect(starGain);
-                    osc1.connect(osc1Gain);
-                    osc1Gain.connect(starGain);
-
-                    // Paneo estéreo para que las decenas de estrellitas se dispersen por todo el espacio
-                    if (ctx.createStereoPanner) {
-                        const panner = ctx.createStereoPanner();
-                        panner.pan.setValueAtTime((Math.random() * 1.6) - 0.8, st);
-                        starGain.connect(panner);
-                        panner.connect(masterGain);
-                    } else {
-                        starGain.connect(masterGain);
-                    }
-
-                    osc0.start(st);
-                    osc1.start(st);
-                    osc0.stop(st + starDur + 0.01);
-                    osc1.stop(st + starDur + 0.01);
+                const buffer = isMaterialize ? cachedMaterializeBuffer : cachedDematerializeBuffer;
+                if (buffer) {
+                    const src = ctx.createBufferSource();
+                    src.buffer = buffer;
+                    src.connect(ctx.destination);
+                    src.start();
+                    return;
                 }
-
-                // -------------------------------------------------------------
-                // 2. RESPLANDOR ETÉREO DE POLVO DE ESTRELLAS (Stardust Shimmer Bed)
-                // -------------------------------------------------------------
-                // Aura cristalina continua que acompaña el haz de partículas con volumen reforzado
-                const shimmerGain = ctx.createGain();
-                shimmerGain.gain.setValueAtTime(0.0001, t);
-                shimmerGain.gain.linearRampToValueAtTime(0.24, t + 0.4);
-                shimmerGain.gain.setValueAtTime(0.24, t + 4.0);
-                shimmerGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
-
-                // LFO trémolo rápido a 16 Hz que da el parpadeo de purpurina cósmica
-                const shimmerLFO = ctx.createOscillator();
-                shimmerLFO.frequency.setValueAtTime(16.0, t);
-                const shimmerLFOGain = ctx.createGain();
-                shimmerLFOGain.gain.setValueAtTime(0.08, t);
-                shimmerLFO.connect(shimmerLFOGain.gain);
-
-                const shimmerChord = [2637.0, 3135.9, 3951.0, 5274.0];
-                shimmerChord.forEach((freq) => {
-                    const osc = ctx.createOscillator();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(freq, t);
-                    if (isMaterialize) {
-                        osc.frequency.exponentialRampToValueAtTime(freq * 0.95, t + 4.5);
-                    } else {
-                        osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 4.5);
-                    }
-                    const g = ctx.createGain();
-                    g.gain.setValueAtTime(0.22 / shimmerChord.length, t);
-                    osc.connect(g);
-                    g.connect(shimmerGain);
-                    osc.start(t);
-                    osc.stop(t + totalDur);
-                });
-
-                shimmerGain.connect(masterGain);
-                shimmerLFO.start(t);
-                shimmerLFO.stop(t + totalDur);
-
-                // -------------------------------------------------------------
-                // 3. SUSURRO DE ENERGÍA DE PARTÍCULAS (Airy Stardust Breeze)
-                // -------------------------------------------------------------
-                const noiseBufSize = Math.floor(ctx.sampleRate * totalDur);
-                const noiseBuf = ctx.createBuffer(1, noiseBufSize, ctx.sampleRate);
-                const noiseData = noiseBuf.getChannelData(0);
-                for (let i = 0; i < noiseBufSize; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.04;
-                }
-                const noiseSource = ctx.createBufferSource();
-                noiseSource.buffer = noiseBuf;
-
-                const noiseFilter = ctx.createBiquadFilter();
-                noiseFilter.type = "bandpass";
-                noiseFilter.frequency.setValueAtTime(4800, t);
-                noiseFilter.Q.setValueAtTime(3.5, t);
-
-                const noiseGain = ctx.createGain();
-                noiseGain.gain.setValueAtTime(0.0001, t);
-                noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.4);
-                noiseGain.gain.setValueAtTime(0.14, t + 4.0);
-                noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
-
-                noiseSource.connect(noiseFilter);
-                noiseFilter.connect(noiseGain);
-                noiseGain.connect(masterGain);
-
-                noiseSource.start(t);
-                noiseSource.stop(t + totalDur);
-
-                // -------------------------------------------------------------
-                // 4. PASADA POR MARK TREE / BAR CHIMES (Cortinilla de Metal)
-                // Glissando realista de 32 barras de latón con sobretonos inarmónicos,
-                // paneo espacial continuo y rebotes de balanceo entre barras.
-                // -------------------------------------------------------------
-                const chimesBus = ctx.createGain();
-                chimesBus.gain.setValueAtTime(0.48, t);
-                chimesBus.connect(masterGain);
-
-                const numChimes = 32;
-                const sweepDuration = 2.6; // Duración de la pasada de la baqueta o dedos
-                const sweepStart = t + 0.2;
-
-                for (let i = 0; i < numChimes; i++) {
-                    // Distribución de frecuencia de las barras sólidas (escala logarítmica de 1450 Hz a 6800 Hz)
-                    const normalizedPos = i / (numChimes - 1);
-                    const freqExponent = isMaterialize ? (1 - normalizedPos) : normalizedPos; // Agudo->Grave al materializar, Grave->Agudo al desmaterializar
-                    const f0 = 1450 * Math.pow(6800 / 1450, freqExponent) * (1 + (Math.random() * 0.02 - 0.01));
-                    const f1 = f0 * 2.756; // Primer armónico transversal de una barra cilíndrica de metal libre
-                    const f2 = f0 * 5.404; // Segundo armónico metálico agudo de choque inicial
-
-                    // Momento del golpe a la barra durante la pasada
-                    const chimeHitTime = sweepStart + normalizedPos * sweepDuration + (Math.random() * 0.04 - 0.02);
-                    const ringDuration = 0.45 + (1 - (f0 / 6800)) * 0.75; // Las barras más largas/graves resuenan más tiempo
-
-                    // Envolvente de impacto metálico de la barra
-                    const chimeGain = ctx.createGain();
-                    const strikeVol = 0.08 + Math.random() * 0.06;
-                    chimeGain.gain.setValueAtTime(0.0001, chimeHitTime);
-                    chimeGain.gain.linearRampToValueAtTime(strikeVol, chimeHitTime + 0.0015); // Ataque percusivo ultrarrápido (1.5ms)
-                    chimeGain.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration);
-
-                    // Oscilador fundamental del tubo metálico
-                    const osc0 = ctx.createOscillator();
-                    osc0.type = "sine";
-                    osc0.frequency.setValueAtTime(f0, chimeHitTime);
-
-                    // Modo inarmónico 1 (brillo de campana de latón)
-                    const osc1 = ctx.createOscillator();
-                    osc1.type = "sine";
-                    osc1.frequency.setValueAtTime(f1, chimeHitTime);
-                    const g1 = ctx.createGain();
-                    g1.gain.setValueAtTime(0.35, chimeHitTime);
-                    g1.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration * 0.6);
-
-                    // Modo inarmónico 2 (chispa percusiva metálica inicial de la baqueta)
-                    const osc2 = ctx.createOscillator();
-                    osc2.type = "sine";
-                    osc2.frequency.setValueAtTime(f2, chimeHitTime);
-                    const g2 = ctx.createGain();
-                    g2.gain.setValueAtTime(0.18, chimeHitTime);
-                    g2.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + 0.08);
-
-                    osc0.connect(chimeGain);
-                    osc1.connect(g1);
-                    g1.connect(chimeGain);
-                    osc2.connect(g2);
-                    g2.connect(chimeGain);
-
-                    // Paneo estéreo continuo a lo largo de la cortinilla física
-                    const panPos = isMaterialize ? (0.85 - normalizedPos * 1.7) : (-0.85 + normalizedPos * 1.7);
-                    if (ctx.createStereoPanner) {
-                        const panner = ctx.createStereoPanner();
-                        panner.pan.setValueAtTime(Math.max(-0.95, Math.min(0.95, panPos)), chimeHitTime);
-                        chimeGain.connect(panner);
-                        panner.connect(chimesBus);
-                    } else {
-                        chimeGain.connect(chimesBus);
-                    }
-
-                    osc0.start(chimeHitTime);
-                    osc1.start(chimeHitTime);
-                    osc2.start(chimeHitTime);
-                    osc0.stop(chimeHitTime + ringDuration + 0.02);
-                    osc1.stop(chimeHitTime + ringDuration + 0.02);
-                    osc2.stop(chimeHitTime + 0.1);
-
-                    // Simulación de roce secundario entre barras vecinas que se balancean (choque acústico)
-                    if (Math.random() > 0.35) {
-                        const brushDelay = chimeHitTime + 0.09 + Math.random() * 0.25;
-                        const brushGain = ctx.createGain();
-                        brushGain.gain.setValueAtTime(0.0001, brushDelay);
-                        brushGain.gain.linearRampToValueAtTime(strikeVol * 0.3, brushDelay + 0.002);
-                        brushGain.gain.exponentialRampToValueAtTime(0.0001, brushDelay + 0.2);
-
-                        const brushOsc = ctx.createOscillator();
-                        brushOsc.type = "sine";
-                        brushOsc.frequency.setValueAtTime(f0 * 1.02, brushDelay);
-
-                        brushOsc.connect(brushGain);
-                        brushGain.connect(chimesBus);
-
-                        brushOsc.start(brushDelay);
-                        brushOsc.stop(brushDelay + 0.22);
-                    }
-                }
-
+                buildTransporterAudioGraph(ctx, ctx.currentTime, 5.3, isMaterialize);
             } catch (e) {
                 console.warn("Transporter sound error:", e);
             }
@@ -1031,7 +992,8 @@
                 description: "El dispositivo insignia de los oficiales médicos como McCoy y Beverly Crusher. Diseñado para realizar análisis biofísicos, medir constantes vitales, detectar toxinas y emitir diagnósticos en tiempo real sin requerir cirugías ni procedimientos invasivos sobre el paciente.",
                 curiosity: "⭐ Dato real: La fundación XPRIZE y Qualcomm crearon el concurso millonario 'Tricorder XPRIZE' para premiar a equipos de bioingeniería capaces de fabricar un dispositivo de bolsillo real que diagnostique hasta 13 afecciones médicas en minutos.",
                 scaleFactor: 4.0,
-                cameraRadius: 5.8
+                cameraRadius: 5.8,
+                initialRotationY: Math.PI // Girado 180° en horizontal para mostrar el frontal/panel de diagnóstico
             },
             {
                 id: "phaser_tng",
@@ -1133,6 +1095,7 @@
         let teleportAlpha = 1.0;
         let teleportState = "idle";
         let teleportTargetTime = 0;
+        let lastTransporterInvisibleState = false;
         let voiceCorePillars = [];
         let bridgeTurboliftDoors = [];
         let isDoorsOpen = false;
@@ -1183,9 +1146,10 @@
                     });
                 }
 
-                // Lógica de Teletransporte con Burbujas y Desmaterialización (Exacta de P1.3)
+                // Lógica de Teletransporte con Burbujas y Desmaterialización
                 if (currentIsTransporterRoom) {
-                    let speed = 0.01 * (dt / 16.66); // Ajustado al framerate exacto de P1.3
+                    let dt = Math.min(engine.getDeltaTime(), 33.33); // Protección contra saltos por picos de lag
+                    let speed = 0.01 * (dt / 16.66);
                     let now = Date.now();
 
                     if (teleportState === "pre_dissolve") {
@@ -1196,7 +1160,7 @@
                         if (teleportAlpha <= 0) {
                             teleportAlpha = 0;
                             teleportState = "post_dissolve";
-                            teleportTargetTime = Date.now() + 2000; // 2 segundos exactos de P1.3
+                            teleportTargetTime = Date.now() + 2000;
                         }
                     }
                     else if (teleportState === "post_dissolve") {
@@ -1213,7 +1177,7 @@
                         if (teleportAlpha >= 1) {
                             teleportAlpha = 1;
                             teleportState = "post_materialize";
-                            teleportTargetTime = Date.now() + 2000; // 2 segundos exactos de P1.3
+                            teleportTargetTime = Date.now() + 2000;
                         }
                     }
                     else if (teleportState === "post_materialize") {
@@ -1223,27 +1187,19 @@
                         }
                     }
 
-                    // Determinar si están completamente desmaterializados
-                    const isFullyInvisible = (teleportAlpha <= 0.005);
-
-                    // Aplicar alpha y modo de transparencia según el estado
+                    // Aplicar alpha a los materiales de forma continua y limpia (sin recomposiciones de pipeline)
                     transporterMaterials.forEach(mat => {
                         mat.alpha = teleportAlpha;
-                        mat.transparencyMode = (teleportAlpha >= 0.999) 
-                            ? BABYLON.Material.MATERIAL_OPAQUE 
-                            : BABYLON.Material.MATERIAL_ALPHABLEND;
                     });
 
-                    // Control estricto de visibilidad, culling y deshabilitación completa
-                    transporterMeshes.forEach(m => {
-                        m.visibility = isFullyInvisible ? 0 : teleportAlpha;
-                        m.isVisible = !isFullyInvisible;
-                        m.setEnabled(!isFullyInvisible);
-                    });
-
-                    transporterCaptainNodes.forEach(node => {
-                        node.setEnabled(!isFullyInvisible);
-                    });
+                    // Ocultar mallas solo al alcanzar invisibilidad total (sin toggles constantes)
+                    const isFullyInvisible = (teleportAlpha <= 0.001);
+                    if (isFullyInvisible !== lastTransporterInvisibleState) {
+                        lastTransporterInvisibleState = isFullyInvisible;
+                        transporterMeshes.forEach(m => {
+                            m.isVisible = !isFullyInvisible;
+                        });
+                    }
                 }
             });
 
@@ -1324,7 +1280,11 @@
                 isDoorsOpen = false;
                 teleportAlpha = 1.0;
                 teleportState = "idle";
+                lastTransporterInvisibleState = false;
                 currentIsTransporterRoom = !!item.isFullTransporterRoom;
+                if (currentIsTransporterRoom) {
+                    try { preRenderTransporterAudio(); } catch (e) {}
+                }
 
                 // Desactivar GlowLayer y luces direccionales para la Sala de Teletransporte (exacto a P1.3)
                 if (glowLayer) glowLayer.isEnabled = !currentIsTransporterRoom;
@@ -1548,21 +1508,19 @@
                                 // Mallas de los 5 capitanes en los pads (se teletransportan)
                                 if (m.material) {
                                     m.material.backFaceCulling = false;
-                                    m.material.transparencyMode = (teleportAlpha >= 0.999) 
-                                        ? BABYLON.Material.MATERIAL_OPAQUE 
-                                        : BABYLON.Material.MATERIAL_ALPHABLEND;
+                                    m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
                                     m.material.alpha = teleportAlpha;
                                     if (!transporterMaterials.includes(m.material)) {
                                         transporterMaterials.push(m.material);
                                     }
                                 }
-                                m.needDepthPrePass = true;
+                                m.needDepthPrePass = false; // Sin depth pre-pass para evitar doble pase de animación de skins
                                 if (!transporterMeshes.includes(m)) {
                                     transporterMeshes.push(m);
                                 }
-                                m.isVisible = (teleportAlpha > 0.005);
-                                m.setEnabled(teleportAlpha > 0.005);
-                                m.visibility = teleportAlpha;
+                                m.isVisible = true;
+                                m.setEnabled(true);
+                                m.visibility = 1.0;
                             }
                         });
 
@@ -1620,7 +1578,8 @@
                     }
 
                     // Sistema de Burbujas de Teletransporte (Exacto de P1.3)
-                    transporterParticleSystem = new BABYLON.ParticleSystem("particles", 15000, scene);
+                    // Sistema de Burbujas de Teletransporte optimizado y fluido
+                    transporterParticleSystem = new BABYLON.ParticleSystem("particles", 2500, scene);
                     const bubbleTexture = new BABYLON.DynamicTexture("bubbleTexture", 64, scene, true);
                     const bctx = bubbleTexture.getContext();
                     bctx.clearRect(0, 0, 64, 64);
@@ -1646,8 +1605,8 @@
                     transporterParticleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
                     transporterParticleSystem.minSize = 0.2;
                     transporterParticleSystem.maxSize = 0.8;
-                    transporterParticleSystem.minLifeTime = 1.0;
-                    transporterParticleSystem.maxLifeTime = 2.5;
+                    transporterParticleSystem.minLifeTime = 0.8;
+                    transporterParticleSystem.maxLifeTime = 1.6;
                     transporterParticleSystem.emitRate = 0;
                     transporterParticleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
                     transporterParticleSystem.gravity = new BABYLON.Vector3(0, 20, 0);
@@ -1754,7 +1713,7 @@
                 // 4. Centrado en el origen (0,0,0) y asignación al nodo pivote de giro
                 const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
                 pivot.position = BABYLON.Vector3.Zero();
-                pivot.rotation.y = 0;
+                pivot.rotation.y = item.initialRotationY !== undefined ? item.initialRotationY : 0;
 
                 rootMesh.position.subtractInPlace(worldCenter);
                 rootMesh.parent = pivot;
@@ -1809,7 +1768,7 @@
                 try { playTransporterSound(false); } catch (e) {}
                 teleportState = "pre_dissolve";
                 teleportTargetTime = Date.now() + 1500;
-                if (transporterParticleSystem) transporterParticleSystem.emitRate = 4000;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 1000;
             }
         }
 
@@ -1818,7 +1777,7 @@
                 try { playTransporterSound(true); } catch (e) {}
                 teleportState = "pre_materialize";
                 teleportTargetTime = Date.now() + 1500;
-                if (transporterParticleSystem) transporterParticleSystem.emitRate = 4000;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 1000;
             }
         }
 

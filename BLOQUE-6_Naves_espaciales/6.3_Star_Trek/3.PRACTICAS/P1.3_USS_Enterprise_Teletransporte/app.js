@@ -191,8 +191,8 @@ const createScene = function () {
     });
 
     // --- 6. Sistema de Partículas (Teletransporte) ---
-    // Aumentamos la capacidad para que sean más densas
-    const particleSystem = new BABYLON.ParticleSystem("particles", 15000, scene);
+    // Capacidad optimizada para una alta densidad visual con 60 FPS estables
+    const particleSystem = new BABYLON.ParticleSystem("particles", 2500, scene);
     // Crear una textura de burbuja blanca perfecta programáticamente para asegurar un color 100% blanco
     const bubbleTexture = new BABYLON.DynamicTexture("bubbleTexture", 64, scene, true);
     const ctx = bubbleTexture.getContext();
@@ -220,8 +220,8 @@ const createScene = function () {
     // Burbujas más pequeñas como en la película
     particleSystem.minSize = 0.2;
     particleSystem.maxSize = 0.8;
-    particleSystem.minLifeTime = 1.0;
-    particleSystem.maxLifeTime = 2.5;
+    particleSystem.minLifeTime = 0.8;
+    particleSystem.maxLifeTime = 1.6;
     particleSystem.emitRate = 0; // Apagado por defecto
     particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
     particleSystem.gravity = new BABYLON.Vector3(0, 20, 0); // Partículas flotan hacia arriba
@@ -243,7 +243,7 @@ const createScene = function () {
         if (teleportAlpha >= 0.5) {
             teleportState = "pre_dissolve";
             targetTime = Date.now() + 1500;
-            particleSystem.emitRate = 4000;
+            particleSystem.emitRate = 1000;
         }
     }
 
@@ -251,7 +251,7 @@ const createScene = function () {
         if (teleportAlpha <= 0.5) {
             teleportState = "pre_materialize";
             targetTime = Date.now() + 1500;
-            particleSystem.emitRate = 4000;
+            particleSystem.emitRate = 1000;
         }
     }
 
@@ -277,7 +277,7 @@ const createScene = function () {
     });
 
     scene.onBeforeRenderObservable.add(() => {
-        let dt = engine.getDeltaTime();
+        let dt = Math.min(engine.getDeltaTime(), 33.33); // Protección contra saltos por caídas de framerate
         let speed = 0.01 * (dt / 16.66); // Ajustado al framerate
         let now = Date.now();
         
