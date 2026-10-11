@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script>
+    if (window.location.protocol === "file:") {
+        const match = window.location.pathname.match(/BLOQUE-6_Naves_espaciales.*$/);
+        if (match) window.location.replace("http://localhost:8888/" + match[0]);
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taller de Construcción de Naves Espaciales 3D con IA - Star Wars</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #050811; color: #f8fafc; min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 15% 18%, rgba(245, 158, 11, 0.13) 0%, transparent 42%),
+                radial-gradient(circle at 85% 82%, rgba(56, 189, 248, 0.12) 0%, transparent 42%),
+                linear-gradient(to bottom, #050811, #0f172a);
+            padding-bottom: 80px;
+        }
+        .header {
+            text-align: center; padding: 38px 24px 26px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(5, 8, 17, 0.88); backdrop-filter: blur(14px);
+        }
+        .nav-top {
+            display: flex; justify-content: space-between; align-items: center; max-width: 1240px; margin: 0 auto 16px;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .back-btn {
+            background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #38bdf8; padding: 8px 18px; border-radius: 8px; font-weight: 700; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: all 0.2s;
+        }
+        .back-btn:hover { background: #38bdf8; color: #050811; }
+        .tagline {
+            font-size: 0.82rem; font-weight: 800; letter-spacing: 2.5px;
+            text-transform: uppercase; color: #fbbf24; background: rgba(245, 158, 11, 0.14);
+            border: 1px solid rgba(245, 158, 11, 0.4); padding: 5px 16px; border-radius: 999px;
+        }
+        h1 {
+            font-size: 2.35rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;
+            color: #ffffff; text-shadow: 0 0 30px rgba(245, 158, 11, 0.35); margin-bottom: 10px;
+        }
+        .subtitle { font-size: 1.02rem; color: #cbd5e1; max-width: 920px; margin: 0 auto; line-height: 1.6; }
+
+        .container { max-width: 1240px; margin: 32px auto; padding: 0 24px; }
+
+        /* 4 Pasos del flujo IA */
+        .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 18px; margin-bottom: 36px; }
+        .step-card {
+            background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px; padding: 20px; position: relative; backdrop-filter: blur(8px);
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .step-card:hover { border-color: rgba(245, 158, 11, 0.5); }
+        .step-num {
+            font-size: 0.75rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #fbbf24; margin-bottom: 6px;
+        }
+        .step-title { font-size: 1.12rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .step-desc { font-size: 0.87rem; color: #94a3b8; line-height: 1.5; }
+
+        .section-title {
+            font-size: 1.38rem; font-weight: 900; color: #fff; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-sub {
+            font-size: 0.92rem; color: #94a3b8; margin-bottom: 18px; line-height: 1.5;
+        }
+
+        /* Tarjetas de Prompts para Gemini + Generador de Planos */
+        .prompt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 36px; }
+        .prompt-card {
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+            transition: all 0.2s;
+        }
+        .prompt-card:hover { border-color: #38bdf8; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15); }
+        .prompt-ship-name { font-weight: 900; font-size: 1.05rem; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+        .prompt-text-box {
+            background: rgba(6, 10, 20, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.78rem; color: #e2e8f0; line-height: 1.45;
+        }
+        .prompt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-copy {
+            flex: 1; background: #38bdf8; color: #04070d; border: none; padding: 9px 12px;
+            border-radius: 7px; font-weight: 800; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-copy:hover { background: #7dd3fc; }
+        .btn-blueprint {
+            background: rgba(245, 158, 11, 0.18); border: 1px solid #f59e0b; color: #fbbf24;
+            padding: 9px 12px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-blueprint:hover { background: #f59e0b; color: #050811; }
+
+        /* Portales IA Foto-a-3D */
+        .ai-portals-bar {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.95));
+            border: 1.5px solid rgba(245, 158, 11, 0.45); border-radius: 14px;
+            padding: 18px 22px; margin-bottom: 36px;
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;
+        }
+        .ai-portals-info { max-width: 540px; }
+        .ai-portals-title { font-size: 1.1rem; font-weight: 900; color: #fbbf24; margin-bottom: 4px; }
+        .ai-portals-desc { font-size: 0.86rem; color: #cbd5e1; line-height: 1.45; }
+        .ai-portals-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+        .portal-link {
+            text-decoration: none; padding: 10px 16px; border-radius: 9px; font-weight: 800; font-size: 0.85rem;
+            display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
+        }
+        .portal-gemini { background: rgba(56, 189, 248, 0.2); border: 1.5px solid #38bdf8; color: #7dd3fc; }
+        .portal-gemini:hover { background: #38bdf8; color: #050811; }
+        .portal-hunyuan { background: rgba(16, 185, 129, 0.2); border: 1.5px solid #10b981; color: #6ee7b7; }
+        .portal-hunyuan:hover { background: #10b981; color: #050811; }
+        .portal-trellis { background: rgba(168, 85, 247, 0.2); border: 1.5px solid #a855f7; color: #d8b4fe; }
+        .portal-trellis:hover { background: #a855f7; color: #050811; }
+        .portal-tripo { background: rgba(245, 158, 11, 0.2); border: 1.5px solid #f59e0b; color: #fde68a; }
+        .portal-tripo:hover { background: #f59e0b; color: #050811; }
+
+        /* Laboratorio 3D y Dropzone */
+        .dropzone-box {
+            background: rgba(11, 17, 30, 0.95); border: 2px dashed rgba(245, 158, 11, 0.55);
+            border-radius: 18px; padding: 24px; text-align: center; margin-bottom: 32px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+        }
+        .dropzone-box.dragover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
+        .drop-title { font-size: 1.35rem; font-weight: 900; color: #fbbf24; margin-bottom: 6px; }
+        .drop-desc { font-size: 0.92rem; color: #cbd5e1; margin-bottom: 16px; line-height: 1.5; }
+
+        .preset-bar {
+            display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .action-btn {
+            background: rgba(245, 158, 11, 0.2); border: 1.5px solid #f59e0b; color: #fde68a;
+            padding: 10px 18px; border-radius: 8px; font-weight: 800; font-size: 0.88rem;
+            cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .action-btn:hover, .action-btn.active-ship {
+            background: #f59e0b; color: #050811; box-shadow: 0 0 18px rgba(245, 158, 11, 0.45);
+        }
+        .upload-btn {
+            background: rgba(56, 189, 248, 0.22); border: 1.5px solid #38bdf8; color: #7dd3fc;
+        }
+        .upload-btn:hover { background: #38bdf8; color: #050811; box-shadow: 0 0 18px rgba(56, 189, 248, 0.45); }
+
+        /* Barra de las 4 Fases de Ingeniería 3D */
+        .phases-bar {
+            background: rgba(15, 23, 42, 0.96); border: 1.5px solid rgba(56, 189, 248, 0.35);
+            border-radius: 12px; padding: 14px 16px; margin: 14px 0;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .phases-header {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+        }
+        .phases-title { font-size: 0.88rem; font-weight: 900; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+        .mesh-stats {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.8rem; color: #6ee7b7; background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35); padding: 4px 12px; border-radius: 999px; font-weight: 700;
+        }
+        .phases-btns {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;
+        }
+        .phase-btn {
+            background: rgba(30, 41, 59, 0.85); border: 1.5px solid rgba(255, 255, 255, 0.14);
+            color: #e2e8f0; padding: 11px 14px; border-radius: 9px; font-weight: 800; font-size: 0.84rem;
+            cursor: pointer; transition: all 0.2s; text-align: left; display: flex; flex-direction: column; gap: 3px;
+        }
+        .phase-btn span.p-sub { font-size: 0.73rem; font-weight: 600; color: #94a3b8; }
+        .phase-btn:hover { border-color: #38bdf8; background: rgba(30, 41, 59, 1); }
+        .phase-btn.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 116, 144, 0.35));
+            border-color: #38bdf8; color: #ffffff; box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+        }
+        .phase-btn.active span.p-sub { color: #bae6fd; }
+
+        .phase-explain-banner {
+            background: rgba(245, 158, 11, 0.12); border-left: 4px solid #f59e0b;
+            padding: 10px 14px; border-radius: 0 8px 8px 0; text-align: left;
+            font-size: 0.88rem; color: #fef3c7; line-height: 1.45; margin-bottom: 12px;
+        }
+
+        #viewer-container {
+            width: 100%; height: 600px; background: #03060c; border-radius: 14px;
+            position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+        #threeCanvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        .viewer-controls {
+            position: absolute; bottom: 14px; left: 14px; right: 14px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+            pointer-events: none;
+        }
+        .ctrl-group {
+            display: flex; gap: 8px; flex-wrap: wrap; pointer-events: auto;
+            background: rgba(6, 10, 20, 0.85); padding: 6px 10px; border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px);
+        }
+        .mini-btn {
+            background: rgba(30, 41, 59, 0.9); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 7px 13px; border-radius: 7px; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mini-btn:hover { border-color: #fbbf24; color: #fbbf24; }
+        .mini-btn.hyperspace-btn {
+            background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8; color: #fff;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+        }
+        .mini-btn.hyperspace-btn:hover { background: #38bdf8; color: #050811; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="nav-top">
+            <a href="../4.GRAN_MUSEO_STAR_WARS/1.HANGAR_NAVES/index_radial.html" class="back-btn">🛸 Ir al Hangar de Naves</a>
+            <div class="tagline">🛠️ Astillero de Ingeniería IA &amp; Calco 3D</div>
+            <a href="../4.GRAN_MUSEO_STAR_WARS/index.html" class="back-btn">🏛️ Volver al Gran Museo</a>
+        </div>
+        <h1>Taller de Construcción de Naves 3D con IA</h1>
+        <p class="subtitle">
+            Descubre cómo trabajan hoy los estudios de cine y videojuegos: genera el plano fotográfico de una nave en <strong>Google Gemini</strong>,
+            conviértelo en una malla de miles de triángulos (<strong>.GLB</strong>) en 40 segundos con <strong>IA Generativa Image-to-3D</strong>,
+            y despieza en directo las <strong>4 fases de construcción del Halcón Milenario</strong> (Cristal de Calco, Bloques Kitbashing, Malla Poligonal y Texturizado Hiperespacial).
+        </p>
+    </header>
+
+    <div class="container">
+        <!-- 4 Pasos Guiados -->
+        <div class="steps-grid">
+            <div class="step-card">
+                <div>
+                    <div class="step-num">Paso 1 • El Cristal de Calco</div>
+                    <div class="step-title">Genera la Foto en Gemini</div>
+                    <div class="step-desc">Copia uno de los <strong>Prompts Maestros</strong> de abajo y pégalo en <strong>Google Gemini</strong> para que dibuje una vista isométrica limpia de la nave sobre fondo blanco (o descarga directamente nuestras láminas de calco listas para usar).</div>
+                </div>
+            </div>
+            <div class="step-card">
+                <div>
+                    <div class="step-num">Paso 2 • De Foto 2D a Malla 3D</div>
+                    <div class="step-title">Esculpe el .GLB con IA</div>
+                    <div class="step-desc">Abre cualquiera de los generadores gratuitos de <strong>Foto a 3D</strong> (<em>Hunyuan3D-2</em>, <em>TRELLIS</em> o <em>Tripo3D</em>), sube la imagen de tu nave y observa cómo la red neuronal calcula el volumen oculto y te permite descargar el archivo <code>.glb</code>.</div>
+                </div>
+            </div>
+            <div class="step-card">
+                <div>
+                    <div class="step-num">Paso 3 • Importación al Astillero</div>
+                    <div class="step-title">Arrastra tu Nave .GLB</div>
+                    <div class="step-desc">Arrastra el archivo <code>.glb</code> que has creado con la IA dentro del visor 3D inferior (o selecciona directamente el <strong>Halcón Milenario Oficial</strong> ya precargado en el astillero).</div>
+                </div>
+            </div>
+            <div class="step-card">
+                <div>
+                    <div class="step-num">Paso 4 • Anatomía Poligonal</div>
+                    <div class="step-title">Explora las 4 Fases y Vuela</div>
+                    <div class="step-desc">Usa los 4 botones del Laboratorio para ver el <strong>Plano de Calco (Blueprint)</strong> bajo la nave, los <strong>Bloques Geométricos (Kitbashing)</strong>, la <strong>Malla de Alambre (Wireframe)</strong> con su contador de triángulos y el <strong>Salto al Hiperespacio</strong>.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Catálogo de Prompts para Gemini + Láminas de Calco -->
+        <div class="section-title">📐 Paso 1: Prompts Maestros para Google Gemini (y Láminas de Calco Directas)</div>
+        <p class="section-sub">Pulsa <strong>«📋 Copiar Prompt»</strong> y pégalo en Gemini para crear tu propia imagen de referencia, o pulsa <strong>«⬇️ Bajar Lámina PNG»</strong> para obtener al instante una lámina técnica lista para subir al generador 3D.</p>
+
+        <div class="prompt-grid">
+            <div class="prompt-card">
+                <div>
+                    <div class="prompt-ship-name">🚀 1. Halcón Milenario (YT-1300)</div>
+                    <div class="prompt-text-box" id="prompt_falcon">Fotografía de estudio en vista isométrica 3/4 superior del Halcón Milenario de Star Wars completo, plato central circular con dos mandíbulas triangulares delanteras y cabina cilíndrica en el lateral derecho, sobre fondo blanco puro liso sin sombras exteriores, iluminación neutra uniforme para reconstrucción 3D.</div>
+                </div>
+                <div class="prompt-actions">
+                    <button class="btn-copy" onclick="copyPrompt('prompt_falcon', this)">📋 Copiar Prompt</button>
+                    <button class="btn-blueprint" onclick="downloadBlueprintPNG('falcon')">⬇️ Bajar Lámina PNG</button>
+                </div>
+            </div>
+
+            <div class="prompt-card">
+                <div>
+                    <div class="prompt-ship-name">✈️ 2. Caza Rebelde Ala-X (X-Wing)</div>
+                    <div class="prompt-text-box" id="prompt_xwing">Fotografía de estudio en vista isométrica 3/4 de un caza estelar X-Wing de Star Wars con sus cuatro alas en tijera abiertas y cuatro cañones láser en las puntas, fuselaje blanco con franjas rojas, sobre fondo blanco puro liso sin sombras, ideal para escaneo 3D.</div>
+                </div>
+                <div class="prompt-actions">
+                    <button class="btn-copy" onclick="copyPrompt('prompt_xwing', this)">📋 Copiar Prompt</button>
+                    <button class="btn-blueprint" onclick="downloadBlueprintPNG('xwing')">⬇️ Bajar Lámina PNG</button>
+                </div>
+            </div>
+
+            <div class="prompt-card">
+                <div>
+                    <div class="prompt-ship-name">🛸 3. Caza Imperial TIE Avanzado</div>
+                    <div class="prompt-text-box" id="prompt_tie">Fotografía de estudio en vista isométrica 3/4 del caza TIE Avanzado de Darth Vader, cabina esférica central con ventanal octogonal y dos paneles solares hexagonales curvados a los lados, sobre fondo blanco puro liso sin sombras, alta nitidez para modelo 3D.</div>
+                </div>
+                <div class="prompt-actions">
+                    <button class="btn-copy" onclick="copyPrompt('prompt_tie', this)">📋 Copiar Prompt</button>
+                    <button class="btn-blueprint" onclick="downloadBlueprintPNG('tie')">⬇️ Bajar Lámina PNG</button>
+                </div>
+            </div>
+
+            <div class="prompt-card">
+                <div>
+                    <div class="prompt-ship-name">📐 4. Destructor Estelar Imperial</div>
+                    <div class="prompt-text-box" id="prompt_destroyer">Fotografía de estudio en vista isométrica 3/4 de un Destructor Estelar Imperial en forma de cuña triangular gris con su puente de mando elevado en la popa y tres grandes toberas iónicas traseras, sobre fondo blanco puro liso sin sombras para reconstrucción 3D.</div>
+                </div>
+                <div class="prompt-actions">
+                    <button class="btn-copy" onclick="copyPrompt('prompt_destroyer', this)">📋 Copiar Prompt</button>
+                    <button class="btn-blueprint" onclick="downloadBlueprintPNG('destroyer')">⬇️ Bajar Lámina PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Portales Gratuitos de IA 3D -->
+        <div class="ai-portals-bar">
+            <div class="ai-portals-info">
+                <div class="ai-portals-title">🤖 Paso 2: Portales Gratuitos de IA para pasar de Foto a Modelo 3D (.GLB)</div>
+                <div class="ai-portals-desc">1º Genera la imagen en <strong>Google Gemini</strong>. 2º Súbela a <strong>Hunyuan3D-2</strong> o <strong>TRELLIS</strong> (100% gratis y sin registro en Hugging Face) o a <strong>Tripo3D</strong> para descargar el fichero <code>.glb</code>.</div>
+            </div>
+            <div class="ai-portals-btns">
+                <a href="https://gemini.google.com" target="_blank" class="portal-link portal-gemini">✨ 1. Abrir Google Gemini ↗</a>
+                <a href="https://huggingface.co/spaces/tencent/Hunyuan3D-2" target="_blank" class="portal-link portal-hunyuan">🧊 2A. Hunyuan3D-2 (Gratis sin registro) ↗</a>
+                <a href="https://huggingface.co/spaces/JeffreyXiang/TRELLIS" target="_blank" class="portal-link portal-trellis">🕸️ 2B. TRELLIS 3D (Gratis sin registro) ↗</a>
+                <a href="https://www.tripo3d.ai" target="_blank" class="portal-link portal-tripo">🚀 2C. Tripo3D Studio ↗</a>
+            </div>
+        </div>
+
+        <!-- Laboratorio Interactivo 3D -->
+        <div class="dropzone-box" id="dropzoneBox">
+            <div class="drop-title">🛸 Paso 3 y 4: Astillero Holográfico 3D — Prueba tu Nave .GLB o Despieza el Halcón Milenario</div>
+            <div class="drop-desc">
+                Arrastra aquí cualquier archivo <strong>.GLB / .GLTF</strong> generado por la IA, o explora directamente las naves oficiales del museo con los <strong>4 modos de ingeniería 3D</strong>:
+            </div>
+
+            <div class="preset-bar">
+                <button class="action-btn upload-btn" onclick="document.getElementById('glbFileInput').click()">
+                    📂 Cargar mi Nave .GLB creada con IA
+                </button>
+                <button class="action-btn active-ship" id="btnShip_falcon" onclick="loadPresetShip('falcon')">
+                    🚀 Halcón Milenario (YT-1300)
+                </button>
+                <button class="action-btn" id="btnShip_xwing" onclick="loadPresetShip('xwing')">
+                    ✈️ Caza Rebelde X-Wing
+                </button>
+                <button class="action-btn" id="btnShip_tie" onclick="loadPresetShip('tie')">
+                    🛸 Caza TIE Avanzado (Vader)
+                </button>
+                <button class="action-btn" id="btnShip_destroyer" onclick="loadPresetShip('destroyer')">
+                    📐 Destructor Estelar Imperial
+                </button>
+            </div>
+            <input type="file" id="glbFileInput" accept=".glb,.gltf" style="display:none" onchange="handleGlbUpload(event)">
+
+            <!-- Barra de las 4 Fases de Construcción 3D -->
+            <div class="phases-bar">
+                <div class="phases-header">
+                    <span class="phases-title">🔬 Conmutador de las 4 Fases de Construcción 3D (Del Cristal de Calco al Modelo Final):</span>
+                    <span class="mesh-stats" id="meshStatsBadge">Malla 3D: Calculando polígonos...</span>
+                </div>
+                <div class="phases-btns">
+                    <button class="phase-btn" id="phaseBtn1" onclick="setConstructionPhase(1)">
+                        <span>📐 Fase 1: Cristal de Calco (Blueprint)</span>
+                        <span class="p-sub">Planos ortogonales luminosos bajo la nave</span>
+                    </button>
+                    <button class="phase-btn" id="phaseBtn2" onclick="setConstructionPhase(2)">
+                        <span>🧱 Fase 2: Geometría Base (Kitbashing)</span>
+                        <span class="p-sub">Disco, mandíbulas, cilindro de cabina y torreta</span>
+                    </button>
+                    <button class="phase-btn" id="phaseBtn3" onclick="setConstructionPhase(3)">
+                        <span>🕸️ Fase 3: Malla de Triángulos (Wireframe IA)</span>
+                        <span class="p-sub">Red poligonal de vértices y aristas calculada</span>
+                    </button>
+                    <button class="phase-btn active" id="phaseBtn4" onclick="setConstructionPhase(4)">
+                        <span>🚀 Fase 4: Texturizado PBR + Hiperespacio</span>
+                        <span class="p-sub">Acabado metálico final y motores iónicos activos</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="phase-explain-banner" id="phaseExplainBanner">
+                <strong>🚀 FASE 4 ACTIVA (Acabado Fotorrealista PBR):</strong> Sobre la malla de miles de triángulos se proyectan las texturas metálicas, el desgaste térmico y la iluminación de los motores iónicos. Pulsa en las <strong>Fases 1, 2 y 3</strong> de arriba para descubrir qué hay debajo de la piel de la nave.
+            </div>
+
+            <div id="viewer-container">
+                <canvas id="threeCanvas"></canvas>
+                <div class="viewer-controls">
+                    <div class="ctrl-group">
+                        <button class="mini-btn" id="btnRotateToggle" onclick="toggleRotation()">⏸ Pausar Giro</button>
+                        <button class="mini-btn" onclick="setCameraAngle('iso')">📐 Vista 3/4</button>
+                        <button class="mini-btn" onclick="setCameraAngle('top')">⬆️ Vista Cenital (Calco)</button>
+                        <button class="mini-btn" onclick="setCameraAngle('front')">👁️ Vista Frontal</button>
+                        <button class="mini-btn" onclick="setCameraAngle('side')">➡️ Vista Perfil</button>
+                    </div>
+                    <div class="ctrl-group">
+                        <button class="mini-btn hyperspace-btn" id="btnHyperspace" onclick="triggerHyperspace()">
+                            ⚡ Saltar al Hiperespacio
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js + GLTFLoader + OrbitControls -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+        let currentShipGroup = null;
+        let blueprintGroup = null;
+        let blockingGroup = null;
+        let starField = null;
+        let autoRotate = true;
+        let isHyperspace = false;
+        let currentPhase = 4;
+        let currentShipKey = 'falcon';
+
+        const isGitHub = window.location.hostname.includes("github.io");
+        const RAW_BASE = "https://raw.githubusercontent.com/javiercursocorreo-gif/Curso-Robotica/main/MODELOS/STAR%20WARS/";
+        const LOCAL_BASE = "../../../MODELOS/STAR%20WARS/";
+        const MODEL_BASE = isGitHub ? RAW_BASE : (window.location.pathname.includes("BLOQUE-6") ? LOCAL_BASE : RAW_BASE);
+
+        const PRESET_SHIPS = {
+            falcon: {
+                name: "Halcón Milenario (YT-1300F)",
+                url: MODEL_BASE + "2.NAVES_Y_VEHICULOS/star_wars_-_halcon_milenario/scene.gltf"
+            },
+            xwing: {
+                name: "Caza Rebelde T-65B X-Wing",
+                url: MODEL_BASE + "2.NAVES_Y_VEHICULOS/star_wars_x-wing-NUEVO/scene.gltf"
+            },
+            tie: {
+                name: "Caza TIE Avanzado x1 (Darth Vader)",
+                url: MODEL_BASE + "2.NAVES_Y_VEHICULOS/star_wars_tie_vader/scene.gltf"
+            },
+            destroyer: {
+                name: "Destructor Estelar Imperial",
+                url: MODEL_BASE + "2.NAVES_Y_VEHICULOS/star_wars_imperial-class_star_destroyer/scene.gltf"
+            }
+        };
+
+        const canvas = document.getElementById('threeCanvas');
+        const container = document.getElementById('viewer-container');
+        const statsBadge = document.getElementById('meshStatsBadge');
+        const explainBanner = document.getElementById('phaseExplainBanner');
+
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x03060c);
+
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 2000);
+            camera.position.set(5.5, 4.2, 6.5);
+
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.25;
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.target.set(0, 0.2, 0);
+
+            const hemi = new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.6);
+            scene.add(hemi);
+
+            const dir1 = new THREE.DirectionalLight(0xfffbeb, 2.5);
+            dir1.position.set(8, 12, 8);
+            scene.add(dir1);
+
+            const dir2 = new THREE.DirectionalLight(0x38bdf8, 1.4);
+            dir2.position.set(-8, 5, -8);
+            scene.add(dir2);
+
+            createBlueprintGroup();
+            createBlockingPrimitives('falcon');
+            createStarfield();
+
+            window.addEventListener('resize', onResize);
+            setupDragAndDrop();
+
+            loadPresetShip('falcon');
+            animate();
+        }
+
+        // 1. Cristal de Calco (Plano Blueprint luminoso con miras y cotas en el suelo y planos ortogonales)
+        function createBlueprintGroup() {
+            blueprintGroup = new THREE.Group();
+
+            // Textura procedural de plano de ingeniería ("Cristal de Calco")
+            const bpCanvas = document.createElement('canvas');
+            bpCanvas.width = 1024;
+            bpCanvas.height = 1024;
+            const ctx = bpCanvas.getContext('2d');
+
+            ctx.fillStyle = 'rgba(4, 24, 48, 0.88)';
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            // Cuadrícula milimetrada
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 1024; i += 32) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
+            }
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i <= 1024; i += 128) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
+            }
+
+            // Silueta técnica de calco del Halcón Milenario en el plano
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            // Plato central
+            ctx.beginPath();
+            ctx.arc(512, 540, 250, 0, Math.PI * 2);
+            ctx.stroke();
+            // Círculo interior de bahía central
+            ctx.beginPath();
+            ctx.arc(512, 540, 85, 0, Math.PI * 2);
+            ctx.stroke();
+            // Mandíbulas delanteras (arriba)
+            ctx.beginPath();
+            ctx.moveTo(390, 320); ctx.lineTo(445, 130); ctx.lineTo(492, 130); ctx.lineTo(492, 300);
+            ctx.moveTo(634, 320); ctx.lineTo(579, 130); ctx.lineTo(532, 130); ctx.lineTo(532, 300);
+            ctx.stroke();
+            // Túnel y cabina lateral derecha
+            ctx.beginPath();
+            ctx.moveTo(745, 480); ctx.lineTo(865, 410); ctx.lineTo(865, 300); ctx.lineTo(810, 300); ctx.lineTo(810, 410);
+            ctx.stroke();
+
+            // Cotas y textos técnicos
+            ctx.fillStyle = '#7dd3fc';
+            ctx.font = 'bold 26px monospace';
+            ctx.fillText('PLANO DE CALCO ORTOGONAL (BLUEPRINT 1:1) — EJE X/Z', 60, 56);
+            ctx.font = '20px monospace';
+            ctx.fillText('LONGITUD: 34.75 m | DIÁMETRO PLATO: 25.6 m | CABINA LATERAL ESTRIBOR', 60, 980);
+
+            const bpTex = new THREE.CanvasTexture(bpCanvas);
+            const planeGeo = new THREE.PlaneGeometry(7.2, 7.2);
+            const planeMat = new THREE.MeshBasicMaterial({
+                map: bpTex,
+                transparent: true,
+                opacity: 0.92,
+                side: THREE.DoubleSide
+            });
+            const floorPlane = new THREE.Mesh(planeGeo, planeMat);
+            floorPlane.rotation.x = -Math.PI / 2;
+            floorPlane.position.y = -0.85;
+            blueprintGroup.add(floorPlane);
+
+            // Segundo cristal vertical lateral semitransparente (se activa en Fase 1 y 2)
+            const vertMat = new THREE.MeshBasicMaterial({
+                map: bpTex,
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const backPlane = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 4.2), vertMat);
+            backPlane.position.set(0, 1.2, -3.6);
+            backPlane.name = "verticalGlass";
+            backPlane.visible = false;
+            blueprintGroup.add(backPlane);
+
+            scene.add(blueprintGroup);
+        }
+
+        // 2. Bloques Primitivos de Kitbashing (muestra cómo la nave se descompone en formas simples sobre el plano)
+        function createBlockingPrimitives(shipType) {
+            if (blockingGroup) scene.remove(blockingGroup);
+            blockingGroup = new THREE.Group();
+
+            const matSaucer = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.48, roughness: 0.3 });
+            const matMandibles = new THREE.MeshStandardMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.52, roughness: 0.3 });
+            const matCockpit = new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.55, roughness: 0.3 });
+            const matTurret = new THREE.MeshStandardMaterial({ color: 0xc084fc, transparent: true, opacity: 0.55, roughness: 0.3 });
+
+            // 1. Plato central (Cilindro achatado)
+            const saucer = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 0.48, 32), matSaucer);
+            saucer.position.set(0, 0.15, 0.25);
+            blockingGroup.add(saucer);
+
+            // 2. Mandíbulas delanteras (2 prismas trapezoides)
+            const mandibleGeo = new THREE.BoxGeometry(0.55, 0.32, 1.55);
+            const mandL = new THREE.Mesh(mandibleGeo, matMandibles);
+            mandL.position.set(-0.48, 0.15, -1.55);
+            mandL.rotation.y = -0.08;
+            blockingGroup.add(mandL);
+
+            const mandR = new THREE.Mesh(mandibleGeo, matMandibles);
+            mandR.position.set(0.48, 0.15, -1.55);
+            mandR.rotation.y = 0.08;
+            blockingGroup.add(mandR);
+
+            // 3. Cilindro de Cabina Lateral y Túnel
+            const tunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.2, 16), matCockpit);
+            tunnel.rotation.z = Math.PI / 2;
+            tunnel.position.set(1.75, 0.18, -0.35);
+            blockingGroup.add(tunnel);
+
+            const cockpit = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.28, 1.15, 16), matCockpit);
+            cockpit.rotation.x = Math.PI / 2;
+            cockpit.position.set(2.25, 0.18, -0.78);
+            blockingGroup.add(cockpit);
+
+            // 4. Torreta superior y Antena Radar
+            const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 0.35, 16), matTurret);
+            turret.position.set(0, 0.52, 0.25);
+            blockingGroup.add(turret);
+
+            const dish = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.22, 16), matTurret);
+            dish.rotation.x = -Math.PI / 3;
+            dish.position.set(-0.75, 0.55, -0.25);
+            blockingGroup.add(dish);
+
+            blockingGroup.visible = false;
+            scene.add(blockingGroup);
+        }
+
+        function createStarfield() {
+            const count = 1200;
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                pos[i * 3] = (Math.random() - 0.5) * 120;
+                pos[i * 3 + 1] = (Math.random() - 0.5) * 80;
+                pos[i * 3 + 2] = (Math.random() - 0.5) * 120;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ color: 0xe0f2fe, size: 0.22, transparent: true, opacity: 0.8 });
+            starField = new THREE.Points(geo, mat);
+            scene.add(starField);
+        }
+
+        function loadModelFromUrl(url, labelName) {
+            statsBadge.textContent = "⏳ Descargando y analizando malla 3D de " + labelName + "...";
+            const loader = new GLTFLoader();
+            loader.load(
+                url,
+                (gltf) => {
+                    if (currentShipGroup) scene.remove(currentShipGroup);
+                    currentShipGroup = gltf.scene;
+
+                    // Normalizar escala y centrar sobre el plano de calco
+                    const box = new THREE.Box3().setFromObject(currentShipGroup);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                    const targetSize = 4.4;
+                    const scale = targetSize / maxDim;
+
+                    currentShipGroup.scale.setScalar(scale);
+                    currentShipGroup.position.set(
+                        -center.x * scale,
+                        -center.y * scale + 0.22,
+                        -center.z * scale
+                    );
+
+                    // Contar vértices y triángulos reales de la malla
+                    let vertices = 0;
+                    let triangles = 0;
+                    let meshCount = 0;
+                    currentShipGroup.traverse((child) => {
+                        if (child.isMesh && child.geometry) {
+                            meshCount++;
+                            const posAttr = child.geometry.attributes.position;
+                            if (posAttr) vertices += posAttr.count;
+                            if (child.geometry.index) {
+                                triangles += child.geometry.index.count / 3;
+                            } else if (posAttr) {
+                                triangles += posAttr.count / 3;
+                            }
+                            // Guardar copia del material original para conmutar Wireframe / PBR
+                            child.userData.origMaterial = child.material.clone ? child.material.clone() : child.material;
+                        }
+                    });
+
+                    statsBadge.textContent =
+                        `✅ ${labelName} | Piezas: ${meshCount} | Vértices: ${vertices.toLocaleString('es-ES')} | Triángulos: ${Math.round(triangles).toLocaleString('es-ES')}`;
+
+                    scene.add(currentShipGroup);
+                    applyPhaseVisuals(currentPhase);
+                },
+                undefined,
+                (err) => {
+                    console.error(err);
+                    statsBadge.textContent = "⚠️ Error al cargar el modelo 3D. Puedes arrastrar cualquier archivo .GLB.";
+                }
+            );
+        }
+
+        window.loadPresetShip = function(shipKey) {
+            currentShipKey = shipKey;
+            document.querySelectorAll('.preset-bar .action-btn').forEach(b => b.classList.remove('active-ship'));
+            const btn = document.getElementById('btnShip_' + shipKey);
+            if (btn) btn.classList.add('active-ship');
+
+            const shipInfo = PRESET_SHIPS[shipKey];
+            if (shipInfo) {
+                loadModelFromUrl(shipInfo.url, shipInfo.name);
+            }
+        };
+
+        window.handleGlbUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const objectUrl = URL.createObjectURL(file);
+            document.querySelectorAll('.preset-bar .action-btn').forEach(b => b.classList.remove('active-ship'));
+            loadModelFromUrl(objectUrl, "Nave IA (" + file.name + ")");
+        };
+
+        function setupDragAndDrop() {
+            const box = document.getElementById('dropzoneBox');
+            box.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                box.classList.add('dragover');
+            });
+            box.addEventListener('dragleave', () => box.classList.remove('dragover'));
+            box.addEventListener('drop', (e) => {
+                e.preventDefault();
+                box.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && (file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf'))) {
+                    const objectUrl = URL.createObjectURL(file);
+                    document.querySelectorAll('.preset-bar .action-btn').forEach(b => b.classList.remove('active-ship'));
+                    loadModelFromUrl(objectUrl, "Nave IA (" + file.name + ")");
+                }
+            });
+        }
+
+        window.setConstructionPhase = function(phaseNum) {
+            currentPhase = phaseNum;
+            for (let i = 1; i <= 4; i++) {
+                const b = document.getElementById('phaseBtn' + i);
+                if (b) b.classList.toggle('active', i === phaseNum);
+            }
+            applyPhaseVisuals(phaseNum);
+        };
+
+        function applyPhaseVisuals(phaseNum) {
+            const vertGlass = blueprintGroup ? blueprintGroup.getObjectByName("verticalGlass") : null;
+
+            if (phaseNum === 1) {
+                // FASE 1: Cristal de calco (Blueprint muy visible + silueta translúcida de la nave encima)
+                if (vertGlass) vertGlass.visible = true;
+                if (blockingGroup) blockingGroup.visible = false;
+                if (currentShipGroup) {
+                    currentShipGroup.visible = true;
+                    currentShipGroup.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshBasicMaterial({
+                                color: 0x38bdf8,
+                                wireframe: true,
+                                transparent: true,
+                                opacity: 0.28
+                            });
+                        }
+                    });
+                }
+                setCameraAngle('top');
+                explainBanner.innerHTML =
+                    "<strong>📐 FASE 1 ACTIVA (Cristal de Calco / Blueprint):</strong> Tal y como trabajan los diseñadores, colocamos los planos técnicos luminosos en el suelo y en vertical. En el workflow moderno con IA, la fotografía generada por <strong>Gemini</strong> actúa como este cristal de calco a partir del cual la red neuronal levanta el volumen.";
+            } else if (phaseNum === 2) {
+                // FASE 2: Bloques primitivos (Kitbashing) superpuestos con la nave semitransparente
+                if (vertGlass) vertGlass.visible = true;
+                if (blockingGroup) blockingGroup.visible = true;
+                if (currentShipGroup) {
+                    currentShipGroup.visible = true;
+                    currentShipGroup.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                color: 0x94a3b8,
+                                transparent: true,
+                                opacity: 0.25,
+                                wireframe: false
+                            });
+                        }
+                    });
+                }
+                setCameraAngle('iso');
+                explainBanner.innerHTML =
+                    "<strong>🧱 FASE 2 ACTIVA (Geometría Base / Kitbashing):</strong> Observa cómo una nave tan compleja como el Halcón Milenario se descompone en <strong>formas geométricas simples</strong> calcadas sobre el plano: <span style='color:#38bdf8;font-weight:800;'>● Plato circular central</span>, <span style='color:#fbbf24;font-weight:800;'>● 2 Mandíbulas trapezoidales</span>, <span style='color:#34d399;font-weight:800;'>● Cilindro lateral de cabina</span> y <span style='color:#c084fc;font-weight:800;'>● Torreta/Antena</span>.";
+            } else if (phaseNum === 3) {
+                // FASE 3: Malla de Alambre (Wireframe IA)
+                if (vertGlass) vertGlass.visible = false;
+                if (blockingGroup) blockingGroup.visible = false;
+                if (currentShipGroup) {
+                    currentShipGroup.visible = true;
+                    currentShipGroup.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshBasicMaterial({
+                                color: 0x38bdf8,
+                                wireframe: true
+                            });
+                        }
+                    });
+                }
+                explainBanner.innerHTML =
+                    "<strong>🕸️ FASE 3 ACTIVA (Malla Poligonal de Triángulos / Wireframe):</strong> Aquí ves la verdadera estructura matemática del archivo <code>.GLB</code>: una red de miles de triángulos interconectados (mira el contador verde de vértices y triángulos arriba a la derecha). La IA de <em>Hunyuan3D / Trellis</em> esculpe esta malla automáticamente en 40 segundos.";
+            } else {
+                // FASE 4: Texturizado PBR Fotorrealista
+                if (vertGlass) vertGlass.visible = false;
+                if (blockingGroup) blockingGroup.visible = false;
+                if (currentShipGroup) {
+                    currentShipGroup.visible = true;
+                    currentShipGroup.traverse((child) => {
+                        if (child.isMesh && child.userData.origMaterial) {
+                            child.material = child.userData.origMaterial;
+                        }
+                    });
+                }
+                explainBanner.innerHTML =
+                    "<strong>🚀 FASE 4 ACTIVA (Texturizado Metálico PBR + Motores Iónicos):</strong> Sobre los miles de triángulos de la malla se proyecta la 'piel' fotográfica (paneles de acero, desgaste de combate, cristales y luces). ¡Pulsa abajo a la derecha <strong>«⚡ Saltar al Hiperespacio»</strong>!";
+            }
+        }
+
+        window.toggleRotation = function() {
+            autoRotate = !autoRotate;
+            document.getElementById('btnRotateToggle').textContent = autoRotate ? "⏸ Pausar Giro" : "▶️ Reanudar Giro";
+        };
+
+        window.setCameraAngle = function(mode) {
+            if (!controls) return;
+            controls.target.set(0, 0.15, 0);
+            if (mode === 'top') {
+                camera.position.set(0, 8.2, 0.01);
+            } else if (mode === 'front') {
+                camera.position.set(0, 1.2, -7.2);
+            } else if (mode === 'side') {
+                camera.position.set(7.5, 1.2, 0);
+            } else {
+                camera.position.set(5.2, 3.8, 5.8);
+            }
+            controls.update();
+        };
+
+        window.triggerHyperspace = function() {
+            isHyperspace = !isHyperspace;
+            const btn = document.getElementById('btnHyperspace');
+            btn.textContent = isHyperspace ? "🛑 Salir del Hiperespacio" : "⚡ Saltar al Hiperespacio";
+
+            // Sonido sintetizado de turbina hiperespacial con Web Audio API
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                const now = ctx.currentTime;
+                if (isHyperspace) {
+                    osc.frequency.setValueAtTime(90, now);
+                    osc.frequency.exponentialRampToValueAtTime(680, now + 0.9);
+                } else {
+                    osc.frequency.setValueAtTime(580, now);
+                    osc.frequency.exponentialRampToValueAtTime(80, now + 0.6);
+                }
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(now + 1.0);
+            } catch (e) {}
+        };
+
+        function onResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (autoRotate && currentShipGroup) {
+                currentShipGroup.rotation.y += isHyperspace ? 0.018 : 0.0045;
+                if (blockingGroup && blockingGroup.visible) {
+                    blockingGroup.rotation.y = currentShipGroup.rotation.y;
+                }
+            }
+
+            if (starField) {
+                const pos = starField.geometry.attributes.position;
+                const speed = isHyperspace ? 1.85 : 0.04;
+                for (let i = 0; i < pos.count; i++) {
+                    let z = pos.getZ(i) + speed;
+                    if (z > 60) z = -60;
+                    pos.setZ(i, z);
+                }
+                pos.needsUpdate = true;
+                starField.material.color.setHex(isHyperspace ? 0x38bdf8 : 0xe0f2fe);
+                starField.material.size = isHyperspace ? 0.48 : 0.22;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        initScene();
+    </script>
+
+    <!-- Funciones auxiliares para copiar Prompts y descargar Láminas de Calco PNG -->
+    <script>
+        function copyPrompt(elemId, btnEl) {
+            const text = document.getElementById(elemId).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btnEl.textContent;
+                btnEl.textContent = "✅ ¡Copiado! Pégalo en Gemini";
+                btnEl.style.background = "#10b981";
+                setTimeout(() => {
+                    btnEl.textContent = orig;
+                    btnEl.style.background = "";
+                }, 2200);
+            });
+        }
+
+        function downloadBlueprintPNG(shipType) {
+            const c = document.createElement('canvas');
+            c.width = 1024;
+            c.height = 1024;
+            const ctx = c.getContext('2d');
+
+            // Fondo blanco puro de estudio para que las IAs 3D (Hunyuan3D / Trellis / Tripo3D) segmenten sin fondo
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, 1024, 1024);
+
+            ctx.save();
+            ctx.translate(512, 512);
+
+            if (shipType === 'falcon') {
+                // Dibujo técnico de alto contraste del Halcón Milenario
+                ctx.fillStyle = '#cbd5e1';
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 8;
+
+                // Mandíbulas delanteras
+                ctx.beginPath();
+                ctx.moveTo(-140, -140); ctx.lineTo(-75, -420); ctx.lineTo(-22, -420); ctx.lineTo(-22, -140);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(140, -140); ctx.lineTo(75, -420); ctx.lineTo(22, -420); ctx.lineTo(22, -140);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                // Túnel y cabina lateral derecha
+                ctx.beginPath();
+                ctx.moveTo(210, -40); ctx.lineTo(380, -130); ctx.lineTo(380, -270); ctx.lineTo(315, -270); ctx.lineTo(315, -155); ctx.lineTo(210, 40);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                // Plato principal
+                ctx.beginPath();
+                ctx.arc(0, 40, 270, 0, Math.PI * 2);
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fill(); ctx.stroke();
+
+                // Detalles mecánicos y torreta central
+                ctx.beginPath();
+                ctx.arc(0, 40, 185, 0, Math.PI * 2);
+                ctx.strokeStyle = '#475569'; ctx.lineWidth = 5; ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 40, 72, 0, Math.PI * 2);
+                ctx.fillStyle = '#94a3b8'; ctx.fill(); ctx.stroke();
+
+                // Antena radar
+                ctx.beginPath();
+                ctx.arc(-125, -55, 38, 0, Math.PI * 2);
+                ctx.fillStyle = '#64748b'; ctx.fill(); ctx.stroke();
+            } else if (shipType === 'xwing') {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 8;
+                // Alas X-Wing
+                ctx.fillRect(-380, 40, 760, 110);
+                ctx.strokeRect(-380, 40, 760, 110);
+                // Cañones en las puntas
+                ctx.fillRect(-385, -180, 18, 340);
+                ctx.fillRect(367, -180, 18, 340);
+                // Fuselaje central
+                ctx.beginPath();
+                ctx.moveTo(-45, 280); ctx.lineTo(-22, -390); ctx.lineTo(22, -390); ctx.lineTo(45, 280);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+            } else if (shipType === 'tie') {
+                ctx.fillStyle = '#334155';
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 10;
+                // Paneles hexagonales laterales
+                ctx.fillRect(-340, -280, 65, 560);
+                ctx.fillRect(275, -280, 65, 560);
+                // Eje transversal
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(-280, -35, 560, 70);
+                ctx.strokeRect(-280, -35, 560, 70);
+                // Cabina esférica central
+                ctx.beginPath();
+                ctx.arc(0, 0, 115, 0, Math.PI * 2);
+                ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.stroke();
+            } else {
+                // Destructor Imperial
+                ctx.fillStyle = '#e2e8f0';
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 8;
+                ctx.beginPath();
+                ctx.moveTo(0, -420); ctx.lineTo(310, 340); ctx.lineTo(-310, 340);
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(-95, 190, 190, 95);
+                ctx.strokeRect(-95, 190, 190, 95);
+            }
+            ctx.restore();
+
+            const link = document.createElement('a');
+            link.download = `lamina_calco_${shipType}_star_wars.png`;
+            link.href = c.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
