@@ -260,7 +260,7 @@
     let targetFloor = 0;
 
     const state = {
-        old: { y: 0, velocity: 0, power: 0, isMoving: false, shakeTimer: -1, lastDir: 1, statusText: "EN REPOSO" },
+        old: { y: 0, velocity: 0, power: 0, isMoving: false, shake: 0, shakeStep: 0, statusText: "EN REPOSO" },
         modern: { 
             y: 0, 
             velocity: 0, 
@@ -386,53 +386,56 @@
         document.querySelectorAll('.btn-floor').forEach((btn, idx) => {
             btn.classList.toggle('active', idx === floor);
         });
+        const targetY = targetFloor * floorHeight;
+        if (Math.abs(targetY - state.old.y) > 0.01) {
+            state.old.isMoving = true;
+        }
     };
 
     function updatePhysics() {
         const targetY = targetFloor * floorHeight;
 
         // --- SISTEMA ANTIGUO (RUDIMENTARIO 0% -> 100% DE GOLPE) ---
-        const diffOld = targetY - state.old.y;
         const oldMaxSpeed = 0.18;
+        const distOld = targetY - state.old.y;
 
-        if (Math.abs(diffOld) <= oldMaxSpeed) {
-            // Llegada exacta a planta con freno brusco
-            state.old.y = targetY;
-            state.old.velocity = 0;
-            state.old.power = 0;
-
-            if (state.old.isMoving) {
+        if (state.old.isMoving) {
+            if (Math.abs(distOld) <= oldMaxSpeed) {
+                // Llegada exacta a planta con freno brusco
+                state.old.y = targetY;
+                state.old.velocity = 0;
+                state.old.power = 0;
                 state.old.isMoving = false;
-                state.old.shakeTimer = 0; // Disparo determinista del rebote físico desde t = 0
+                state.old.shake = 0.9;
+                state.old.shakeStep = 0;
                 state.old.statusText = `🛑 FRENO SECO DE GOLPE (ALTA INERCIA)`;
-            } else if (state.old.shakeTimer < 0) {
-                state.old.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
+            } else {
+                state.old.power = 100;
+                state.old.velocity = Math.sign(distOld) * oldMaxSpeed;
+                state.old.y += state.old.velocity;
+                state.old.statusText = `⚠️ TIRÓN BRUSCO — 100% POTENCIA`;
             }
         } else {
-            state.old.power = 100;
-            state.old.lastDir = Math.sign(diffOld);
-            state.old.velocity = state.old.lastDir * oldMaxSpeed;
-            state.old.y += state.old.velocity;
-            state.old.isMoving = true;
-            state.old.statusText = `⚠️ TIRÓN BRUSCO — 100% POTENCIA`;
+            state.old.velocity = 0;
+            state.old.power = 0;
+            state.old.y = targetY;
         }
 
         let shakeY = 0;
-        if (state.old.shakeTimer >= 0) {
-            const t = state.old.shakeTimer;
-            // Rebote inercial amortiguado en la dirección del movimiento previo (~0.7s)
-            shakeY = state.old.lastDir * Math.sin(t * 18) * Math.exp(-t * 4.5) * 0.9;
-            state.old.shakeTimer += 0.02;
-
-            if (t > 0.75) {
-                state.old.shakeTimer = -1; // Fin exacto del rebote: parada total sin vibración
-                shakeY = 0;
+        if (state.old.shake > 0.02) {
+            state.old.shakeStep++;
+            shakeY = Math.sin(state.old.shakeStep * 0.8) * state.old.shake;
+            state.old.shake *= 0.85;
+        } else {
+            state.old.shake = 0;
+            shakeY = 0;
+            if (!state.old.isMoving) {
                 state.old.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
             }
         }
 
         viewOld.cabinGroup.position.y = state.old.y + shakeY;
-        const oldCounterY = (4 * floorHeight) - state.old.y - shakeY;
+        const oldCounterY = (4 * floorHeight) - state.old.y;
         viewOld.counterweight.position.y = oldCounterY;
         viewOld.pulley.rotation.x += state.old.velocity * 0.5;
 
