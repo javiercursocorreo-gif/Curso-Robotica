@@ -17,7 +17,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIMULACIÓN REAL — AJUSTE FINO DE VELOCIDAD V2</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>SIMULACIÓN REAL — AJUSTE FINO DE VELOCIDAD V3.2</title>
     <script type="importmap">
         {
             "imports": {
@@ -387,8 +390,10 @@
             btn.classList.toggle('active', idx === floor);
         });
         const targetY = targetFloor * floorHeight;
-        if (Math.abs(targetY - state.old.y) > 0.01) {
+        if (Math.abs(targetY - state.old.y) > 0.001) {
             state.old.isMoving = true;
+            state.old.shake = 0; // Cancela cualquier rebote previo al recibir nueva orden
+            state.old.shakeStep = 0;
         }
     };
 
@@ -401,7 +406,7 @@
 
         if (state.old.isMoving) {
             if (Math.abs(distOld) <= oldMaxSpeed) {
-                // Llegada exacta a planta con freno brusco
+                // Llegada exacta a planta con freno brusco de golpe
                 state.old.y = targetY;
                 state.old.velocity = 0;
                 state.old.power = 0;
@@ -422,10 +427,11 @@
         }
 
         let shakeY = 0;
-        if (state.old.shake > 0.02) {
+        if (state.old.shake > 0.01) {
             state.old.shakeStep++;
+            // Oscilación elástica amortiguada (se disipa al 100% en ~25 frames)
             shakeY = Math.sin(state.old.shakeStep * 0.8) * state.old.shake;
-            state.old.shake *= 0.85;
+            state.old.shake *= 0.84;
         } else {
             state.old.shake = 0;
             shakeY = 0;
@@ -436,13 +442,13 @@
 
         viewOld.cabinGroup.position.y = state.old.y + shakeY;
         const oldCounterY = (4 * floorHeight) - state.old.y;
-        viewOld.counterweight.position.y = oldCounterY;
+        viewOld.counterweight.position.y = oldCounterY - shakeY;
         viewOld.pulley.rotation.x += state.old.velocity * 0.5;
 
         viewOld.cableCabin.position.y = (38.5 + (state.old.y + shakeY) + 5.2) / 2;
         viewOld.cableCabin.scale.y = Math.max(0.1, 38.5 - ((state.old.y + shakeY) + 5.2));
-        viewOld.cableCounter.position.y = (38.5 + oldCounterY + 2.0) / 2;
-        viewOld.cableCounter.scale.y = Math.max(0.1, 38.5 - (oldCounterY + 2.0));
+        viewOld.cableCounter.position.y = (38.5 + (oldCounterY - shakeY) + 2.0) / 2;
+        viewOld.cableCounter.scale.y = Math.max(0.1, 38.5 - ((oldCounterY - shakeY) + 2.0));
 
 
         // --- SISTEMA MODERNO (INVERTER CON AJUSTE FINO) ---
