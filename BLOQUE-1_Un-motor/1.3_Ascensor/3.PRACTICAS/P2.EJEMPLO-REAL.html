@@ -395,39 +395,43 @@
         const diffOld = targetY - state.old.y;
         const oldMaxSpeed = 0.18;
 
-        if (Math.abs(diffOld) > 0.05) {
+        if (Math.abs(diffOld) <= oldMaxSpeed) {
+            // Llegada exacta a planta con freno brusco
+            state.old.y = targetY;
+            state.old.velocity = 0;
+            state.old.power = 0;
+
+            if (state.old.isMoving) {
+                state.old.isMoving = false;
+                state.old.shake = 0.6; // Sacudida elástica por frenazo que se disipa rápidamente
+                state.old.statusText = `🛑 FRENO SECO DE GOLPE (ALTA INERCIA)`;
+            } else if (state.old.shake <= 0.01) {
+                state.old.shake = 0;
+                state.old.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
+            }
+        } else {
             state.old.power = 100;
             state.old.velocity = Math.sign(diffOld) * oldMaxSpeed;
             state.old.y += state.old.velocity;
             state.old.isMoving = true;
             state.old.statusText = `⚠️ TIRÓN BRUSCO — 100% POTENCIA`;
-        } else if (state.old.isMoving) {
-            state.old.y = targetY;
-            state.old.velocity = 0;
-            state.old.power = 0;
-            state.old.isMoving = false;
-            state.old.shake = 0.9;
-            state.old.statusText = `🛑 FRENO SECO DE GOLPE (ALTA INERCIA)`;
-        } else {
-            state.old.power = 0;
-            if (state.old.shake <= 0.01) {
-                state.old.statusText = `EN REPOSO — PLANTA ${targetFloor + 1}`;
-            }
         }
 
         let shakeY = 0;
         if (state.old.shake > 0.01) {
-            shakeY = Math.sin(Date.now() * 0.15) * state.old.shake;
-            state.old.shake *= 0.88;
+            shakeY = Math.sin(Date.now() * 0.05) * state.old.shake;
+            state.old.shake *= 0.86; // Amortiguación progresiva hasta detenerse al 100%
+        } else {
+            state.old.shake = 0;
         }
 
         viewOld.cabinGroup.position.y = state.old.y + shakeY;
-        const oldCounterY = (4 * floorHeight) - state.old.y;
+        const oldCounterY = (4 * floorHeight) - state.old.y - shakeY;
         viewOld.counterweight.position.y = oldCounterY;
         viewOld.pulley.rotation.x += state.old.velocity * 0.5;
 
-        viewOld.cableCabin.position.y = (38.5 + state.old.y + 5.2) / 2;
-        viewOld.cableCabin.scale.y = Math.max(0.1, 38.5 - (state.old.y + 5.2));
+        viewOld.cableCabin.position.y = (38.5 + (state.old.y + shakeY) + 5.2) / 2;
+        viewOld.cableCabin.scale.y = Math.max(0.1, 38.5 - ((state.old.y + shakeY) + 5.2));
         viewOld.cableCounter.position.y = (38.5 + oldCounterY + 2.0) / 2;
         viewOld.cableCounter.scale.y = Math.max(0.1, 38.5 - (oldCounterY + 2.0));
 
