@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>P1: Salto al Hiperespacio - Motor Warp</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2">
+    
+    <!-- Babylon.js core and loaders -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- GitHub Pages / Classroom CDN Asset Resolver -->
+    <script>
+    (function() {
+        if (window.location.hostname.includes("github.io")) {
+            const rawBase = "https://raw.githubusercontent.com/javiercursocorreo-gif/Curso-Robotica/main/";
+            function resolveUrl(url) {
+                if (typeof url === "string" && url.includes("MODELOS/")) {
+                    return rawBase + url.substring(url.indexOf("MODELOS/"));
+                }
+                return url;
+            }
+            if (typeof BABYLON !== "undefined") {
+                if (BABYLON.SceneLoader) {
+                    const wrap2nd = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a2 === "string" && a2.includes("MODELOS/")) a2 = resolveUrl(a2);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    const wrap1st = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a1 === "string" && a1.includes("MODELOS/")) a1 = resolveUrl(a1);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    if (BABYLON.SceneLoader.ImportMesh) BABYLON.SceneLoader.ImportMesh = wrap2nd(BABYLON.SceneLoader.ImportMesh);
+                    if (BABYLON.SceneLoader.ImportMeshAsync) BABYLON.SceneLoader.ImportMeshAsync = wrap2nd(BABYLON.SceneLoader.ImportMeshAsync);
+                    if (BABYLON.SceneLoader.Append) BABYLON.SceneLoader.Append = wrap1st(BABYLON.SceneLoader.Append);
+                    if (BABYLON.SceneLoader.AppendAsync) BABYLON.SceneLoader.AppendAsync = wrap1st(BABYLON.SceneLoader.AppendAsync);
+                    if (BABYLON.SceneLoader.Load) BABYLON.SceneLoader.Load = wrap1st(BABYLON.SceneLoader.Load);
+                    if (BABYLON.SceneLoader.LoadAsync) BABYLON.SceneLoader.LoadAsync = wrap1st(BABYLON.SceneLoader.LoadAsync);
+                }
+                if (BABYLON.Texture) {
+                    const OrigTexture = BABYLON.Texture;
+                    BABYLON.Texture = function(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions) {
+                        if (typeof url === "string" && url.includes("MODELOS/")) url = resolveUrl(url);
+                        return new OrigTexture(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions);
+                    };
+                    BABYLON.Texture.prototype = OrigTexture.prototype;
+                    Object.assign(BABYLON.Texture, OrigTexture);
+                }
+            }
+        }
+    })();
+    </script>
+
+
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- Botón Vídeo YouTube Arriba a la Derecha (v2) -->
+    <a href="https://youtube.com/shorts/n5_eCCMXW24?is=XNh7z-MsaLhMeauw" target="_blank" id="btn-video-top" style="position: fixed; top: 18px; right: 18px; z-index: 1000; background: rgba(239, 68, 68, 0.25); border: 1.5px solid #ef4444; color: #ffffff; padding: 10px 18px; border-radius: 10px; font-family: 'Orbitron', sans-serif; font-size: 0.82rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(8px); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); transition: all 0.2s ease;">
+        <span style="font-size: 1rem;">▶️</span> <span>VÍDEO: TELETRANSPORTE</span>
+    </a>
+
+    <div id="ui-container">
+        <h1>USS ENTERPRISE</h1>
+        <p id="telemetry">SISTEMA WARP: EN ESPERA</p>
+        <button id="btn-warp" class="cyber-button">ACTIVAR SALTO WARP</button>
+    </div>
+
+    <script src="app.js?v=20261004_official_v2"></script>
+</body>
+</html>

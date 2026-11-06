@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Museo Interactivo de Inventos de Star Trek — De la Ficción a la Realidad</title>
+    <!-- Babylon.js y Loaders Oficiales -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <!-- GitHub Pages / Classroom CDN Asset Resolver -->
+    <script>
+    (function() {
+        if (window.location.hostname.includes("github.io")) {
+            const rawBase = "https://raw.githubusercontent.com/javiercursocorreo-gif/Curso-Robotica/main/";
+            function resolveUrl(url) {
+                if (typeof url === "string" && url.includes("MODELOS/")) {
+                    return rawBase + url.substring(url.indexOf("MODELOS/"));
+                }
+                return url;
+            }
+            if (typeof BABYLON !== "undefined") {
+                if (BABYLON.SceneLoader) {
+                    const wrap2nd = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a2 === "string" && a2.includes("MODELOS/")) a2 = resolveUrl(a2);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    const wrap1st = (fn) => function(a1, a2, a3, a4, a5, a6, a7, a8) {
+                        if (typeof a1 === "string" && a1.includes("MODELOS/")) a1 = resolveUrl(a1);
+                        return fn.call(this, a1, a2, a3, a4, a5, a6, a7, a8);
+                    };
+                    if (BABYLON.SceneLoader.ImportMesh) BABYLON.SceneLoader.ImportMesh = wrap2nd(BABYLON.SceneLoader.ImportMesh);
+                    if (BABYLON.SceneLoader.ImportMeshAsync) BABYLON.SceneLoader.ImportMeshAsync = wrap2nd(BABYLON.SceneLoader.ImportMeshAsync);
+                    if (BABYLON.SceneLoader.Append) BABYLON.SceneLoader.Append = wrap1st(BABYLON.SceneLoader.Append);
+                    if (BABYLON.SceneLoader.AppendAsync) BABYLON.SceneLoader.AppendAsync = wrap1st(BABYLON.SceneLoader.AppendAsync);
+                    if (BABYLON.SceneLoader.Load) BABYLON.SceneLoader.Load = wrap1st(BABYLON.SceneLoader.Load);
+                    if (BABYLON.SceneLoader.LoadAsync) BABYLON.SceneLoader.LoadAsync = wrap1st(BABYLON.SceneLoader.LoadAsync);
+                }
+                if (BABYLON.Texture) {
+                    const OrigTexture = BABYLON.Texture;
+                    BABYLON.Texture = function(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions) {
+                        if (typeof url === "string" && url.includes("MODELOS/")) url = resolveUrl(url);
+                        return new OrigTexture(url, scene, noMipmap, invertY, samplingMode, onLoad, onError, buffer, deleteBuffer, format, mimeType, loaderOptions);
+                    };
+                    BABYLON.Texture.prototype = OrigTexture.prototype;
+                    Object.assign(BABYLON.Texture, OrigTexture);
+                }
+            }
+        }
+    })();
+    </script>
+
+    <style>
+        :root {
+            --lcars-orange: #ff9900;
+            --lcars-gold: #e5a823;
+            --lcars-purple: #cc6699;
+            --lcars-blue: #4a90e2;
+            --lcars-cyan: #50e3c2;
+            --lcars-dark: #070b10;
+            --lcars-panel: rgba(12, 19, 29, 0.88);
+            --lcars-border: rgba(255, 153, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--lcars-dark);
+            color: #ffffff;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            outline: none;
+            display: block;
+            background: radial-gradient(circle at center, #131c28 0%, #0a0f16 60%, #030508 100%);
+        }
+
+        .stars-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(1px 1px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 150px 180px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 280px 70px, #99ccff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 450px 320px, #ffcc88, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 600px 210px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 800px 450px, #ffffff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 950px 120px, #99ccff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 1100px 290px, #ffaa44, rgba(0,0,0,0));
+            background-repeat: repeat;
+            background-size: 1200px 600px;
+            opacity: 0.35;
+            z-index: 1;
+        }
+
+        #headerBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+            background: linear-gradient(180deg, rgba(7, 11, 16, 0.95) 0%, rgba(7, 11, 16, 0) 100%);
+            pointer-events: none;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .lcars-pill {
+            display: inline-block;
+            background-color: var(--lcars-orange);
+            color: #000000;
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .header-titles h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .header-titles p {
+            margin: 3px 0 0 0;
+            font-size: 0.85rem;
+            color: #8fa0b5;
+            font-weight: 400;
+        }
+
+        .header-right {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: rgba(20, 30, 45, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 153, 0, 0.25);
+            border-color: var(--lcars-orange);
+            color: var(--lcars-orange);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.active {
+            background: var(--lcars-orange);
+            color: #000000;
+            border-color: var(--lcars-orange);
+        }
+
+        .hint-pill {
+            position: absolute;
+            top: 76px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 16, 25, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 5px 16px;
+            font-size: 0.8rem;
+            color: #9ab0c8;
+            pointer-events: none;
+            z-index: 5;
+            backdrop-filter: blur(6px);
+        }
+
+        /* Banner de Controles Interactivos */
+        #interactiveBanner {
+            position: absolute;
+            top: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            display: none;
+            gap: 12px;
+        }
+
+        .special-interact-btn {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.95), rgba(229, 168, 35, 0.95));
+            color: #000;
+            border: none;
+            padding: 11px 22px;
+            border-radius: 24px;
+            font-size: 0.95rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.5);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .special-interact-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 153, 0, 0.85);
+        }
+
+        .special-interact-btn.alt {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.95), rgba(74, 144, 226, 0.95));
+            color: #000;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        /* Panel Lateral de Información Didáctica */
+        #infoPanel {
+            position: absolute;
+            top: 85px;
+            left: 24px;
+            width: 380px;
+            max-height: calc(100% - 240px);
+            overflow-y: auto;
+            background: var(--lcars-panel);
+            border: 1px solid var(--lcars-border);
+            border-left: 6px solid var(--lcars-orange);
+            border-radius: 12px;
+            padding: 22px 20px;
+            backdrop-filter: blur(14px);
+            z-index: 10;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        #infoPanel.hidden {
+            transform: translateX(-420px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .badge-sector {
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: var(--lcars-gold);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .model-title {
+            margin: 0 0 12px 0;
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.25;
+        }
+
+        .real-invention-card {
+            background: rgba(255, 153, 0, 0.12);
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 16px;
+        }
+
+        .real-invention-label {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--lcars-orange);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .real-invention-value {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #50e3c2;
+        }
+
+        .info-section-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--lcars-blue);
+            text-transform: uppercase;
+            margin: 14px 0 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-desc {
+            font-size: 0.88rem;
+            line-height: 1.55;
+            color: #c5d4e6;
+            margin: 0 0 12px 0;
+        }
+
+        .info-curiosity {
+            background: rgba(204, 102, 153, 0.12);
+            border-left: 3px solid var(--lcars-purple);
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: #e8b3cf;
+            line-height: 1.45;
+        }
+
+        /* Carrusel Inferior de Inventos */
+        #bottomShowcase {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 48px);
+            max-width: 1320px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .carousel-track {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 8px 4px;
+            scrollbar-width: none;
+        }
+        .carousel-track::-webkit-scrollbar { display: none; }
+
+        .showcase-card {
+            flex: 0 0 170px;
+            background: rgba(14, 22, 33, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 85px;
+        }
+
+        .showcase-card:hover {
+            background: rgba(25, 38, 56, 0.95);
+            border-color: var(--lcars-orange);
+            transform: translateY(-4px);
+            box-shadow: 0 6px 18px rgba(255, 153, 0, 0.3);
+        }
+
+        .showcase-card.active {
+            background: linear-gradient(135deg, rgba(255, 153, 0, 0.25) 0%, rgba(14, 22, 33, 0.95) 100%);
+            border: 2px solid var(--lcars-orange);
+            box-shadow: 0 0 20px rgba(255, 153, 0, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .card-icon {
+            font-size: 1.25rem;
+        }
+
+        .card-number {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--lcars-gold);
+            font-family: monospace;
+        }
+
+        .card-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-invention {
+            font-size: 0.7rem;
+            color: #50e3c2;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .carousel-nav-btn {
+            background: rgba(14, 22, 33, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--lcars-orange);
+            width: 36px;
+            height: 50px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .carousel-nav-btn:hover {
+            background: var(--lcars-orange);
+            color: #000000;
+        }
+
+        #loadingOverlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(5, 8, 12, 0.88);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s ease;
+        }
+
+        #loadingOverlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .lcars-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 153, 0, 0.15);
+            border-top: 4px solid var(--lcars-orange);
+            border-right: 4px solid var(--lcars-gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .loading-subtext {
+            font-size: 0.82rem;
+            color: #8fa0b5;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stars-bg"></div>
+
+    <!-- Pantalla de Carga -->
+    <div id="loadingOverlay" class="active">
+        <div class="lcars-spinner"></div>
+        <div class="loading-text" id="loadingText">Materializando Artefacto 3D...</div>
+        <div class="loading-subtext" id="loadingSubtext">Cargando geometrías y texturas</div>
+    </div>
+
+    <!-- Cabecera Superior LCARS -->
+    <div id="headerBar">
+        <div class="header-left">
+            <span class="lcars-pill">STAR TREK • TECNOLOGÍA</span>
+            <div class="header-titles">
+                <h1>Museo Interactivo de Inventos</h1>
+                <p>De la ciencia ficción a los dispositivos que usamos hoy</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="action-btn active" id="btnAutoRotate" title="Pausar o reanudar el giro automático (Espacio)">
+                <span id="iconAutoRotate">⏸️</span> <span id="labelAutoRotate">Pausa</span>
+            </button>
+            <button class="action-btn" id="btnResetView" title="Recentrar vista">
+                <span>🎯</span> <span>Centrar</span>
+            </button>
+            <button class="action-btn" id="btnToggleLight" title="Alternar modo de luz">
+                <span>💡</span> <span id="labelLight">Luz: Estudio</span>
+            </button>
+            <button class="action-btn" id="btnToggleInfo" title="Mostrar/Ocultar Ficha Técnica">
+                <span>📋</span> <span>Ficha</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="hint-pill" id="hintPillText">
+        <span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>
+    </div>
+
+    <!-- Banner de Interacción Especial -->
+    <div id="interactiveBanner">
+        <button class="special-interact-btn" id="btnSpecialAction1">
+            <span id="specialIcon1">⚡</span>
+            <span id="specialLabel1">ACCION</span>
+        </button>
+        <button class="special-interact-btn alt" id="btnSpecialAction2" style="display: none;">
+            <span id="specialIcon2">✨</span>
+            <span id="specialLabel2">MATERIALIZAR</span>
+        </button>
+        <a href="https://youtube.com/shorts/K-CMclwMDYY?is=4TKZaQlqmo2zEBsL" target="_blank" class="special-interact-btn" id="btnSpecialVideo" style="display: none; background: rgba(239, 68, 68, 0.25); border-color: #ef4444; color: #fee2e2; text-decoration: none;">
+            <span>▶️</span>
+            <span>VÍDEO: MÁS RÁPIDO QUE LA LUZ</span>
+        </a>
+    </div>
+
+    <!-- Panel Lateral de Información Didáctica -->
+    <div id="infoPanel">
+        <div class="badge-sector">
+            <span>⚡</span> <span id="infoSector">REGISTRO DE LA FLOTA ESTELAR</span>
+        </div>
+        <h2 class="model-title" id="infoTitle">Cargando...</h2>
+
+        <div class="real-invention-card">
+            <div class="real-invention-label">💡 INVENTO REAL QUE USAMOS HOY:</div>
+            <div class="real-invention-value" id="infoRealInvention">-</div>
+        </div>
+
+        <div class="info-section-title">
+            <span>🔬</span> CÓMO FUNCIONA & CONEXIÓN CIENTÍFICA
+        </div>
+        <p class="info-desc" id="infoDescription">-</p>
+
+        <div class="info-curiosity" id="infoCuriosity">-</div>
+    </div>
+
+    <!-- Carrusel Inferior de Museo -->
+    <div id="bottomShowcase">
+        <button class="carousel-nav-btn" id="btnPrevCard" title="Modelo anterior">◀</button>
+        <div class="carousel-track" id="carouselTrack"></div>
+        <button class="carousel-nav-btn" id="btnNextCard" title="Modelo siguiente">▶</button>
+    </div>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        // =========================================================================
+        // SÍNTESIS DE AUDIO WEB AUDIO
+        // =========================================================================
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playComputerChime() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(880, t);
+                osc1.frequency.setValueAtTime(1174.66, t + 0.08);
+
+                osc2.type = "triangle";
+                osc2.frequency.setValueAtTime(1760, t);
+                osc2.frequency.setValueAtTime(2349.32, t + 0.08);
+
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc1.start(t);
+                osc2.start(t);
+                osc1.stop(t + 0.36);
+                osc2.stop(t + 0.36);
+            } catch (e) {}
+        }
+
+        function playDoorWhoosh() {
+            try {
+                const ctx = getAudioContext();
+                const t = ctx.currentTime;
+                const bufferSize = ctx.sampleRate * 0.35;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.45;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.setValueAtTime(450, t);
+                filter.frequency.linearRampToValueAtTime(1900, t + 0.12);
+                filter.frequency.exponentialRampToValueAtTime(250, t + 0.35);
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, t);
+                gain.gain.linearRampToValueAtTime(0.3, t + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start(t);
+            } catch (e) {}
+        }
+
+        let cachedDematerializeBuffer = null;
+        let cachedMaterializeBuffer = null;
+        let isPreRenderingTransporterAudio = false;
+
+        function buildTransporterAudioGraph(ctx, t, totalDur, isMaterialize) {
+            const masterGain = ctx.createGain();
+            masterGain.gain.setValueAtTime(0.0001, t);
+            masterGain.gain.linearRampToValueAtTime(0.68, t + 0.35);
+            masterGain.gain.setValueAtTime(0.68, t + 4.2);
+            masterGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.setValueAtTime(-10, t);
+            comp.knee.setValueAtTime(15, t);
+            comp.ratio.setValueAtTime(3.5, t);
+            comp.attack.setValueAtTime(0.003, t);
+            comp.release.setValueAtTime(0.12, t);
+
+            masterGain.connect(comp);
+            comp.connect(ctx.destination);
+
+            // 1. LLUVIA DE ESTRELLITAS CRISTALINAS
+            const starNotes = [
+                1760.00, 2093.00, 2349.32, 2637.02, 3135.96, 3520.00,
+                3951.07, 4186.01, 4698.63, 5274.04, 6271.93, 7040.00
+            ];
+
+            const numStars = 64;
+            for (let i = 0; i < numStars; i++) {
+                const progress = i / (numStars - 1);
+                const delay = Math.max(0.03, progress * 4.6 + (Math.random() * 0.16 - 0.08));
+                const st = t + delay;
+
+                let noteIdx;
+                if (isMaterialize) {
+                    const targetIdx = Math.floor((1 - progress) * (starNotes.length - 1));
+                    noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx));
+                } else {
+                    const targetIdx = Math.floor(progress * (starNotes.length - 1));
+                    noteIdx = Math.max(0, Math.min(starNotes.length - 1, targetIdx));
+                }
+
+                const f0 = starNotes[noteIdx] * (1 + (Math.random() * 0.03 - 0.015));
+                const f1 = f0 * 2.756;
+                const starDur = 0.06 + Math.random() * 0.06;
+
+                const starGain = ctx.createGain();
+                const starVol = 0.12 + Math.random() * 0.08;
+                starGain.gain.setValueAtTime(0.0001, st);
+                starGain.gain.linearRampToValueAtTime(starVol, st + 0.002);
+                starGain.gain.exponentialRampToValueAtTime(0.0001, st + starDur);
+
+                const osc0 = ctx.createOscillator();
+                osc0.type = "sine";
+                osc0.frequency.setValueAtTime(f0, st);
+
+                const osc1 = ctx.createOscillator();
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(f1, st);
+                const osc1Gain = ctx.createGain();
+                osc1Gain.gain.setValueAtTime(0.4, st);
+
+                osc0.connect(starGain);
+                osc1.connect(osc1Gain);
+                osc1Gain.connect(starGain);
+
+                if (ctx.createStereoPanner) {
+                    const panner = ctx.createStereoPanner();
+                    panner.pan.setValueAtTime((Math.random() * 1.6) - 0.8, st);
+                    starGain.connect(panner);
+                    panner.connect(masterGain);
+                } else {
+                    starGain.connect(masterGain);
+                }
+
+                osc0.start(st);
+                osc1.start(st);
+                osc0.stop(st + starDur + 0.01);
+                osc1.stop(st + starDur + 0.01);
+            }
+
+            // 2. RESPLANDOR ETÉREO DE POLVO DE ESTRELLAS
+            const shimmerGain = ctx.createGain();
+            shimmerGain.gain.setValueAtTime(0.0001, t);
+            shimmerGain.gain.linearRampToValueAtTime(0.24, t + 0.4);
+            shimmerGain.gain.setValueAtTime(0.24, t + 4.0);
+            shimmerGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            const shimmerLFO = ctx.createOscillator();
+            shimmerLFO.frequency.setValueAtTime(16.0, t);
+            const shimmerLFOGain = ctx.createGain();
+            shimmerLFOGain.gain.setValueAtTime(0.08, t);
+            shimmerLFO.connect(shimmerLFOGain.gain);
+
+            const shimmerChord = [2637.0, 3135.9, 3951.0, 5274.0];
+            shimmerChord.forEach((freq) => {
+                const osc = ctx.createOscillator();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, t);
+                if (isMaterialize) {
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.95, t + 4.5);
+                } else {
+                    osc.frequency.exponentialRampToValueAtTime(freq * 1.05, t + 4.5);
+                }
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.22 / shimmerChord.length, t);
+                osc.connect(g);
+                g.connect(shimmerGain);
+                osc.start(t);
+                osc.stop(t + totalDur);
+            });
+
+            shimmerGain.connect(masterGain);
+            shimmerLFO.start(t);
+            shimmerLFO.stop(t + totalDur);
+
+            // 3. SUSURRO DE ENERGÍA DE PARTÍCULAS
+            const noiseBufSize = Math.floor(ctx.sampleRate * totalDur);
+            const noiseBuf = ctx.createBuffer(1, noiseBufSize, ctx.sampleRate);
+            const noiseData = noiseBuf.getChannelData(0);
+            for (let i = 0; i < noiseBufSize; i++) {
+                noiseData[i] = (Math.random() * 2 - 1) * 0.04;
+            }
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuf;
+
+            const noiseFilter = ctx.createBiquadFilter();
+            noiseFilter.type = "bandpass";
+            noiseFilter.frequency.setValueAtTime(4800, t);
+            noiseFilter.Q.setValueAtTime(3.5, t);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.0001, t);
+            noiseGain.gain.linearRampToValueAtTime(0.14, t + 0.4);
+            noiseGain.gain.setValueAtTime(0.14, t + 4.0);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + totalDur);
+
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(masterGain);
+
+            noiseSource.start(t);
+            noiseSource.stop(t + totalDur);
+
+            // 4. PASADA POR MARK TREE / BAR CHIMES
+            const chimesBus = ctx.createGain();
+            chimesBus.gain.setValueAtTime(0.48, t);
+            chimesBus.connect(masterGain);
+
+            const numChimes = 24;
+            const sweepDuration = 2.6;
+            const sweepStart = t + 0.2;
+
+            for (let i = 0; i < numChimes; i++) {
+                const normalizedPos = i / (numChimes - 1);
+                const freqExponent = isMaterialize ? (1 - normalizedPos) : normalizedPos;
+                const f0 = 1450 * Math.pow(6800 / 1450, freqExponent) * (1 + (Math.random() * 0.02 - 0.01));
+                const f1 = f0 * 2.756;
+
+                const chimeHitTime = sweepStart + normalizedPos * sweepDuration;
+                const ringDuration = 0.45 + (1 - (f0 / 6800)) * 0.75;
+
+                const chimeGain = ctx.createGain();
+                const strikeVol = 0.09 + Math.random() * 0.06;
+                chimeGain.gain.setValueAtTime(0.0001, chimeHitTime);
+                chimeGain.gain.linearRampToValueAtTime(strikeVol, chimeHitTime + 0.0015);
+                chimeGain.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration);
+
+                const osc0 = ctx.createOscillator();
+                osc0.type = "sine";
+                osc0.frequency.setValueAtTime(f0, chimeHitTime);
+
+                const osc1 = ctx.createOscillator();
+                osc1.type = "sine";
+                osc1.frequency.setValueAtTime(f1, chimeHitTime);
+                const g1 = ctx.createGain();
+                g1.gain.setValueAtTime(0.35, chimeHitTime);
+                g1.gain.exponentialRampToValueAtTime(0.0001, chimeHitTime + ringDuration * 0.6);
+
+                osc0.connect(chimeGain);
+                osc1.connect(g1);
+                g1.connect(chimeGain);
+
+                const panPos = isMaterialize ? (0.85 - normalizedPos * 1.7) : (-0.85 + normalizedPos * 1.7);
+                if (ctx.createStereoPanner) {
+                    const panner = ctx.createStereoPanner();
+                    panner.pan.setValueAtTime(Math.max(-0.95, Math.min(0.95, panPos)), chimeHitTime);
+                    chimeGain.connect(panner);
+                    panner.connect(chimesBus);
+                } else {
+                    chimeGain.connect(chimesBus);
+                }
+
+                osc0.start(chimeHitTime);
+                osc1.start(chimeHitTime);
+                osc0.stop(chimeHitTime + ringDuration + 0.02);
+                osc1.stop(chimeHitTime + ringDuration + 0.02);
+            }
+        }
+
+        function preRenderTransporterAudio() {
+            if (isPreRenderingTransporterAudio) return;
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            if (!OfflineCtx) return;
+            isPreRenderingTransporterAudio = true;
+
+            const renderBuffer = (isMat) => {
+                const totalDur = 5.3;
+                const sampleRate = 44100;
+                const offlineCtx = new OfflineCtx(2, Math.ceil(sampleRate * totalDur), sampleRate);
+                buildTransporterAudioGraph(offlineCtx, 0, totalDur, isMat);
+                return offlineCtx.startRendering();
+            };
+
+            Promise.all([renderBuffer(false), renderBuffer(true)]).then(([dematBuf, matBuf]) => {
+                cachedDematerializeBuffer = dematBuf;
+                cachedMaterializeBuffer = matBuf;
+            }).catch(e => {
+                console.warn("Pre-render audio fallback:", e);
+            });
+        }
+
+        function playTransporterSound(isMaterialize = false) {
+            try {
+                const ctx = getAudioContext();
+                const buffer = isMaterialize ? cachedMaterializeBuffer : cachedDematerializeBuffer;
+                if (buffer) {
+                    const src = ctx.createBufferSource();
+                    src.buffer = buffer;
+                    src.connect(ctx.destination);
+                    src.start();
+                    return;
+                }
+                buildTransporterAudioGraph(ctx, ctx.currentTime, 5.3, isMaterialize);
+            } catch (e) {
+                console.warn("Transporter sound error:", e);
+            }
+        }
+
+        // =========================================================================
+        // BASE DE DATOS COMPLETA DE INVENTOS DE STAR TREK
+        // =========================================================================
+        const INVENTOS_DB = [
+            {
+                id: "padd",
+                folder: "star_trek_voyager_small_padds",
+                file: "scene.gltf",
+                icon: "📱",
+                title: "PADD (Tablets Táctiles)",
+                shortTitle: "PADD Voyager",
+                realInvention: "Pantallas Táctiles, iPads y Tablets",
+                sector: "COMPUTACIÓN MÓVIL & INTERFACES",
+                description: "El PADD (*Personal Access Display Device*) era el terminal portátil estándar de la tripulación para consultar registros de misión, leer diagnósticos y autorizar órdenes con un lápiz o directamente con el dedo sobre su interfaz gráfica LCARS. Anticipó por varias décadas a los dispositivos iPad y tablets modernas con pantallas multitáctiles capacitivas.",
+                curiosity: "⭐ Dato real: Diseñadores de Apple y pioneros de las tablets táctiles citaron explícitamente a Star Trek: The Next Generation y Voyager como su inspiración fundamental para sustituir teclados físicos por pantallas planas interactivas.",
+                scaleFactor: 2.1, // Tamaño reducido a la mitad exacto
+                cameraRadius: 5.2
+            },
+            {
+                id: "voice_computer",
+                isCustomCore: true,
+                icon: "🗣️",
+                title: "Computadora Central con Interfaz por Voz",
+                shortTitle: "Computadora por Voz (IA)",
+                realInvention: "Asistentes de Voz Inteligentes (Siri, Alexa, ChatGPT Voice)",
+                sector: "INTELIGENCIA ARTIFICIAL & NLP",
+                description: "Star Trek fue la primera obra en la historia en mostrar a humanos hablando de forma natural y conversacional con una supercomputadora ('Computadora, calcula las coordenadas...'). La computadora procesaba órdenes de lenguaje natural y respondía en voz sintetizada humana (voz original de Majel Barrett).",
+                curiosity: "⭐ Declaración histórica: Los directores del equipo de Amazon Echo (Alexa) y los ingenieros de Google han confirmado que la computadora conversacional del Enterprise fue la visión exacta que guiaba el desarrollo de sus asistentes de voz inteligentes.",
+                scaleFactor: 3.5,
+                cameraRadius: 6.0,
+                hasVoiceAction: true
+            },
+            {
+                id: "transporter",
+                isFullTransporterRoom: true,
+                icon: "⚡",
+                title: "Sala de Teletransporte Cuántico",
+                shortTitle: "Teletransporte",
+                realInvention: "Teletransporte Cuántico y Entrelazamiento de Fotones",
+                sector: "FÍSICA CUÁNTICA & TELECOMUNICACIONES",
+                description: "El sistema de teletransporte descompone la materia a nivel subatómico, la transmite a través de un haz de fase energética y la reconstituye intacta en el punto de destino. Sentó las bases en la cultura popular de la física de partículas y la transmisión instantánea de estados cuánticos.",
+                curiosity: "⭐ Hito científico real: En 1997, el físico Anton Zeilinger logró el primer teletransporte cuántico real de estados de fotones en laboratorio. Hoy día, satélites como el 'Micius' teletransportan qubits de información cuántica a más de 1.200 km de distancia.",
+                scaleFactor: 1.0,
+                cameraRadius: 8.5,
+                hasTransporterActions: true
+            },
+            {
+                id: "combadge",
+                folder: "star_fleet_communicator_badge.1",
+                file: "scene.gltf",
+                icon: "🎙️",
+                title: "Insignia Comunicadora (Combadge)",
+                shortTitle: "Combadge Solapa",
+                realInvention: "Comunicadores de Solapa y Wearables Manos Libres",
+                sector: "TELECOMUNICACIONES & WEARABLES",
+                description: "Un sofisticado transceptor de audio incorporado directamente en la insignia metálica de la solapa. Con un leve toque en el pecho o una orden de voz, conectaba al oficial instantáneamente con la computadora central de la nave o con cualquier miembro del equipo mediante frecuencia subspacial.",
+                curiosity: "⭐ Dato real: Es el abuelo espiritual de los micrófonos de solapa inalámbricos, los auriculares Bluetooth manos libres y los modernos 'AI Pins' que se llevan en la ropa para interactuar mediante voz con inteligencias artificiales.",
+                scaleFactor: 1.5, // 1/3 más grande (+33%)
+                cameraRadius: 5.2,
+                isVerticalBadge: true
+            },
+            {
+                id: "classic_communicator",
+                imageFile: "Captura de pantalla 2026-09-08 a las 21.06.40.png",
+                icon: "📞",
+                title: "Comunicador Clásico de Mano (TOS)",
+                shortTitle: "Comunicador Clásico",
+                realInvention: "Teléfonos Móviles Plegables (Motorola StarTAC)",
+                sector: "TELEFONÍA MÓVIL & COMUNICACIÓN INALÁMBRICA",
+                description: "El mítico comunicador de mano del Capitán Kirk con rejilla dorada abatible. Su gesto icónico de abrir la tapa para hablar inspiró directamente a Martin Cooper (ingeniero jefe de Motorola) a concebir y fabricar en 1973 el primer teléfono móvil portátil de la historia (DynaTAC) y, más tarde, los teléfonos móviles plegables de tapa como el legendario Motorola StarTAC.",
+                curiosity: "⭐ Declaración histórica: Martin Cooper declaró públicamente que el comunicador de Star Trek fue la inspiración directa para inventar el teléfono móvil: 'Esa no era una fantasía para nosotros, era un objetivo real que queríamos alcanzar'.",
+                scaleFactor: 3.8,
+                cameraRadius: 5.5,
+                isImageShowcase: true
+            },
+            {
+                id: "tricorder",
+                folder: "tricorder_mk_vii",
+                file: "scene.gltf",
+                icon: "🩺",
+                title: "Tricorder Médico Mark VII",
+                shortTitle: "Tricorder Médico",
+                realInvention: "Escáneres Portátiles y Diagnóstico No Invasivo",
+                sector: "BIOMEDICINA & SENSORES",
+                description: "El dispositivo insignia de los oficiales médicos como McCoy y Beverly Crusher. Diseñado para realizar análisis biofísicos, medir constantes vitales, detectar toxinas y emitir diagnósticos en tiempo real sin requerir cirugías ni procedimientos invasivos sobre el paciente.",
+                curiosity: "⭐ Dato real: La fundación XPRIZE y Qualcomm crearon el concurso millonario 'Tricorder XPRIZE' para premiar a equipos de bioingeniería capaces de fabricar un dispositivo de bolsillo real que diagnostique hasta 13 afecciones médicas en minutos.",
+                scaleFactor: 4.0,
+                cameraRadius: 5.8,
+                initialRotationY: Math.PI // Girado 180° en horizontal para mostrar el frontal/panel de diagnóstico
+            },
+            {
+                id: "phaser_tng",
+                folder: "type_2_phaser_-_tng",
+                file: "scene.gltf",
+                icon: "⚡",
+                title: "Fáser de Mano Tipo 2 (TNG)",
+                shortTitle: "Fáser TNG",
+                realInvention: "Armas de Energía Dirigida y Láseres Industriales",
+                sector: "ENERGÍA DIRIGIDA & FOTÓNICA",
+                description: "Emisor de partículas concentradas (rayos nadiónicos) con selectores de intensidad regulables desde 'aturdir' (no letal) hasta 'calentar' o 'desintegrar'. Revolucionó el concepto de las armas en la ciencia ficción al prescindir por completo de proyectiles cinéticos o pólvora química.",
+                curiosity: "⭐ Dato real: La investigación de sistemas de defensa láser de alta potencia y los bisturís láser médicos se benefician de las teorías de haces coherentes popularizadas por el universo Trek.",
+                scaleFactor: 4.2,
+                cameraRadius: 5.5
+            },
+            {
+                id: "phaser_gun",
+                folder: "cad02_-_low_poly_star_trek_phaser_gun",
+                file: "scene.gltf",
+                icon: "🔫",
+                title: "Pistola Fáser Clásica (TOS)",
+                shortTitle: "Pistola Fáser Clásica",
+                realInvention: "Punteros Láser y Armamento de Pulsos Electromagnéticos",
+                sector: "HISTORIA DE LA CIENCIA FICCIÓN",
+                description: "El arma de reglamento de la tripulación original del Capitán Kirk y Spock en los años 60. Su diseño ergonómico de pistola modular (con un emisor desmontable tipo 1 encajado en la empuñadura tipo 2) marcó un antes y un después en la utilería televisiva espacial.",
+                curiosity: "⭐ Dato real: A principios de los años 60, el láser acababa de ser inventado (1960, Theodore Maiman). Gene Roddenberry quiso que Star Trek usara una tecnología más futurista que el láser ordinario y acuñó el término 'Fáser' (PHASed Energy Rectification).",
+                scaleFactor: 4.0,
+                cameraRadius: 5.8
+            },
+            {
+                id: "bridge",
+                folder: "u",
+                file: "scene.gltf",
+                icon: "🚪",
+                title: "Puente USS Enterprise (NCC-1701)",
+                shortTitle: "Puente & Puertas Auto",
+                realInvention: "Puertas Automáticas por Sensor & Centros de Control",
+                sector: "ARQUITECTURA AUTOMATIZADA & SENSORES",
+                description: "El mítico puente de mando circular de la nave estelar Enterprise. Entre sus elementos más influyentes destacaban las puertas correderas automáticas que se abrían con un silbido de aire al aproximarse, las pantallas de visualización integradas y el control por comandos de voz.",
+                curiosity: "⭐ Dato real: Aunque en el rodaje de 1966 dos técnicos tiraban de cuerdas ocultas para abrir las puertas, la fascinación del público impulsó decisivamente a empresas de arquitectura a fabricar las puertas automáticas con sensores de radar e infrarrojos que hoy usamos en todas partes.",
+                scaleFactor: 3.5,
+                cameraRadius: 7.5,
+                hasBridgeDoorAction: true
+            },
+            {
+                id: "spock",
+                folder: "eaglemoss_spock",
+                file: "scene.gltf",
+                icon: "🖖",
+                title: "Comandante Spock (Oficial Científico)",
+                shortTitle: "Spock (Asesoría NASA)",
+                realInvention: "Asesoramiento Científico de la NASA en Ficción",
+                sector: "EL MÉTODO CIENTÍFICO Y LA LÓGICA",
+                description: "El primer oficial y jefe de la división científica de la nave. Medio vulcaniano y medio humano, Spock personifica el rigor analítico, la búsqueda constante de la verdad basada en datos empíricos y el respeto absoluto a todas las formas de vida inteligentes.",
+                curiosity: "⭐ Dato real: Gene Roddenberry contrató como asesores técnicos a investigadores de la NASA y al laboratorio RAND Corporation (como Harvey Lynn) para garantizar que los diálogos científicos de Spock y las especificaciones de la nave tuvieran una base de física matemática rigurosa.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2
+            },
+            {
+                id: "kirk",
+                folder: "eaglemoss_kirk",
+                file: "scene.gltf",
+                icon: "🚀",
+                title: "Capitán James T. Kirk (Mando)",
+                shortTitle: "Capitán Kirk",
+                realInvention: "Inspiración de Vocaciones Espaciales Reales",
+                sector: "LIDERAZGO Y EXPLORACIÓN CÓSMICA",
+                description: "El carismático capitán al frente de la legendaria misión de cinco años de la nave estelar Enterprise. Su misión: explorar nuevos y extraños mundos, buscar nuevas formas de vida y nuevas civilizaciones, y viajar audazmente hacia donde nadie ha llegado jamás.",
+                curiosity: "⭐ Dato real: El impacto social de Kirk y la Enterprise fue tan extraordinario que en 1976 los ciudadanos enviaron cientos de miles de cartas a la Casa Blanca para que la NASA bautizara su primer transbordador espacial de pruebas como 'Enterprise'.",
+                scaleFactor: 4.2,
+                cameraRadius: 6.2
+            }
+        ];
+
+        // =========================================================================
+        // MOTOR GRÁFICO BABYLON.JS
+        // =========================================================================
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+        
+        let scene = null;
+        let camera = null;
+        let currentPivotNode = null;
+        let autoRotateActive = true;
+        let lightModeStudio = true;
+        let hemiLight = null;
+        let dirLight1 = null;
+        let dirLight2 = null;
+        let glowLayer = null;
+        let currentIndex = 0;
+        let currentIsImageShowcase = false;
+        let currentIsTransporterRoom = false;
+
+        // Variables de interactivos
+        let transporterParticleSystem = null;
+        let transporterMaterials = [];
+        let transporterMeshes = [];
+        let transporterCaptainNodes = [];
+        let teleportAlpha = 1.0;
+        let teleportState = "idle";
+        let teleportTargetTime = 0;
+        let lastTransporterInvisibleState = false;
+        let voiceCorePillars = [];
+        let bridgeTurboliftDoors = [];
+        let isDoorsOpen = false;
+
+        function getModelBaseUrl(subfolder) {
+            const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
+                                   window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
+            const prefix = isDirectFolder ? './' : '../../../MODELOS/STAR%20TRECK/ACCESORIOS/';
+            return prefix + encodeURIComponent(subfolder) + '/';
+        }
+
+        async function initScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.04, 0.06, 0.09, 1.0);
+
+            camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.3, 6.0, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 25;
+            camera.lowerRadiusLimit = 1.0;
+            camera.upperRadiusLimit = 250.0;
+
+            hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 1.2;
+            hemiLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.35);
+
+            dirLight1 = new BABYLON.DirectionalLight("dirLight1", new BABYLON.Vector3(-1, -2, -1.5), scene);
+            dirLight1.intensity = 1.2;
+
+            dirLight2 = new BABYLON.DirectionalLight("dirLight2", new BABYLON.Vector3(1.5, 1.5, 1.0), scene);
+            dirLight2.intensity = 0.9;
+
+            glowLayer = new BABYLON.GlowLayer("glow", scene);
+            glowLayer.intensity = 0.8;
+
+            scene.onBeforeRenderObservable.add(() => {
+                let dt = engine.getDeltaTime();
+
+                if (autoRotateActive && currentPivotNode && !currentIsImageShowcase && !currentIsTransporterRoom) {
+                    currentPivotNode.rotation.y += 0.0016;
+                }
+
+                // Animación pulsante del núcleo de la computadora
+                if (voiceCorePillars.length > 0) {
+                    const time = Date.now() * 0.003;
+                    voiceCorePillars.forEach((p, idx) => {
+                        const pulse = 0.8 + Math.sin(time + idx * 0.7) * 0.35;
+                        p.scaling.y = pulse;
+                    });
+                }
+
+                // Lógica de Teletransporte con Burbujas y Desmaterialización
+                if (currentIsTransporterRoom) {
+                    let dt = Math.min(engine.getDeltaTime(), 33.33); // Protección contra saltos por picos de lag
+                    let speed = 0.01 * (dt / 16.66);
+                    let now = Date.now();
+
+                    if (teleportState === "pre_dissolve") {
+                        if (now >= teleportTargetTime) teleportState = "dissolving";
+                    } 
+                    else if (teleportState === "dissolving") {
+                        teleportAlpha -= speed;
+                        if (teleportAlpha <= 0) {
+                            teleportAlpha = 0;
+                            teleportState = "post_dissolve";
+                            teleportTargetTime = Date.now() + 2000;
+                        }
+                    }
+                    else if (teleportState === "post_dissolve") {
+                        if (now >= teleportTargetTime) {
+                            teleportState = "idle_empty";
+                            if (transporterParticleSystem) transporterParticleSystem.emitRate = 0;
+                        }
+                    }
+                    else if (teleportState === "pre_materialize") {
+                        if (now >= teleportTargetTime) teleportState = "materializing";
+                    }
+                    else if (teleportState === "materializing") {
+                        teleportAlpha += speed;
+                        if (teleportAlpha >= 1) {
+                            teleportAlpha = 1;
+                            teleportState = "post_materialize";
+                            teleportTargetTime = Date.now() + 2000;
+                        }
+                    }
+                    else if (teleportState === "post_materialize") {
+                        if (now >= teleportTargetTime) {
+                            teleportState = "idle";
+                            if (transporterParticleSystem) transporterParticleSystem.emitRate = 0;
+                        }
+                    }
+
+                    // Aplicar alpha a los materiales de forma continua y limpia (sin recomposiciones de pipeline)
+                    transporterMaterials.forEach(mat => {
+                        mat.alpha = teleportAlpha;
+                    });
+
+                    // Ocultar mallas solo al alcanzar invisibilidad total (sin toggles constantes)
+                    const isFullyInvisible = (teleportAlpha <= 0.001);
+                    if (isFullyInvisible !== lastTransporterInvisibleState) {
+                        lastTransporterInvisibleState = isFullyInvisible;
+                        transporterMeshes.forEach(m => {
+                            m.isVisible = !isFullyInvisible;
+                        });
+                    }
+                }
+            });
+
+            engine.runRenderLoop(() => {
+                if (scene && scene.activeCamera) {
+                    scene.render();
+                }
+            });
+
+            buildCarouselUI();
+            setupHeaderButtons();
+            await loadModel(0);
+        }
+
+        // =========================================================================
+        // CARGA DINÁMICA DE MODELOS 3D
+        // =========================================================================
+        async function loadModel(index) {
+            if (index < 0 || index >= INVENTOS_DB.length) return;
+            currentIndex = index;
+
+            const item = INVENTOS_DB[index];
+            showLoading(true, `Materializando: ${item.shortTitle}`, item.realInvention);
+
+            updateCarouselActiveCard(index);
+            updateInfoPanel(item);
+
+            // Gestionar botones de acción interactiva en el banner
+            const banner = document.getElementById("interactiveBanner");
+            const btn1 = document.getElementById("btnSpecialAction1");
+            const btn2 = document.getElementById("btnSpecialAction2");
+            const btnVid = document.getElementById("btnSpecialVideo");
+            const lbl1 = document.getElementById("specialLabel1");
+            const ic1 = document.getElementById("specialIcon1");
+            const hintPill = document.getElementById("hintPillText");
+
+            if (item.hasVoiceAction) {
+                banner.style.display = "flex";
+                btn2.style.display = "none";
+                if (btnVid) btnVid.style.display = "none";
+                ic1.textContent = "🎤";
+                lbl1.textContent = "HABLAR CON LA COMPUTADORA";
+                btn1.onclick = () => triggerVoiceComputer();
+                hintPill.innerHTML = `<span>💡 Haz clic en el botón para darle una orden de voz al Enterprise</span>`;
+            } else if (item.hasTransporterActions) {
+                banner.style.display = "flex";
+                btn2.style.display = "inline-flex";
+                if (btnVid) btnVid.style.display = "inline-flex";
+                ic1.textContent = "⚡";
+                lbl1.textContent = "DESMATERIALIZAR";
+                document.getElementById("specialLabel2").textContent = "MATERIALIZAR";
+                btn1.onclick = () => triggerDematerialize();
+                btn2.onclick = () => triggerMaterialize();
+                hintPill.innerHTML = `<span>💡 Usa los botones o las teclas Flecha Arriba / Flecha Abajo para teletransportar</span>`;
+            } else if (item.hasBridgeDoorAction) {
+                banner.style.display = "flex";
+                btn2.style.display = "none";
+                if (btnVid) btnVid.style.display = "none";
+                ic1.textContent = "🚪";
+                lbl1.textContent = "ABRIR / CERRAR PUERTAS AUTOMÁTICAS";
+                btn1.onclick = () => triggerBridgeDoors();
+                hintPill.innerHTML = `<span>💡 Pulsa el botón o pulsa la tecla 'D' para accionar las puertas automáticas</span>`;
+            } else {
+                banner.style.display = "none";
+                if (btnVid) btnVid.style.display = "none";
+                hintPill.innerHTML = `<span>🖱️ Arrastra para rotar • Rueda para zoom • Clic derecho para desplazar</span>`;
+            }
+
+            try {
+                if (currentPivotNode) {
+                    currentPivotNode.dispose(false, true);
+                    currentPivotNode = null;
+                }
+                if (transporterParticleSystem) {
+                    transporterParticleSystem.dispose();
+                    transporterParticleSystem = null;
+                }
+                voiceCorePillars = [];
+                transporterMaterials = [];
+                transporterMeshes = [];
+                transporterCaptainNodes = [];
+                bridgeTurboliftDoors = [];
+                isDoorsOpen = false;
+                teleportAlpha = 1.0;
+                teleportState = "idle";
+                lastTransporterInvisibleState = false;
+                currentIsTransporterRoom = !!item.isFullTransporterRoom;
+                if (currentIsTransporterRoom) {
+                    try { preRenderTransporterAudio(); } catch (e) {}
+                }
+
+                // Desactivar GlowLayer y luces direccionales para la Sala de Teletransporte (exacto a P1.3)
+                if (glowLayer) glowLayer.isEnabled = !currentIsTransporterRoom;
+                if (dirLight1) dirLight1.setEnabled(!currentIsTransporterRoom);
+                if (dirLight2) dirLight2.setEnabled(!currentIsTransporterRoom);
+                if (hemiLight) hemiLight.intensity = currentIsTransporterRoom ? 0.4 : 1.2;
+
+                // CASO 1: Imagen 2D HD (Comunicador clásico)
+                if (item.isImageShowcase) {
+                    const isDirectFolder = window.location.pathname.includes('/MODELOS/STAR%20TRECK/ACCESORIOS') || 
+                                           window.location.pathname.includes('/MODELOS/STAR TRECK/ACCESORIOS');
+                    const imgUrl = (isDirectFolder ? './' : '../../../MODELOS/STAR%20TRECK/ACCESORIOS/') + encodeURIComponent(item.imageFile);
+
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                    pivot.rotation.y = 0;
+                    
+                    const card = BABYLON.MeshBuilder.CreatePlane("photoCard", { width: 4.4, height: 4.0 }, scene);
+                    card.parent = pivot;
+                    card.position = new BABYLON.Vector3(0, 0, 0);
+                    
+                    const mat = new BABYLON.StandardMaterial("cardMat", scene);
+                    mat.emissiveTexture = new BABYLON.Texture(imgUrl, scene);
+                    mat.disableLighting = true;
+                    mat.backFaceCulling = false;
+                    card.material = mat;
+
+                    camera.target = BABYLON.Vector3.Zero();
+                    camera.radius = 5.0;
+                    camera.alpha = -Math.PI / 2;
+                    camera.beta = Math.PI / 2;
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                // CASO 2: Computadora por Voz (Núcleo LCARS 3D)
+                if (item.isCustomCore) {
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                    
+                    const baseMat = new BABYLON.StandardMaterial("coreBaseMat", scene);
+                    baseMat.diffuseColor = new BABYLON.Color3(0.12, 0.16, 0.24);
+                    baseMat.specularColor = new BABYLON.Color3(0.6, 0.8, 1.0);
+
+                    const glowMatCyan = new BABYLON.StandardMaterial("glowCyan", scene);
+                    glowMatCyan.emissiveColor = new BABYLON.Color3(0.2, 0.8, 1.0);
+                    glowMatCyan.disableLighting = true;
+
+                    const glowMatAmber = new BABYLON.StandardMaterial("glowAmber", scene);
+                    glowMatAmber.emissiveColor = new BABYLON.Color3(1.0, 0.6, 0.1);
+                    glowMatAmber.disableLighting = true;
+
+                    const base = BABYLON.MeshBuilder.CreateCylinder("coreBase", { height: 0.4, diameter: 4.6 }, scene);
+                    base.parent = pivot;
+                    base.position.y = -1.4;
+                    base.material = baseMat;
+
+                    const topCap = BABYLON.MeshBuilder.CreateCylinder("coreTop", { height: 0.4, diameter: 4.6 }, scene);
+                    topCap.parent = pivot;
+                    topCap.position.y = 1.4;
+                    topCap.material = baseMat;
+
+                    const centerCore = BABYLON.MeshBuilder.CreateCylinder("centerCore", { height: 2.6, diameter: 1.2 }, scene);
+                    centerCore.parent = pivot;
+                    centerCore.material = glowMatCyan;
+
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI * 2) / 6;
+                        const col = BABYLON.MeshBuilder.CreateCylinder("coreCol" + i, { height: 2.4, diameter: 0.35 }, scene);
+                        col.parent = pivot;
+                        col.position.x = Math.cos(angle) * 1.6;
+                        col.position.z = Math.sin(angle) * 1.6;
+                        col.material = (i % 2 === 0) ? glowMatAmber : glowMatCyan;
+                        voiceCorePillars.push(col);
+                    }
+
+                    const ring1 = BABYLON.MeshBuilder.CreateTorus("coreRing1", { diameter: 3.6, thickness: 0.08, tessellation: 48 }, scene);
+                    ring1.parent = pivot;
+                    ring1.material = glowMatCyan;
+
+                    const ring2 = BABYLON.MeshBuilder.CreateTorus("coreRing2", { diameter: 2.6, thickness: 0.08, tessellation: 48 }, scene);
+                    ring2.parent = pivot;
+                    ring2.position.y = 0.5;
+                    ring2.material = glowMatAmber;
+
+                    camera.target = BABYLON.Vector3.Zero();
+                    camera.radius = 6.2;
+                    camera.alpha = -Math.PI / 2.2;
+                    camera.beta = Math.PI / 2.6;
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                // CASO 3: Sala de Teletransporte Completa con Capitanes y Burbujas (Exacta de P1.3)
+                if (item.isFullTransporterRoom) {
+                    const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+
+                    const darkMetalMat = new BABYLON.StandardMaterial("tDarkMetal", scene);
+                    darkMetalMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+                    darkMetalMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.6);
+
+                    const lightMetalMat = new BABYLON.StandardMaterial("tLightMetal", scene);
+                    lightMetalMat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.55);
+                    lightMetalMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+
+                    const emissiveWhiteMat = new BABYLON.StandardMaterial("tGlowWhite", scene);
+                    emissiveWhiteMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                    emissiveWhiteMat.disableLighting = true;
+
+                    // Suelo
+                    const floor = BABYLON.MeshBuilder.CreateGround("tFloor", {width: 200, height: 200}, scene);
+                    floor.parent = pivot;
+                    floor.material = lightMetalMat;
+
+                    // Escalón Base
+                    const baseStep = BABYLON.MeshBuilder.CreateCylinder("tBaseStep", {height: 4, diameter: 70}, scene);
+                    baseStep.parent = pivot;
+                    baseStep.position.y = 2;
+                    baseStep.material = darkMetalMat;
+
+                    // Escalón Superior
+                    const topStep = BABYLON.MeshBuilder.CreateCylinder("tTopStep", {height: 2, diameter: 60}, scene);
+                    topStep.parent = pivot;
+                    topStep.position.y = 5;
+                    topStep.material = darkMetalMat;
+
+                    // Luz Central del Pad
+                    const centerLight = BABYLON.MeshBuilder.CreateCylinder("tCenterLight", {height: 2.1, diameter: 20}, scene);
+                    centerLight.parent = pivot;
+                    centerLight.position.y = 5;
+                    centerLight.material = emissiveWhiteMat;
+
+                    // 5 Pads exteriores
+                    for (let i = 0; i < 5; i++) {
+                        let angle = (i * Math.PI * 2) / 5;
+                        let pad = BABYLON.MeshBuilder.CreateCylinder("tOuterPad" + i, {height: 2.1, diameter: 12}, scene);
+                        pad.parent = pivot;
+                        pad.position.x = Math.cos(angle) * 22;
+                        pad.position.z = Math.sin(angle) * 22;
+                        pad.position.y = 5;
+                        pad.material = emissiveWhiteMat;
+                    }
+
+                    // Pared Trasera Plana
+                    const backWall = BABYLON.MeshBuilder.CreateBox("tBackWall", {width: 120, height: 60, depth: 2}, scene);
+                    backWall.parent = pivot;
+                    backWall.position.y = 30;
+                    backWall.position.z = 45;
+                    backWall.material = lightMetalMat;
+
+                    // Paneles Luminosos en la pared trasera
+                    for (let i = 0; i < 5; i++) {
+                        let panel = BABYLON.MeshBuilder.CreateBox("tPanel" + i, {width: 4, height: 40, depth: 1}, scene);
+                        panel.parent = pivot;
+                        panel.position.x = -40 + (i * 20);
+                        panel.position.z = 44;
+                        panel.position.y = 30;
+                        panel.material = emissiveWhiteMat;
+                    }
+
+                    // Techo
+                    const ceiling = BABYLON.MeshBuilder.CreateBox("tCeiling", {width: 120, height: 2, depth: 60}, scene);
+                    ceiling.parent = pivot;
+                    ceiling.position.y = 60;
+                    ceiling.position.z = 15;
+                    ceiling.material = lightMetalMat;
+
+                    // Consola de Control
+                    const consoleBox = BABYLON.MeshBuilder.CreateBox("tConsoleBox", {width: 15, height: 12, depth: 8}, scene);
+                    consoleBox.parent = pivot;
+                    consoleBox.position = new BABYLON.Vector3(-30, 6, -30);
+                    consoleBox.rotation.y = Math.PI * 0.25;
+                    consoleBox.material = darkMetalMat;
+
+                    const consoleTop = BABYLON.MeshBuilder.CreateBox("tConsoleTop", {width: 14, height: 1, depth: 7}, scene);
+                    consoleTop.parent = pivot;
+                    consoleTop.position = new BABYLON.Vector3(-30, 12, -30);
+                    consoleTop.rotation.y = Math.PI / 4;
+                    consoleTop.rotation.x = Math.PI / 6;
+                    consoleTop.material = emissiveWhiteMat;
+
+                    // Luz Cenital del Pad
+                    const padLight = new BABYLON.PointLight("tPadLight", new BABYLON.Vector3(0, 40, 0), scene);
+                    padLight.parent = pivot;
+                    padLight.intensity = 0.8;
+                    padLight.diffuse = new BABYLON.Color3(0.5, 0.8, 1);
+
+                    // Importar los Capitanes desde MODELOS (Exacto de P1.3)
+                    try {
+                        const capModelUrl = "../../../MODELOS/STAR%20TRECK/low_poly_-_star_trek_captains_rigged_male/";
+                        const result = await BABYLON.SceneLoader.ImportMeshAsync("", capModelUrl, "scene.gltf", scene);
+                        let rootMesh = result.meshes[0];
+                        rootMesh.parent = pivot;
+                        // Escalar modelo original a un tamaño más normal (exacto de P1.3)
+                        rootMesh.scaling = new BABYLON.Vector3(6, 6, 6);
+                        rootMesh.position = new BABYLON.Vector3(0, 6.1, 0); // Altura de los pads (6.1)
+
+                        const consoleMeshNames = ["Object_213", "Object_214", "Object_215", "Object_216", "Object_217"];
+                        transporterMeshes = [];
+                        transporterMaterials = [];
+
+                        // 1. Clasificar mallas directamente desde result.meshes (inmune a jerarquías o desvinculación por skins)
+                        result.meshes.forEach(m => {
+                            if (m === rootMesh) return;
+                            if (glowLayer) glowLayer.addExcludedMesh(m);
+
+                            if (consoleMeshNames.includes(m.name)) {
+                                // Mallas del 6º capitán (operador de la consola)
+                                if (m.material) {
+                                    m.material = m.material.clone(m.material.name + "_console");
+                                    m.material.backFaceCulling = false;
+                                    m.material.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE;
+                                    m.material.alpha = 1.0;
+                                }
+                                m.isVisible = true;
+                                m.setEnabled(true);
+                                m.visibility = 1.0;
+                            } else {
+                                // Mallas de los 5 capitanes en los pads (se teletransportan)
+                                if (m.material) {
+                                    m.material.backFaceCulling = false;
+                                    m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+                                    m.material.alpha = teleportAlpha;
+                                    if (!transporterMaterials.includes(m.material)) {
+                                        transporterMaterials.push(m.material);
+                                    }
+                                }
+                                m.needDepthPrePass = false; // Sin depth pre-pass para evitar doble pase de animación de skins
+                                if (!transporterMeshes.includes(m)) {
+                                    transporterMeshes.push(m);
+                                }
+                                m.isVisible = true;
+                                m.setEnabled(true);
+                                m.visibility = 1.0;
+                            }
+                        });
+
+                        // 2. Colocar y orientar los nodos de cada capitán (exacto de P1.3)
+                        let captainNames = [
+                            "ST-TOS_Captain_34",
+                            "ST-DISC_Captain_68",
+                            "ST-ENT_Captain_102",
+                            "ST-TNG_Captain_136",
+                            "ST-VOY_Captain_170",
+                            "ST-DS9_Captain_204"
+                        ];
+
+                        transporterCaptainNodes = [];
+                        for (let i = 0; i < captainNames.length; i++) {
+                            let capNode = scene.getNodeByName(captainNames[i]);
+                            if (capNode) {
+                                if (i === 5) {
+                                    // El 6º capitán va a la consola de mandos
+                                    rootMesh.computeWorldMatrix(true);
+                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-38, 0, -38), invRootMatrix);
+
+                                    // Rotarlo para que mire a la consola (de espaldas a la cámara)
+                                    capNode.rotationQuaternion = null; 
+                                    capNode.rotation = new BABYLON.Vector3(0, Math.PI * 1.25, 0);
+
+                                } else {
+                                    // Los 5 capitanes restantes van a los 5 pads
+                                    transporterCaptainNodes.push(capNode);
+
+                                    let angle = (i * Math.PI * 2) / 5;
+                                    let worldX = Math.cos(angle) * 22;
+                                    let worldZ = Math.sin(angle) * 22;
+
+                                    rootMesh.computeWorldMatrix(true);
+                                    let invRootMatrix = rootMesh.getWorldMatrix().clone().invert();
+
+                                    capNode.position = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(worldX, 6.1, worldZ), invRootMatrix);
+
+                                    // Con 0 grados mantenemos su orientación original (mirando a la cámara, -Z)
+                                    capNode.rotationQuaternion = null; 
+                                    capNode.rotation = new BABYLON.Vector3(0, 0, 0);
+                                }
+                            }
+                        }
+
+                        // Ejecutar animaciones si las hay (idle)
+                        if (result.animationGroups && result.animationGroups.length > 0) {
+                            result.animationGroups[0].play(true);
+                        }
+
+                    } catch (eCap) {
+                        console.warn("Capitanes teletransporte cargados:", eCap);
+                    }
+
+                    // Sistema de Burbujas de Teletransporte (Exacto de P1.3)
+                    // Sistema de Burbujas de Teletransporte optimizado y fluido
+                    transporterParticleSystem = new BABYLON.ParticleSystem("particles", 2500, scene);
+                    const bubbleTexture = new BABYLON.DynamicTexture("bubbleTexture", 64, scene, true);
+                    const bctx = bubbleTexture.getContext();
+                    bctx.clearRect(0, 0, 64, 64);
+                    bctx.beginPath();
+                    bctx.arc(32, 32, 28, 0, Math.PI * 2);
+                    bctx.fillStyle = "#FFFFFF";
+                    bctx.fill();
+                    bctx.shadowColor = "white";
+                    bctx.shadowBlur = 10;
+                    bctx.fill();
+                    bubbleTexture.update();
+
+                    transporterParticleSystem.particleTexture = bubbleTexture;
+                    transporterParticleSystem.emitter = new BABYLON.Vector3(0, 0, 0); // Exacto como en P1.3 (World origin)
+                    transporterParticleSystem.createBoxEmitter(
+                        new BABYLON.Vector3(0, 1, 0),
+                        new BABYLON.Vector3(0, 1, 0),
+                        new BABYLON.Vector3(-25, 6, -25),
+                        new BABYLON.Vector3(25, 6, 25)
+                    );
+                    transporterParticleSystem.color1 = new BABYLON.Color4(1.0, 1.0, 1.0, 1.0);
+                    transporterParticleSystem.color2 = new BABYLON.Color4(0.9, 0.9, 0.9, 1.0);
+                    transporterParticleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+                    transporterParticleSystem.minSize = 0.2;
+                    transporterParticleSystem.maxSize = 0.8;
+                    transporterParticleSystem.minLifeTime = 0.8;
+                    transporterParticleSystem.maxLifeTime = 1.6;
+                    transporterParticleSystem.emitRate = 0;
+                    transporterParticleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+                    transporterParticleSystem.gravity = new BABYLON.Vector3(0, 20, 0);
+                    transporterParticleSystem.direction1 = new BABYLON.Vector3(-1, 5, -1);
+                    transporterParticleSystem.direction2 = new BABYLON.Vector3(1, 5, 1);
+                    transporterParticleSystem.minAngularSpeed = 0;
+                    transporterParticleSystem.maxAngularSpeed = Math.PI;
+                    transporterParticleSystem.minEmitPower = 5;
+                    transporterParticleSystem.maxEmitPower = 15;
+                    transporterParticleSystem.updateSpeed = 0.02;
+                    transporterParticleSystem.start();
+
+                    camera.target = new BABYLON.Vector3(0, 20, 0);
+                    camera.radius = 125;
+                    camera.alpha = -Math.PI / 2;
+                    camera.beta = Math.PI / 2.25;
+
+                    currentPivotNode = pivot;
+                    setTimeout(() => showLoading(false), 200);
+                    return;
+                }
+
+                // CASO 4: Modelos GLTF Estándar (PADD, Combadge, Tricorder, Fáser, Puente Diorama, Spock, Kirk, etc.)
+                const modelUrl = getModelBaseUrl(item.folder);
+                const result = await BABYLON.SceneLoader.ImportMeshAsync("", modelUrl, item.file, scene);
+                const rootMesh = result.meshes[0];
+
+                if (item.id === "padd") {
+                    rootMesh.getChildMeshes().forEach(m => {
+                        const name = m.name.toLowerCase();
+                        if (name.includes("black") || name.includes("red") || name.includes("blue") ||
+                            m.name.includes("Cube.005") || m.name.includes("Cube.006") || m.name.includes("Cube.007") || 
+                            m.name.includes("Cube.008") || m.name.includes("Cube.009") || m.name.includes("Cube.010")) {
+                            m.setEnabled(false);
+                            m.isVisible = false;
+                        }
+                    });
+                }
+
+                if (item.id === "combadge") {
+                    const goldMat = new BABYLON.StandardMaterial("combadgeGoldMat", scene);
+                    goldMat.diffuseColor = new BABYLON.Color3(0.82, 0.62, 0.14); // Oro noble y cálido de Starfleet (no amarillo plano)
+                    goldMat.specularColor = new BABYLON.Color3(1.0, 0.95, 0.72); // Reflejo metálico pulido brillante
+                    goldMat.specularPower = 36; // Destello nítido que resalta el biselado y relieve de la estrella
+                    goldMat.ambientColor = new BABYLON.Color3(0.22, 0.16, 0.04); // Sombras cálidas profundas en las hendiduras cinceladas
+                    if (rootMesh.material) rootMesh.material = goldMat;
+                    rootMesh.getChildMeshes().forEach(m => {
+                        if (m.convertToFlatShadedMesh) {
+                            m.convertToFlatShadedMesh();
+                        }
+                        m.material = goldMat;
+                    });
+                }
+
+                // 1. Escala proporcional basada en las mallas activas
+                let minInit = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let maxInit = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+                let hasVerts = false;
+
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        minInit = BABYLON.Vector3.Minimize(minInit, b.minimumWorld);
+                        maxInit = BABYLON.Vector3.Maximize(maxInit, b.maximumWorld);
+                        hasVerts = true;
+                    }
+                });
+
+                const initialSize = maxInit.subtract(minInit);
+                const maxDim = Math.max(initialSize.x, initialSize.y, initialSize.z);
+                const targetScale = item.scaleFactor || 3.5;
+                if (hasVerts && maxDim > 0) {
+                    const s = targetScale / maxDim;
+                    rootMesh.scaling = new BABYLON.Vector3(s, s, s);
+                }
+
+                // 2. Orientación local previa
+                if (item.id === "padd") {
+                    if (rootMesh.rotationQuaternion) rootMesh.rotationQuaternion = null;
+                    rootMesh.rotation = new BABYLON.Vector3(Math.PI / 2, Math.PI, 0);
+                } else if (item.isVerticalBadge) {
+                    if (rootMesh.rotationQuaternion) rootMesh.rotationQuaternion = null;
+                    rootMesh.rotation = new BABYLON.Vector3(Math.PI / 2, Math.PI, 0); // Combadge vertical de pie y de frente a la cámara
+                }
+
+                rootMesh.computeWorldMatrix(true);
+
+                // 3. Cálculo del centro geométrico exacto tras rotación y escala
+                let minFinal = new BABYLON.Vector3(Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE);
+                let maxFinal = new BABYLON.Vector3(-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE);
+
+                rootMesh.getChildMeshes().forEach(m => {
+                    if (m.isEnabled() && m.isVisible && m.getTotalVertices && m.getTotalVertices() > 0) {
+                        m.computeWorldMatrix(true);
+                        const b = m.getBoundingInfo().boundingBox;
+                        minFinal = BABYLON.Vector3.Minimize(minFinal, b.minimumWorld);
+                        maxFinal = BABYLON.Vector3.Maximize(maxFinal, b.maximumWorld);
+                    }
+                });
+
+                const worldCenter = BABYLON.Vector3.Center(minFinal, maxFinal);
+
+                // 4. Centrado en el origen (0,0,0) y asignación al nodo pivote de giro
+                const pivot = new BABYLON.TransformNode("pivot_" + item.id, scene);
+                pivot.position = BABYLON.Vector3.Zero();
+                pivot.rotation.y = item.initialRotationY !== undefined ? item.initialRotationY : 0;
+
+                rootMesh.position.subtractInPlace(worldCenter);
+                rootMesh.parent = pivot;
+
+                // Si es el Puente de Mando, localizar el punto exacto del turbolift
+                if (item.id === "bridge") {
+                    // Localizar la malla del turbolift (GRATE_GLOW en la parte posterior)
+                    const grateMesh = rootMesh.getChildMeshes().find(m => m.material && m.material.name && m.material.name.includes("GRATE_GLOW"));
+                    const doorParent = grateMesh ? grateMesh.parent : rootMesh;
+
+                    const doorMat = new BABYLON.PBRMaterial("bDoorMat", scene);
+                    doorMat.albedoColor = new BABYLON.Color3(0.76, 0.16, 0.16); // Rojo turbolift icónico de Star Trek
+                    doorMat.metallic = 0.25;
+                    doorMat.roughness = 0.35;
+                    doorMat.environmentIntensity = 1.3;
+
+                    // El vano real del turbolift está en la pared de popa (Y=252.0, Z=67.0, cubriendo GRATE_GLOW en Y=255.5, detrás de la silla del capitán)
+                    const dL = BABYLON.MeshBuilder.CreateBox("doorLeft", { width: 23.0, height: 76.0, depth: 2.0 }, scene);
+                    dL.parent = doorParent;
+                    dL.rotation.x = Math.PI / 2;
+                    dL.position = new BABYLON.Vector3(-11.5, 252.0, 67.0);
+                    dL.material = doorMat;
+
+                    const dR = BABYLON.MeshBuilder.CreateBox("doorRight", { width: 23.0, height: 76.0, depth: 2.0 }, scene);
+                    dR.parent = doorParent;
+                    dR.rotation.x = Math.PI / 2;
+                    dR.position = new BABYLON.Vector3(11.5, 252.0, 67.0);
+                    dR.material = doorMat;
+
+                    bridgeTurboliftDoors = [dL, dR];
+                }
+
+                camera.target = BABYLON.Vector3.Zero();
+                camera.radius = item.cameraRadius || 5.5;
+                camera.alpha = -Math.PI / 2.2;
+                camera.beta = item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 3.0);
+
+                currentPivotNode = pivot;
+                setTimeout(() => showLoading(false), 200);
+
+            } catch (error) {
+                console.error("Error cargando modelo:", error);
+                showLoading(true, "Error al cargar el artefacto 3D", "Comprueba que los archivos del modelo existan");
+            }
+        }
+
+        // =========================================================================
+        // ACCIONES INTERACTIVAS
+        // =========================================================================
+        function triggerDematerialize() {
+            if (teleportAlpha >= 0.5) {
+                try { playTransporterSound(false); } catch (e) {}
+                teleportState = "pre_dissolve";
+                teleportTargetTime = Date.now() + 1500;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 1000;
+            }
+        }
+
+        function triggerMaterialize() {
+            if (teleportAlpha <= 0.5) {
+                try { playTransporterSound(true); } catch (e) {}
+                teleportState = "pre_materialize";
+                teleportTargetTime = Date.now() + 1500;
+                if (transporterParticleSystem) transporterParticleSystem.emitRate = 1000;
+            }
+        }
+
+        // Banco completo de respuestas de la Computadora LCARS del Enterprise
+        const MASTER_COMPUTER_PHRASES = [
+            "Computadora en línea. Todos los sistemas del Enterprise operan al cien por ciento.",
+            "Reconocimiento de voz confirmado. Procesando solicitud de la Flota Estelar.",
+            "Sensores de largo alcance activos. No se detectan anomalías gravitacionales en este cuadrante.",
+            "Bienvenido a bordo, Capitán. Computadora central a su disposición.",
+            "Acceso a la base de datos de la Federación concedido. Nivel de seguridad diez verificado.",
+            "Simulación de holocubierta preparada. Parámetros de seguridad de la Flota activados.",
+            "Diagnóstico de propulsión warp completado. Métrica de curvatura estable a factor ocho.",
+            "Replicador de materia preparado. Indique el patrón molecular que desea sintetizar.",
+            "Escudos deflectores cargados al noventa y ocho por ciento. Frecuencia modulada.",
+            "Análisis espectrográfico finalizado. No hay presencia de naves hostiles en el sector.",
+            "Canales de comunicación subespacial abiertos con el Cuartel General de la Flota.",
+            "Ajuste de gravedad artificial verificado. Soporte vital en parámetros óptimos.",
+            "Enfermería central informa: constantes biológicas de la tripulación dentro de rangos normales.",
+            "Cálculo de vector de navegación completado. Listos para entrar en órbita sincrónica.",
+            "Transductor de teletransporte en espera. Coordenadas de superficie fijadas con precisión.",
+            "Red de microprocesadores isolineales sincronizada. Velocidad de procesamiento óptima."
+        ];
+
+        let remainingComputerPhrases = [];
+
+        function getNextComputerPhrase() {
+            if (remainingComputerPhrases.length === 0) {
+                // Rellenar y barajar aleatoriamente (algoritmo Fisher-Yates) para que no se repita ninguna hasta agotarlas todas
+                remainingComputerPhrases = [...MASTER_COMPUTER_PHRASES];
+                for (let i = remainingComputerPhrases.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [remainingComputerPhrases[i], remainingComputerPhrases[j]] = [remainingComputerPhrases[j], remainingComputerPhrases[i]];
+                }
+            }
+            return remainingComputerPhrases.pop();
+        }
+
+        // Gestión de voces del navegador con filtro estricto de Español de España (Castellano / es-ES)
+        let availableVoices = [];
+        function populateVoices() {
+            if ('speechSynthesis' in window) {
+                availableVoices = window.speechSynthesis.getVoices();
+            }
+        }
+        if ('speechSynthesis' in window) {
+            populateVoices();
+            window.speechSynthesis.onvoiceschanged = populateVoices;
+        }
+
+        function getSpanishSpainVoice() {
+            if (!('speechSynthesis' in window)) return null;
+            if (availableVoices.length === 0) populateVoices();
+
+            // Filtrar voces estrictamente de España (es-ES), excluyendo dialectos de América Latina
+            const spainVoices = availableVoices.filter(v => {
+                const lang = (v.lang || "").replace("_", "-").toLowerCase();
+                const name = (v.name || "").toLowerCase();
+
+                // Exclusión explícita de América Latina (México, EE.UU., Argentina, Colombia, etc.)
+                const isLatin = lang.includes("es-mx") || lang.includes("es-us") || lang.includes("es-419") ||
+                                lang.includes("es-ar") || lang.includes("es-co") || lang.includes("es-cl") ||
+                                lang.includes("es-pe") || lang.includes("es-ve") ||
+                                name.includes("mexic") || name.includes("paulina") || name.includes("diego") ||
+                                name.includes("juan") || name.includes("francisca") || name.includes("soledad") ||
+                                name.includes("sabina") || name.includes("carlos") || name.includes("lupe") ||
+                                name.includes("latin") || name.includes("america");
+                if (isLatin) return false;
+
+                // Debe ser exactamente es-ES o indicar España / Spain / Castellano
+                return lang === "es-es" || lang === "es" || name.includes("spain") || name.includes("españa") || name.includes("castilian");
+            });
+
+            if (spainVoices.length > 0) {
+                // Preferir voces femeninas o de alta fidelidad de España
+                const preferred = spainVoices.find(v => {
+                    const n = v.name.toLowerCase();
+                    return n.includes("monica") || n.includes("mónica") || n.includes("lucia") || n.includes("lucía") || 
+                           n.includes("helena") || n.includes("laura") || n.includes("elvira") || n.includes("marisol") ||
+                           n.includes("conchita") || n.includes("carmen") || n.includes("siri") || n.includes("jorge") ||
+                           n.includes("enrique") || (n.includes("google") && (v.lang || "").toLowerCase().includes("es-es"));
+                });
+                return preferred || spainVoices[0];
+            }
+
+            return null;
+        }
+
+        function triggerVoiceComputer() {
+            playComputerChime();
+            const phrase = getNextComputerPhrase();
+
+            const hintPill = document.getElementById("hintPillText");
+            if (hintPill) {
+                hintPill.innerHTML = `<span style="color:#ffcc00; font-weight:700;">🗣️ Computadora: "${phrase}"</span>`;
+            }
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Cancelar locución previa
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(phrase);
+                    utterance.lang = "es-ES";
+                    utterance.rate = 0.95;
+                    utterance.pitch = 1.05;
+
+                    const esVoice = getSpanishSpainVoice();
+                    if (esVoice) {
+                        utterance.voice = esVoice;
+                        utterance.lang = esVoice.lang || "es-ES";
+                    }
+
+                    window.speechSynthesis.speak(utterance);
+                }, 300);
+            }
+        }
+
+        function triggerBridgeDoors() {
+            playDoorWhoosh();
+            isDoorsOpen = !isDoorsOpen;
+
+            if (bridgeTurboliftDoors.length >= 2) {
+                const dL = bridgeTurboliftDoors[0];
+                const dR = bridgeTurboliftDoors[1];
+                const offset = isDoorsOpen ? 22.0 : 0.0;
+
+                BABYLON.Animation.CreateAndStartAnimation("doorLAnim", dL, "position.x", 30, 15, dL.position.x, -11.5 - offset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                BABYLON.Animation.CreateAndStartAnimation("doorRAnim", dR, "position.x", 30, 15, dR.position.x, 11.5 + offset, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+
+                // Auto-cerrar tras 3.5 segundos si se abrieron
+                if (isDoorsOpen) {
+                    setTimeout(() => {
+                        if (isDoorsOpen) {
+                            playDoorWhoosh();
+                            isDoorsOpen = false;
+                            BABYLON.Animation.CreateAndStartAnimation("doorLAnim", dL, "position.x", 30, 15, dL.position.x, -11.5, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                            BABYLON.Animation.CreateAndStartAnimation("doorRAnim", dR, "position.x", 30, 15, dR.position.x, 11.5, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+                        }
+                    }, 3500);
+                }
+            }
+        }
+
+        // =========================================================================
+        // INTERFAZ DE USUARIO: CARRUSEL & FICHA TÉCNICA
+        // =========================================================================
+        function buildCarouselUI() {
+            const track = document.getElementById("carouselTrack");
+            track.innerHTML = "";
+
+            INVENTOS_DB.forEach((item, idx) => {
+                const card = document.createElement("div");
+                card.className = `showcase-card ${idx === 0 ? 'active' : ''}`;
+                card.id = `card-${idx}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="card-icon">${item.icon}</span>
+                        <span class="card-number">${idx + 1 < 10 ? '0' : ''}${idx + 1}</span>
+                    </div>
+                    <div>
+                        <div class="card-title">${item.shortTitle}</div>
+                        <div class="card-invention">${item.realInvention}</div>
+                    </div>
+                `;
+                card.addEventListener("click", () => {
+                    loadModel(idx);
+                });
+                track.appendChild(card);
+            });
+
+            document.getElementById("btnPrevCard").addEventListener("click", () => {
+                const prevIndex = (currentIndex - 1 + INVENTOS_DB.length) % INVENTOS_DB.length;
+                loadModel(prevIndex);
+            });
+
+            document.getElementById("btnNextCard").addEventListener("click", () => {
+                const nextIndex = (currentIndex + 1) % INVENTOS_DB.length;
+                loadModel(nextIndex);
+            });
+
+            window.addEventListener("keydown", (e) => {
+                if (e.code === "Space") {
+                    e.preventDefault();
+                    toggleAutoRotate();
+                } else if (e.key === "ArrowLeft") {
+                    const prevIndex = (currentIndex - 1 + INVENTOS_DB.length) % INVENTOS_DB.length;
+                    loadModel(prevIndex);
+                } else if (e.key === "ArrowRight") {
+                    const nextIndex = (currentIndex + 1) % INVENTOS_DB.length;
+                    loadModel(nextIndex);
+                } else if (e.key === "ArrowUp") {
+                    triggerDematerialize();
+                } else if (e.key === "ArrowDown") {
+                    triggerMaterialize();
+                } else if (e.key.toLowerCase() === "d") {
+                    triggerBridgeDoors();
+                }
+            });
+        }
+
+        function updateCarouselActiveCard(activeIndex) {
+            const cards = document.querySelectorAll(".showcase-card");
+            cards.forEach((card, idx) => {
+                if (idx === activeIndex) {
+                    card.classList.add("active");
+                    card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                } else {
+                    card.classList.remove("active");
+                }
+            });
+        }
+
+        function updateInfoPanel(item) {
+            document.getElementById("infoSector").textContent = item.sector;
+            document.getElementById("infoTitle").textContent = item.title;
+            document.getElementById("infoRealInvention").textContent = item.realInvention;
+            document.getElementById("infoDescription").textContent = item.description;
+            document.getElementById("infoCuriosity").textContent = item.curiosity;
+        }
+
+        function showLoading(show, mainText, subText) {
+            const overlay = document.getElementById("loadingOverlay");
+            const txt = document.getElementById("loadingText");
+            const sub = document.getElementById("loadingSubtext");
+
+            if (show) {
+                if (mainText) txt.textContent = mainText;
+                if (subText) sub.textContent = subText;
+                overlay.style.display = "flex";
+                overlay.className = "active";
+            } else {
+                overlay.className = "hidden";
+                setTimeout(() => {
+                    if (overlay.classList.contains("hidden")) {
+                        overlay.style.display = "none";
+                    }
+                }, 300);
+            }
+        }
+
+        function toggleAutoRotate() {
+            autoRotateActive = !autoRotateActive;
+            const btn = document.getElementById("btnAutoRotate");
+            const icon = document.getElementById("iconAutoRotate");
+            const label = document.getElementById("labelAutoRotate");
+
+            if (autoRotateActive) {
+                btn.classList.add("active");
+                icon.textContent = "⏸️";
+                label.textContent = "Pausa";
+            } else {
+                btn.classList.remove("active");
+                icon.textContent = "▶️";
+                label.textContent = "Girar";
+            }
+        }
+
+        function setupHeaderButtons() {
+            document.getElementById("btnAutoRotate").addEventListener("click", toggleAutoRotate);
+
+            document.getElementById("btnResetView").addEventListener("click", () => {
+                if (camera) {
+                    if (currentIsTransporterRoom) {
+                        camera.target = new BABYLON.Vector3(0, 20, 0);
+                        camera.radius = 125;
+                        camera.alpha = -Math.PI / 2;
+                        camera.beta = Math.PI / 2.25;
+                    } else {
+                        const item = INVENTOS_DB[currentIndex];
+                        camera.alpha = -Math.PI / 2.2;
+                        camera.beta = item && item.id === "padd" ? (Math.PI / 2.05) : (Math.PI / 2.8);
+                        camera.radius = (item && item.cameraRadius) || 5.5;
+                        camera.target = BABYLON.Vector3.Zero();
+                    }
+                }
+            });
+
+            document.getElementById("btnToggleLight").addEventListener("click", () => {
+                lightModeStudio = !lightModeStudio;
+                const label = document.getElementById("labelLight");
+
+                if (lightModeStudio) {
+                    label.textContent = "Luz: Estudio";
+                    if (hemiLight) hemiLight.intensity = 1.2;
+                    if (dirLight1) dirLight1.intensity = 1.2;
+                    if (dirLight2) dirLight2.intensity = 0.9;
+                } else {
+                    label.textContent = "Luz: Espacio";
+                    if (hemiLight) hemiLight.intensity = 0.4;
+                    if (dirLight1) dirLight1.intensity = 1.8;
+                    if (dirLight2) dirLight2.intensity = 0.3;
+                }
+            });
+
+            document.getElementById("btnToggleInfo").addEventListener("click", () => {
+                const panel = document.getElementById("infoPanel");
+                panel.classList.toggle("hidden");
+            });
+        }
+
+        window.addEventListener("resize", () => {
+            engine.resize();
+        });
+
+        initScene();
+    </script>
+</body>
+</html>
