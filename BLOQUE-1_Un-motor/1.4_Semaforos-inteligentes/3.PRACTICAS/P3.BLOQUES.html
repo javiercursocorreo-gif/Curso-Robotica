@@ -253,6 +253,18 @@ MEJORAS:
             flex-grow: 1;
             overflow-y: auto;
             padding-bottom: 80px;
+            min-height: 120px;
+        }
+
+        #sequence-zone:empty::before {
+            content: 'Arrastra aquí los bloques de tu programa...';
+            color: #777;
+            font-style: italic;
+            font-size: 14px;
+            text-align: center;
+            margin: auto;
+            padding: 20px 10px;
+            pointer-events: none;
         }
 
         /* BLOQUES COMPACTOS */
@@ -742,9 +754,9 @@ MEJORAS:
         const MISIONES = {
             1: {
                 title: "MISIÓN 1 — El ciclo básico",
-                desc: "El semáforo ya está programado. Pulsa EJECUTAR y observa el ciclo normal.",
-                hint: "",
-                preset: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                desc: "Programa el semáforo para realizar el ciclo normal: verde (5s) → amarillo (3s) → rojo (5s) → repetir siempre.",
+                hint: "Arrastra los bloques: Verde, Esperar 5s, Amarillo, Esperar 3s, Rojo, Esperar 5s y Repetir siempre.",
+                preset: [],
                 solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
                 validate: (seq) => {
                     const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
@@ -752,10 +764,10 @@ MEJORAS:
                 }
             },
             2: {
-                title: "MISIÓN 2 — Algo está mal",
-                desc: "Reordena los bloques equivocados para que quede: verde → amarillo → rojo.",
-                hint: "",
-                preset: ['ROJO', 'WAIT_5', 'VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'LOOP'],
+                title: "MISIÓN 2 — La secuencia correcta",
+                desc: "Construye la secuencia lógica para que quede: verde (5s) → amarillo (3s) → rojo (5s) → repetir siempre.",
+                hint: "Recuerda que cada color debe ir seguido de su tiempo de espera antes del siguiente color.",
+                preset: [],
                 solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
                 validate: (seq) => {
                     const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
@@ -763,10 +775,10 @@ MEJORAS:
                 }
             },
             3: {
-                title: "MISIÓN 3 — El semáforo siempre en rojo",
-                desc: "Añade los bloques que faltan para completar el ciclo completo.",
-                hint: "",
-                preset: ['ROJO'],
+                title: "MISIÓN 3 — El ciclo completo",
+                desc: "Programa el ciclo completo del semáforo desde el principio con todos sus bloques.",
+                hint: "Verde 5s, Amarillo 3s, Rojo 5s y Repetir siempre.",
+                preset: [],
                 solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
                 validate: (seq) => {
                     const target = ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'];
@@ -775,9 +787,9 @@ MEJORAS:
             },
             4: {
                 title: "MISIÓN 4 — La ambulancia",
-                desc: "Añade el bloque AMBULANCIA en cualquier parte de la secuencia normal. Pulsa Ejecutar y luego usa el botón 'Simular Ambulancia'.",
-                hint: "",
-                preset: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'LOOP'],
+                desc: "Programa el ciclo normal y añade el bloque AMBULANCIA en cualquier parte del programa. Pulsa Ejecutar y luego prueba 'Simular Ambulancia'.",
+                hint: "Coloca la secuencia completa del semáforo más el bloque naranja de Ambulancia.",
+                preset: [],
                 solution: ['VERDE', 'WAIT_5', 'AMARILLO', 'WAIT_3', 'ROJO', 'WAIT_5', 'AMBULANCIA', 'LOOP'],
                 validate: (seq) => {
                     const noAmb = seq.filter(x => x !== 'AMBULANCIA');
