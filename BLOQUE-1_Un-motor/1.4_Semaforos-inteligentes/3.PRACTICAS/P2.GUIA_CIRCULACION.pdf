@@ -1,0 +1,262 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Contents 7 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+7 0 obj
+<< /Length 5265 >>
+stream
+0.080 0.550 0.450 rg
+42.00 815.89 511.28 5.00 re f
+0.080 0.550 0.450 rg
+BT /F2 10 Tf 42.00 789.89 Td (CURSO DE ROBOTICA - CLASE 1.4: SEMAFOROS INTELIGENTES) Tj ET
+0.080 0.120 0.220 rg
+BT /F2 17 Tf 42.00 767.89 Td (¿COMO FUNCIONA LA CIRCULACION DE LOS COCHES?) Tj ET
+0.400 0.450 0.520 rg
+BT /F3 10.5 Tf 42.00 752.89 Td (Guia didactica y sencilla para entender el simulador 3D \(P2.EJEMPLO-REAL\)) Tj ET
+0.850 0.880 0.920 RG
+1.00 w
+42.00 736.89 m 553.28 736.89 l S
+0.960 0.970 0.990 rg
+0.820 0.860 0.920 RG
+0.80 w
+42.00 644.89 511.28 74.00 re B
+0.080 0.550 0.450 rg
+42.00 644.89 4.00 74.00 re f
+0.080 0.550 0.450 rg
+BT /F2 11 Tf 56.00 700.89 Td (UNA CIUDAD QUE PIENSA POR SI MISMA \(SIN PERSONAS AL VOLANTE\)) Tj ET
+0.150 0.200 0.280 rg
+BT /F1 9.5 Tf 56.00 684.89 Td (En nuestra pantalla vemos decenas de coches moviendose al mismo tiempo y semaforos) Tj ET
+0.150 0.200 0.280 rg
+BT /F1 9.5 Tf 56.00 671.89 Td (cambiando de color. No hay ningun policia dirigiendo el trafico ni conductores humanos) Tj ET
+0.150 0.200 0.280 rg
+BT /F1 9.5 Tf 56.00 658.89 Td (que toquen el claxon. Sin embargo, nadie choca, nadie se sube a la acera y las filas se) Tj ET
+0.150 0.200 0.280 rg
+BT /F1 9.5 Tf 56.00 645.89 Td (organizan con total serenidad. ¿Cual es el secreto? Todo se basa en cuatro reglas) Tj ET
+0.150 0.200 0.280 rg
+BT /F1 9.5 Tf 56.00 632.89 Td (sencillas de sentido comun que imitan la vida real.) Tj ET
+0.980 0.980 0.990 rg
+0.860 0.880 0.920 RG
+42.00 449.89 511.28 175.00 re B
+0.850 0.250 0.200 rg
+42.00 449.89 4.00 175.00 re f
+0.850 0.250 0.200 rg
+BT /F2 12 Tf 56.00 604.89 Td (1. EL 'SEGUNDO DE ORO': ¿POR QUE NO CHOCAN EN EL CRUCE?) Tj ET
+0.100 0.150 0.220 rg
+BT /F2 10 Tf 56.00 586.89 Td (La regla de oro: Cuando una calle se cierra, la otra NO se abre al instante.) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 571.89 Td (Imagina que el semaforo de la avenida principal se pone en rojo y, exactamente en esa) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 558.89 Td (misma milesima de segundo, el de la calle que cruza se pusiera en verde. ¿Que ocurriria?) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 545.89 Td (Un desastre seguro: cualquier coche que estuviera terminando de pasar en ambar chocaria) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 532.89 Td (de lleno contra los que arrancan en perpendicular.) Tj ET
+0.080 0.550 0.450 rg
+BT /F2 10 Tf 56.00 514.89 Td (El 'tiempo de despeje' \(Todos en rojo\):) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 500.89 Td (Por eso, el sistema tiene programada una pausa de proteccion de 1 a 2 segundos donde) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 487.89 Td (TODOS los semaforos del cruce se mantienen en rojo al mismo tiempo. Ese segundo de) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 474.89 Td (silencio permite que el cruce quede completamente vacio y despejado. Solo cuando la) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 461.89 Td (calzada esta libre, el semaforo de la calle cruzada recibe el permiso para ponerse) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 448.89 Td (verde. Es un margen de seguridad vital que salva vidas a diario.) Tj ET
+0.980 0.980 0.990 rg
+0.860 0.880 0.920 RG
+42.00 244.89 511.28 185.00 re B
+0.120 0.450 0.750 rg
+42.00 244.89 4.00 185.00 re f
+0.120 0.450 0.750 rg
+BT /F2 12 Tf 56.00 409.89 Td (2. EL 'RADAR INVISIBLE': ¿COMO GUARDAN LA DISTANCIA DE SEGURIDAD?) Tj ET
+0.100 0.150 0.220 rg
+BT /F2 10 Tf 56.00 391.89 Td (Cada coche lleva un sensor frontal que mide constantemente el espacio libre.) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 376.89 Td (En una maqueta de robotica o en un coche autonomo real, la vista del vehiculo es un) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 363.89 Td (sensor de distancia \(como los ultrasonidos de un murcielago o el radar de aparcamiento\).) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 350.89 Td (Cada coche en la pantalla sabe a cuantos metros tiene al vehiculo que le precede y actua) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 337.89 Td (en tres fases sencillas:) Tj ET
+0.120 0.450 0.750 rg
+BT /F2 9.5 Tf 64.00 320.89 Td (- A mas de 20 metros:) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 192.00 320.89 Td (La calzada esta despejada. El coche rueda a velocidad normal \(50 km/h\).) Tj ET
+0.120 0.450 0.750 rg
+BT /F2 9.5 Tf 64.00 306.89 Td (- A menos de 20 metros:) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 192.00 306.89 Td (Detecta al coche de delante frenando. Levanta el acelerador y aminora suavemente.) Tj ET
+0.120 0.450 0.750 rg
+BT /F2 9.5 Tf 64.00 292.89 Td (- A 5 metros:) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 192.00 292.89 Td (Se detiene por completo manteniendo un colchon comodo de separacion.) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 276.89 Td (Gracias a este comportamiento en cadena, cuando el primer coche frena en el semaforo,) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 263.89 Td (el segundo frena detras, el tercero detras de este, y asi se forma una hilera perfecta) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 250.89 Td (sin sustos, sin golpes en la chapa y sin atascos.) Tj ET
+0.500 0.550 0.600 rg
+BT /F1 8.5 Tf 42.00 26.00 Td (Clase 1.4: Semáforos Inteligentes - Simulación de Tráfico Real) Tj ET
+0.500 0.550 0.600 rg
+BT /F2 8.5 Tf 483.28 26.00 Td (Página 1 de 2) Tj ET
+
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Contents 9 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 5861 >>
+stream
+0.080 0.550 0.450 rg
+42.00 815.89 511.28 5.00 re f
+0.080 0.550 0.450 rg
+BT /F2 10 Tf 42.00 789.89 Td (CURSO DE ROBOTICA - CLASE 1.4: SEMAFOROS INTELIGENTES) Tj ET
+0.080 0.120 0.220 rg
+BT /F2 17 Tf 42.00 767.89 Td (COORDINACION AVANZADA, OLA VERDE Y EMERGENCIAS) Tj ET
+0.400 0.450 0.520 rg
+BT /F3 10.5 Tf 42.00 752.89 Td (Como cooperan los semaforos y los coches para mantener la ciudad en movimiento) Tj ET
+0.850 0.880 0.920 RG
+1.00 w
+42.00 736.89 m 553.28 736.89 l S
+0.980 0.980 0.990 rg
+0.860 0.880 0.920 RG
+42.00 568.89 511.28 150.00 re B
+0.920 0.580 0.120 rg
+42.00 568.89 4.00 150.00 re f
+0.920 0.580 0.120 rg
+BT /F2 12 Tf 56.00 698.89 Td (3. LA REGLA DE ORO: 'NUNCA TAPONAR EL CRUCE') Tj ET
+0.100 0.150 0.220 rg
+BT /F2 10 Tf 56.00 680.89 Td (¿Por que un coche no avanza si tiene luz verde pero la calle de enfrente esta llena?) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 665.89 Td (Seguro que has vivido esta situacion en tu ciudad: tienes el semaforo en verde, avanzas) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 652.89 Td (confiado, pero delante de ti hay una retencion y te quedas parado justo en medio de la) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 639.89 Td (interseccion. Cuando a los otros coches se les pone el verde, no pueden pasar porque tu) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 626.89 Td (coche les corta el paso. ¡El cruce queda bloqueado!) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 609.89 Td (En nuestro simulador los vehiculos son educados y muy prudentes: antes de cruzar la) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 596.89 Td (linea blanca, miran si al otro lado del paso hay un hueco libre donde quepa su vehiculo.) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 583.89 Td (Si el otro lado esta lleno, SE QUEDAN ESPERANDO detras de la linea, aunque su semaforo) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 570.89 Td (este verde. Solo avanzan cuando tienen garantizado que podran despejar el cruce) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 557.89 Td (completamente. Asi nunca se forman atascos cruzados.) Tj ET
+0.980 0.980 0.990 rg
+0.860 0.880 0.920 RG
+42.00 415.89 511.28 135.00 re B
+0.080 0.650 0.400 rg
+42.00 415.89 4.00 135.00 re f
+0.080 0.650 0.400 rg
+BT /F2 12 Tf 56.00 530.89 Td (4. LA 'OLA VERDE': LA ALFOMBRA MAGICA DE LA GRAN AVENIDA) Tj ET
+0.100 0.150 0.220 rg
+BT /F2 10 Tf 56.00 512.89 Td (¿Como se coordinan tres semaforos seguidos para no tener que frenar nunca?) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 497.89 Td (¿Te has fijado en el boton 'OLA VERDE' del panel lateral? Cuando lo pulsas, los tres) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 484.89 Td (semaforos de la avenida se conectan a un reloj sincronizado. Sabiendo que los coches) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 471.89 Td (ruedan a 50 km/h y conociendo la distancia entre calles, el segundo semaforo se abre) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 458.89 Td (exactamente unos segundos despues del primero, y el tercero despues del segundo. El) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 445.89 Td (grupo de coches que arranca en el primer cruce se encuentra todos los semaforos abiertos) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 432.89 Td (como si les tendieran una alfombra roja. Es la forma mas inteligente de ahorrar) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.5 Tf 56.00 419.89 Td (combustible y tiempo.) Tj ET
+0.960 0.970 0.990 rg
+0.820 0.860 0.920 RG
+42.00 202.89 511.28 195.00 re B
+0.850 0.200 0.200 rg
+42.00 202.89 4.00 195.00 re f
+0.850 0.200 0.200 rg
+BT /F2 12 Tf 56.00 377.89 Td (5. EL RITMO DE LA CIUDAD Y LA PRIORIDAD DE AMBULANCIA) Tj ET
+0.100 0.150 0.220 rg
+BT /F2 10 Tf 56.00 359.89 Td (Los 5 botones del panel lateral simulan la vida real de cualquier gran ciudad:) Tj ET
+0.100 0.150 0.250 rg
+BT /F2 9.2 Tf 60.00 344.89 Td (HORA NORMAL:) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 344.89 Td (Tiempos equilibrados. Pasan coches tanto por la avenida como) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 331.89 Td (por las calles secundarias.) Tj ET
+0.100 0.150 0.250 rg
+BT /F2 9.2 Tf 60.00 316.89 Td (HORA VALLE \(Noche\):) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 316.89 Td (Poco trafico. Tiempos cortos de espera para no tener a nadie) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 303.89 Td (parado en soledad.) Tj ET
+0.100 0.150 0.250 rg
+BT /F2 9.2 Tf 60.00 288.89 Td (HORA PUNTA \(Manana\):) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 288.89 Td (Grandes caravanas. La avenida principal recibe el verde mas) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 275.89 Td (largo para evitar colapsos.) Tj ET
+0.100 0.150 0.250 rg
+BT /F2 9.2 Tf 60.00 260.89 Td (OLA VERDE:) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 260.89 Td (Sincronizacion en cascada para circular sin parar de un) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 247.89 Td (extremo a otro de la ciudad.) Tj ET
+0.100 0.150 0.250 rg
+BT /F2 9.2 Tf 60.00 232.89 Td (AMBULANCIA \(Sirena\):) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 232.89 Td (Prioridad absoluta. Todas las calles que cruzan se bloquean) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 219.89 Td (inmediatamente en rojo y la avenida se mantiene abierta en) Tj ET
+0.200 0.250 0.320 rg
+BT /F1 9.2 Tf 202.00 206.89 Td (verde de par en par hasta que el vehiculo de socorro cruza.) Tj ET
+0.920 0.960 0.950 rg
+0.500 0.750 0.650 RG
+42.00 138.89 511.28 48.00 re B
+0.080 0.550 0.450 rg
+BT /F2 10 Tf 56.00 168.89 Td (CONCLUSION PARA EL ALUMNO:) Tj ET
+0.150 0.250 0.250 rg
+BT /F3 9.5 Tf 56.00 152.89 Td (La robotica no consiste en aparatos complicados, sino en ensenar a las maquinas a cooperar con orden y prudencia.) Tj ET
+0.500 0.550 0.600 rg
+BT /F1 8.5 Tf 42.00 26.00 Td (Clase 1.4: Semáforos Inteligentes - Simulación de Tráfico Real) Tj ET
+0.500 0.550 0.600 rg
+BT /F2 8.5 Tf 483.28 26.00 Td (Página 2 de 2) Tj ET
+
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000224 00000 n 
+0000000326 00000 n 
+0000000431 00000 n 
+0000000583 00000 n 
+0000005900 00000 n 
+0000006052 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+11965
+%%EOF

@@ -247,6 +247,30 @@
             flex-shrink: 0;
         }
 
+        .pdf-link-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(239, 68, 68, 0.16);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        .pdf-link-btn:hover {
+            background: rgba(239, 68, 68, 0.32);
+            border-color: #ef4444;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+        }
+
         .bottom-bar {
             margin-top: 36px;
             background: rgba(15, 23, 42, 0.6);
@@ -348,7 +372,7 @@
                 <div class="branch-header">
                     <span class="branch-badge">FASE 2</span>
                     <h3 class="branch-title">Montaje y Gemelo Digital</h3>
-                    <span class="branch-count">2 simuladores</span>
+                    <span class="branch-count">2 simuladores + 1 guía</span>
                 </div>
                 <div class="file-stack">
                     
@@ -363,16 +387,25 @@
             <span class="file-arrow" style="color: var(--emerald);">↗</span>
         </a>
     
-        <a href="3.PRACTICAS/P2.EJEMPLO-REAL.html" target="_blank" class="file-card">
-            <div class="file-left">
-                <span class="file-tag tag-html">P2</span>
-                <div class="file-details">
-                    <span class="file-title">P2.EJEMPLO-REAL.html</span>
-                    <span class="file-desc">Simulador de tráfico urbano y paso de peatones.</span>
+        <div class="file-card" style="flex-direction: column; align-items: stretch; gap: 10px;">
+            <a href="3.PRACTICAS/P2.EJEMPLO-REAL.html" target="_blank" style="display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: inherit; width: 100%;">
+                <div class="file-left">
+                    <span class="file-tag tag-html">P2</span>
+                    <div class="file-details">
+                        <span class="file-title">P2.EJEMPLO-REAL.html</span>
+                        <span class="file-desc">Simulador de tráfico urbano y paso de peatones.</span>
+                    </div>
                 </div>
+                <span class="file-arrow" style="color: var(--emerald);">↗</span>
+            </a>
+            <div style="border-top: 1px dashed rgba(255, 255, 255, 0.12); padding-top: 8px;">
+                <a href="3.PRACTICAS/P2.GUIA_CIRCULACION.pdf" target="_blank" class="pdf-link-btn">
+                    <span style="font-size: 1rem;">📄</span>
+                    <span>¿Cómo funciona la circulación? (Guía PDF para Alumnos)</span>
+                    <span style="font-size: 0.85rem;">↗</span>
+                </a>
             </div>
-            <span class="file-arrow" style="color: var(--emerald);">↗</span>
-        </a>
+        </div>
     
                 </div>
             </div>
@@ -416,7 +449,7 @@
         <div class="bottom-bar">
             <div>
                 <span class="status-dot"></span>
-                <span>Clase activa e independiente • 7 recursos vinculados</span>
+                <span>Clase activa e independiente • 8 recursos vinculados (incluye Guía PDF)</span>
             </div>
             <div>
                 <span>Solo un enlace en Classroom para toda la clase</span>
