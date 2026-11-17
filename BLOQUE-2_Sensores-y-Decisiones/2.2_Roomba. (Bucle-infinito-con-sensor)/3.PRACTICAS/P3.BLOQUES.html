@@ -461,7 +461,7 @@ MEJORAS:
         
         <div id="mission-info">
             <h2 id="m-title">MISIÓN 1 — CUADRADO</h2>
-            <p id="m-desc">El Roomba debe recorrer el perímetro de la habitación siguiendo las paredes. Pulsa EJECUTAR para ver cómo la secuencia pre-cargada produce un recorrido cuadrado.</p>
+            <p id="m-desc">El Roomba debe recorrer el perímetro de la habitación siguiendo las paredes. Arrastra los bloques necesarios a la Secuencia de Limpieza para completar un recorrido cuadrado.</p>
         </div>
 
         <div style="display: flex; flex: 1; overflow: hidden;">
@@ -542,7 +542,7 @@ let cellScale = 2; // Cada celda es de 2x2 unidades
 const missions = {
     1: {
         title: "MISIÓN 1 — CUADRADO",
-        desc: "El Roomba debe recorrer el perímetro de la habitación. Bloques ya colocados. Pulsa EJECUTAR para ver cómo la secuencia produce un recorrido cuadrado.",
+        desc: "El Roomba debe recorrer el perímetro de la habitación siguiendo las paredes.<br><br><b>Objetivo:</b> arrastra los bloques necesarios (AVANZAR y GIRAR) a la Secuencia de Limpieza para completar un recorrido cuadrado.",
         obstacles:[],
         redZone: false,
         target: 4,
@@ -925,9 +925,6 @@ function loadMission(id, keepSequence = false) {
     
     if (!keepSequence) {
         document.getElementById('main-sequence').innerHTML = '';
-        if (id === 1) {
-            buildSequence(correctSolutions[1], document.getElementById('main-sequence'));
-        }
         checkExecuteBtn();
     }
     
